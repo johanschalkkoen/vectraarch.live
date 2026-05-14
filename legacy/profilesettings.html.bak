@@ -140,10 +140,16 @@
 <script type="text/babel">
   const { useState, useEffect, useCallback } = React;
   const API_BASE = '/legacy/api';
-  // Identity calls go through the Legacy proxy (/legacy/api/identity/*)
-  // The proxy injects the API key server-side — no key in the browser.
   const IDENTITY_BASE = '/api/identity';
-  const getIdentityKey = () => ''; // key handled server-side by the proxy
+  // IDENTITY_API_KEY is set server-side — for client calls we proxy through Legacy server.
+  // The Legacy server adds the key before forwarding. For now we call the identity API
+  // directly from the browser since it's on the same origin via nginx.
+  // The X-API-Key must be set as a meta tag by the server to avoid exposing it in JS.
+  // For simplicity, we read it from a meta tag injected by the server.
+  const getIdentityKey = () => {
+    const m = document.querySelector('meta[name="identity-key"]');
+    return m ? m.getAttribute('content') : '';
+  };
 
   const DEFAULT_PROFILE_PIC = 'https://placehold.co/50x50/808080/FFFFFF?text=U';
   const DEFAULT_EVENT_COLOR = '#00ff41';

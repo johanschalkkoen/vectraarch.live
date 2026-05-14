@@ -14,7 +14,7 @@ const https      = require('https');
 const http       = require('http');
 const fs         = require('fs');
 const nodemailer = require('nodemailer');
-const otplib     = require('otplib');
+const { authenticator: otplib } = require('otplib');
 const QRCode     = require('qrcode');
 
 require('dotenv').config({ path: '/var/www/vectraarch.live/forge/.env' });
@@ -958,63 +958,6 @@ app.post('/api/2fa/reset', requireAdmin, async (req, res) => {
     } catch (e) {
         res.status(500).json({ success: false, message: 'Server error resetting 2FA.', error: e.message });
     }
-});
-
-// ── IDENTITY PROXY ───────────────────────────────────────────────────────────
-// Forwards requests to VectraArchIdentity (:3200) with the API key injected
-// server-side. The key never reaches the browser.
-// Frontend calls /legacy/api/identity/* — this proxy strips the prefix and
-// forwards to http://127.0.0.1:3200/api/identity/*.
-
-const IDENTITY_URL  = 'http://127.0.0.1:3200';
-const IDENTITY_KEY  = process.env.IDENTITY_API_KEY || '';
-
-async function forwardToIdentity(method, path, body, res) {
-    try {
-        const fetchOptions = {
-            method,
-            headers: {
-                'Content-Type': 'application/json',
-                'X-API-Key': IDENTITY_KEY,
-            },
-        };
-        if (body && method !== 'GET') {
-            fetchOptions.body = JSON.stringify(body);
-        }
-        const upstream = await fetch(`${IDENTITY_URL}${path}`, fetchOptions);
-        const data = await upstream.json();
-        res.status(upstream.status).json(data);
-    } catch (e) {
-        console.error('[identity-proxy] Error:', e.message);
-        res.status(502).json({ success: false, message: 'Identity service unavailable.', error: e.message });
-    }
-}
-
-// GET /legacy/api/identity/resolve?legacy_username=x  OR  ?forge_user_id=x
-app.get('/api/identity/resolve', async (req, res) => {
-    const qs = new URLSearchParams(req.query).toString();
-    await forwardToIdentity('GET', `/api/identity/resolve${qs ? '?' + qs : ''}`, null, res);
-});
-
-// GET /legacy/api/identity/links
-app.get('/api/identity/links', async (req, res) => {
-    const qs = new URLSearchParams(req.query).toString();
-    await forwardToIdentity('GET', `/api/identity/links${qs ? '?' + qs : ''}`, null, res);
-});
-
-// POST /legacy/api/identity/link  — body: { legacy_username, forge_user_id, linked_by? }
-app.post('/api/identity/link', async (req, res) => {
-    await forwardToIdentity('POST', '/api/identity/link', req.body, res);
-});
-
-// DELETE /legacy/api/identity/link  — body: { legacy_username?, forge_user_id?, unlinked_by? }
-app.delete('/api/identity/link', async (req, res) => {
-    await forwardToIdentity('DELETE', '/api/identity/link', req.body, res);
-});
-
-// GET /legacy/api/identity/health  — no auth needed, useful for monitoring
-app.get('/api/identity/health', async (req, res) => {
-    await forwardToIdentity('GET', '/api/identity/health', null, res);
 });
 
 // ── HTTPS SERVER ──────────────────────────────────────────────────────────────
