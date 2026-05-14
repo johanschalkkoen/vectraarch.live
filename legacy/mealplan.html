@@ -1,0 +1,519 @@
+<!-- file: mealplan.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Legacy">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest.json">
+  <title>Meal Plan · Legacy · Vectra Arch</title>
+  <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.20.6/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios@1.4.0/dist/axios.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Barlow:wght@300;400;500;600&family=Barlow+Condensed:wght@300;400;500;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    :root{--bg:#0a0a08;--bg2:#111110;--bg3:#191917;--border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.14);--text:#e8e4d8;--text-muted:rgba(232,228,216,0.55);--text-dim:rgba(232,228,216,0.25);--accent:#00ff41;--accent2:#00b32c;--red:#b84040;--warn:#d4a800;}
+    html{scroll-behavior:smooth;}
+    body{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;font-weight:300;font-size:16px;line-height:1.6;overflow-x:hidden;cursor:crosshair;min-height:100vh;}
+    body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");opacity:0.4;pointer-events:none;z-index:0;}
+    .grid-bg{position:fixed;inset:0;background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);background-size:80px 80px;pointer-events:none;z-index:0;}
+    .accent-lines{position:fixed;top:0;right:0;width:50%;height:100%;pointer-events:none;overflow:hidden;z-index:0;}
+    .accent-lines svg{width:100%;height:100%;}
+    nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 40px;height:60px;border-bottom:1px solid var(--border);background:rgba(10,10,8,0.88);backdrop-filter:blur(12px);}
+    .nav-logo{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:15px;letter-spacing:0.22em;text-transform:uppercase;color:var(--text);text-decoration:none;}
+    .nav-logo span{color:var(--accent);}
+    .nav-status{display:flex;align-items:center;gap:8px;font-family:'DM Mono',monospace;font-size:10px;color:var(--text-dim);letter-spacing:0.1em;}
+    .nav-status::before{content:'';display:block;width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 6px var(--accent);}
+    #root{position:relative;z-index:1;}
+    .page-wrap{max-width:960px;margin:0 auto;padding:88px 40px 80px;position:relative;z-index:1;}
+    .page-header{margin-bottom:36px;padding-bottom:24px;border-bottom:1px solid var(--border);}
+    .page-eyebrow{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.28em;text-transform:uppercase;color:var(--accent);margin-bottom:12px;}
+    .page-title{font-family:'Bebas Neue',sans-serif;font-size:56px;line-height:0.9;color:var(--text);letter-spacing:0.02em;margin-bottom:4px;}
+    .page-sub{font-family:'Barlow Condensed',sans-serif;font-weight:300;font-size:13px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-muted);}
+    .user-header{display:flex;align-items:center;gap:16px;margin-bottom:28px;}
+    .user-avatar{width:44px;height:44px;border-radius:50%;object-fit:cover;border:1px solid var(--accent);flex-shrink:0;}
+    .user-display{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:18px;letter-spacing:0.04em;text-transform:uppercase;color:var(--text);}
+    .va-alert{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.1em;padding:12px 16px;border:1px solid;margin-bottom:20px;}
+    .va-alert.ok{color:var(--accent);border-color:rgba(0,255,65,0.25);background:rgba(0,255,65,0.05);}
+    .va-alert.err{color:var(--red);border-color:rgba(184,64,64,0.25);background:rgba(184,64,64,0.05);}
+    .toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:20px;padding:14px 18px;background:var(--bg2);border:1px solid var(--border2);}
+    .tb-label{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:var(--text-dim);white-space:nowrap;}
+    .mf-select{background:var(--bg);border:1px solid var(--border2);color:var(--text);font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.06em;padding:7px 12px;outline:none;transition:border-color 0.2s;cursor:crosshair;-webkit-appearance:none;}
+    .mf-select:focus{border-color:var(--accent);}
+    .mf-select option,.mf-select optgroup{background:var(--bg2);color:var(--text);}
+    .tb-spacer{flex:1;}
+    .section-label{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.25em;text-transform:uppercase;color:var(--accent);margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--border);}
+    .va-form{background:var(--bg2);border:1px solid var(--border2);padding:28px;margin-bottom:24px;}
+    .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 28px;}
+    .mf-field{display:flex;flex-direction:column;gap:6px;margin-bottom:18px;}
+    .mf-field.full{grid-column:1/-1;}
+    .mf-label{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.22em;text-transform:uppercase;color:var(--text-dim);}
+    .mf-input,.mf-field-select,.mf-textarea{background:transparent;border:none;border-bottom:1px solid var(--border2);padding:10px 0;font-family:'DM Mono',monospace;font-size:12px;color:var(--text);outline:none;transition:border-color 0.2s;width:100%;}
+    .mf-input:focus,.mf-field-select:focus{border-bottom-color:var(--accent);}
+    .mf-input::placeholder{color:var(--text-dim);}
+    .mf-field-select{cursor:pointer;-webkit-appearance:none;}
+    .mf-field-select option,.mf-field-select optgroup{background:var(--bg2);color:var(--text);}
+    .toggle-group{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:20px;}
+    .toggle-chip{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.14em;text-transform:uppercase;padding:6px 14px;border:1px solid;cursor:crosshair;transition:all 0.2s;background:none;}
+    .toggle-chip.on{color:var(--accent);border-color:rgba(0,255,65,0.3);background:rgba(0,255,65,0.06);}
+    .toggle-chip.off{color:var(--text-dim);border-color:var(--border2);}
+    .va-btn{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--text);background:none;border:1px solid var(--border2);padding:9px 16px;cursor:crosshair;transition:border-color 0.2s,color 0.2s;display:inline-flex;align-items:center;gap:6px;}
+    .va-btn:hover{border-color:var(--accent);color:var(--accent);}
+    .va-btn.primary{background:var(--accent);color:#0a0a08;border-color:var(--accent);}
+    .va-btn.primary:hover{background:var(--accent2);border-color:var(--accent2);color:#fff;}
+    .va-btn.danger{border-color:rgba(184,64,64,0.4);color:var(--red);}
+    .va-btn.danger:hover{border-color:var(--red);background:rgba(184,64,64,0.06);}
+    .va-btn.sm{padding:5px 12px;font-size:9px;}
+    .back-btn{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--text-muted);background:none;border:1px solid var(--border2);padding:10px 20px;cursor:crosshair;transition:border-color 0.2s,color 0.2s;display:inline-flex;align-items:center;gap:8px;margin-bottom:32px;}
+    .back-btn:hover{border-color:var(--text-dim);color:var(--text);}
+    .btn-row{display:flex;gap:8px;flex-wrap:wrap;}
+    .user-toggles{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;}
+    .user-toggle{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.14em;text-transform:uppercase;padding:6px 14px;border:1px solid;cursor:crosshair;transition:all 0.2s;display:flex;align-items:center;gap:8px;}
+    .user-toggle.on{color:var(--accent);border-color:rgba(0,255,65,0.3);background:rgba(0,255,65,0.06);}
+    .user-toggle.off{color:var(--text-dim);border-color:var(--border2);background:transparent;}
+    .mini-avatar{width:18px;height:18px;border-radius:50%;object-fit:cover;}
+    .import-box{background:var(--bg2);border:1px solid var(--border2);padding:24px;margin-bottom:24px;}
+    .import-hint{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.1em;color:var(--text-dim);margin-bottom:12px;line-height:1.8;}
+    .mf-textarea{background:transparent;border:1px solid var(--border2);padding:10px 14px;font-family:'DM Mono',monospace;font-size:12px;color:var(--text);outline:none;transition:border-color 0.2s;width:100%;resize:vertical;min-height:100px;}
+    .mf-textarea:focus{border-color:var(--accent);}
+    /* DAY SECTIONS */
+    .day-section{background:var(--bg2);border:1px solid var(--border2);margin-bottom:1px;}
+    .day-header{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+    .day-name{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:0.04em;color:var(--text);}
+    .day-count{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.14em;color:var(--text-dim);}
+    .day-empty{padding:14px 20px;font-family:'DM Mono',monospace;font-size:10px;color:var(--text-dim);letter-spacing:0.1em;}
+    .meal-card{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:6px;transition:background 0.2s;}
+    .meal-card:hover{background:var(--bg3);}
+    .meal-card:last-child{border-bottom:none;}
+    .meal-top{display:flex;align-items:center;gap:10px;}
+    .meal-avatar{width:20px;height:20px;border-radius:50%;object-fit:cover;flex-shrink:0;}
+    .meal-type-badge{font-family:'DM Mono',monospace;font-size:8px;letter-spacing:0.14em;text-transform:uppercase;padding:2px 8px;border:1px solid;}
+    .meal-type-badge.breakfast{color:var(--warn);border-color:rgba(212,168,0,0.3);}
+    .meal-type-badge.lunch{color:var(--accent);border-color:rgba(0,255,65,0.3);}
+    .meal-type-badge.dinner{color:#6a8aff;border-color:rgba(106,138,255,0.3);}
+    .meal-type-badge.snack{color:var(--text-dim);border-color:var(--border2);}
+    .meal-desc{font-family:'DM Mono',monospace;font-size:11px;color:var(--text-muted);letter-spacing:0.06em;}
+    .meal-cal{font-family:'Bebas Neue',sans-serif;font-size:1rem;color:var(--text-dim);letter-spacing:0.08em;}
+    .meal-actions{display:flex;gap:6px;justify-content:flex-end;}
+    /* NOTES */
+    .notes-box{background:var(--bg2);border:1px solid var(--border2);padding:24px;margin-top:24px;}
+    .notes-list{display:flex;flex-direction:column;gap:8px;}
+    .note-item{font-family:'DM Mono',monospace;font-size:10px;color:var(--text-dim);letter-spacing:0.08em;line-height:1.8;padding-left:16px;border-left:2px solid var(--border2);}
+    @media(max-width:768px){nav{padding:0 20px;}.page-wrap{padding:80px 20px 60px;}.form-grid{grid-template-columns:1fr;}}
+    @media(pointer:fine){body,a,button{cursor:crosshair;}}
+  </style>
+</head>
+<body>
+<div class="grid-bg"></div>
+<div class="accent-lines" aria-hidden="true">
+  <svg viewBox="0 0 600 900" fill="none" preserveAspectRatio="xMaxYMid slice">
+    <line x1="580" y1="0" x2="20" y2="900" stroke="rgba(0,255,65,0.07)" stroke-width="1"/>
+    <line x1="540" y1="0" x2="0" y2="760" stroke="rgba(0,255,65,0.05)" stroke-width="0.5"/>
+    <line x1="600" y1="200" x2="100" y2="900" stroke="rgba(0,255,65,0.04)" stroke-width="1"/>
+    <circle cx="540" cy="180" r="60" stroke="rgba(0,255,65,0.04)" stroke-width="1" fill="none"/>
+    <circle cx="540" cy="180" r="90" stroke="rgba(0,255,65,0.025)" stroke-width="0.5" fill="none"/>
+  </svg>
+</div>
+<nav>
+  <a href="https://vectraarch.live" class="nav-logo">Vectra<span>&nbsp;</span>Arch</a>
+  <div class="nav-status">LEGACY · MEAL PLAN</div>
+</nav>
+<div id="root"></div>
+<script type="text/babel">
+  const { useState, useEffect, useRef, useCallback, useMemo } = React;
+
+  class ErrorBoundary extends React.Component {
+    state = { error: null };
+    componentDidCatch(error) { this.setState({ error }); }
+    render() {
+      if (this.state.error) return (
+        <div className="page-wrap">
+          <div className="va-alert err">⚠ {this.state.error.toString()}</div>
+          <button className="va-btn" onClick={()=>window.location.reload()}>Reload</button>
+        </div>
+      );
+      return this.props.children;
+    }
+  }
+
+  const API_BASE = '/legacy/api';
+  const DEFAULT_PROFILE_PIC = 'https://placehold.co/50x50/808080/FFFFFF?text=U';
+  const DEFAULT_EVENT_COLOR = '#00ff41';
+  const MONTHS = Array.from({ length: 12 }, (_, i) => ({ value: (i + 1).toString().padStart(2, '0'), label: new Date(0, i).toLocaleString('default', { month: 'long' }) }));
+  const capitalize = str => str ? str.charAt(0).toUpperCase() + str.slice(1) : '';
+  const getCurrentDateTime = () => { const now = new Date(); now.setMinutes(now.getMinutes() - now.getTimezoneOffset()); return now.toISOString().slice(0, 19); };
+  const formatDateTime = date => { if (!date) return '—'; const d = new Date(date); if (isNaN(d.getTime())) return 'Invalid'; return d.toLocaleString('en-ZA', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', hour12:false }).replace(/,/,''); };
+  const formatDate = date => { if (!date) return ''; const d = new Date(date); return isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10); };
+
+  const MEAL_TYPES = ['breakfast','lunch','dinner','snack'];
+  const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+
+  const MEAL_OPTIONS = [
+    { label:'Weight Loss — Calorie-Controlled (1,500-2,000 cal/day)', options:[
+      {value:'Oatmeal with berries and a boiled egg',label:'Breakfast: Oatmeal with berries and a boiled egg'},
+      {value:'Grilled chicken salad with veggies and vinaigrette',label:'Lunch: Grilled chicken salad with veggies and vinaigrette'},
+      {value:'Baked fish with quinoa and steamed broccoli',label:'Dinner: Baked fish with quinoa and steamed broccoli'},
+      {value:'Apple with almond butter',label:'Snack: Apple with almond butter'},
+      {value:'Greek yogurt',label:'Snack: Greek yogurt'}
+    ]},
+    { label:'Weight Loss — Intermittent Fasting (16/8)', options:[
+      {value:'Avocado toast with eggs',label:'Meal 1: Avocado toast with eggs'},
+      {value:'Turkey wrap with veggies',label:'Meal 2: Turkey wrap with veggies'},
+      {value:'Stir-fried tofu with rice and greens',label:'Meal 3: Stir-fried tofu with rice and greens'},
+      {value:'Nuts or fruit',label:'Snack: Nuts or fruit'}
+    ]},
+    { label:'Weight Loss — Low-Carb (under 100g carbs)', options:[
+      {value:'Eggs with spinach and cheese',label:'Breakfast: Eggs with spinach and cheese'},
+      {value:'Tuna salad with mixed greens',label:'Lunch: Tuna salad with mixed greens'},
+      {value:'Steak with cauliflower mash and asparagus',label:'Dinner: Steak with cauliflower mash and asparagus'},
+      {value:'Cheese sticks or celery with peanut butter',label:'Snack: Cheese sticks or celery with peanut butter'}
+    ]},
+    { label:'Muscle Gain — High-Protein Bulking (2,500-3,500 cal)', options:[
+      {value:'Protein shake with banana and oats',label:'Breakfast: Protein shake with banana and oats'},
+      {value:'Chicken breast with sweet potato and broccoli',label:'Lunch: Chicken breast with sweet potato and broccoli'},
+      {value:'Salmon with rice and salad',label:'Dinner: Salmon with rice and salad'},
+      {value:'Cottage cheese',label:'Snack: Cottage cheese'},
+      {value:'Peanut butter sandwich',label:'Snack: Peanut butter sandwich'}
+    ]},
+    { label:'Muscle Gain — Clean Bulk', options:[
+      {value:'Greek yogurt parfait with nuts and fruit',label:'Breakfast: Greek yogurt parfait with nuts and fruit'},
+      {value:'Quinoa bowl with beans, veggies, and turkey',label:'Lunch: Quinoa bowl with beans, veggies, and turkey'},
+      {value:'Lean beef stir-fry with brown rice',label:'Dinner: Lean beef stir-fry with brown rice'},
+      {value:'Protein bar or smoothie',label:'Snack: Protein bar or smoothie'}
+    ]},
+    { label:'Maintenance — Mediterranean Diet', options:[
+      {value:'Yogurt with honey and walnuts',label:'Breakfast: Yogurt with honey and walnuts'},
+      {value:'Grilled fish with salad and hummus',label:'Lunch: Grilled fish with salad and hummus'},
+      {value:'Vegetable stew with whole grains',label:'Dinner: Vegetable stew with whole grains'},
+      {value:'Fresh fruit or olives',label:'Snack: Fresh fruit or olives'}
+    ]},
+    { label:'Specialized — Keto', options:[
+      {value:'Bacon and eggs with avocado',label:'Breakfast: Bacon and eggs with avocado'},
+      {value:'Cobb salad with ranch dressing',label:'Lunch: Cobb salad with ranch dressing'},
+      {value:'Fatty steak with buttered greens',label:'Dinner: Fatty steak with buttered greens'},
+      {value:'Cheese or pork rinds',label:'Snack: Cheese or pork rinds'}
+    ]},
+    { label:'Specialized — Vegan/Vegetarian', options:[
+      {value:'Chia pudding with almond milk and fruit',label:'Breakfast: Chia pudding with almond milk and fruit'},
+      {value:'Lentil soup with bread',label:'Lunch: Lentil soup with bread'},
+      {value:'Tofu stir-fry with quinoa',label:'Dinner: Tofu stir-fry with quinoa'},
+      {value:'Hummus with carrots',label:'Snack: Hummus with carrots'}
+    ]},
+    { label:'Specialized — Paleo', options:[
+      {value:'Eggs with sweet potato hash',label:'Breakfast: Eggs with sweet potato hash'},
+      {value:'Grilled chicken with salad',label:'Lunch: Grilled chicken with salad'},
+      {value:'Bison burger with veggies',label:'Dinner: Bison burger with veggies'},
+      {value:'Nuts or fruit',label:'Snack: Nuts or fruit'}
+    ]},
+    { label:'Performance — Endurance Athlete', options:[
+      {value:'Bagel with eggs',label:'Breakfast: Bagel with eggs'},
+      {value:'Pasta salad',label:'Lunch: Pasta salad'},
+      {value:'Rice with lean protein',label:'Dinner: Rice with lean protein'},
+      {value:'Energy gels or fruit',label:'Snack: Energy gels or fruit'}
+    ]},
+    { label:'Custom', options:[{value:'custom',label:'Enter custom meal'}]}
+  ];
+
+  const MEAL_TYPE_MAP = {'Breakfast':'breakfast','Lunch':'lunch','Dinner':'dinner','Snack':'snack','Snacks':'snack','Meal 1':'breakfast','Meal 2':'lunch','Meal 3':'dinner','Pre-Workout':'snack','Post-Workout':'snack','Main Meals':'dinner'};
+
+  const formatMealDetails = meal => {
+    const descs = String(meal.description||'').split(',').map(d=>d.trim());
+    const cals = String(meal.calories||'').split(',').map(c=>parseInt(c.trim()));
+    if(descs.length>1&&cals.length===descs.length) return descs.map((d,i)=>`${d} (${cals[i]} kcal)`).join(', ');
+    return `${meal.description||'Unknown'} (${meal.calories||0} kcal)`;
+  };
+
+  const useAccessibleUsers = (user, setUserProfiles) => {
+    const [targetUsers, setTargetUsers] = useState([]);
+    const [selectedTargets, setSelectedTargets] = useState([]);
+    const [error, setError] = useState('');
+    const fetched = useRef(false);
+    useEffect(() => {
+      if (fetched.current || !user?.username) return;
+      fetched.current = true;
+      const fetchAccessList = async () => {
+        try {
+          const { data } = await axios.get(`${API_BASE}/get-access`, { params: { viewer: user.username, adminUsername: user.username } });
+          if (data.success && Array.isArray(data.accessList)) {
+            const users = data.accessList.filter(a => a.viewer === user.username).map(a => a.target);
+            setTargetUsers(users); setSelectedTargets(users); setError('');
+            const profilePromises = users.concat(user.username).map(async u => {
+              try {
+                const { data: pd } = await axios.get(`${API_BASE}/profile-pictures?username=${u}`).catch(() => ({ data: { profilePicUrl: DEFAULT_PROFILE_PIC, eventColor: DEFAULT_EVENT_COLOR, displayName: u } }));
+                return [u, { pic: pd.profilePicUrl||DEFAULT_PROFILE_PIC, color: pd.eventColor||DEFAULT_EVENT_COLOR, displayName: pd.displayName||u }];
+              } catch { return [u, { pic: DEFAULT_PROFILE_PIC, color: DEFAULT_EVENT_COLOR, displayName: u }]; }
+            });
+            const profiles = Object.fromEntries(await Promise.all(profilePromises));
+            setUserProfiles(prev => ({ ...prev, ...profiles, [user.username]: { pic: user.profilePicUrl||DEFAULT_PROFILE_PIC, color: user.eventColor||DEFAULT_EVENT_COLOR, displayName: user.displayName||user.username } }));
+          } else {
+            setTargetUsers([]); setError(data.message||'Failed.');
+            setUserProfiles({ [user.username]: { pic: user.profilePicUrl||DEFAULT_PROFILE_PIC, color: user.eventColor||DEFAULT_EVENT_COLOR, displayName: user.displayName||user.username } });
+          }
+        } catch (err) {
+          setError(err.response?.data?.message||'Error.');
+          setUserProfiles({ [user.username]: { pic: user.profilePicUrl||DEFAULT_PROFILE_PIC, color: user.eventColor||DEFAULT_EVENT_COLOR, displayName: user.displayName||user.username } });
+        }
+      };
+      fetchAccessList();
+    }, [user?.username, setUserProfiles]);
+    return { targetUsers, selectedTargets, setSelectedTargets, error };
+  };
+
+  const MealPlan = ({ user, setPage, onLogout, setUser }) => {
+    const [meals, setMeals] = useState([]);
+    const [form, setForm] = useState({ id:null, day:new Date().toLocaleString('en-US',{weekday:'long'}), mealType:'breakfast', description:'', calories:'', date:getCurrentDateTime() });
+    const [message, setMessage] = useState({ text:'', type:'' });
+    const [showAddForm, setShowAddForm] = useState(false);
+    const [bulkData, setBulkData] = useState('');
+    const [importMessage, setImportMessage] = useState({ text:'', type:'' });
+    const [showImportTool, setShowImportTool] = useState(false);
+    const [selectedMonth, setSelectedMonth] = useState('08');
+    const [sortField, setSortField] = useState('date');
+    const [sortOrder, setSortOrder] = useState('desc');
+    const [isCustom, setIsCustom] = useState(false);
+    const { targetUsers, selectedTargets, setSelectedTargets, error } = useAccessibleUsers(user, profiles => setUserProfiles(profiles));
+    const [userProfiles, setUserProfiles] = useState({ [user.username]: { pic: user.profilePicUrl||DEFAULT_PROFILE_PIC, color: user.eventColor||DEFAULT_EVENT_COLOR, displayName: user.displayName||user.username } });
+
+    const msg = (text, type='ok') => { setMessage({text,type}); setTimeout(()=>setMessage({text:'',type:''}),5000); };
+    const iMsg = (text, type='ok') => { setImportMessage({text,type}); setTimeout(()=>setImportMessage({text:'',type:''}),5000); };
+
+    const fetchMeals = useCallback(async () => {
+      try {
+        const results = await Promise.all([user.username,...selectedTargets].map(u=>axios.get(`${API_BASE}/mealplan`,{params:{user:u}}).then(({data})=>data.map(m=>({...m,description:String(m.description||''),calories:String(m.calories||'')}))).catch(()=>[])));
+        setMeals(results.flat());
+      } catch { msg('Error fetching meals.','err'); }
+    }, [user.username, selectedTargets]);
+
+    const sortedMeals = useMemo(() => {
+      const filtered = meals.filter(m=>m.date?.startsWith(`2026-${selectedMonth}`));
+      return [...filtered].sort((a,b)=>{
+        const fa=sortField==='calories'?parseFloat(a.calories.split(',')[0])||0:a[sortField];
+        const fb=sortField==='calories'?parseFloat(b.calories.split(',')[0])||0:b[sortField];
+        if(sortField==='calories') return sortOrder==='asc'?fa-fb:fb-fa;
+        return sortOrder==='asc'?new Date(fa)-new Date(fb):new Date(fb)-new Date(fa);
+      });
+    }, [meals,selectedMonth,sortField,sortOrder]);
+
+    const handleInputChange = useCallback(e => {
+      const { name, value } = e.target;
+      if(name==='mealSelect'){
+        if(value==='custom'){setIsCustom(true);setForm(p=>({...p,description:''}));}
+        else{
+          setIsCustom(false);setForm(p=>({...p,description:value}));
+          const opt = MEAL_OPTIONS.flatMap(g=>g.options).find(o=>o.value===value);
+          const label = opt?.label||'';
+          const mTypeStr = label.split(':')[0]?.trim()||'';
+          const mType = MEAL_TYPE_MAP[mTypeStr]||form.mealType;
+          setForm(p=>({...p,mealType:mType}));
+        }
+      } else { setForm(p=>({...p,[name]:value})); }
+    }, [form.mealType]);
+
+    const handleSaveMeal = useCallback(async () => {
+      if(!form.day||!form.mealType||!form.description||!form.calories){msg('Fill all fields.','err');return;}
+      const calsArr = form.calories.split(',').map(c=>parseInt(c.trim()));
+      const descArr = form.description.split(',').map(d=>d.trim());
+      if(calsArr.some(c=>isNaN(c)||c<=0)){msg('Calories must be positive numbers.','err');return;}
+      if(descArr.length!==calsArr.length){msg('Descriptions and calories must match.','err');return;}
+      const md = { user:user.username, day:form.day, mealType:form.mealType, description:form.description, calories:form.calories, date:form.date };
+      try {
+        if(form.id){await axios.put(`${API_BASE}/mealplan/${form.id}`,md);msg('Meal updated.');}
+        else{await axios.post(`${API_BASE}/mealplan`,md);msg('Meal saved.');}
+        fetchMeals();
+        setForm({id:null,day:new Date().toLocaleString('en-US',{weekday:'long'}),mealType:'breakfast',description:'',calories:'',date:getCurrentDateTime()});
+        setShowAddForm(false);setIsCustom(false);
+      } catch { msg('Error saving meal.','err'); }
+    }, [form,user.username,fetchMeals]);
+
+    const handleDeleteMeal = useCallback(async id => {
+      try { await axios.delete(`${API_BASE}/mealplan/${id}`);msg('Meal deleted.');fetchMeals(); } catch { msg('Error deleting.','err'); }
+    }, [fetchMeals]);
+
+    const startEdit = useCallback(meal => {
+      setForm({id:meal.id,day:meal.day,mealType:meal.mealType,description:String(meal.description||''),calories:String(meal.calories||''),date:meal.date.slice(0,16)});
+      const isCustomMeal = !MEAL_OPTIONS.flatMap(g=>g.options).some(o=>o.value===meal.description);
+      setIsCustom(isCustomMeal);setShowAddForm(true);
+    }, []);
+
+    const handleBulkImport = useCallback(async () => {
+      if(!bulkData.trim()){iMsg('Paste data first.','err');return;}
+      const toImport = bulkData.trim().split('\n').filter(l=>l.trim()).map(l=>{const[day,mealType,description,calories,date]=l.split(',').map(f=>f.trim());if(!day||!mealType||!description||!calories||!date)return null;const ca=calories.split(',').map(c=>parseInt(c.trim()));if(ca.some(c=>isNaN(c)||c<=0))return null;return{user:user.username,day,mealType,description,calories,date};}).filter(Boolean);
+      if(!toImport.length){iMsg('No valid data.','err');return;}
+      iMsg(`Importing ${toImport.length} meals...`,'warn');
+      try { await Promise.all(toImport.map(m=>axios.post(`${API_BASE}/mealplan`,m)));iMsg(`Imported ${toImport.length} meals.`);setBulkData('');setShowImportTool(false);fetchMeals(); } catch { iMsg('Import failed.','err'); }
+    }, [bulkData,user.username,fetchMeals]);
+
+    useEffect(()=>{if(user?.username)fetchMeals();},[fetchMeals,user]);
+
+    const month = MONTHS.find(m=>m.value===selectedMonth)?.label||'';
+
+    return (
+      <div className="page-wrap">
+        <button className="back-btn" onClick={()=>setPage('menu')}>← Back to Menu</button>
+        <div className="page-header">
+          <div className="page-eyebrow">§ Vectra Arch · Legacy · Nutrition</div>
+          <div className="page-title">Meal Plan</div>
+          <div className="page-sub">Daily Nutrition · Calories · Weekly Schedule</div>
+        </div>
+        <div className="user-header">
+          <img className="user-avatar" src={userProfiles[user.username]?.pic||DEFAULT_PROFILE_PIC} alt={user.username} style={{borderColor:userProfiles[user.username]?.color||DEFAULT_EVENT_COLOR}}/>
+          <div className="user-display">{userProfiles[user.username]?.displayName||user.username}</div>
+          <div style={{marginLeft:'auto'}}><button className="va-btn danger sm" onClick={onLogout}>Sign Out ×</button></div>
+        </div>
+
+        {message.text&&<div className={`va-alert ${message.type}`}>{message.type==='ok'?'✓ ':'⚠ '}{message.text}</div>}
+        {error&&<div className="va-alert err">⚠ {error}</div>}
+
+        <div className="toolbar">
+          <span className="tb-label">Month</span>
+          <select className="mf-select" value={selectedMonth} onChange={e=>setSelectedMonth(e.target.value)}>
+            {MONTHS.map(m=><option key={m.value} value={m.value}>{m.label} 2026</option>)}
+          </select>
+          <span className="tb-label">Sort</span>
+          <select className="mf-select" value={sortField} onChange={e=>setSortField(e.target.value)}>
+            <option value="date">Date</option><option value="calories">Calories</option>
+          </select>
+          <select className="mf-select" value={sortOrder} onChange={e=>setSortOrder(e.target.value)}>
+            <option value="desc">Desc</option><option value="asc">Asc</option>
+          </select>
+          <div className="tb-spacer"/>
+          <button className="va-btn sm" onClick={()=>setShowImportTool(!showImportTool)}>{showImportTool?'Hide Import':'Bulk Import'}</button>
+          <button className="va-btn primary sm" onClick={()=>setShowAddForm(!showAddForm)}>{showAddForm?'Hide Form':'Add Meal ↗'}</button>
+        </div>
+
+        {targetUsers.length>0&&(
+          <div className="user-toggles">
+            {targetUsers.map(t=>(
+              <button key={t} className={`user-toggle ${selectedTargets.includes(t)?'on':'off'}`} onClick={()=>setSelectedTargets(prev=>prev.includes(t)?prev.filter(u=>u!==t):[...prev,t])}>
+                <img className="mini-avatar" src={userProfiles[t]?.pic||DEFAULT_PROFILE_PIC} alt={t} style={{border:`1px solid ${userProfiles[t]?.color||DEFAULT_EVENT_COLOR}`}}/>
+                {userProfiles[t]?.displayName||t}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {showImportTool&&(
+          <div className="import-box">
+            <div className="section-label">§ Bulk Import</div>
+            <div className="import-hint">Format: Day,MealType,Description,Calories,Date<br/>Example: Monday,breakfast,Oatmeal with berries,300,2026-08-01 08:00:00</div>
+            <textarea className="mf-textarea" rows="5" value={bulkData} onChange={e=>setBulkData(e.target.value)} placeholder="Paste CSV data..."/>
+            {importMessage.text&&<div className={`va-alert ${importMessage.type}`} style={{marginTop:'12px'}}>{importMessage.text}</div>}
+            <div className="btn-row" style={{marginTop:'12px'}}>
+              <button className="va-btn primary" onClick={handleBulkImport}>Import ↗</button>
+              <button className="va-btn" onClick={()=>setShowImportTool(false)}>Cancel</button>
+            </div>
+          </div>
+        )}
+
+        {showAddForm&&(
+          <div className="va-form">
+            <div className="section-label">§ {form.id?'Edit Meal':'Add Meal'}</div>
+            <div className="mf-label" style={{marginBottom:'8px'}}>Day</div>
+            <div className="toggle-group" style={{marginBottom:'20px'}}>
+              {DAYS.map(d=><button key={d} className={`toggle-chip ${form.day===d?'on':'off'}`} onClick={()=>setForm(p=>({...p,day:d}))}>{d}</button>)}
+            </div>
+            <div className="mf-label" style={{marginBottom:'8px'}}>Meal Type</div>
+            <div className="toggle-group" style={{marginBottom:'20px'}}>
+              {MEAL_TYPES.map(t=><button key={t} className={`toggle-chip ${form.mealType===t?'on':'off'}`} onClick={()=>setForm(p=>({...p,mealType:t}))}>{capitalize(t)}</button>)}
+            </div>
+            <div className="form-grid">
+              <div className="mf-field full">
+                <label className="mf-label">Meal Template</label>
+                <select className="mf-field-select" name="mealSelect" value={isCustom?'custom':form.description} onChange={handleInputChange}>
+                  <option value="">— Select a meal —</option>
+                  {MEAL_OPTIONS.map(group=>(
+                    <optgroup key={group.label} label={group.label}>
+                      {group.options.map(opt=><option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                    </optgroup>
+                  ))}
+                </select>
+              </div>
+              {isCustom&&(
+                <div className="mf-field full">
+                  <label className="mf-label">Custom Description (comma-separated for multiple)</label>
+                  <input className="mf-input" name="description" placeholder="e.g. Custom Salad,Fruit Bowl" value={form.description} onChange={handleInputChange}/>
+                </div>
+              )}
+              <div className="mf-field">
+                <label className="mf-label">Calories (comma-separated)</label>
+                <input className="mf-input" name="calories" type="text" placeholder="e.g. 300,100" value={form.calories} onChange={handleInputChange}/>
+              </div>
+              <div className="mf-field">
+                <label className="mf-label">Date & Time</label>
+                <input className="mf-input" type="datetime-local" name="date" value={form.date} onChange={handleInputChange} step="1"/>
+              </div>
+            </div>
+            <div className="btn-row">
+              <button className="va-btn primary" onClick={handleSaveMeal}>{form.id?'Update ↗':'Save ↗'}</button>
+              <button className="va-btn" onClick={()=>{setShowAddForm(false);setIsCustom(false);setForm({id:null,day:new Date().toLocaleString('en-US',{weekday:'long'}),mealType:'breakfast',description:'',calories:'',date:getCurrentDateTime()});}}>Cancel</button>
+            </div>
+          </div>
+        )}
+
+        <div className="section-label">§ Weekly Plan · {month} 2026</div>
+        {DAYS.map(day=>{
+          const dayMeals = sortedMeals.filter(m=>m.day===day&&[user.username,...selectedTargets].includes(m.user));
+          return (
+            <div key={day} className="day-section">
+              <div className="day-header">
+                <div className="day-name">{day}</div>
+                <div className="day-count">{dayMeals.length} meals · {dayMeals.reduce((s,m)=>s+(parseFloat(m.calories.split(',')[0])||0),0)} kcal</div>
+              </div>
+              {dayMeals.length===0
+                ? <div className="day-empty">§ No meals planned</div>
+                : dayMeals.map(meal=>(
+                    <div key={meal.id} className="meal-card">
+                      <div className="meal-top">
+                        <img className="meal-avatar" src={userProfiles[meal.user]?.pic||DEFAULT_PROFILE_PIC} alt={meal.user} style={{border:`1px solid ${userProfiles[meal.user]?.color||DEFAULT_EVENT_COLOR}`}}/>
+                        <span className={`meal-type-badge ${meal.mealType}`}>{capitalize(meal.mealType)}</span>
+                        <span style={{fontFamily:"'DM Mono',monospace",fontSize:'9px',color:'var(--text-dim)',letterSpacing:'0.1em'}}>{userProfiles[meal.user]?.displayName||meal.user}</span>
+                      </div>
+                      <div className="meal-desc">{formatMealDetails(meal)}</div>
+                      <div className="meal-cal">{meal.calories} kcal · {formatDateTime(meal.date)}</div>
+                      {meal.user===user.username&&(
+                        <div className="meal-actions">
+                          <button className="va-btn sm" onClick={()=>startEdit(meal)}>Edit</button>
+                          <button className="va-btn danger sm" onClick={()=>handleDeleteMeal(meal.id)}>Delete</button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+            </div>
+          );
+        })}
+
+        <div className="notes-box">
+          <div className="section-label">§ Notes</div>
+          <div className="notes-list">
+            <div className="note-item">Customise for age, gender, activity level, allergies, and preferences. Use tools like MyFitnessPal for tracking.</div>
+            <div className="note-item">Portion sizes based on individual needs via TDEE calculators. Consult a nutritionist for personalisation.</div>
+            <div className="note-item">Combine with workouts for best results. Include variety to prevent boredom.</div>
+            <div className="note-item">These are general guidelines. For medical conditions, seek professional advice.</div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const App = () => {
+    const [user, setUser] = useState(null);
+    useEffect(() => {
+      const s = localStorage.getItem('user');
+      if(s){try{setUser(JSON.parse(s));}catch{localStorage.removeItem('user');window.location.href='index.html';}}
+      else window.location.href='index.html';
+    }, []);
+    const handleLogout = useCallback(()=>{localStorage.removeItem('user');window.location.href='index.html';},[]);
+    if(!user)return null;
+    return <ErrorBoundary><MealPlan user={user} setPage={()=>window.location.href='index.html'} onLogout={handleLogout} setUser={setUser}/></ErrorBoundary>;
+  };
+  ReactDOM.render(<App/>, document.getElementById('root'));
+</script>
+</body>
+</html>

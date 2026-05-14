@@ -1,0 +1,33 @@
+Changes Made:
+
+Default Dark Theme:
+
+Added class="theme-dark" to the <body> tag to ensure the dark theme is applied by default when the page loads, before any JavaScript runs.
+In the App component's useEffect, added document.body.className = 'theme-dark'; in the else branch when no user is found in localStorage, ensuring the login screen uses the dark theme.
+In the handleLogout function, set document.body.className = 'theme-dark'; to revert to the dark theme after logout.
+
+
+Theme Consistency:
+
+Ensured that the .theme-dark and .theme-light styles from profilesettings.html are fully applied, with specific styles for .card, input, select, and textarea to match the dark theme's appearance (e.g., background: rgba(255, 255, 255, 0.1); color: #f1f5f9; for inputs).
+
+
+Login Screen Styling:
+
+The Login component now inherits the dark theme via the theme-dark class on the body, ensuring the card, inputs, and text use the dark theme's colors and styling (e.g., semi-transparent card background, light text).
+
+
+
+Why This Works:
+
+Immediate Theme Application: Setting class="theme-dark" on the <body> ensures the dark theme is applied as soon as the HTML is parsed, before JavaScript runs.
+Fallback for No User: The useEffect in the App component explicitly sets theme-dark when no user is found, preventing the login screen from defaulting to a light or browser-default appearance.
+Consistent Styling: The .theme-dark styles ensure that the card, inputs, and other elements in the Login component match the dark theme used in profilesettings.html.
+
+Notes:
+
+Testing: Verify that the login screen now appears with a dark background, light text, and semi-transparent card styling. Test logging in and out to ensure the theme switches correctly based on the user's theme preference in localStorage.
+API Consistency: Ensure the /api/profile-pictures endpoint returns the theme field as expected. If it doesn't, the fallback to 'dark' in the handleLogin function will maintain the dark theme.
+Previous Context: Based on your earlier requests for consistent styling and theme support across pages, this update aligns index.html with profilesettings.html while addressing the specific issue of the login screen's appearance.
+
+If you notice any other issues or want further adjustments (e.g., specific styling tweaks or additional theme options), please let me know!

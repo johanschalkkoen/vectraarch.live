@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en" id="top">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Keystone — Architecture · Vectra Arch</title>
+  <meta name="description" content="The central locking piece. Full technical architecture of the VectraArch constellation — every system, every connection, documented."/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Barlow:wght@300;400;500;600&family=Barlow+Condensed:wght@300;400;500;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://vectraarch.live/shared/va.css"/>
+</head>
+<body>
+<div class="grid-bg"></div>
+<div class="accent-lines" aria-hidden="true">
+  <svg viewBox="0 0 600 900" fill="none" preserveAspectRatio="xMaxYMid slice">
+    <line x1="580" y1="0" x2="20" y2="900" stroke="rgba(0,255,65,0.07)" stroke-width="1"/>
+    <line x1="540" y1="0" x2="0" y2="760" stroke="rgba(0,255,65,0.05)" stroke-width="0.5"/>
+    <line x1="600" y1="200" x2="100" y2="900" stroke="rgba(0,255,65,0.04)" stroke-width="1"/>
+    <rect x="460" y="80" width="100" height="1" fill="rgba(0,255,65,0.15)"/>
+    <rect x="480" y="120" width="60" height="1" fill="rgba(0,255,65,0.1)"/>
+    <rect x="500" y="160" width="40" height="1" fill="rgba(0,255,65,0.07)"/>
+    <circle cx="540" cy="180" r="60" stroke="rgba(0,255,65,0.04)" stroke-width="1" fill="none"/>
+    <circle cx="540" cy="180" r="90" stroke="rgba(0,255,65,0.025)" stroke-width="0.5" fill="none"/>
+    <circle cx="540" cy="180" r="130" stroke="rgba(0,255,65,0.015)" stroke-width="0.5" fill="none"/>
+  </svg>
+</div>
+
+<nav>
+  <a href="https://vectraarch.live" class="nav-logo">Vectra<span>&nbsp;</span>Arch</a>
+  <div class="nav-path">
+    <a href="https://vectraarch.live">vectraarch.live</a>
+    <span class="sep">/</span>
+    <span class="leaf">keystone</span>
+  </div>
+  <div class="nav-status">KEYSTONE ∞</div>
+</nav>
+
+<div class="terminal-path-hero">
+  <div class="tph">
+    <span class="prompt">schalk@vectraarch</span>:~$ <span class="cmd">cat architecture.md</span><span class="cursor"></span>
+  </div>
+</div>
+
+<section class="hero">
+  <p class="hero-label">§ Studio <span class="infinity-symbol">&infin;</span> · Architecture · Systems · Constellation Documentation</p>
+  <h1 class="hero-title">
+    Keystone
+    <em>Studio</em>
+  </h1>
+  <div class="hero-bottom">
+    <div class="hero-tagline reveal">
+      The central <strong>locking piece.</strong><br/>
+      Full architecture of the<br/>
+      VectraArch constellation —<br/>
+      every system <strong>documented.</strong>
+    </div>
+    <div class="hero-coords reveal">
+      <div class="coord"><span class="key">Sites</span><span>endless subdomains · 1 VPS · Ubuntu 24</span></div>
+      <div class="coord"><span class="key">Processes</span><span>BookForge · Conduit · Legacy</span></div>
+      <div class="coord"><span class="key">Database</span><span>PostgreSQL · Forge </span></div>
+      <div class="coord"><span class="key">Proxy</span><span>Nginx · Multiple virtual hosts · SSL</span></div>
+      <div class="coord"><span class="key">Security</span><span>2FA · SSL</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- CONSTELLATION MAP -->
+<section class="section">
+  <div class="section-header reveal">
+    <span class="sn">01</span>
+    <span class="st">Constellation Map · Unlimited Sites</span>
+    <div class="sr"></div>
+  </div>
+
+  <div class="card-grid reveal">
+    <div class="card">
+      <div class="card-index">vectraarch.live</div>
+      <div class="card-title">Home</div>
+      <div class="card-meta">Static HTML · va.css · Nginx</div>
+      <p class="card-desc">Central hub. Personal bio, human systems content, studio grid linking all studios. Serves the global stylesheet at /shared/va.css used by all subdomains. Contact form routes through va-contact proxy.</p>
+    </div>
+    <div class="card">
+      <div class="card-index">fabric.vectraarch.live</div>
+      <div class="card-title">Fabric</div>
+      <div class="card-meta">Static HTML · Infrastructure portfolio</div>
+      <p class="card-desc">Technical infrastructure documentation. Career progression, live stack documentation, security layer breakdown. References the real PM2 processes, PostgreSQL tables, and nginx config actually running on this server.</p>
+    </div>
+    <div class="card">
+      <div class="card-index">forge.vectraarch.live</div>
+      <div class="card-title">Book Forge</div>
+      <div class="card-meta">Node.js · Express · PostgreSQL · EJS · PM2</div>
+      <p class="card-desc">Full-stack writing management application. Proxied by nginx. Multi-user, multi-book. Google OAuth + manual auth + TOTP 2FA. Publishes books to press.vectraarch.live by writing a static HTML file to the press web root.</p>
+    </div>
+    <div class="card">
+      <div class="card-index">conduit.vectraarch.live</div>
+      <div class="card-title">Conduit Hub</div>
+      <div class="card-meta">Node.js · PostgreSQL · PM2 </div>
+      <p class="card-desc">Automation and social dashboard. Queries Forge DB directly. Shows published volumes, fires Telegram announcements per book, logs all trigger events to conduit_log table. Session-based auth using the same Forge users table.</p>
+    </div>
+    <div class="card">
+      <div class="card-index">press.vectraarch.live</div>
+      <div class="card-title">Press</div>
+      <div class="card-meta">Static HTML · Generated by Forge</div>
+      <p class="card-desc">Public publishing catalogue. Not a CMS — a static HTML file written by Book Forge's rebuildPressIndex() function on every publish/unpublish event. Grouped by author, searchable client-side. No server-side logic required.</p>
+    </div>
+    <div class="card">
+      <div class="card-index">foundation.vectraarch.live</div>
+      <div class="card-title">Foundation</div>
+      <div class="card-meta">Static HTML · Central auth routing</div>
+      <p class="card-desc">Central login hub for the constellation. Routes to the correct auth endpoint per service — Book Forge manual login, Google OAuth. Single point of entry for all authenticated services.</p>
+    </div>
+    <div class="card">
+      <div class="card-index">kinetic.vectraarch.live</div>
+      <div class="card-title">Kinetic</div>
+      <div class="card-meta">Static HTML · Visual portfolio</div>
+      <p class="card-desc">Visual work hub. Sculpture portfolio (photography incoming), Bo7 coaching platform link, Press catalogue link, Book Forge link. Legacy Life Style App. Connects the visual and creative output of the constellation.</p>
+    </div>
+    <div class="card">
+      <div class="card-index">volition.vectraarch.live</div>
+      <div class="card-title">Volition</div>
+      <div class="card-meta">Static HTML · Personal journal</div>
+      <p class="card-desc">Process journal. The ongoing written record of building this ecosystem — decisions, failures, rebuilds, lessons. Distinct from Press (published fiction) and Kinetic (visual work). The builder's log.</p>
+    </div>
+    <div class="card">
+      <div class="card-index">bo7.vectraarch.live</div>
+      <div class="card-title">Bo7</div>
+      <div class="card-meta">Static HTML · Booking via va-contact proxy</div>
+      <p class="card-desc">CoD Black Ops 7 coaching platform for ZenithB_Actual. Coaching packages, Discord integration, booking form routing through /api/booking on the va-contact proxy. Separate visual identity — cyber/neon aesthetic.</p>
+    </div>
+    <div class="card">
+      <div class="card-index">legacy.vectraarch.live</div>
+      <div class="card-title">Legacy</div>
+      <div class="card-meta">Static HTML · Nodejs  UI · </div>
+      <p class="card-desc">a full-stack, single-page web application designed for personal and collaborative life management. It's a comprehensive tool for managing finances and schedules, making it ideal for individuals, couples, or families to stay organized and aligned.</p>
+    </div>
+  </div>
+</section>
+
+<!-- BOOK FORGE ARCHITECTURE -->
+<section class="section">
+  <div class="section-header reveal">
+    <span class="sn">02</span>
+    <span class="st">Book Forge · Application Architecture</span>
+    <div class="sr"></div>
+  </div>
+  <div class="narrative reveal">
+    <div class="narrative-tag">Stack<span class="year">Node.js</span></div>
+    <div>
+      <div class="narrative-heading">Express · PostgreSQL · EJS · Passport · otplib · Multer</div>
+      <p class="narrative-text">Node.js and Express backend running on port 3000 behind nginx reverse proxy. PostgreSQL 16 database via the pg driver. EJS server-side rendering for all views. Passport.js handling both Google OAuth 2.0 and manual credential authentication. TOTP-based 2FA via otplib with QR code setup flow via the qrcode library. Multer handling cover image uploads to the public/uploads directory.</p>
+    </div>
+  </div>
+  <div class="narrative reveal">
+    <div class="narrative-tag">Schema<span class="year">Multi-Table</span></div>
+    <div>
+      <div class="narrative-heading">users · books · entries · conduit_log · and growing</div>
+      <p class="narrative-text">The users table stores both Google OAuth identities (id from Google profile) and manual accounts (prefixed m_) with name, email (used as password field for manual accounts), type, role, status, login count, and TOTP secret. The books table links to users via owner_id, stores title, cover_url, and published flag. The entries table holds all manuscript content, characters, factions, geography, research, science, world rules, items, and timeline entries — all keyed by book_id and category. The conduit_log table records every announcement trigger fired from the Conduit Hub.</p>
+    </div>
+  </div>
+  <div class="narrative reveal">
+    <div class="narrative-tag">Publishing<span class="year">Static Gen</span></div>
+    <div>
+      <div class="narrative-heading">rebuildPressIndex() — No CMS Required</div>
+      <p class="narrative-text">When any book is published or unpublished, Book Forge calls rebuildPressIndex() — a function that queries all published books with their author details and first manuscript entry preview, groups them by author, and writes a fully self-contained HTML file to /var/www/press.vectraarch.live/index.html. No build pipeline. No CMS. No external dependencies. PostgreSQL query → Node.js template → file write. Press is always current.</p>
+    </div>
+  </div>
+  <div class="narrative reveal">
+    <div class="narrative-tag">Export<span class="year">5 Formats</span></div>
+    <div>
+      <div class="narrative-heading">DOCX · PDF · EPUB · Markdown · Plain Text</div>
+      <p class="narrative-text">Book Forge exports any volume in five formats. DOCX via the docx library with proper heading levels and paragraph styling. PDF via PDFKit with A4 layout and justified text. EPUB via epub-gen-memory with chapter structure and CSS. Markdown with section dividers. Plain text with ASCII formatting. All generated on-demand, streamed directly to the browser — nothing written to disk.</p>
+    </div>
+  </div>
+</section>
+
+<!-- DATA FLOW -->
+<section class="section">
+  <div class="section-header reveal">
+    <span class="sn">03</span>
+    <span class="st">Data Flow · How the Systems Connect</span>
+    <div class="sr"></div>
+  </div>
+
+  <div class="terminal reveal">
+    <div class="terminal-header">
+      <div class="td"></div><div class="td"></div><div class="td"></div>
+      <span class="tp">schalk@vectraarch:~ $ cat data_flow.md</span>
+    </div>
+    <div class="tl"><span class="p">CONTACT FORM</span></div>
+    <div class="tl"><span class="d">vectraarch.live → POST /api/contact → va-contact:3099 → Telegram API</span></div>
+    <div class="tl"><span class="d">bo7.vectraarch.live → POST /api/booking → va-contact:3099 → Telegram API</span></div>
+    <div class="tl">&nbsp;</div>
+    <div class="tl"><span class="p">AUTHENTICATION</span></div>
+    <div class="tl"><span class="d">foundation.vectraarch.live → forge:3000/auth/manual → bookforge.users</span></div>
+    <div class="tl"><span class="d">foundation.vectraarch.live → forge:3000/auth/google → Google OAuth → bookforge.users</span></div>
+    <div class="tl">&nbsp;</div>
+    <div class="tl"><span class="p">PUBLISHING PIPELINE</span></div>
+    <div class="tl"><span class="d">forge:3000 → POST /book/:id/publish → bookforge.books → rebuildPressIndex()</span></div>
+    <div class="tl"><span class="d">rebuildPressIndex() → bookforge query → HTML template → /var/www/press.../index.html</span></div>
+    <div class="tl">&nbsp;</div>
+    <div class="tl"><span class="p">ANNOUNCEMENTS</span></div>
+    <div class="tl"><span class="d">conduit:3100 → POST /announce → Telegram API → conduit_log INSERT</span></div>
+    <div class="tl">&nbsp;</div>
+    <div class="tl"><span class="p">SHARED ASSETS</span></div>
+    <div class="tl"><span class="d">all subdomains → GET vectraarch.live/shared/va.css → nginx static serve</span></div>
+    <div class="tl" style="margin-top:8px;"><span class="p">→ </span><span class="cursor" style="display:inline-block;width:8px;height:0.9em;background:var(--accent);vertical-align:middle;animation:blink 1.1s step-end infinite;"></span></div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-logo">Keystone · Vectra Arch</div>
+  <ul class="footer-links">
+    <li><a href="https://vectraarch.live/fabrci">Fabric</a></li>
+    <li><a href="https://forge.vectraarch.live">Book Forge</a></li>
+    <li><a href="https://vectraarch.live">Home</a></li>
+  </ul>
+  <div class="footer-meta">Built on Linux · 2026</div>
+</footer>
+
+<a href="#top" class="back-to-top" id="btt" title="Back to top">↑</a>
+<script>
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach((e,i) => {
+      if(e.isIntersecting){ setTimeout(()=>e.target.classList.add('visible'),i*70); obs.unobserve(e.target); }
+    });
+  },{threshold:0.05,rootMargin:'0px 0px -30px 0px'});
+  document.querySelectorAll('.reveal').forEach(el=>obs.observe(el));
+  const btt = document.getElementById('btt');
+  window.addEventListener('scroll',()=>{ btt.classList.toggle('visible', window.scrollY > 400); });
+</script>
+</body>
+</html>

@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Book Forge | Studio</title>
+    <link rel="stylesheet" href="/forge/public/style.css">
+</head>
+<body>
+
+    <div class="grid-bg"></div>
+
+    <div class="container">
+
+        <!-- ── HEADER ── -->
+        <header class="app-header">
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                <h1>BOOK FORGE <span style="color:var(--text-dim); font-size:1.3rem;">// <%= data.title %></span></h1>
+                <span class="word-count-badge">Manuscript: <%= manuscriptWords %> words</span>
+            </div>
+            <div style="display:flex; gap:8px; align-items:center;">
+                <select class="mini-select" id="fontSelector" onchange="updateWritingFont(this.value)">
+                    <option value="" disabled selected hidden>Font</option>
+                    <option value="'Barlow', sans-serif">Barlow</option>
+                    <option value="'DM Mono', monospace">DM Mono</option>
+                    <option value="serif">Serif</option>
+                    <option value="monospace">Monospace</option>
+                </select>
+                <a href="https://vectraarch.live" class="nav-item-btn" style="min-width:0;padding:0 12px;color:var(--text-dim);border-color:var(--border);">⌂</a>
+                <a href="/" class="nav-item-btn" style="min-width:90px;">← Library</a>
+            </div>
+        </header>
+
+        <!-- ── MAIN ── -->
+        <div class="main-layout">
+            <div class="layout">
+
+                <!-- LEFT: FORGE ENTRY -->
+                <aside class="panel">
+                    <h3>§ Forge Entry</h3>
+                    <div class="scroll">
+                        <% ['manuscript', 'characters', 'factions', 'geography', 'research', 'science', 'world_rules', 'items', 'timeline'].forEach(cat => { %>
+                            <div class="category-header" onclick="toggleForgeCategory('<%= cat %>')">
+                                <span><%= cat.replace('_',' ').toUpperCase() %></span>
+                                <span id="forge-ind-<%= cat %>" style="font-size:0.45rem; opacity:0.5;">[+]</span>
+                            </div>
+                            <div id="forge-cat-<%= cat %>" class="category-content">
+                                <form action="/forge/book/<%= bookId %>/add" method="POST" style="display:flex; flex-direction:column;">
+                                    <input type="hidden" name="category" value="<%= cat %>">
+                                    <input type="text" name="title" placeholder="<%= cat.toUpperCase() %> TITLE" required>
+                                    <textarea name="content" placeholder="Manifest content..." required style="min-height:160px; resize:vertical;"></textarea>
+                                    <button type="submit" class="btn-primary" style="min-width:0; height:32px;">Commit ↗</button>
+                                </form>
+                            </div>
+                        <% }); %>
+                    </div>
+                </aside>
+
+                <!-- CENTER: WRITING DESK -->
+                <main class="panel">
+                    <h3>§ Writing Desk</h3>
+                    <div class="scroll" id="writingScroll">
+                        <% (data.manuscript || []).forEach(item => { %>
+                            <div class="micro-card" id="item-<%= item.id %>">
+                                <div style="display:flex; justify-content:space-between; align-items:center;" onclick="toggleExpand('<%= item.id %>')">
+                                    <b><%= item.title %><span class="word-badge">[<%= item.wordCount %> w]</span></b>
+                                    <span id="ind-<%= item.id %>" style="font-family:'DM Mono',monospace; font-size:0.5rem; color:var(--text-dim);">[+]</span>
+                                </div>
+                                <div id="expand-<%= item.id %>" class="expanded-view" onclick="event.stopPropagation()">
+                                    <form action="/forge/book/<%= bookId %>/edit/manuscript/<%= item.id %>" method="POST" style="display:flex; flex-direction:column;">
+                                        <input type="text" name="title" value="<%= item.title %>">
+                                        <textarea name="content" rows="12" style="resize:vertical;"><%= item.content %></textarea>
+                                        <div style="display:flex; gap:8px;">
+                                            <button type="submit" class="btn-primary" style="height:30px; min-width:0; flex:1;">Save</button>
+                                            <button type="button" onclick="promptDelete('item-<%= item.id %>')" class="btn-danger" style="height:30px; min-width:0;">Purge</button>
+                                        </div>
+                                    </form>
+                                </div>
+                                <div class="confirm-mask" id="del-item-<%= item.id %>">
+                                    <p style="font-family:'DM Mono',monospace; color:var(--red); font-size:0.6rem; margin-bottom:14px; letter-spacing:0.2em; text-transform:uppercase;">Purge Manuscript?</p>
+                                    <form action="/forge/book/<%= bookId %>/delete/manuscript/<%= item.id %>" method="POST" style="display:flex; gap:8px;">
+                                        <button type="submit" class="btn-danger" style="height:30px; min-width:0; padding:0 14px;">Confirm</button>
+                                        <button type="button" onclick="cancelDelete('item-<%= item.id %>')" style="height:30px; min-width:0; padding:0 14px;">Abort</button>
+                                    </form>
+                                </div>
+                            </div>
+                        <% }); %>
+                    </div>
+                </main>
+
+                <!-- RIGHT: VOLUME CODEX -->
+                <aside class="panel">
+                    <h3>§ Volume Codex</h3>
+                    <div class="scroll">
+                        <% ['characters', 'factions', 'geography', 'research', 'science', 'world_rules', 'items', 'timeline'].forEach(cat => { %>
+                            <div class="category-header" onclick="toggleCategory('<%= cat %>')">
+                                <span><%= cat.replace('_',' ').toUpperCase() %></span>
+                                <span id="cat-ind-<%= cat %>" style="font-size:0.45rem; opacity:0.5;">[+]</span>
+                            </div>
+                            <div id="cat-<%= cat %>" class="category-content">
+                                <% (data[cat] || []).forEach(item => { %>
+                                    <div class="micro-card" id="item-<%= item.id %>">
+                                        <div style="display:flex; justify-content:space-between; align-items:center;" onclick="toggleExpand('<%= item.id %>')">
+                                            <b><%= item.title %><span class="word-badge">[<%= item.wordCount %> w]</span></b>
+                                            <span id="ind-<%= item.id %>" style="font-family:'DM Mono',monospace; font-size:0.5rem; color:var(--text-dim);">[+]</span>
+                                        </div>
+                                        <div id="expand-<%= item.id %>" class="expanded-view" onclick="event.stopPropagation()">
+                                            <form action="/forge/book/<%= bookId %>/edit/<%= cat %>/<%= item.id %>" method="POST" style="display:flex; flex-direction:column;">
+                                                <input type="hidden" name="title" value="<%= item.title %>">
+                                                <textarea name="content" rows="10" style="resize:vertical;"><%= item.content %></textarea>
+                                                <div style="display:flex; gap:8px;">
+                                                    <button type="submit" class="btn-primary" style="height:30px; min-width:0; flex:1;">Save</button>
+                                                    <button type="button" onclick="promptDelete('item-<%= item.id %>')" class="btn-danger" style="height:30px; min-width:0;">Purge</button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                        <div class="confirm-mask">
+                                            <p style="font-family:'DM Mono',monospace; color:var(--red); font-size:0.6rem; margin-bottom:14px; letter-spacing:0.2em; text-transform:uppercase;">Purge Entry?</p>
+                                            <form action="/forge/book/<%= bookId %>/delete/<%= cat %>/<%= item.id %>" method="POST" style="display:flex; gap:8px;">
+                                                <button type="submit" class="btn-danger" style="height:30px; min-width:0; padding:0 14px;">Confirm</button>
+                                                <button type="button" onclick="cancelDelete('item-<%= item.id %>')" style="height:30px; min-width:0; padding:0 14px;">Abort</button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                <% }); %>
+                            </div>
+                        <% }); %>
+                    </div>
+                </aside>
+
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .mini-select {
+            font-family: 'DM Mono', monospace;
+            font-size: 0.55rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            background: transparent;
+            border: 1px solid var(--border2);
+            padding: 0 10px;
+            height: 34px;
+            min-width: 0;
+            width: 110px;
+            cursor: crosshair;
+            appearance: none;
+            -webkit-appearance: none;
+            border-radius: 0;
+            outline: none;
+        }
+        .mini-select:focus { border-color: var(--accent2); }
+        .mini-select option { background: var(--bg2); color: var(--text); }
+    </style>
+
+    <script>
+        function toggleExpand(id) {
+            const el = document.getElementById('expand-' + id);
+            const ind = document.getElementById('ind-' + id);
+            if (!el) return;
+            const open = el.style.display === 'block';
+            el.style.display = open ? 'none' : 'block';
+            if (ind) ind.innerText = open ? '[+]' : '[-]';
+        }
+        function toggleCategory(cat) {
+            const el = document.getElementById('cat-' + cat);
+            const ind = document.getElementById('cat-ind-' + cat);
+            if (!el) return;
+            const open = el.style.display === 'block';
+            el.style.display = open ? 'none' : 'block';
+            if (ind) ind.innerText = open ? '[+]' : '[-]';
+        }
+        function toggleForgeCategory(cat) {
+            const el = document.getElementById('forge-cat-' + cat);
+            const ind = document.getElementById('forge-ind-' + cat);
+            if (!el) return;
+            const open = el.style.display === 'block';
+            el.style.display = open ? 'none' : 'block';
+            if (ind) ind.innerText = open ? '[+]' : '[-]';
+        }
+        function promptDelete(id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const mask = el.querySelector('.confirm-mask');
+            if (mask) mask.style.display = 'flex';
+        }
+        function cancelDelete(id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const mask = el.querySelector('.confirm-mask');
+            if (mask) mask.style.display = 'none';
+        }
+        function updateWritingFont(font) {
+            if (!font) return;
+            const scroll = document.getElementById('writingScroll');
+            scroll.style.fontFamily = font;
+            scroll.querySelectorAll('textarea, input[type="text"]').forEach(a => a.style.fontFamily = font);
+        }
+    </script>
+
+</body>
+</html>

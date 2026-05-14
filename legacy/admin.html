@@ -1,0 +1,609 @@
+<!-- file: admin.html -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="OurLife">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest.json">
+  <title>Admin · Legacy · Vectra Arch</title>
+  <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.20.6/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios@1.4.0/dist/axios.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Barlow:wght@300;400;500;600&family=Barlow+Condensed:wght@300;400;500;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    :root{
+      --bg:#0a0a08;--bg2:#111110;--bg3:#191917;
+      --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.14);
+      --text:#e8e4d8;--text-muted:rgba(232,228,216,0.55);--text-dim:rgba(232,228,216,0.25);
+      --accent:#00ff41;--accent2:#00b32c;--red:#b84040;--warn:#d4a800;
+    }
+    html{scroll-behavior:smooth;}
+    body{
+      background:var(--bg);color:var(--text);
+      font-family:'Barlow',sans-serif;font-weight:300;font-size:16px;line-height:1.6;
+      overflow-x:hidden;cursor:crosshair;min-height:100vh;
+    }
+    body::before{
+      content:'';position:fixed;inset:0;
+      background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+      opacity:0.4;pointer-events:none;z-index:0;
+    }
+    .grid-bg{
+      position:fixed;inset:0;
+      background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);
+      background-size:80px 80px;pointer-events:none;z-index:0;
+    }
+    .accent-lines{position:fixed;top:0;right:0;width:50%;height:100%;pointer-events:none;overflow:hidden;z-index:0;}
+    .accent-lines svg{width:100%;height:100%;}
+
+    /* NAV */
+    nav{
+      position:fixed;top:0;left:0;right:0;z-index:100;
+      display:flex;align-items:center;justify-content:space-between;
+      padding:0 40px;height:60px;
+      border-bottom:1px solid var(--border);
+      background:rgba(10,10,8,0.88);backdrop-filter:blur(12px);
+    }
+    .nav-logo{
+      font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:15px;
+      letter-spacing:0.22em;text-transform:uppercase;color:var(--text);text-decoration:none;
+    }
+    .nav-logo span{color:var(--accent);}
+    .nav-right{display:flex;align-items:center;gap:20px;}
+    .nav-status{
+      display:flex;align-items:center;gap:8px;
+      font-family:'DM Mono',monospace;font-size:10px;color:var(--text-dim);letter-spacing:0.1em;
+    }
+    .nav-status::before{
+      content:'';display:block;width:6px;height:6px;border-radius:50%;
+      background:var(--accent);box-shadow:0 0 6px var(--accent);
+    }
+
+    /* LAYOUT */
+    #root{position:relative;z-index:1;}
+    .admin-wrap{
+      position:relative;z-index:1;
+      max-width:1100px;margin:0 auto;
+      padding:88px 40px 80px;
+    }
+
+    /* PAGE HEADER */
+    .page-header{margin-bottom:40px;padding-bottom:24px;border-bottom:1px solid var(--border);}
+    .page-eyebrow{
+      font-family:'DM Mono',monospace;font-size:9px;
+      letter-spacing:0.28em;text-transform:uppercase;
+      color:var(--accent);margin-bottom:12px;
+    }
+    .page-title{
+      font-family:'Bebas Neue',sans-serif;font-size:56px;
+      line-height:0.9;color:var(--text);letter-spacing:0.02em;margin-bottom:4px;
+    }
+    .page-sub{
+      font-family:'Barlow Condensed',sans-serif;font-weight:300;
+      font-size:13px;letter-spacing:0.1em;text-transform:uppercase;
+      color:var(--text-muted);
+    }
+
+    /* ALERT */
+    .alert{
+      font-family:'DM Mono',monospace;font-size:10px;
+      letter-spacing:0.1em;padding:12px 16px;
+      border:1px solid;margin-bottom:28px;
+    }
+    .alert.ok{color:var(--accent);border-color:rgba(0,255,65,0.25);background:rgba(0,255,65,0.05);}
+    .alert.err{color:var(--red);border-color:rgba(184,64,64,0.25);background:rgba(184,64,64,0.05);}
+
+    /* GRID */
+    .admin-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);}
+    .admin-panel{background:var(--bg2);padding:32px;}
+
+    /* SECTION */
+    .section-label{
+      font-family:'DM Mono',monospace;font-size:9px;
+      letter-spacing:0.25em;text-transform:uppercase;
+      color:var(--accent);margin-bottom:20px;
+      padding-bottom:10px;border-bottom:1px solid var(--border);
+    }
+
+    /* FORM */
+    .mf-field{display:flex;flex-direction:column;gap:6px;margin-bottom:16px;}
+    .mf-label{
+      font-family:'DM Mono',monospace;font-size:9px;
+      letter-spacing:0.22em;text-transform:uppercase;color:var(--text-dim);
+    }
+    .mf-input,.mf-select{
+      background:transparent;border:none;
+      border-bottom:1px solid var(--border2);
+      padding:10px 0;
+      font-family:'DM Mono',monospace;font-size:13px;
+      color:var(--text);outline:none;
+      transition:border-color 0.2s;width:100%;
+    }
+    .mf-select{cursor:pointer;-webkit-appearance:none;background:var(--bg2);}
+    .mf-select option{background:var(--bg2);color:var(--text);}
+    .mf-input::placeholder{color:var(--text-dim);}
+    .mf-input:focus,.mf-select:focus{border-bottom-color:var(--accent);}
+
+    /* BUTTONS */
+    .btn-row{display:flex;gap:8px;margin-top:4px;flex-wrap:wrap;}
+    .va-btn{
+      font-family:'DM Mono',monospace;font-size:10px;
+      letter-spacing:0.16em;text-transform:uppercase;
+      color:var(--text);background:none;
+      border:1px solid var(--border2);
+      padding:9px 16px;cursor:crosshair;
+      transition:border-color 0.2s,color 0.2s;
+    }
+    .va-btn:hover{border-color:var(--accent);color:var(--accent);}
+    .va-btn.primary{background:var(--accent);color:#0a0a08;border-color:var(--accent);}
+    .va-btn.primary:hover{background:var(--accent2);border-color:var(--accent2);color:#fff;}
+    .va-btn.danger{border-color:rgba(184,64,64,0.4);color:var(--red);}
+    .va-btn.danger:hover{border-color:var(--red);background:rgba(184,64,64,0.06);}
+    .va-btn.warn{border-color:rgba(212,168,0,0.4);color:var(--warn);}
+    .va-btn.warn:hover{border-color:var(--warn);}
+    .va-btn:disabled{opacity:0.3;cursor:not-allowed;}
+    .va-btn.full{width:100%;justify-content:center;}
+
+    /* USER CARDS */
+    .user-list{display:flex;flex-direction:column;gap:1px;background:var(--border);}
+    .user-card{
+      background:var(--bg3);padding:16px 20px;
+      display:flex;align-items:center;gap:16px;
+      transition:background 0.2s;
+    }
+    .user-card:hover{background:var(--bg2);}
+    .user-avatar{
+      width:36px;height:36px;border-radius:50%;
+      object-fit:cover;object-position:center;
+      border:1px solid var(--accent);flex-shrink:0;
+    }
+    .user-name{
+      font-family:'Barlow Condensed',sans-serif;font-weight:600;
+      font-size:14px;letter-spacing:0.06em;text-transform:uppercase;color:var(--text);
+    }
+    .user-meta{
+      font-family:'DM Mono',monospace;font-size:9px;
+      letter-spacing:0.12em;color:var(--text-dim);margin-top:2px;
+    }
+    .user-actions{margin-left:auto;display:flex;align-items:center;gap:8px;}
+
+    /* TOGGLE */
+    .toggle-pill{
+      font-family:'DM Mono',monospace;font-size:9px;
+      letter-spacing:0.14em;text-transform:uppercase;
+      padding:5px 12px;border:1px solid;cursor:crosshair;
+      transition:all 0.2s;
+    }
+    .toggle-pill.on{color:var(--accent);border-color:rgba(0,255,65,0.3);background:rgba(0,255,65,0.06);}
+    .toggle-pill.off{color:var(--text-dim);border-color:var(--border2);background:transparent;}
+    .toggle-pill:hover{border-color:var(--accent2);color:var(--accent2);}
+
+    /* BADGE */
+    .badge{
+      font-family:'DM Mono',monospace;font-size:8px;
+      letter-spacing:0.14em;text-transform:uppercase;
+      padding:2px 8px;border:1px solid;
+    }
+    .badge.admin{color:var(--warn);border-color:rgba(212,168,0,0.3);background:rgba(212,168,0,0.05);}
+
+    /* ACCESS LIST */
+    .access-row{
+      background:var(--bg3);padding:12px 16px;
+      display:flex;align-items:center;gap:12px;
+      border-bottom:1px solid var(--border);
+      font-family:'DM Mono',monospace;font-size:11px;color:var(--text-muted);
+    }
+    .access-row:last-child{border-bottom:none;}
+    .access-arrow{color:var(--accent);font-size:10px;margin:0 4px;}
+
+    /* BACK BUTTON */
+    .back-btn{
+      font-family:'DM Mono',monospace;font-size:10px;
+      letter-spacing:0.16em;text-transform:uppercase;
+      color:var(--text-muted);background:none;
+      border:1px solid var(--border2);
+      padding:10px 20px;cursor:crosshair;
+      transition:border-color 0.2s,color 0.2s;
+      display:inline-flex;align-items:center;gap:8px;
+      margin-bottom:32px;
+    }
+    .back-btn:hover{border-color:var(--text-dim);color:var(--text);}
+
+    /* ACCESS ROW DELETE */
+    .access-del{
+      margin-left:auto;flex-shrink:0;
+      font-family:'DM Mono',monospace;font-size:9px;
+      letter-spacing:0.12em;text-transform:uppercase;
+      color:rgba(184,64,64,0.5);background:none;
+      border:1px solid rgba(184,64,64,0.2);
+      padding:3px 10px;cursor:crosshair;
+      transition:color 0.2s,border-color 0.2s;
+    }
+    .access-del:hover{color:var(--red);border-color:var(--red);}
+
+    @media(max-width:900px){
+      .admin-grid{grid-template-columns:1fr;}
+      nav{padding:0 20px;}
+      .admin-wrap{padding:80px 20px 60px;}
+    }
+    @media(pointer:fine){body,a,button{cursor:crosshair;}}
+  </style>
+</head>
+<body>
+<div class="grid-bg"></div>
+<div class="accent-lines" aria-hidden="true">
+  <svg viewBox="0 0 600 900" fill="none" preserveAspectRatio="xMaxYMid slice">
+    <line x1="580" y1="0" x2="20" y2="900" stroke="rgba(0,255,65,0.07)" stroke-width="1"/>
+    <line x1="540" y1="0" x2="0" y2="760" stroke="rgba(0,255,65,0.05)" stroke-width="0.5"/>
+    <line x1="600" y1="200" x2="100" y2="900" stroke="rgba(0,255,65,0.04)" stroke-width="1"/>
+    <rect x="460" y="80" width="100" height="1" fill="rgba(0,255,65,0.15)"/>
+    <rect x="480" y="120" width="60" height="1" fill="rgba(0,255,65,0.1)"/>
+    <rect x="500" y="160" width="40" height="1" fill="rgba(0,255,65,0.07)"/>
+    <circle cx="540" cy="180" r="60" stroke="rgba(0,255,65,0.04)" stroke-width="1" fill="none"/>
+    <circle cx="540" cy="180" r="90" stroke="rgba(0,255,65,0.025)" stroke-width="0.5" fill="none"/>
+    <circle cx="540" cy="180" r="130" stroke="rgba(0,255,65,0.015)" stroke-width="0.5" fill="none"/>
+  </svg>
+</div>
+
+<nav>
+  <a href="https://vectraarch.live" class="nav-logo">Vectra<span>&nbsp;</span>Arch</a>
+  <div class="nav-right">
+    <div class="nav-status">LEGACY · ADMIN</div>
+  </div>
+</nav>
+
+<div id="root"></div>
+
+<script type="text/babel">
+  const { useState, useEffect, useRef, useCallback, useMemo } = React;
+  const API_BASE = '/legacy/api';
+  const DEFAULT_PROFILE_PIC = 'https://placehold.co/50x50/808080/FFFFFF?text=U';
+  const DEFAULT_EVENT_COLOR = '#00ff41';
+
+  const Admin = ({ user, setPage, onLogout }) => {
+    const [users, setUsers] = useState([]);
+    const [userProfiles, setUserProfiles] = useState({});
+    const [accessList, setAccessList] = useState([]);
+    const [newUser, setNewUser] = useState({ username: '', password: '' });
+    const [accessForm, setAccessForm] = useState({ viewer: '', target: '' });
+    const [adminForm, setAdminForm] = useState({ username: '' });
+    const [passwordForm, setPasswordForm] = useState({ username: '', newPassword: '' });
+    const [deleteUser, setDeleteUser] = useState('');
+    const [botTokenForm, setBotTokenForm] = useState({ token: '' });
+    const [message, setMessage] = useState({ text: '', type: '' });
+
+    const msg = (text, type = 'ok') => setMessage({ text, type });
+
+    const userOptions = useMemo(() => [
+      { value: '', label: '— Select user —' },
+      ...users.map(u => ({ value: u.username, label: `${u.username}${u.isAdmin ? ' (Admin)' : ''}` }))
+    ], [users]);
+
+    const fetchUsers = useCallback(async () => {
+      try {
+        const { data } = await axios.get(`${API_BASE}/users`, { params: { adminUsername: user.username } });
+        if (data.success) {
+          setUsers(data.data);
+          const profilePromises = data.data.map(async (u) => {
+            try {
+              const picResponse = await axios.get(`${API_BASE}/profile-pictures?username=${u.username}`)
+                .catch(() => ({ data: { profilePicUrl: DEFAULT_PROFILE_PIC, eventColor: DEFAULT_EVENT_COLOR, telegram_group_notification: true } }));
+              return [u.username, {
+                pic: picResponse.data.profilePicUrl || DEFAULT_PROFILE_PIC,
+                color: picResponse.data.eventColor || DEFAULT_EVENT_COLOR,
+                telegram_group_notification: picResponse.data.telegram_group_notification ?? true
+              }];
+            } catch {
+              return [u.username, { pic: DEFAULT_PROFILE_PIC, color: DEFAULT_EVENT_COLOR, telegram_group_notification: true }];
+            }
+          });
+          const profilesArray = await Promise.all(profilePromises);
+          setUserProfiles(Object.fromEntries(profilesArray));
+        } else { msg(data.message || 'Failed to fetch users.', 'err'); }
+      } catch (err) { msg(err.response?.data?.message || 'Error fetching users.', 'err'); }
+    }, [user.username]);
+
+    const fetchAccessList = useCallback(async () => {
+      try {
+        const { data } = await axios.get(`${API_BASE}/get-access`, { params: { adminUsername: user.username } });
+        if (data.success) setAccessList(data.accessList);
+        else msg(data.message || 'Failed to fetch access list.', 'err');
+      } catch (err) { msg(err.response?.data?.message || 'Error fetching access list.', 'err'); }
+    }, [user.username]);
+
+    const handleAddUser = useCallback(async () => {
+      if (!newUser.username || !newUser.password) { msg('Username and password are required.', 'err'); return; }
+      try {
+        const { data } = await axios.post(`${API_BASE}/add-user`, { ...newUser, adminUsername: user.username });
+        msg(data.message || (data.success ? 'User added.' : 'Failed to add user.'), data.success ? 'ok' : 'err');
+        if (data.success) { setNewUser({ username: '', password: '' }); fetchUsers(); }
+      } catch (err) { msg(err.response?.data?.message || 'Error adding user.', 'err'); }
+    }, [newUser, user.username, fetchUsers]);
+
+    const handleGrantAccess = useCallback(async () => {
+      if (!accessForm.viewer || !accessForm.target) { msg('Viewer and target required.', 'err'); return; }
+      try {
+        const { data } = await axios.post(`${API_BASE}/grant-access`, { ...accessForm, adminUsername: user.username });
+        msg(data.message || (data.success ? 'Access granted.' : 'Failed.'), data.success ? 'ok' : 'err');
+        if (data.success) { setAccessForm({ viewer: '', target: '' }); fetchAccessList(); }
+      } catch (err) { msg(err.response?.data?.message || 'Error.', 'err'); }
+    }, [accessForm, user.username, fetchAccessList]);
+
+    const handleRevokeAccess = useCallback(async () => {
+      if (!accessForm.viewer || !accessForm.target) { msg('Viewer and target required.', 'err'); return; }
+      try {
+        const { data } = await axios.post(`${API_BASE}/revoke-access`, { ...accessForm, adminUsername: user.username });
+        msg(data.message || (data.success ? 'Access revoked.' : 'Failed.'), data.success ? 'ok' : 'err');
+        if (data.success) { setAccessForm({ viewer: '', target: '' }); fetchAccessList(); }
+      } catch (err) { msg(err.response?.data?.message || 'Error.', 'err'); }
+    }, [accessForm, user.username, fetchAccessList]);
+
+    const handleRevokeAccessDirect = useCallback(async (viewer, target) => {
+      try {
+        const { data } = await axios.post(`${API_BASE}/revoke-access`, { viewer, target, adminUsername: user.username });
+        msg(data.message || (data.success ? `Access revoked: ${viewer} → ${target}` : 'Failed.'), data.success ? 'ok' : 'err');
+        if (data.success) fetchAccessList();
+      } catch (err) { msg(err.response?.data?.message || 'Error.', 'err'); }
+    }, [user.username, fetchAccessList]);
+
+    const handleGrantAdmin = useCallback(async () => {
+      if (!adminForm.username) { msg('Username required.', 'err'); return; }
+      try {
+        const { data } = await axios.post(`${API_BASE}/grant-admin`, { username: adminForm.username, adminUsername: user.username });
+        msg(data.message || (data.success ? 'Admin granted.' : 'Failed.'), data.success ? 'ok' : 'err');
+        if (data.success) { setAdminForm({ username: '' }); fetchUsers(); }
+      } catch (err) { msg(err.response?.data?.message || 'Error.', 'err'); }
+    }, [adminForm, user.username, fetchUsers]);
+
+    const handleRevokeAdmin = useCallback(async () => {
+      if (!adminForm.username) { msg('Username required.', 'err'); return; }
+      try {
+        const { data } = await axios.post(`${API_BASE}/revoke-admin`, { username: adminForm.username, adminUsername: user.username });
+        msg(data.message || (data.success ? 'Admin revoked.' : 'Failed.'), data.success ? 'ok' : 'err');
+        if (data.success) { setAdminForm({ username: '' }); fetchUsers(); }
+      } catch (err) { msg(err.response?.data?.message || 'Error.', 'err'); }
+    }, [adminForm, user.username, fetchUsers]);
+
+    const handleUpdatePassword = useCallback(async () => {
+      if (!passwordForm.username || !passwordForm.newPassword) { msg('Username and password required.', 'err'); return; }
+      try {
+        const { data } = await axios.post(`${API_BASE}/admin-update-password`, { ...passwordForm, adminUsername: user.username });
+        msg(data.message || (data.success ? 'Password updated.' : 'Failed.'), data.success ? 'ok' : 'err');
+        if (data.success) setPasswordForm({ username: '', newPassword: '' });
+      } catch (err) { msg(err.response?.data?.message || 'Error.', 'err'); }
+    }, [passwordForm, user.username]);
+
+    const handleDeleteUser = useCallback(async () => {
+      if (!deleteUser) { msg('Select a user.', 'err'); return; }
+      try {
+        const { data } = await axios.delete(`${API_BASE}/delete-user/${deleteUser}`, { params: { adminUsername: user.username } });
+        msg(data.message || (data.success ? 'User deleted.' : 'Failed.'), data.success ? 'ok' : 'err');
+        if (data.success) { setDeleteUser(''); fetchUsers(); fetchAccessList(); }
+      } catch (err) { msg(err.response?.data?.message || 'Error.', 'err'); }
+    }, [deleteUser, user.username, fetchUsers, fetchAccessList]);
+
+    const handleToggleTelegramGroup = useCallback(async (targetUsername) => {
+      try {
+        const { data } = await axios.post(`${API_BASE}/toggle-group-notification`, { username: targetUsername, adminUsername: user.username });
+        if (data.success) {
+          setUserProfiles(prev => ({ ...prev, [targetUsername]: { ...prev[targetUsername], telegram_group_notification: data.newValue } }));
+          msg(`Group notifications ${data.newValue ? 'enabled' : 'disabled'} for ${targetUsername}`);
+        } else msg(data.message || 'Failed.', 'err');
+      } catch (err) { msg(err.response?.data?.message || 'Error.', 'err'); }
+    }, [user.username]);
+
+    const handleUpdateBotToken = useCallback(async () => {
+      if (!botTokenForm.token) { msg('Token required.', 'err'); return; }
+      try {
+        const { data } = await axios.post(`${API_BASE}/update-bot-token`, { token: botTokenForm.token, adminUsername: user.username });
+        msg(data.message || (data.success ? 'Token updated.' : 'Failed.'), data.success ? 'ok' : 'err');
+        if (data.success) setBotTokenForm({ token: '' });
+      } catch (err) { msg(err.response?.data?.message || 'Error.', 'err'); }
+    }, [botTokenForm, user.username]);
+
+    useEffect(() => { fetchUsers(); fetchAccessList(); }, [fetchUsers, fetchAccessList]);
+
+    return (
+      <div className="admin-wrap">
+        <button className="back-btn" onClick={() => setPage('menu')}>← Back to Menu</button>
+
+        <div className="page-header">
+          <div className="page-eyebrow">§ Vectra Arch · Legacy · Administration</div>
+          <div className="page-title">Admin Panel</div>
+          <div className="page-sub">Identity &amp; Access Management · {user.username}</div>
+        </div>
+
+        {message.text && (
+          <div className={`alert ${message.type}`}>
+            {message.type === 'ok' ? '✓ ' : '⚠ '}{message.text}
+          </div>
+        )}
+
+        <div className="admin-grid">
+
+          {/* LEFT COLUMN */}
+          <div className="admin-panel">
+
+            {/* ADD USER */}
+            <div style={{marginBottom:'36px'}}>
+              <div className="section-label">§ 01 · Add New User</div>
+              <div className="mf-field">
+                <label className="mf-label">Username</label>
+                <input className="mf-input" placeholder="new username"
+                  value={newUser.username} onChange={e => setNewUser(p => ({...p, username: e.target.value}))}/>
+              </div>
+              <div className="mf-field">
+                <label className="mf-label">Password</label>
+                <input className="mf-input" type="password" placeholder="········"
+                  value={newUser.password} onChange={e => setNewUser(p => ({...p, password: e.target.value}))}/>
+              </div>
+              <button className="va-btn primary full" onClick={handleAddUser}>Add User ↗</button>
+            </div>
+
+            {/* MANAGE ACCESS */}
+            <div style={{marginBottom:'36px'}}>
+              <div className="section-label">§ 02 · Manage Access</div>
+              <div className="mf-field">
+                <label className="mf-label">Viewer</label>
+                <select className="mf-select" value={accessForm.viewer} onChange={e => setAccessForm(p => ({...p, viewer: e.target.value}))}>
+                  {userOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+              <div className="mf-field">
+                <label className="mf-label">Target</label>
+                <select className="mf-select" value={accessForm.target} onChange={e => setAccessForm(p => ({...p, target: e.target.value}))}>
+                  {userOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+              <div className="btn-row">
+                <button className="va-btn primary" onClick={handleGrantAccess}>Grant ↗</button>
+                <button className="va-btn danger" onClick={handleRevokeAccess}>Revoke</button>
+              </div>
+            </div>
+
+            {/* ADMIN STATUS */}
+            <div>
+              <div className="section-label">§ 03 · Admin Status</div>
+              <div className="mf-field">
+                <label className="mf-label">Username</label>
+                <select className="mf-select" value={adminForm.username} onChange={e => setAdminForm(p => ({...p, username: e.target.value}))}>
+                  {userOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+              <div className="btn-row">
+                <button className="va-btn primary" onClick={handleGrantAdmin}>Grant Admin ↗</button>
+                <button className="va-btn danger" onClick={handleRevokeAdmin}>Revoke Admin</button>
+              </div>
+            </div>
+          </div>
+
+          {/* RIGHT COLUMN */}
+          <div className="admin-panel">
+
+            {/* UPDATE PASSWORD */}
+            <div style={{marginBottom:'36px'}}>
+              <div className="section-label">§ 04 · Update Password</div>
+              <div className="mf-field">
+                <label className="mf-label">Username</label>
+                <select className="mf-select" value={passwordForm.username} onChange={e => setPasswordForm(p => ({...p, username: e.target.value}))}>
+                  {userOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+              <div className="mf-field">
+                <label className="mf-label">New Password</label>
+                <input className="mf-input" type="password" placeholder="········"
+                  value={passwordForm.newPassword} onChange={e => setPasswordForm(p => ({...p, newPassword: e.target.value}))}/>
+              </div>
+              <button className="va-btn primary full" onClick={handleUpdatePassword}>Update Password ↗</button>
+            </div>
+
+            {/* DELETE USER */}
+            <div style={{marginBottom:'36px'}}>
+              <div className="section-label">§ 05 · Delete User</div>
+              <div className="mf-field">
+                <label className="mf-label">Select User</label>
+                <select className="mf-select" value={deleteUser} onChange={e => setDeleteUser(e.target.value)}>
+                  {userOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+              <button className="va-btn danger full" onClick={handleDeleteUser}>Delete User</button>
+            </div>
+
+            {/* BOT TOKEN */}
+            <div style={{marginBottom:'36px'}}>
+              <div className="section-label">§ 06 · Telegram Bot Token</div>
+              <div className="mf-field">
+                <label className="mf-label">New Token</label>
+                <input className="mf-input" placeholder="bot token"
+                  value={botTokenForm.token} onChange={e => setBotTokenForm(p => ({...p, token: e.target.value}))}/>
+              </div>
+              <button className="va-btn primary full" onClick={handleUpdateBotToken}>Update Token ↗</button>
+            </div>
+
+            {/* ACCESS LIST */}
+            <div style={{marginBottom:'36px'}}>
+              <div className="section-label">§ 07 · Access List</div>
+              {accessList.length === 0
+                ? <div style={{fontFamily:"'DM Mono',monospace",fontSize:'10px',color:'var(--text-dim)',letterSpacing:'0.1em'}}>No access rules defined.</div>
+                : <div style={{background:'var(--bg3)',border:'1px solid var(--border)'}}>
+                    {accessList.map((a, i) => (
+                      <div key={i} className="access-row">
+                        <img src={userProfiles[a.viewer]?.pic||DEFAULT_PROFILE_PIC} alt={a.viewer}
+                          style={{width:'20px',height:'20px',borderRadius:'50%',objectFit:'cover',border:`1px solid ${userProfiles[a.viewer]?.color||DEFAULT_EVENT_COLOR}`}}/>
+                        <span>{a.viewer}</span>
+                        <span className="access-arrow">→</span>
+                        <span>{a.target}</span>
+                        <img src={userProfiles[a.target]?.pic||DEFAULT_PROFILE_PIC} alt={a.target}
+                          style={{width:'20px',height:'20px',borderRadius:'50%',objectFit:'cover',border:`1px solid ${userProfiles[a.target]?.color||DEFAULT_EVENT_COLOR}`}}/>
+                        <button className="access-del" onClick={() => handleRevokeAccessDirect(a.viewer, a.target)}>Revoke ×</button>
+                      </div>
+                    ))}
+                  </div>}
+            </div>
+          </div>
+        </div>
+
+        {/* USER LIST — full width */}
+        <div style={{marginTop:'1px',background:'var(--bg2)',padding:'32px'}}>
+          <div className="section-label">§ 08 · User List · {users.length} Accounts</div>
+          <div className="user-list">
+            {users.map(u => (
+              <div key={u.username} className="user-card">
+                <img className="user-avatar"
+                  src={userProfiles[u.username]?.pic||DEFAULT_PROFILE_PIC}
+                  alt={u.username}
+                  style={{borderColor: userProfiles[u.username]?.color||DEFAULT_EVENT_COLOR}}/>
+                <div>
+                  <div className="user-name">
+                    {u.username}
+                    {u.isAdmin && <span className="badge admin" style={{marginLeft:'8px'}}>Admin</span>}
+                  </div>
+                  <div className="user-meta">§ Member</div>
+                </div>
+                <div className="user-actions">
+                  <button
+                    className={`toggle-pill ${userProfiles[u.username]?.telegram_group_notification ? 'on' : 'off'}`}
+                    onClick={() => handleToggleTelegramGroup(u.username)}>
+                    Notifications: {userProfiles[u.username]?.telegram_group_notification ? 'On' : 'Off'}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div style={{marginTop:'32px',display:'flex',justifyContent:'flex-end'}}>
+          <button className="va-btn danger" onClick={onLogout}>Sign Out ×</button>
+        </div>
+      </div>
+    );
+  };
+
+  const App = () => {
+    const [user, setUser] = useState(null);
+    useEffect(() => {
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        try { setUser(JSON.parse(storedUser)); }
+        catch { window.location.href = 'index.html'; }
+      } else { window.location.href = 'index.html'; }
+    }, []);
+    const handleLogout = useCallback(() => {
+      localStorage.removeItem('user');
+      window.location.href = 'index.html';
+    }, []);
+    if (!user) return null;
+    return <Admin user={user} setPage={() => window.location.href = 'index.html'} onLogout={handleLogout}/>;
+  };
+
+  ReactDOM.render(<App/>, document.getElementById('root'));
+</script>
+</body>
+</html>

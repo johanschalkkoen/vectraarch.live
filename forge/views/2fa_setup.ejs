@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Forge | Secure Protocol</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&family=Barlow:wght@300;400&family=Barlow+Condensed:wght@300;400;500;700&display=swap" rel="stylesheet" />
+    <style>
+        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+        :root{
+            --bg:#0a0a08;--bg2:#111110;
+            --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.14);
+            --text:#e8e4d8;--text-muted:rgba(232,228,216,0.45);--text-dim:rgba(232,228,216,0.22);
+            --accent:#00ff41;--accent2:#00b32c;--red:#b84040;
+        }
+        html,body{height:100%;}
+        body{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;font-weight:300;display:flex;align-items:center;justify-content:center;min-height:100vh;cursor:crosshair;}
+        body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");opacity:0.4;pointer-events:none;z-index:0;}
+        .grid-bg{position:fixed;inset:0;background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);background-size:80px 80px;pointer-events:none;z-index:0;}
+        nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 40px;height:60px;border-bottom:1px solid var(--border);background:rgba(10,10,8,0.85);backdrop-filter:blur(12px);}
+        .nav-logo{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:15px;letter-spacing:0.22em;text-transform:uppercase;color:var(--text);text-decoration:none;}
+        .nav-logo span{color:var(--accent);}
+        .nav-right{font-family:'DM Mono',monospace;font-size:10px;color:var(--text-dim);letter-spacing:0.12em;text-transform:uppercase;display:flex;align-items:center;gap:8px;}
+        .nav-right::before{content:'';display:block;width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 6px var(--accent);}
+
+        .wrap{position:relative;z-index:1;width:100%;max-width:420px;padding:16px;animation:fadeUp 0.35s cubic-bezier(0.16,1,0.3,1) both;}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(20px) scale(0.985);}to{opacity:1;transform:none;}}
+        .top-bar{height:3px;background:#d4a800;}
+        .card{background:var(--bg2);border:1px solid var(--border2);border-top:none;}
+        .card-header{padding:32px 40px 24px;border-bottom:1px solid var(--border);}
+        .eyebrow{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.25em;text-transform:uppercase;color:#d4a800;margin-bottom:12px;}
+        .card-title{font-family:'Bebas Neue',sans-serif;font-size:48px;letter-spacing:0.04em;line-height:1;color:var(--text);margin-bottom:4px;}
+        .card-sub{font-family:'DM Mono',monospace;font-size:10px;color:var(--text-dim);letter-spacing:0.12em;}
+
+        .card-body{padding:28px 40px 36px;display:flex;flex-direction:column;gap:16px;align-items:center;}
+        .qr-frame{border:1px solid var(--border2);padding:12px;background:var(--bg);display:inline-flex;}
+        .qr-frame img{display:block;width:160px;height:160px;}
+        .secret-key{font-family:'DM Mono',monospace;font-size:0.6rem;letter-spacing:0.18em;text-transform:uppercase;color:var(--text-dim);text-align:center;padding:10px 16px;border:1px solid var(--border);background:var(--bg);width:100%;word-break:break-all;}
+
+        .field-group{display:flex;flex-direction:column;gap:6px;width:100%;}
+        .field-label{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.22em;text-transform:uppercase;color:var(--text-dim);}
+        .field-input{background:var(--bg);border:1px solid var(--border2);color:var(--text);font-family:'DM Mono',monospace;font-size:1.4rem;letter-spacing:0.3em;padding:14px 16px;outline:none;transition:border-color 0.2s;width:100%;text-align:center;cursor:crosshair;}
+        .field-input::placeholder{color:var(--text-dim);font-size:1rem;letter-spacing:0.2em;}
+        .field-input:focus{border-color:var(--accent2);}
+
+        .btn-primary{width:100%;font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.22em;text-transform:uppercase;color:#0a0a08;background:var(--accent);border:none;padding:15px;cursor:crosshair;transition:background 0.2s;display:flex;align-items:center;justify-content:center;gap:10px;}
+        .btn-primary:hover{background:var(--accent2);color:#fff;}
+
+        .card-footer{padding:14px 40px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+        .footer-link{font-family:'DM Mono',monospace;font-size:9px;color:var(--text-dim);letter-spacing:0.12em;text-decoration:none;transition:color 0.2s;}
+        .footer-link:hover{color:var(--text-muted);}
+        .status-dot{width:6px;height:6px;border-radius:50%;background:#d4a800;box-shadow:0 0 6px #d4a800;}
+
+        @media (pointer:fine){a,button,input{cursor:crosshair;}}
+    </style>
+</head>
+<body>
+
+    <div class="grid-bg"></div>
+
+    <nav>
+        <a href="https://vectraarch.live" class="nav-logo">Vectra<span>&nbsp;</span>Arch</a>
+        <div class="nav-right">Forge · 2FA Setup</div>
+    </nav>
+
+    <div class="wrap">
+        <div class="top-bar"></div>
+        <div class="card">
+            <div class="card-header">
+                <div class="eyebrow">§ Vectra Arch · Forge · Security Protocol</div>
+                <div class="card-title">Init 2FA</div>
+                <div class="card-sub">Scan QR with your authenticator app</div>
+            </div>
+            <div class="card-body">
+                <div class="qr-frame">
+                    <img src="<%= qr %>" alt="QR Protocol">
+                </div>
+                <div class="secret-key">KEY: <%= secret %></div>
+                <form action="/forge/auth/2fa/setup" method="POST" style="display:contents;">
+                    <div class="field-group">
+                        <label class="field-label" for="token">Verification Code</label>
+                        <input class="field-input" id="token" type="text" name="token" placeholder="000000" maxlength="6" required autofocus autocomplete="off">
+                    </div>
+                    <button type="submit" class="btn-primary">Link Device ↗</button>
+                </form>
+            </div>
+            <div class="card-footer">
+                <a href="/" class="footer-link">← Cancel</a>
+                <div class="status-dot"></div>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

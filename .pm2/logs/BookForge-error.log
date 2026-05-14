@@ -1,0 +1,462 @@
+Error [ERR_REQUIRE_ESM]: require() of ES Module /var/www/forge.vectraarch.live/node_modules/@scure/base/index.js from /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs not supported.
+Instead change the require of index.js in /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs to a dynamic import() which is available in all CommonJS modules.
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs:1:519)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/otplib/dist/index.cjs:1:970)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/server.js:10:27)
+    at Object.<anonymous> (/usr/local/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23) {
+  code: 'ERR_REQUIRE_ESM'
+}
+Error [ERR_REQUIRE_ESM]: require() of ES Module /var/www/forge.vectraarch.live/node_modules/@scure/base/index.js from /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs not supported.
+Instead change the require of index.js in /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs to a dynamic import() which is available in all CommonJS modules.
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs:1:519)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/otplib/dist/index.cjs:1:970)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/server.js:10:27)
+    at Object.<anonymous> (/usr/local/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23) {
+  code: 'ERR_REQUIRE_ESM'
+}
+Error [ERR_REQUIRE_ESM]: require() of ES Module /var/www/forge.vectraarch.live/node_modules/@scure/base/index.js from /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs not supported.
+Instead change the require of index.js in /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs to a dynamic import() which is available in all CommonJS modules.
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs:1:519)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/otplib/dist/index.cjs:1:970)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/server.js:10:27)
+    at Object.<anonymous> (/usr/local/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23) {
+  code: 'ERR_REQUIRE_ESM'
+}
+Error [ERR_REQUIRE_ESM]: require() of ES Module /var/www/forge.vectraarch.live/node_modules/@scure/base/index.js from /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs not supported.
+Instead change the require of index.js in /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs to a dynamic import() which is available in all CommonJS modules.
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs:1:519)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/otplib/dist/index.cjs:1:970)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/server.js:10:27)
+    at Object.<anonymous> (/usr/local/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23) {
+  code: 'ERR_REQUIRE_ESM'
+}
+Error [ERR_REQUIRE_ESM]: require() of ES Module /var/www/forge.vectraarch.live/node_modules/@scure/base/index.js from /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs not supported.
+Instead change the require of index.js in /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs to a dynamic import() which is available in all CommonJS modules.
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs:1:519)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/otplib/dist/index.cjs:1:970)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/server.js:10:27)
+    at Object.<anonymous> (/usr/local/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23) {
+  code: 'ERR_REQUIRE_ESM'
+}
+Error [ERR_REQUIRE_ESM]: require() of ES Module /var/www/forge.vectraarch.live/node_modules/@scure/base/index.js from /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs not supported.
+Instead change the require of index.js in /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs to a dynamic import() which is available in all CommonJS modules.
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs:1:519)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/otplib/dist/index.cjs:1:970)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/server.js:10:27)
+    at Object.<anonymous> (/usr/local/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23) {
+  code: 'ERR_REQUIRE_ESM'
+}
+Error [ERR_REQUIRE_ESM]: require() of ES Module /var/www/forge.vectraarch.live/node_modules/@scure/base/index.js from /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs not supported.
+Instead change the require of index.js in /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs to a dynamic import() which is available in all CommonJS modules.
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs:1:519)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/otplib/dist/index.cjs:1:970)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/server.js:10:27)
+    at Object.<anonymous> (/usr/local/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23) {
+  code: 'ERR_REQUIRE_ESM'
+}
+Error [ERR_REQUIRE_ESM]: require() of ES Module /var/www/forge.vectraarch.live/node_modules/@scure/base/index.js from /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs not supported.
+Instead change the require of index.js in /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs to a dynamic import() which is available in all CommonJS modules.
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs:1:519)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/otplib/dist/index.cjs:1:970)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/server.js:10:27)
+    at Object.<anonymous> (/usr/local/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23) {
+  code: 'ERR_REQUIRE_ESM'
+}
+Error [ERR_REQUIRE_ESM]: require() of ES Module /var/www/forge.vectraarch.live/node_modules/@scure/base/index.js from /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs not supported.
+Instead change the require of index.js in /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs to a dynamic import() which is available in all CommonJS modules.
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs:1:519)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/otplib/dist/index.cjs:1:970)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/server.js:10:27)
+    at Object.<anonymous> (/usr/local/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23) {
+  code: 'ERR_REQUIRE_ESM'
+}
+Error [ERR_REQUIRE_ESM]: require() of ES Module /var/www/forge.vectraarch.live/node_modules/@scure/base/index.js from /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs not supported.
+Instead change the require of index.js in /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs to a dynamic import() which is available in all CommonJS modules.
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs:1:519)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/otplib/dist/index.cjs:1:970)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/server.js:10:27)
+    at Object.<anonymous> (/usr/local/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23) {
+  code: 'ERR_REQUIRE_ESM'
+}
+Error [ERR_REQUIRE_ESM]: require() of ES Module /var/www/forge.vectraarch.live/node_modules/@scure/base/index.js from /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs not supported.
+Instead change the require of index.js in /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs to a dynamic import() which is available in all CommonJS modules.
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs:1:519)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/otplib/dist/index.cjs:1:970)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/server.js:10:27)
+    at Object.<anonymous> (/usr/local/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23) {
+  code: 'ERR_REQUIRE_ESM'
+}
+Error [ERR_REQUIRE_ESM]: require() of ES Module /var/www/forge.vectraarch.live/node_modules/@scure/base/index.js from /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs not supported.
+Instead change the require of index.js in /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs to a dynamic import() which is available in all CommonJS modules.
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs:1:519)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/otplib/dist/index.cjs:1:970)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/server.js:10:27)
+    at Object.<anonymous> (/usr/local/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23) {
+  code: 'ERR_REQUIRE_ESM'
+}
+Error [ERR_REQUIRE_ESM]: require() of ES Module /var/www/forge.vectraarch.live/node_modules/@scure/base/index.js from /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs not supported.
+Instead change the require of index.js in /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs to a dynamic import() which is available in all CommonJS modules.
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs:1:519)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/otplib/dist/index.cjs:1:970)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/server.js:10:27)
+    at Object.<anonymous> (/usr/local/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23) {
+  code: 'ERR_REQUIRE_ESM'
+}
+Error [ERR_REQUIRE_ESM]: require() of ES Module /var/www/forge.vectraarch.live/node_modules/@scure/base/index.js from /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs not supported.
+Instead change the require of index.js in /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs to a dynamic import() which is available in all CommonJS modules.
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs:1:519)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/otplib/dist/index.cjs:1:970)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/server.js:10:27)
+    at Object.<anonymous> (/usr/local/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23) {
+  code: 'ERR_REQUIRE_ESM'
+}
+Error [ERR_REQUIRE_ESM]: require() of ES Module /var/www/forge.vectraarch.live/node_modules/@scure/base/index.js from /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs not supported.
+Instead change the require of index.js in /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs to a dynamic import() which is available in all CommonJS modules.
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs:1:519)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/otplib/dist/index.cjs:1:970)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/server.js:10:27)
+    at Object.<anonymous> (/usr/local/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23) {
+  code: 'ERR_REQUIRE_ESM'
+}
+Error [ERR_REQUIRE_ESM]: require() of ES Module /var/www/forge.vectraarch.live/node_modules/@scure/base/index.js from /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs not supported.
+Instead change the require of index.js in /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs to a dynamic import() which is available in all CommonJS modules.
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs:1:519)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/otplib/dist/index.cjs:1:970)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/server.js:10:27)
+    at Object.<anonymous> (/usr/local/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23) {
+  code: 'ERR_REQUIRE_ESM'
+}
+Error [ERR_REQUIRE_ESM]: require() of ES Module /var/www/forge.vectraarch.live/node_modules/@scure/base/index.js from /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs not supported.
+Instead change the require of index.js in /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs to a dynamic import() which is available in all CommonJS modules.
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs:1:519)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/otplib/dist/index.cjs:1:970)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/server.js:10:27)
+    at Object.<anonymous> (/usr/local/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23) {
+  code: 'ERR_REQUIRE_ESM'
+}
+Error [ERR_REQUIRE_ESM]: require() of ES Module /var/www/forge.vectraarch.live/node_modules/@scure/base/index.js from /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs not supported.
+Instead change the require of index.js in /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs to a dynamic import() which is available in all CommonJS modules.
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs:1:519)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/otplib/dist/index.cjs:1:970)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/server.js:10:27)
+    at Object.<anonymous> (/usr/local/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23) {
+  code: 'ERR_REQUIRE_ESM'
+}
+Error [ERR_REQUIRE_ESM]: require() of ES Module /var/www/forge.vectraarch.live/node_modules/@scure/base/index.js from /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs not supported.
+Instead change the require of index.js in /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs to a dynamic import() which is available in all CommonJS modules.
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs:1:519)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/otplib/dist/index.cjs:1:970)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/server.js:10:27)
+    at Object.<anonymous> (/usr/local/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23) {
+  code: 'ERR_REQUIRE_ESM'
+}
+Error [ERR_REQUIRE_ESM]: require() of ES Module /var/www/forge.vectraarch.live/node_modules/@scure/base/index.js from /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs not supported.
+Instead change the require of index.js in /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs to a dynamic import() which is available in all CommonJS modules.
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs:1:519)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/otplib/dist/index.cjs:1:970)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/server.js:10:27)
+    at Object.<anonymous> (/usr/local/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23) {
+  code: 'ERR_REQUIRE_ESM'
+}
+Error [ERR_REQUIRE_ESM]: require() of ES Module /var/www/forge.vectraarch.live/node_modules/@scure/base/index.js from /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs not supported.
+Instead change the require of index.js in /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs to a dynamic import() which is available in all CommonJS modules.
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs:1:519)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/otplib/dist/index.cjs:1:970)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/server.js:10:27)
+    at Object.<anonymous> (/usr/local/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23) {
+  code: 'ERR_REQUIRE_ESM'
+}
+Error [ERR_REQUIRE_ESM]: require() of ES Module /var/www/forge.vectraarch.live/node_modules/@scure/base/index.js from /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs not supported.
+Instead change the require of index.js in /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs to a dynamic import() which is available in all CommonJS modules.
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs:1:519)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/otplib/dist/index.cjs:1:970)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/server.js:10:27)
+    at Object.<anonymous> (/usr/local/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23) {
+  code: 'ERR_REQUIRE_ESM'
+}
+Error [ERR_REQUIRE_ESM]: require() of ES Module /var/www/forge.vectraarch.live/node_modules/@scure/base/index.js from /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs not supported.
+Instead change the require of index.js in /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs to a dynamic import() which is available in all CommonJS modules.
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs:1:519)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/otplib/dist/index.cjs:1:970)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/server.js:10:27)
+    at Object.<anonymous> (/usr/local/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23) {
+  code: 'ERR_REQUIRE_ESM'
+}
+Error [ERR_REQUIRE_ESM]: require() of ES Module /var/www/forge.vectraarch.live/node_modules/@scure/base/index.js from /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs not supported.
+Instead change the require of index.js in /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs to a dynamic import() which is available in all CommonJS modules.
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs:1:519)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/otplib/dist/index.cjs:1:970)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/server.js:10:27)
+    at Object.<anonymous> (/usr/local/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23) {
+  code: 'ERR_REQUIRE_ESM'
+}
+Error [ERR_REQUIRE_ESM]: require() of ES Module /var/www/forge.vectraarch.live/node_modules/@scure/base/index.js from /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs not supported.
+Instead change the require of index.js in /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs to a dynamic import() which is available in all CommonJS modules.
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs:1:519)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/otplib/dist/index.cjs:1:970)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/server.js:10:27)
+    at Object.<anonymous> (/usr/local/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23) {
+  code: 'ERR_REQUIRE_ESM'
+}
+Error [ERR_REQUIRE_ESM]: require() of ES Module /var/www/forge.vectraarch.live/node_modules/@scure/base/index.js from /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs not supported.
+Instead change the require of index.js in /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs to a dynamic import() which is available in all CommonJS modules.
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs:1:519)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/otplib/dist/index.cjs:1:970)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/server.js:10:27)
+    at Object.<anonymous> (/usr/local/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23) {
+  code: 'ERR_REQUIRE_ESM'
+}
+Error [ERR_REQUIRE_ESM]: require() of ES Module /var/www/forge.vectraarch.live/node_modules/@scure/base/index.js from /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs not supported.
+Instead change the require of index.js in /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs to a dynamic import() which is available in all CommonJS modules.
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs:1:519)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/otplib/dist/index.cjs:1:970)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/server.js:10:27)
+    at Object.<anonymous> (/usr/local/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23) {
+  code: 'ERR_REQUIRE_ESM'
+}
+Error [ERR_REQUIRE_ESM]: require() of ES Module /var/www/forge.vectraarch.live/node_modules/@scure/base/index.js from /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs not supported.
+Instead change the require of index.js in /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs to a dynamic import() which is available in all CommonJS modules.
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs:1:519)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/otplib/dist/index.cjs:1:970)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/server.js:10:27)
+    at Object.<anonymous> (/usr/local/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23) {
+  code: 'ERR_REQUIRE_ESM'
+}
+Error [ERR_REQUIRE_ESM]: require() of ES Module /var/www/forge.vectraarch.live/node_modules/@scure/base/index.js from /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs not supported.
+Instead change the require of index.js in /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs to a dynamic import() which is available in all CommonJS modules.
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs:1:519)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/otplib/dist/index.cjs:1:970)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/server.js:10:27)
+    at Object.<anonymous> (/usr/local/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23) {
+  code: 'ERR_REQUIRE_ESM'
+}
+Error [ERR_REQUIRE_ESM]: require() of ES Module /var/www/forge.vectraarch.live/node_modules/@scure/base/index.js from /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs not supported.
+Instead change the require of index.js in /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs to a dynamic import() which is available in all CommonJS modules.
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs:1:519)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/otplib/dist/index.cjs:1:970)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/server.js:10:27)
+    at Object.<anonymous> (/usr/local/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23) {
+  code: 'ERR_REQUIRE_ESM'
+}
+Error [ERR_REQUIRE_ESM]: require() of ES Module /var/www/forge.vectraarch.live/node_modules/@scure/base/index.js from /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs not supported.
+Instead change the require of index.js in /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs to a dynamic import() which is available in all CommonJS modules.
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs:1:519)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/otplib/dist/index.cjs:1:970)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/server.js:10:27)
+    at Object.<anonymous> (/usr/local/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23) {
+  code: 'ERR_REQUIRE_ESM'
+}
+Error [ERR_REQUIRE_ESM]: require() of ES Module /var/www/forge.vectraarch.live/node_modules/@scure/base/index.js from /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs not supported.
+Instead change the require of index.js in /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs to a dynamic import() which is available in all CommonJS modules.
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs:1:519)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/otplib/dist/index.cjs:1:970)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/server.js:10:27)
+    at Object.<anonymous> (/usr/local/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23) {
+  code: 'ERR_REQUIRE_ESM'
+}
+Error [ERR_REQUIRE_ESM]: require() of ES Module /var/www/forge.vectraarch.live/node_modules/@scure/base/index.js from /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs not supported.
+Instead change the require of index.js in /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs to a dynamic import() which is available in all CommonJS modules.
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs:1:519)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/otplib/dist/index.cjs:1:970)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/server.js:10:27)
+    at Object.<anonymous> (/usr/local/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23) {
+  code: 'ERR_REQUIRE_ESM'
+}
+Error [ERR_REQUIRE_ESM]: require() of ES Module /var/www/forge.vectraarch.live/node_modules/@scure/base/index.js from /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs not supported.
+Instead change the require of index.js in /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs to a dynamic import() which is available in all CommonJS modules.
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs:1:519)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/otplib/dist/index.cjs:1:970)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/server.js:10:27)
+    at Object.<anonymous> (/usr/local/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23) {
+  code: 'ERR_REQUIRE_ESM'
+}
+Error [ERR_REQUIRE_ESM]: require() of ES Module /var/www/forge.vectraarch.live/node_modules/@scure/base/index.js from /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs not supported.
+Instead change the require of index.js in /var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs to a dynamic import() which is available in all CommonJS modules.
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/@otplib/plugin-base32-scure/dist/index.cjs:1:519)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/otplib/dist/index.cjs:1:970)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/server.js:10:27)
+    at Object.<anonymous> (/usr/local/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23) {
+  code: 'ERR_REQUIRE_ESM'
+}
+ReferenceError: File is not defined
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/epub-gen-memory/dist/lib/util/predicates.js:29:90)
+    at Module._compile (node:internal/modules/cjs/loader:1356:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1414:10)
+    at Module.load (node:internal/modules/cjs/loader:1197:32)
+    at Module._load (node:internal/modules/cjs/loader:1013:12)
+    at Module.require (node:internal/modules/cjs/loader:1225:19)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at require (node:internal/modules/helpers:177:18)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/epub-gen-memory/dist/lib/util/index.js:44:20)
+    at Module._compile (node:internal/modules/cjs/loader:1356:14)
+ReferenceError: File is not defined
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/epub-gen-memory/dist/lib/util/predicates.js:29:90)
+    at Module._compile (node:internal/modules/cjs/loader:1356:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1414:10)
+    at Module.load (node:internal/modules/cjs/loader:1197:32)
+    at Module._load (node:internal/modules/cjs/loader:1013:12)
+    at Module.require (node:internal/modules/cjs/loader:1225:19)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at require (node:internal/modules/helpers:177:18)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/epub-gen-memory/dist/lib/util/index.js:44:20)
+    at Module._compile (node:internal/modules/cjs/loader:1356:14)
+ReferenceError: File is not defined
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/epub-gen-memory/dist/lib/util/predicates.js:29:90)
+    at Module._compile (node:internal/modules/cjs/loader:1356:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1414:10)
+    at Module.load (node:internal/modules/cjs/loader:1197:32)
+    at Module._load (node:internal/modules/cjs/loader:1013:12)
+    at Module.require (node:internal/modules/cjs/loader:1225:19)
+    at Hook._require.Module.require (/usr/local/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+    at require (node:internal/modules/helpers:177:18)
+    at Object.<anonymous> (/var/www/forge.vectraarch.live/node_modules/epub-gen-memory/dist/lib/util/index.js:44:20)
+    at Module._compile (node:internal/modules/cjs/loader:1356:14)
+error: password authentication failed for user "forge_master"
+    at /var/www/forge.vectraarch.live/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /var/www/forge.vectraarch.live/server.js:732:15
+/var/www/forge.vectraarch.live/node_modules/pg-pool/index.js:45
+    Error.captureStackTrace(err)
+          ^
+
+error: password authentication failed for user "forge_master"
+    at /var/www/forge.vectraarch.live/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async Strategy._verify (/var/www/forge.vectraarch.live/server.js:66:5) {
+  length: 108,
+  severity: 'FATAL',
+  code: '28P01',
+  detail: undefined,
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'auth.c',
+  line: '331',
+  routine: 'auth_failed'
+}
+
+Node.js v20.20.2
+error: password authentication failed for user "forge_master"
+    at /var/www/forge.vectraarch.live/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /var/www/forge.vectraarch.live/server.js:732:15
+error: password authentication failed for user "forge_master"
+    at /var/www/forge.vectraarch.live/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /var/www/forge.vectraarch.live/server.js:732:15
+error: password authentication failed for user "forge_master"
+    at /var/www/forge.vectraarch.live/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /var/www/forge.vectraarch.live/server.js:732:15

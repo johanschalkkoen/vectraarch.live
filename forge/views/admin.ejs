@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Forge Admin | Audit Trail</title>
+    <link rel="stylesheet" href="/forge/public/style.css">
+    <style>
+        html, body { overflow: auto; height: auto; }
+    </style>
+</head>
+<body>
+
+    <div class="grid-bg"></div>
+
+    <!-- ── HEADER ── -->
+    <header class="app-header" style="position:sticky; top:0; z-index:100;">
+        <div style="display:flex; align-items:baseline; gap:12px;">
+            <h1>BOOK FORGE <span style="color:var(--text-dim); font-size:1.3rem;">// AUDIT TRAIL</span></h1>
+        </div>
+        <div style="display:flex;gap:8px;">
+            <a href="https://vectraarch.live" class="nav-item-btn" style="min-width:0;padding:0 12px;color:var(--text-dim);border-color:var(--border);">⌂</a>
+            <a href="/" class="nav-item-btn" style="min-width:80px;">← Hub</a>
+        </div>
+    </header>
+
+    <div style="position:relative; z-index:1;">
+
+        <!-- ── METRICS ROW ── -->
+        <% const enabled = users.filter(u => u.status === 'enabled').length; %>
+        <% const admins  = users.filter(u => u.role === 'admin').length; %>
+        <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:var(--border); border-bottom:1px solid var(--border);">
+            <div style="background:var(--bg2); padding:28px 32px;">
+                <div style="font-family:'Bebas Neue',sans-serif; font-size:3rem; line-height:1; color:var(--text);"><%= users.length %></div>
+                <div style="font-family:'DM Mono',monospace; font-size:0.5rem; letter-spacing:0.22em; text-transform:uppercase; color:var(--text-dim); margin-top:6px;">Total Identities</div>
+            </div>
+            <div style="background:var(--bg2); padding:28px 32px;">
+                <div style="font-family:'Bebas Neue',sans-serif; font-size:3rem; line-height:1; color:var(--accent);"><%= enabled %></div>
+                <div style="font-family:'DM Mono',monospace; font-size:0.5rem; letter-spacing:0.22em; text-transform:uppercase; color:var(--text-dim); margin-top:6px;">Active</div>
+            </div>
+            <div style="background:var(--bg2); padding:28px 32px;">
+                <div style="font-family:'Bebas Neue',sans-serif; font-size:3rem; line-height:1; color:var(--red);"><%= users.length - enabled %></div>
+                <div style="font-family:'DM Mono',monospace; font-size:0.5rem; letter-spacing:0.22em; text-transform:uppercase; color:var(--text-dim); margin-top:6px;">Disabled</div>
+            </div>
+            <div style="background:var(--bg2); padding:28px 32px;">
+                <div style="font-family:'Bebas Neue',sans-serif; font-size:3rem; line-height:1; color:var(--text-muted);"><%= admins %></div>
+                <div style="font-family:'DM Mono',monospace; font-size:0.5rem; letter-spacing:0.22em; text-transform:uppercase; color:var(--text-dim); margin-top:6px;">Admins</div>
+            </div>
+        </div>
+
+        <!-- ── TABLE ── -->
+        <div style="padding:32px; overflow-x:auto;">
+            <div style="border:1px solid var(--border); overflow:hidden; min-width:700px;">
+
+                <!-- HEADER ROW -->
+                <div style="display:grid; grid-template-columns:2fr 1fr 1fr 80px 1.5fr 200px; background:var(--bg3); border-bottom:1px solid var(--border2); padding:0 24px;">
+                    <% ['Identity','Type','Status','Logins','Last Login','Actions'].forEach(col => { %>
+                        <div style="font-family:'DM Mono',monospace; font-size:0.5rem; letter-spacing:0.22em; text-transform:uppercase; color:var(--text-dim); padding:12px 0;"><%= col %></div>
+                    <% }); %>
+                </div>
+
+                <!-- DATA ROWS -->
+                <% users.forEach((user, i) => { %>
+                    <div style="display:grid; grid-template-columns:2fr 1fr 1fr 80px 1.5fr 200px; padding:0 24px; border-bottom:1px solid var(--border); background:<%= i % 2 === 0 ? 'var(--bg)' : 'var(--bg2)' %>; transition:background 0.15s;" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='<%= i % 2 === 0 ? 'var(--bg)' : 'var(--bg2)' %>'">
+
+                        <!-- Identity -->
+                        <div style="padding:16px 0; display:flex; flex-direction:column; justify-content:center; gap:3px;">
+                            <span style="font-family:'Barlow Condensed',sans-serif; font-weight:500; font-size:0.9rem; letter-spacing:0.06em; text-transform:uppercase; color:var(--text);"><%= user.name %></span>
+                            <span style="font-family:'DM Mono',monospace; font-size:0.5rem; color:var(--text-dim); letter-spacing:0.06em;"><%= user.email %></span>
+                        </div>
+
+                        <!-- Type -->
+                        <div style="padding:16px 0; display:flex; align-items:center;">
+                            <span style="font-family:'DM Mono',monospace; font-size:0.55rem; letter-spacing:0.1em; color:var(--text-muted);"><%= user.type %></span>
+                        </div>
+
+                        <!-- Status -->
+                        <div style="padding:16px 0; display:flex; align-items:center; gap:7px;">
+                            <span style="width:5px; height:5px; border-radius:50%; flex-shrink:0; background:<%= user.status === 'enabled' ? 'var(--accent)' : 'var(--red)' %>; box-shadow:0 0 5px <%= user.status === 'enabled' ? 'var(--accent)' : 'var(--red)' %>;"></span>
+                            <span style="font-family:'DM Mono',monospace; font-size:0.5rem; letter-spacing:0.12em; text-transform:uppercase; color:<%= user.status === 'enabled' ? 'var(--accent2)' : 'var(--red)' %>;"><%= user.status %></span>
+                        </div>
+
+                        <!-- Logins -->
+                        <div style="padding:16px 0; display:flex; align-items:center;">
+                            <span style="font-family:'Bebas Neue',sans-serif; font-size:1.4rem; color:var(--text-muted);"><%= user.logins %></span>
+                        </div>
+
+                        <!-- Last Login -->
+                        <div style="padding:16px 0; display:flex; align-items:center;">
+                            <span style="font-family:'DM Mono',monospace; font-size:0.5rem; color:var(--text-dim); letter-spacing:0.06em;"><%= user.lastLogin %></span>
+                        </div>
+
+                        <!-- Actions -->
+                        <div style="padding:12px 0; display:flex; align-items:center; gap:6px;">
+                            <form action="/admin/users/status/<%= user.id %>" method="POST">
+                                <button type="submit" style="height:28px; min-width:0; padding:0 12px; font-size:0.48rem;"><%= user.status === 'enabled' ? 'Disable' : 'Enable' %></button>
+                            </form>
+                            <form action="/admin/users/delete/<%= user.id %>" method="POST" onsubmit="return confirm('Purge user data?')">
+                                <button type="submit" class="btn-danger" style="height:28px; min-width:0; padding:0 12px; font-size:0.48rem;">Delete</button>
+                            </form>
+                        </div>
+
+                    </div>
+                <% }); %>
+
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

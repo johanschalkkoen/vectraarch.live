@@ -1,0 +1,486 @@
+<!-- file: calendar.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Legacy">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest.json">
+  <title>Calendar · Legacy · Vectra Arch</title>
+  <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.20.6/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios@1.4.0/dist/axios.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Barlow:wght@300;400;500;600&family=Barlow+Condensed:wght@300;400;500;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    :root{
+      --bg:#0a0a08;--bg2:#111110;--bg3:#191917;
+      --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.14);
+      --text:#e8e4d8;--text-muted:rgba(232,228,216,0.55);--text-dim:rgba(232,228,216,0.25);
+      --accent:#00ff41;--accent2:#00b32c;--red:#b84040;--warn:#d4a800;
+      /* FullCalendar overrides */
+      --fc-border-color:rgba(255,255,255,0.08);
+      --fc-daygrid-event-dot-width:8px;
+      --fc-today-bg-color:rgba(0,255,65,0.06);
+      --fc-page-bg-color:#0a0a08;
+      --fc-neutral-bg-color:#111110;
+      --fc-neutral-text-color:#e8e4d8;
+      --fc-button-bg-color:#191917;
+      --fc-button-border-color:rgba(255,255,255,0.14);
+      --fc-button-hover-bg-color:rgba(0,255,65,0.12);
+      --fc-button-hover-border-color:#00ff41;
+      --fc-button-active-bg-color:rgba(0,255,65,0.18);
+      --fc-button-active-border-color:#00ff41;
+    }
+    html{scroll-behavior:smooth;}
+    body{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;font-weight:300;font-size:16px;line-height:1.6;overflow-x:hidden;cursor:crosshair;min-height:100vh;}
+    body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");opacity:0.4;pointer-events:none;z-index:0;}
+    .grid-bg{position:fixed;inset:0;background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);background-size:80px 80px;pointer-events:none;z-index:0;}
+    .accent-lines{position:fixed;top:0;right:0;width:50%;height:100%;pointer-events:none;overflow:hidden;z-index:0;}
+    .accent-lines svg{width:100%;height:100%;}
+    nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 40px;height:60px;border-bottom:1px solid var(--border);background:rgba(10,10,8,0.88);backdrop-filter:blur(12px);}
+    .nav-logo{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:15px;letter-spacing:0.22em;text-transform:uppercase;color:var(--text);text-decoration:none;}
+    .nav-logo span{color:var(--accent);}
+    .nav-status{display:flex;align-items:center;gap:8px;font-family:'DM Mono',monospace;font-size:10px;color:var(--text-dim);letter-spacing:0.1em;}
+    .nav-status::before{content:'';display:block;width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 6px var(--accent);}
+    #root{position:relative;z-index:1;}
+    .page-wrap{max-width:1100px;margin:0 auto;padding:88px 40px 80px;position:relative;z-index:1;}
+    .page-header{margin-bottom:36px;padding-bottom:24px;border-bottom:1px solid var(--border);}
+    .page-eyebrow{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.28em;text-transform:uppercase;color:var(--accent);margin-bottom:12px;}
+    .page-title{font-family:'Bebas Neue',sans-serif;font-size:56px;line-height:0.9;color:var(--text);letter-spacing:0.02em;margin-bottom:4px;}
+    .page-sub{font-family:'Barlow Condensed',sans-serif;font-weight:300;font-size:13px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-muted);}
+    .user-header{display:flex;align-items:center;gap:16px;margin-bottom:28px;}
+    .user-avatar{width:44px;height:44px;border-radius:50%;object-fit:cover;border:1px solid var(--accent);flex-shrink:0;}
+    .user-display{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:18px;letter-spacing:0.04em;text-transform:uppercase;color:var(--text);}
+    .va-alert{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.1em;padding:12px 16px;border:1px solid;margin-bottom:20px;}
+    .va-alert.ok{color:var(--accent);border-color:rgba(0,255,65,0.25);background:rgba(0,255,65,0.05);}
+    .va-alert.err{color:var(--red);border-color:rgba(184,64,64,0.25);background:rgba(184,64,64,0.05);}
+    .toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:20px;padding:14px 18px;background:var(--bg2);border:1px solid var(--border2);}
+    .tb-label{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:var(--text-dim);white-space:nowrap;}
+    .mf-select{background:var(--bg);border:1px solid var(--border2);color:var(--text);font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.06em;padding:7px 12px;outline:none;transition:border-color 0.2s;cursor:crosshair;-webkit-appearance:none;}
+    .mf-select:focus{border-color:var(--accent);}
+    .mf-select option{background:var(--bg2);color:var(--text);}
+    .tb-spacer{flex:1;}
+    .section-label{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.25em;text-transform:uppercase;color:var(--accent);margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--border);}
+    .va-form{background:var(--bg2);border:1px solid var(--border2);padding:28px;margin-bottom:24px;}
+    .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 28px;}
+    .mf-field{display:flex;flex-direction:column;gap:6px;margin-bottom:18px;}
+    .mf-field.full{grid-column:1/-1;}
+    .mf-label{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.22em;text-transform:uppercase;color:var(--text-dim);}
+    .mf-input,.mf-field-select{background:transparent;border:none;border-bottom:1px solid var(--border2);padding:10px 0;font-family:'DM Mono',monospace;font-size:13px;color:var(--text);outline:none;transition:border-color 0.2s;width:100%;}
+    .mf-input:focus,.mf-field-select:focus{border-bottom-color:var(--accent);}
+    .mf-input::placeholder{color:var(--text-dim);}
+    .mf-field-select{cursor:pointer;-webkit-appearance:none;background:transparent;}
+    .mf-field-select option{background:var(--bg2);color:var(--text);}
+    .check-row{display:flex;align-items:center;gap:10px;margin-bottom:16px;}
+    .check-row input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px;cursor:crosshair;}
+    .check-row label{font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.1em;color:var(--text-muted);cursor:crosshair;}
+    .va-btn{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--text);background:none;border:1px solid var(--border2);padding:9px 16px;cursor:crosshair;transition:border-color 0.2s,color 0.2s;display:inline-flex;align-items:center;gap:6px;}
+    .va-btn:hover{border-color:var(--accent);color:var(--accent);}
+    .va-btn.primary{background:var(--accent);color:#0a0a08;border-color:var(--accent);}
+    .va-btn.primary:hover{background:var(--accent2);border-color:var(--accent2);color:#fff;}
+    .va-btn.danger{border-color:rgba(184,64,64,0.4);color:var(--red);}
+    .va-btn.danger:hover{border-color:var(--red);background:rgba(184,64,64,0.06);}
+    .va-btn.sm{padding:5px 12px;font-size:9px;}
+    .va-btn.full{width:100%;justify-content:center;}
+    .back-btn{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--text-muted);background:none;border:1px solid var(--border2);padding:10px 20px;cursor:crosshair;transition:border-color 0.2s,color 0.2s;display:inline-flex;align-items:center;gap:8px;margin-bottom:32px;}
+    .back-btn:hover{border-color:var(--text-dim);color:var(--text);}
+    .btn-row{display:flex;gap:8px;flex-wrap:wrap;}
+    .user-toggles{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;}
+    .user-toggle{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.14em;text-transform:uppercase;padding:6px 14px;border:1px solid;cursor:crosshair;transition:all 0.2s;display:flex;align-items:center;gap:8px;}
+    .user-toggle.on{color:var(--accent);border-color:rgba(0,255,65,0.3);background:rgba(0,255,65,0.06);}
+    .user-toggle.off{color:var(--text-dim);border-color:var(--border2);background:transparent;}
+    .mini-avatar{width:18px;height:18px;border-radius:50%;object-fit:cover;}
+
+    /* FULLCALENDAR DARK THEME */
+    .cal-wrap{background:var(--bg2);border:1px solid var(--border2);padding:20px;margin-bottom:24px;}
+    .fc{color:var(--text);}
+    .fc .fc-col-header-cell-cushion,.fc .fc-daygrid-day-number{color:var(--text-muted);font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.08em;padding:6px;}
+    .fc .fc-day-other .fc-daygrid-day-number{color:var(--text-dim);}
+    .fc .fc-day-today{background-color:rgba(0,255,65,0.05)!important;}
+    .fc .fc-day-today .fc-daygrid-day-number{color:var(--accent);}
+    .fc-button{background:var(--bg3)!important;border:1px solid var(--border2)!important;color:var(--text-muted)!important;font-family:'DM Mono',monospace!important;font-size:10px!important;letter-spacing:0.1em!important;text-transform:uppercase!important;padding:6px 14px!important;border-radius:0!important;transition:border-color 0.2s,color 0.2s!important;}
+    .fc-button:hover{border-color:var(--accent)!important;color:var(--accent)!important;background:var(--bg3)!important;}
+    .fc-button-active{border-color:var(--accent2)!important;color:var(--accent)!important;}
+    .fc .fc-toolbar-title{font-family:'Bebas Neue',sans-serif;font-size:1.8rem;letter-spacing:0.04em;color:var(--text);}
+    .fc .fc-daygrid-day{cursor:crosshair;}
+    .fc .fc-daygrid-day:hover{background:rgba(255,255,255,0.02);}
+    .fc .fc-daygrid-day-events{display:flex!important;flex-direction:row!important;flex-wrap:wrap!important;justify-content:center!important;min-height:10px!important;margin-top:2px!important;overflow:hidden!important;}
+    .fc .fc-daygrid-event{margin:1px!important;padding:0!important;border:none!important;box-shadow:none!important;background:transparent!important;cursor:crosshair!important;}
+    .fc-event-dot{width:8px;height:8px;border-radius:50%;opacity:0.85;margin:0 1px;}
+    .fc .fc-scrollgrid{border-color:var(--border);}
+    .fc .fc-scrollgrid-section>td{border-color:var(--border);}
+    .fc .fc-daygrid-day.fc-day-today{background-color:rgba(0,255,65,0.04)!important;}
+
+    /* EVENT LIST */
+    .event-list{display:flex;flex-direction:column;gap:1px;background:var(--border);}
+    .event-card{background:var(--bg2);padding:16px 20px;transition:background 0.2s;}
+    .event-card:hover{background:var(--bg3);}
+    .event-top{display:flex;align-items:center;gap:10px;margin-bottom:6px;}
+    .event-avatar{width:24px;height:24px;border-radius:50%;object-fit:cover;flex-shrink:0;}
+    .event-title-text{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:14px;letter-spacing:0.04em;text-transform:uppercase;color:var(--text);}
+    .event-meta{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.1em;color:var(--text-dim);}
+    .event-fin{font-family:'DM Mono',monospace;font-size:10px;color:var(--text-muted);margin-top:4px;}
+    .event-fin .income{color:var(--accent);}
+    .event-fin .expense{color:var(--red);}
+    .event-actions{display:flex;gap:6px;justify-content:flex-end;margin-top:8px;}
+
+    /* DAY MODAL */
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.72);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;}
+    .modal-box{background:var(--bg2);border:1px solid var(--border2);padding:32px;width:100%;max-width:480px;max-height:80vh;overflow-y:auto;position:relative;}
+    .modal-box::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--accent);}
+    .modal-title{font-family:'Bebas Neue',sans-serif;font-size:2rem;color:var(--text);margin-bottom:20px;letter-spacing:0.04em;}
+    .modal-event{background:var(--bg3);padding:14px 16px;margin-bottom:8px;border-left:2px solid var(--accent);}
+    .modal-event-title{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:14px;text-transform:uppercase;color:var(--text);margin-bottom:4px;}
+    .modal-event-meta{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.1em;color:var(--text-dim);}
+    .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:8px;}
+    .modal-footer{display:flex;gap:8px;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);}
+
+    @media(max-width:768px){nav{padding:0 20px;}.page-wrap{padding:80px 20px 60px;}.form-grid{grid-template-columns:1fr;}}
+    @media(pointer:fine){body,a,button{cursor:crosshair;}}
+  </style>
+</head>
+<body>
+<div class="grid-bg"></div>
+<div class="accent-lines" aria-hidden="true">
+  <svg viewBox="0 0 600 900" fill="none" preserveAspectRatio="xMaxYMid slice">
+    <line x1="580" y1="0" x2="20" y2="900" stroke="rgba(0,255,65,0.07)" stroke-width="1"/>
+    <line x1="540" y1="0" x2="0" y2="760" stroke="rgba(0,255,65,0.05)" stroke-width="0.5"/>
+    <line x1="600" y1="200" x2="100" y2="900" stroke="rgba(0,255,65,0.04)" stroke-width="1"/>
+    <circle cx="540" cy="180" r="60" stroke="rgba(0,255,65,0.04)" stroke-width="1" fill="none"/>
+    <circle cx="540" cy="180" r="90" stroke="rgba(0,255,65,0.025)" stroke-width="0.5" fill="none"/>
+  </svg>
+</div>
+<nav>
+  <a href="https://vectraarch.live" class="nav-logo">Vectra<span>&nbsp;</span>Arch</a>
+  <div class="nav-status">LEGACY · CALENDAR</div>
+</nav>
+<div id="root"></div>
+<script type="text/babel">
+  const { useState, useEffect, useRef, useCallback, useMemo } = React;
+  const API_BASE = '/legacy/api';
+  const DEFAULT_PROFILE_PIC = 'https://placehold.co/50x50/808080/FFFFFF?text=U';
+  const DEFAULT_EVENT_COLOR = '#00ff41';
+  const MONTHS = Array.from({ length: 12 }, (_, i) => ({ value: (i + 1).toString().padStart(2, '0'), label: new Date(0, i).toLocaleString('default', { month: 'long' }) }));
+  const capitalize = str => str ? str.charAt(0).toUpperCase() + str.slice(1) : '';
+  const getCurrentDateTime = () => { const now = new Date(); now.setMinutes(now.getMinutes() - now.getTimezoneOffset()); return now.toISOString().slice(0, 19); };
+  const formatDateTime = date => { if (!date) return '—'; const d = new Date(date); if (isNaN(d.getTime())) return 'Invalid'; return d.toLocaleString('en-ZA', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', hour12:false }).replace(/,/,''); };
+  const formatAmount = amount => isNaN(amount) ? '—' : `R${parseFloat(amount).toFixed(2)}`;
+  const formatDate = date => { if (!date) return ''; const d = new Date(date); return isNaN(d.getTime()) ? '' : `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+
+  const useAccessibleUsers = (user, setUserProfiles) => {
+    const [targetUsers, setTargetUsers] = useState([]);
+    const [selectedTargets, setSelectedTargets] = useState([]);
+    const [error, setError] = useState('');
+    const fetched = useRef(false);
+    useEffect(() => {
+      if (fetched.current || !user?.username) return;
+      fetched.current = true;
+      const fetchAccessList = async () => {
+        try {
+          const { data } = await axios.get(`${API_BASE}/get-access`, { params: { viewer: user.username, adminUsername: user.username } });
+          if (data.success && Array.isArray(data.accessList)) {
+            const users = data.accessList.filter(a => a.viewer === user.username).map(a => a.target);
+            setTargetUsers(users); setSelectedTargets(users); setError('');
+            const profilePromises = users.concat(user.username).map(async u => {
+              try {
+                const { data: pd } = await axios.get(`${API_BASE}/profile-pictures?username=${u}`).catch(() => ({ data: { profilePicUrl: DEFAULT_PROFILE_PIC, eventColor: DEFAULT_EVENT_COLOR, displayName: u } }));
+                return [u, { pic: pd.profilePicUrl||DEFAULT_PROFILE_PIC, color: pd.eventColor||DEFAULT_EVENT_COLOR, displayName: pd.displayName||u }];
+              } catch { return [u, { pic: DEFAULT_PROFILE_PIC, color: DEFAULT_EVENT_COLOR, displayName: u }]; }
+            });
+            const profiles = Object.fromEntries(await Promise.all(profilePromises));
+            setUserProfiles(prev => ({ ...prev, ...profiles, [user.username]: { pic: user.profilePicUrl||DEFAULT_PROFILE_PIC, color: user.eventColor||DEFAULT_EVENT_COLOR, displayName: user.displayName||user.username } }));
+          } else {
+            setTargetUsers([]); setError(data.message||'Failed.');
+            setUserProfiles({ [user.username]: { pic: user.profilePicUrl||DEFAULT_PROFILE_PIC, color: user.eventColor||DEFAULT_EVENT_COLOR, displayName: user.displayName||user.username } });
+          }
+        } catch (err) {
+          setError(err.response?.data?.message||'Error.');
+          setUserProfiles({ [user.username]: { pic: user.profilePicUrl||DEFAULT_PROFILE_PIC, color: user.eventColor||DEFAULT_EVENT_COLOR, displayName: user.displayName||user.username } });
+        }
+      };
+      fetchAccessList();
+    }, [user?.username, setUserProfiles]);
+    return { targetUsers, selectedTargets, setSelectedTargets, error };
+  };
+
+  const Calendar = ({ user, setPage, onLogout, setUser }) => {
+    const [events, setEvents] = useState([]);
+    const [form, setForm] = useState({ id:null, title:'', date:getCurrentDateTime(), financial:false, amount:'', type:'income' });
+    const [selectedMonth, setSelectedMonth] = useState('08');
+    const [showAddEventForm, setShowAddEventForm] = useState(false);
+    const [showDayModal, setShowDayModal] = useState(false);
+    const [selectedDayEvents, setSelectedDayEvents] = useState([]);
+    const [message, setMessage] = useState({ text:'', type:'' });
+    const [sortField, setSortField] = useState('date');
+    const [sortOrder, setSortOrder] = useState('desc');
+    const { targetUsers, selectedTargets, setSelectedTargets, error: accessError } = useAccessibleUsers(user, profiles => setUserProfiles(profiles));
+    const [userProfiles, setUserProfiles] = useState({ [user.username]: { pic: user.profilePicUrl||DEFAULT_PROFILE_PIC, color: user.eventColor||DEFAULT_EVENT_COLOR, displayName: user.displayName||user.username } });
+    const calendarRef = useRef(null);
+    const fullCalendarInstance = useRef(null);
+    const eventsRef = useRef(events);
+    const selectedTargetsRef = useRef(selectedTargets);
+    const userRef = useRef(user);
+
+    const msg = (text, type='ok') => { setMessage({text,type}); setTimeout(()=>setMessage({text:'',type:''}),5000); };
+
+    useEffect(()=>{eventsRef.current=events;},[events]);
+    useEffect(()=>{selectedTargetsRef.current=selectedTargets;},[selectedTargets]);
+    useEffect(()=>{userRef.current=user;},[user]);
+
+    const fetchEvents = useCallback(async () => {
+      try {
+        const results = await Promise.all([user.username,...selectedTargets].map(u=>axios.get(`${API_BASE}/calendar`,{params:{user:u}}).then(({data})=>data.map(e=>({id:e.id,title:e.title||'Untitled',start:e.date,user:e.user,financial:e.financial,type:e.type,amount:e.amount,eventColor:userProfiles[u]?.color||DEFAULT_EVENT_COLOR}))).catch(()=>[])));
+        setEvents(results.flat());
+      } catch { msg('Failed to fetch events.','err'); }
+    }, [user.username, selectedTargets, userProfiles]);
+
+    const sortedEvents = useMemo(() => {
+      const filtered = events.filter(e=>e.start?.startsWith(`2026-${selectedMonth}`));
+      return [...filtered].sort((a,b)=>{
+        const fa=sortField==='amount'?parseFloat(a.amount||0):a[sortField];
+        const fb=sortField==='amount'?parseFloat(b.amount||0):b[sortField];
+        if(sortField==='amount') return sortOrder==='asc'?fa-fb:fb-fa;
+        return sortOrder==='asc'?new Date(fa)-new Date(fb):new Date(fb)-new Date(fa);
+      });
+    }, [events,selectedMonth,sortField,sortOrder]);
+
+    const handleAddEvent = useCallback(async () => {
+      if (!form.title||!form.date) { msg('Title and date required.','err'); return; }
+      if (form.financial&&(!form.amount||isNaN(form.amount)||parseFloat(form.amount)<0)) { msg('Valid amount required for financial events.','err'); return; }
+      try {
+        const ed = { user:user.username, title:form.title, date:form.date, financial:form.financial, type:form.financial?form.type:undefined, amount:form.financial?parseFloat(form.amount):undefined, eventColor:user.eventColor||DEFAULT_EVENT_COLOR };
+        const promises = [form.id?axios.put(`${API_BASE}/calendar/${form.id}`,ed):axios.post(`${API_BASE}/calendar`,ed)];
+        if(form.financial&&!form.id) promises.push(axios.post(`${API_BASE}/financial`,{user:user.username,category:form.title,amount:parseFloat(form.amount),type:form.type,date:form.date}));
+        await Promise.all(promises);
+        await fetchEvents();
+        setForm({id:null,title:'',date:getCurrentDateTime(),financial:false,amount:'',type:'income'});
+        setShowAddEventForm(false);
+        msg('Event saved.');
+      } catch { msg('Failed to save event.','err'); }
+    }, [form,user.username,user.eventColor,fetchEvents]);
+
+    const handleDeleteEvent = useCallback(async event => {
+      try {
+        const promises = [axios.delete(`${API_BASE}/calendar/${event.id}`)];
+        if(event.financial){
+          const fi = await axios.get(`${API_BASE}/financial`,{params:{user:event.user}}).then(({data})=>data.find(i=>i.category===event.title&&i.amount===event.amount&&i.type===event.type&&i.date===event.start));
+          if(fi) promises.push(axios.delete(`${API_BASE}/financial/${fi.id}`));
+        }
+        await Promise.all(promises);
+        await fetchEvents();
+        setShowDayModal(false);
+        msg('Event deleted.');
+      } catch { msg('Failed to delete.','err'); }
+    }, [fetchEvents]);
+
+    const handleDayClick = useCallback(date => {
+      const ds = formatDate(date);
+      const de = events.filter(e=>formatDate(e.start)===ds&&[user.username,...selectedTargets].includes(e.user));
+      setSelectedDayEvents(de.map(e=>({...e,profilePicUrl:userProfiles[e.user]?.pic||DEFAULT_PROFILE_PIC})));
+      setShowDayModal(true);
+    }, [events,selectedTargets,user.username,userProfiles]);
+
+    const startEdit = useCallback(event => {
+      setForm({id:event.id,title:event.title,date:event.start.slice(0,16),financial:event.financial,amount:event.amount?event.amount.toString():'',type:event.type||'income'});
+      setShowAddEventForm(true);setShowDayModal(false);
+    }, []);
+
+    useEffect(()=>{fetchEvents();},[fetchEvents]);
+
+    useEffect(()=>{
+      const el = calendarRef.current;
+      if(el&&!fullCalendarInstance.current){
+        fullCalendarInstance.current = new FullCalendar.Calendar(el,{
+          initialView:'dayGridMonth',
+          initialDate:`2026-${selectedMonth}-01`,
+          headerToolbar:{left:'prev,next',center:'title',right:''},
+          titleFormat:{month:'long',year:'numeric'},
+          height:'auto',
+          events:function(fetchInfo,successCallback){
+            const filtered = eventsRef.current.filter(e=>[userRef.current.username,...selectedTargetsRef.current].includes(e.user));
+            successCallback(filtered.map(event=>({...event,backgroundColor:event.eventColor||DEFAULT_EVENT_COLOR,borderColor:event.eventColor||DEFAULT_EVENT_COLOR})));
+          },
+          eventContent:function({event}){
+            const dot = document.createElement('div');
+            dot.className='fc-event-dot';
+            dot.style.backgroundColor=event.backgroundColor||DEFAULT_EVENT_COLOR;
+            return{domNodes:[dot]};
+          },
+          dateClick:({date})=>handleDayClick(date),
+          eventClick:({event})=>handleDayClick(event.start)
+        });
+        fullCalendarInstance.current.render();
+      }
+      return()=>{if(fullCalendarInstance.current){fullCalendarInstance.current.destroy();fullCalendarInstance.current=null;}};
+    },[handleDayClick]);
+
+    useEffect(()=>{if(fullCalendarInstance.current){fullCalendarInstance.current.gotoDate(`2026-${selectedMonth}-01`);fullCalendarInstance.current.refetchEvents();}},[selectedMonth]);
+    useEffect(()=>{if(fullCalendarInstance.current)fullCalendarInstance.current.refetchEvents();},[events,selectedTargets]);
+
+    const month = MONTHS.find(m=>m.value===selectedMonth)?.label||'';
+
+    return (
+      <div className="page-wrap">
+        <button className="back-btn" onClick={()=>setPage('menu')}>← Back to Menu</button>
+        <div className="page-header">
+          <div className="page-eyebrow">§ Vectra Arch · Legacy · Schedule</div>
+          <div className="page-title">Calendar</div>
+          <div className="page-sub">Events · Schedule · Financial Entries</div>
+        </div>
+        <div className="user-header">
+          <img className="user-avatar" src={userProfiles[user.username]?.pic||DEFAULT_PROFILE_PIC} alt={user.username} style={{borderColor:userProfiles[user.username]?.color||DEFAULT_EVENT_COLOR}}/>
+          <div className="user-display">{userProfiles[user.username]?.displayName||user.username}</div>
+          <div style={{marginLeft:'auto'}}><button className="va-btn danger sm" onClick={onLogout}>Sign Out ×</button></div>
+        </div>
+
+        {message.text&&<div className={`va-alert ${message.type}`}>{message.type==='ok'?'✓ ':'⚠ '}{message.text}</div>}
+        {accessError&&<div className="va-alert err">⚠ {accessError}</div>}
+
+        <div className="toolbar">
+          <span className="tb-label">Month</span>
+          <select className="mf-select" value={selectedMonth} onChange={e=>setSelectedMonth(e.target.value)}>
+            {MONTHS.map(m=><option key={m.value} value={m.value}>{m.label} 2026</option>)}
+          </select>
+          <span className="tb-label">Sort</span>
+          <select className="mf-select" value={sortField} onChange={e=>setSortField(e.target.value)}>
+            <option value="date">Date</option><option value="amount">Amount</option>
+          </select>
+          <select className="mf-select" value={sortOrder} onChange={e=>setSortOrder(e.target.value)}>
+            <option value="desc">Desc</option><option value="asc">Asc</option>
+          </select>
+          <div className="tb-spacer"/>
+          <button className="va-btn primary sm" onClick={()=>setShowAddEventForm(!showAddEventForm)}>{showAddEventForm?'Hide Form':'Add Event ↗'}</button>
+        </div>
+
+        {targetUsers.length>0&&(
+          <div className="user-toggles">
+            {targetUsers.map(t=>(
+              <button key={t} className={`user-toggle ${selectedTargets.includes(t)?'on':'off'}`} onClick={()=>setSelectedTargets(prev=>prev.includes(t)?prev.filter(u=>u!==t):[...prev,t])}>
+                <img className="mini-avatar" src={userProfiles[t]?.pic||DEFAULT_PROFILE_PIC} alt={t} style={{border:`1px solid ${userProfiles[t]?.color||DEFAULT_EVENT_COLOR}`}}/>
+                {userProfiles[t]?.displayName||t}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {showAddEventForm&&(
+          <div className="va-form">
+            <div className="section-label">§ {form.id?'Edit Event':'Add Event'}</div>
+            <div className="form-grid">
+              <div className="mf-field">
+                <label className="mf-label">Title</label>
+                <input className="mf-input" placeholder="Event title" value={form.title} onChange={e=>setForm(p=>({...p,title:e.target.value}))}/>
+              </div>
+              <div className="mf-field">
+                <label className="mf-label">Date & Time</label>
+                <input className="mf-input" type="datetime-local" value={form.date} onChange={e=>setForm(p=>({...p,date:e.target.value}))} step="1"/>
+              </div>
+              <div className="mf-field full">
+                <div className="check-row">
+                  <input type="checkbox" id="fin-check" checked={form.financial} onChange={e=>setForm(p=>({...p,financial:e.target.checked}))}/>
+                  <label htmlFor="fin-check">Financial event?</label>
+                </div>
+              </div>
+              {form.financial&&<>
+                <div className="mf-field">
+                  <label className="mf-label">Amount (ZAR)</label>
+                  <input className="mf-input" type="number" placeholder="0.00" value={form.amount} onChange={e=>setForm(p=>({...p,amount:e.target.value}))}/>
+                </div>
+                <div className="mf-field">
+                  <label className="mf-label">Type</label>
+                  <select className="mf-field-select" value={form.type} onChange={e=>setForm(p=>({...p,type:e.target.value}))}>
+                    <option value="income">Income</option><option value="expense">Expense</option>
+                  </select>
+                </div>
+              </>}
+            </div>
+            <div className="btn-row">
+              <button className="va-btn primary" onClick={handleAddEvent}>{form.id?'Update ↗':'Save ↗'}</button>
+              <button className="va-btn" onClick={()=>{setShowAddEventForm(false);setForm({id:null,title:'',date:getCurrentDateTime(),financial:false,amount:'',type:'income'});}}>Cancel</button>
+            </div>
+          </div>
+        )}
+
+        <div className="cal-wrap">
+          <div ref={calendarRef}/>
+        </div>
+
+        <div className="section-label">§ Events · {month} 2026 · {sortedEvents.filter(e=>[user.username,...selectedTargets].includes(e.user)).length} records</div>
+        <div className="event-list">
+          {sortedEvents.filter(e=>[user.username,...selectedTargets].includes(e.user)).map(event=>(
+            <div key={event.id} className="event-card">
+              <div className="event-top">
+                <img className="event-avatar" src={userProfiles[event.user]?.pic||DEFAULT_PROFILE_PIC} alt={event.user} style={{border:`1px solid ${userProfiles[event.user]?.color||DEFAULT_EVENT_COLOR}`}}/>
+                <div>
+                  <div className="event-title-text">{event.title}</div>
+                  <div className="event-meta">{formatDateTime(event.start)} · {userProfiles[event.user]?.displayName||event.user}</div>
+                </div>
+              </div>
+              {event.financial&&(
+                <div className="event-fin">
+                  <span className={event.type}>{capitalize(event.type)}: {formatAmount(event.amount)}</span>
+                </div>
+              )}
+              {event.user===user.username&&(
+                <div className="event-actions">
+                  <button className="va-btn sm" onClick={()=>startEdit(event)}>Edit</button>
+                  <button className="va-btn danger sm" onClick={()=>handleDeleteEvent(event)}>Delete</button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {showDayModal&&(
+          <div className="modal-overlay" onClick={()=>setShowDayModal(false)}>
+            <div className="modal-box" onClick={e=>e.stopPropagation()}>
+              <div className="modal-title">{formatDate(selectedDayEvents[0]?.start||new Date())}</div>
+              {selectedDayEvents.length===0
+                ? <div style={{fontFamily:"'DM Mono',monospace",fontSize:'10px',color:'var(--text-dim)',letterSpacing:'0.1em'}}>No events on this day.</div>
+                : selectedDayEvents.map(event=>(
+                    <div key={event.id} className="modal-event">
+                      <div className="modal-event-title">{event.title}</div>
+                      <div className="modal-event-meta">{formatDateTime(event.start)} · {userProfiles[event.user]?.displayName||event.user}</div>
+                      {event.financial&&<div className="modal-event-meta" style={{marginTop:'4px',color:event.type==='income'?'var(--accent)':'var(--red)'}}>{capitalize(event.type)}: {formatAmount(event.amount)}</div>}
+                      {event.user===user.username&&(
+                        <div className="modal-actions">
+                          <button className="va-btn sm" onClick={()=>startEdit(event)}>Edit</button>
+                          <button className="va-btn danger sm" onClick={()=>handleDeleteEvent(event)}>Delete</button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+              <div className="modal-footer">
+                <button className="va-btn primary sm" onClick={()=>{setForm(p=>({...p,date:formatDate(selectedDayEvents[0]?.start||new Date())+'T12:00'}));setShowAddEventForm(true);setShowDayModal(false);}}>Add Event for This Day ↗</button>
+                <button className="va-btn sm" onClick={()=>setShowDayModal(false)}>Close</button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const App = () => {
+    const [user, setUser] = useState(null);
+    useEffect(() => {
+      const s = localStorage.getItem('user');
+      if(s){try{setUser(JSON.parse(s));}catch{localStorage.removeItem('user');window.location.href='index.html';}}
+      else window.location.href='index.html';
+    }, []);
+    const handleLogout = useCallback(()=>{localStorage.removeItem('user');window.location.href='index.html';},[]);
+    if(!user)return null;
+    return <Calendar user={user} setPage={()=>window.location.href='index.html'} onLogout={handleLogout} setUser={setUser}/>;
+  };
+  ReactDOM.render(<App/>, document.getElementById('root'));
+</script>
+</body>
+</html>

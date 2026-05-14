@@ -1,0 +1,33 @@
+{
+  "dependencies": {
+    "axios": "^1.11.0",
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.0.1",
+    "express-validator": "^7.2.1",
+    "fs": "^0.0.1-security",
+    "http": "^0.0.1-security",
+    "https": "^1.0.0",
+    "joi": "^18.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "nodemailer": "^7.0.13",
+    "otplib": "^13.4.0",
+    "qrcode": "^1.5.4",
+    "require-in-the-middle": "^7.5.2",
+    "sqlite3": "^5.1.7"
+  },
+  "name": "legacy.vectraarch.live",
+  "version": "1.0.0",
+  "description": "**OurLife** is an all-in-one personal growth and legacy-building platform designed to empower individuals and organizations in managing their daily lives, finances, health, and relationships. Built as a secure web app with Node.js backend, SQLite database, and React frontend, it integrates tools for financial tracking, health monitoring, scheduling, and collaborative access. The app emphasizes mentorship and family-oriented features, allowing users to share data securely for guidance and support. Currently in early adoption phase, OurLife is expanding to mobile apps for broader accessibility.",
+  "main": "genjwtsecret.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}

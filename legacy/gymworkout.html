@@ -1,0 +1,655 @@
+<!-- file: gymworkout.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Legacy">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest.json">
+  <title>Gym Workout · Legacy · Vectra Arch</title>
+  <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.20.6/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios@1.4.0/dist/axios.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Barlow:wght@300;400;500;600&family=Barlow+Condensed:wght@300;400;500;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    :root{--bg:#0a0a08;--bg2:#111110;--bg3:#191917;--border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.14);--text:#e8e4d8;--text-muted:rgba(232,228,216,0.55);--text-dim:rgba(232,228,216,0.25);--accent:#00ff41;--accent2:#00b32c;--red:#b84040;--warn:#d4a800;--blue:#6a8aff;}
+    html{scroll-behavior:smooth;}
+    body{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;font-weight:300;font-size:16px;line-height:1.6;overflow-x:hidden;cursor:crosshair;min-height:100vh;}
+    body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");opacity:0.4;pointer-events:none;z-index:0;}
+    .grid-bg{position:fixed;inset:0;background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);background-size:80px 80px;pointer-events:none;z-index:0;}
+    .accent-lines{position:fixed;top:0;right:0;width:50%;height:100%;pointer-events:none;overflow:hidden;z-index:0;}
+    .accent-lines svg{width:100%;height:100%;}
+    nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 40px;height:60px;border-bottom:1px solid var(--border);background:rgba(10,10,8,0.88);backdrop-filter:blur(12px);}
+    .nav-logo{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:15px;letter-spacing:0.22em;text-transform:uppercase;color:var(--text);text-decoration:none;}
+    .nav-logo span{color:var(--accent);}
+    .nav-status{display:flex;align-items:center;gap:8px;font-family:'DM Mono',monospace;font-size:10px;color:var(--text-dim);letter-spacing:0.1em;}
+    .nav-status::before{content:'';display:block;width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 6px var(--accent);}
+    #root{position:relative;z-index:1;}
+    .page-wrap{max-width:960px;margin:0 auto;padding:88px 40px 80px;position:relative;z-index:1;}
+    .page-header{margin-bottom:36px;padding-bottom:24px;border-bottom:1px solid var(--border);}
+    .page-eyebrow{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.28em;text-transform:uppercase;color:var(--accent);margin-bottom:12px;}
+    .page-title{font-family:'Bebas Neue',sans-serif;font-size:56px;line-height:0.9;color:var(--text);letter-spacing:0.02em;margin-bottom:4px;}
+    .page-sub{font-family:'Barlow Condensed',sans-serif;font-weight:300;font-size:13px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-muted);}
+    .user-header{display:flex;align-items:center;gap:16px;margin-bottom:28px;}
+    .user-avatar{width:44px;height:44px;border-radius:50%;object-fit:cover;border:1px solid var(--accent);flex-shrink:0;}
+    .user-display{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:18px;letter-spacing:0.04em;text-transform:uppercase;color:var(--text);}
+    .va-alert{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.1em;padding:12px 16px;border:1px solid;margin-bottom:20px;}
+    .va-alert.ok{color:var(--accent);border-color:rgba(0,255,65,0.25);background:rgba(0,255,65,0.05);}
+    .va-alert.err{color:var(--red);border-color:rgba(184,64,64,0.25);background:rgba(184,64,64,0.05);}
+    .va-alert.warn{color:var(--warn);border-color:rgba(212,168,0,0.25);background:rgba(212,168,0,0.05);}
+    .toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:20px;padding:14px 18px;background:var(--bg2);border:1px solid var(--border2);}
+    .tb-label{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:var(--text-dim);white-space:nowrap;}
+    .mf-select{background:var(--bg);border:1px solid var(--border2);color:var(--text);font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.06em;padding:7px 12px;outline:none;transition:border-color 0.2s;cursor:crosshair;-webkit-appearance:none;}
+    .mf-select:focus{border-color:var(--accent);}
+    .mf-select option,.mf-select optgroup{background:var(--bg2);color:var(--text);}
+    .tb-spacer{flex:1;}
+    .section-label{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.25em;text-transform:uppercase;color:var(--accent);margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--border);}
+    .va-form{background:var(--bg2);border:1px solid var(--border2);padding:28px;margin-bottom:24px;}
+    .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 28px;}
+    .mf-field{display:flex;flex-direction:column;gap:6px;margin-bottom:18px;}
+    .mf-field.full{grid-column:1/-1;}
+    .mf-label{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.22em;text-transform:uppercase;color:var(--text-dim);}
+    .mf-input,.mf-field-select{background:transparent;border:none;border-bottom:1px solid var(--border2);padding:10px 0;font-family:'DM Mono',monospace;font-size:12px;color:var(--text);outline:none;transition:border-color 0.2s;width:100%;}
+    .mf-input:focus,.mf-field-select:focus{border-bottom-color:var(--accent);}
+    .mf-input::placeholder{color:var(--text-dim);}
+    .mf-field-select{cursor:pointer;-webkit-appearance:none;}
+    .mf-field-select option,.mf-field-select optgroup{background:var(--bg2);color:var(--text);}
+    /* TYPE INDICATOR */
+    .type-badge{display:inline-flex;align-items:center;gap:6px;font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.16em;text-transform:uppercase;padding:4px 12px;border:1px solid;margin-bottom:16px;}
+    .type-badge.strength{color:var(--accent);border-color:rgba(0,255,65,0.3);background:rgba(0,255,65,0.05);}
+    .type-badge.cardio{color:var(--blue);border-color:rgba(106,138,255,0.3);background:rgba(106,138,255,0.05);}
+    /* TOGGLE CHIPS */
+    .toggle-group{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:20px;}
+    .toggle-chip{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.14em;text-transform:uppercase;padding:6px 14px;border:1px solid;cursor:crosshair;transition:all 0.2s;background:none;}
+    .toggle-chip.on{color:var(--accent);border-color:rgba(0,255,65,0.3);background:rgba(0,255,65,0.06);}
+    .toggle-chip.off{color:var(--text-dim);border-color:var(--border2);}
+    /* BUTTONS */
+    .va-btn{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--text);background:none;border:1px solid var(--border2);padding:9px 16px;cursor:crosshair;transition:border-color 0.2s,color 0.2s;display:inline-flex;align-items:center;gap:6px;}
+    .va-btn:hover{border-color:var(--accent);color:var(--accent);}
+    .va-btn.primary{background:var(--accent);color:#0a0a08;border-color:var(--accent);}
+    .va-btn.primary:hover{background:var(--accent2);border-color:var(--accent2);color:#fff;}
+    .va-btn.danger{border-color:rgba(184,64,64,0.4);color:var(--red);}
+    .va-btn.danger:hover{border-color:var(--red);background:rgba(184,64,64,0.06);}
+    .va-btn.sm{padding:5px 12px;font-size:9px;}
+    .back-btn{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--text-muted);background:none;border:1px solid var(--border2);padding:10px 20px;cursor:crosshair;transition:border-color 0.2s,color 0.2s;display:inline-flex;align-items:center;gap:8px;margin-bottom:32px;}
+    .back-btn:hover{border-color:var(--text-dim);color:var(--text);}
+    .btn-row{display:flex;gap:8px;flex-wrap:wrap;}
+    /* USER TOGGLES */
+    .user-toggles{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;}
+    .user-toggle{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.14em;text-transform:uppercase;padding:6px 14px;border:1px solid;cursor:crosshair;transition:all 0.2s;display:flex;align-items:center;gap:8px;}
+    .user-toggle.on{color:var(--accent);border-color:rgba(0,255,65,0.3);background:rgba(0,255,65,0.06);}
+    .user-toggle.off{color:var(--text-dim);border-color:var(--border2);background:transparent;}
+    .mini-avatar{width:18px;height:18px;border-radius:50%;object-fit:cover;}
+    /* IMPORT */
+    .import-box{background:var(--bg2);border:1px solid var(--border2);padding:24px;margin-bottom:24px;}
+    .import-hint{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.1em;color:var(--text-dim);margin-bottom:12px;line-height:1.8;}
+    .mf-textarea{background:transparent;border:1px solid var(--border2);padding:10px 14px;font-family:'DM Mono',monospace;font-size:12px;color:var(--text);outline:none;transition:border-color 0.2s;width:100%;resize:vertical;min-height:100px;}
+    .mf-textarea:focus{border-color:var(--accent);}
+    /* DAY SECTIONS */
+    .day-section{background:var(--bg2);border:1px solid var(--border2);margin-bottom:1px;}
+    .day-header{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+    .day-name{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:0.04em;color:var(--text);}
+    .day-count{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.14em;color:var(--text-dim);}
+    .day-empty{padding:14px 20px;font-family:'DM Mono',monospace;font-size:10px;color:var(--text-dim);letter-spacing:0.1em;}
+    .workout-card{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:6px;transition:background 0.2s;}
+    .workout-card:hover{background:var(--bg3);}
+    .workout-card:last-child{border-bottom:none;}
+    .workout-top{display:flex;align-items:center;gap:10px;}
+    .workout-avatar{width:20px;height:20px;border-radius:50%;object-fit:cover;flex-shrink:0;}
+    .workout-ex{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:14px;letter-spacing:0.04em;text-transform:uppercase;color:var(--text);}
+    .workout-type{font-family:'DM Mono',monospace;font-size:8px;letter-spacing:0.14em;text-transform:uppercase;padding:2px 8px;border:1px solid;}
+    .workout-type.strength{color:var(--accent);border-color:rgba(0,255,65,0.3);}
+    .workout-type.cardio{color:var(--blue);border-color:rgba(106,138,255,0.3);}
+    .workout-detail{font-family:'DM Mono',monospace;font-size:11px;color:var(--text-muted);letter-spacing:0.06em;}
+    .workout-meta{font-family:'DM Mono',monospace;font-size:9px;color:var(--text-dim);letter-spacing:0.1em;}
+    .workout-actions{display:flex;gap:6px;justify-content:flex-end;}
+    /* NOTES */
+    .notes-box{background:var(--bg2);border:1px solid var(--border2);padding:24px;margin-top:24px;}
+    .note-item{font-family:'DM Mono',monospace;font-size:10px;color:var(--text-dim);letter-spacing:0.08em;line-height:1.8;padding-left:16px;border-left:2px solid var(--border2);margin-bottom:8px;}
+    @media(max-width:768px){nav{padding:0 20px;}.page-wrap{padding:80px 20px 60px;}.form-grid{grid-template-columns:1fr;}}
+    @media(pointer:fine){body,a,button{cursor:crosshair;}}
+  </style>
+</head>
+<body>
+<div class="grid-bg"></div>
+<div class="accent-lines" aria-hidden="true">
+  <svg viewBox="0 0 600 900" fill="none" preserveAspectRatio="xMaxYMid slice">
+    <line x1="580" y1="0" x2="20" y2="900" stroke="rgba(0,255,65,0.07)" stroke-width="1"/>
+    <line x1="540" y1="0" x2="0" y2="760" stroke="rgba(0,255,65,0.05)" stroke-width="0.5"/>
+    <line x1="600" y1="200" x2="100" y2="900" stroke="rgba(0,255,65,0.04)" stroke-width="1"/>
+    <rect x="460" y="80" width="100" height="1" fill="rgba(0,255,65,0.15)"/>
+    <circle cx="540" cy="180" r="60" stroke="rgba(0,255,65,0.04)" stroke-width="1" fill="none"/>
+    <circle cx="540" cy="180" r="90" stroke="rgba(0,255,65,0.025)" stroke-width="0.5" fill="none"/>
+  </svg>
+</div>
+<nav>
+  <a href="https://vectraarch.live" class="nav-logo">Vectra<span>&nbsp;</span>Arch</a>
+  <div class="nav-status">LEGACY · GYM WORKOUT</div>
+</nav>
+<div id="root"></div>
+<script type="text/babel">
+  const { useState, useEffect, useRef, useCallback, useMemo } = React;
+
+  class ErrorBoundary extends React.Component {
+    state = { error: null };
+    componentDidCatch(error) { this.setState({ error }); }
+    render() {
+      if (this.state.error) return (
+        <div className="page-wrap">
+          <div className="va-alert err">⚠ {this.state.error.toString()}</div>
+          <button className="va-btn" onClick={()=>window.location.reload()}>Reload</button>
+        </div>
+      );
+      return this.props.children;
+    }
+  }
+
+  const API_BASE = '/legacy/api';
+  const DEFAULT_PROFILE_PIC = 'https://placehold.co/50x50/808080/FFFFFF?text=U';
+  const DEFAULT_EVENT_COLOR = '#00ff41';
+  const MONTHS = Array.from({ length: 12 }, (_, i) => ({ value: (i + 1).toString().padStart(2, '0'), label: new Date(0, i).toLocaleString('default', { month: 'long' }) }));
+  const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  const capitalize = str => str ? str.charAt(0).toUpperCase() + str.slice(1) : '';
+  const getCurrentDateTime = () => { const now = new Date(); now.setMinutes(now.getMinutes() - now.getTimezoneOffset()); return now.toISOString().slice(0, 19); };
+  const formatDateTime = date => { if (!date) return '—'; const d = new Date(date); if (isNaN(d.getTime())) return 'Invalid'; return d.toLocaleString('en-ZA', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', hour12:false }).replace(/,/,''); };
+
+  const WORKOUT_OPTIONS = [
+    { label:'Strength — Free Weights', options:[
+      {value:'Bench Press (barbell or dumbbell)',label:'Bench Press (barbell or dumbbell)'},
+      {value:'Squats (back squat, front squat, goblet squat)',label:'Squats (back squat, front squat, goblet squat)'},
+      {value:'Deadlifts (conventional, Romanian, sumo)',label:'Deadlifts (conventional, Romanian, sumo)'},
+      {value:'Overhead Press (military press, dumbbell shoulder press)',label:'Overhead Press (military press, dumbbell shoulder press)'},
+      {value:'Bent-Over Rows (barbell or dumbbell)',label:'Bent-Over Rows (barbell or dumbbell)'},
+      {value:'Lunges (dumbbell or barbell, forward/reverse)',label:'Lunges (dumbbell or barbell, forward/reverse)'},
+      {value:'Bicep Curls (dumbbell, barbell, EZ-bar)',label:'Bicep Curls (dumbbell, barbell, EZ-bar)'},
+      {value:'Tricep Extensions (overhead, skull crushers)',label:'Tricep Extensions (overhead, skull crushers)'},
+      {value:'Kettlebell Swings',label:'Kettlebell Swings'},
+      {value:"Farmer's Carry",label:"Farmer's Carry"},
+      {value:'Shoulder Shrugs',label:'Shoulder Shrugs'},
+      {value:'Calf Raises',label:'Calf Raises'}
+    ]},
+    { label:'Strength — Weight Machines', options:[
+      {value:'Leg Press',label:'Leg Press'},
+      {value:'Chest Press',label:'Chest Press'},
+      {value:'Lat Pulldown',label:'Lat Pulldown'},
+      {value:'Seated Row',label:'Seated Row'},
+      {value:'Leg Extension',label:'Leg Extension'},
+      {value:'Leg Curl (seated or lying)',label:'Leg Curl (seated or lying)'},
+      {value:'Cable Crossovers',label:'Cable Crossovers'},
+      {value:'Tricep Pushdowns',label:'Tricep Pushdowns'},
+      {value:'Machine Shoulder Press',label:'Machine Shoulder Press'},
+      {value:'Abdominal Crunch Machine',label:'Abdominal Crunch Machine'}
+    ]},
+    { label:'Strength — Bodyweight', options:[
+      {value:'Push-Ups (standard, wide, diamond)',label:'Push-Ups (standard, wide, diamond)'},
+      {value:'Pull-Ups/Chin-Ups (assisted or unassisted)',label:'Pull-Ups/Chin-Ups (assisted or unassisted)'},
+      {value:'Dips (parallel bars or bench)',label:'Dips (parallel bars or bench)'},
+      {value:'Planks (front, side)',label:'Planks (front, side)'},
+      {value:'Bodyweight Squats',label:'Bodyweight Squats'},
+      {value:'Lunges',label:'Lunges'},
+      {value:'Step-Ups (using a bench)',label:'Step-Ups (using a bench)'},
+      {value:'Wall Sits',label:'Wall Sits'},
+      {value:'Hanging Leg Raises',label:'Hanging Leg Raises'}
+    ]},
+    { label:'Cardio Workouts — Treadmill', options:[
+      {value:'Steady-state running or jogging',label:'Steady-state running or jogging'},
+      {value:'Interval sprints (e.g., 30 seconds sprint, 1 minute walk)',label:'Interval sprints (e.g., 30 seconds sprint, 1 minute walk)'},
+      {value:'Incline walking or running',label:'Incline walking or running'}
+    ]},
+    { label:'Cardio Workouts — Stationary Bike', options:[
+      {value:'Steady-state cycling',label:'Steady-state cycling'},
+      {value:'High-Intensity Interval Training (HIIT) cycling',label:'High-Intensity Interval Training (HIIT) cycling'},
+      {value:'Hill climb simulations',label:'Hill climb simulations'}
+    ]},
+    { label:'Cardio Workouts — Elliptical', options:[
+      {value:'Full-body cardio (with arm movement)',label:'Full-body cardio (with arm movement)'},
+      {value:'Reverse pedaling',label:'Reverse pedaling'},
+      {value:'Interval training',label:'Interval training'}
+    ]},
+    { label:'Cardio Workouts — Rowing Machine', options:[
+      {value:'Steady-state rowing',label:'Steady-state rowing'},
+      {value:'Sprint intervals',label:'Sprint intervals'},
+      {value:'Endurance rows',label:'Endurance rows'}
+    ]},
+    { label:'Cardio Workouts — Stair Climber', options:[
+      {value:'Steady climbing',label:'Steady climbing'},
+      {value:'Skip-a-step for intensity',label:'Skip-a-step for intensity'},
+      {value:'Interval climbs',label:'Interval climbs'}
+    ]},
+    { label:'Cardio Workouts — Jump Rope', options:[
+      {value:'Double-unders',label:'Double-unders'},
+      {value:'High-knee jumps',label:'High-knee jumps'},
+      {value:'Alternating foot jumps',label:'Alternating foot jumps'}
+    ]},
+    { label:'Cardio Workouts — Battle Ropes', options:[
+      {value:'Alternating waves',label:'Alternating waves'},
+      {value:'Double slams',label:'Double slams'},
+      {value:'Circular motions',label:'Circular motions'}
+    ]},
+    { label:'Functional — Circuit Training', options:[
+      {value:'Combining exercises (e.g., squats, push-ups, kettlebell swings) in a sequence with minimal rest',label:'Circuit: squats, push-ups, kettlebell swings'},
+      {value:'AMRAP (As Many Rounds As Possible) circuits',label:'AMRAP circuits'},
+      {value:'EMOM (Every Minute on the Minute) workouts',label:'EMOM workouts'}
+    ]},
+    { label:'Functional — HIIT', options:[
+      {value:'Burpees',label:'Burpees'},
+      {value:'Box Jumps',label:'Box Jumps'},
+      {value:'Medicine Ball Slams',label:'Medicine Ball Slams'},
+      {value:'Sled Push/Pull',label:'Sled Push/Pull'},
+      {value:'Tire Flips (if available)',label:'Tire Flips (if available)'}
+    ]},
+    { label:'Functional — Plyometrics', options:[
+      {value:'Jump Squats',label:'Jump Squats'},
+      {value:'Tuck Jumps',label:'Tuck Jumps'},
+      {value:'Lateral Bounds',label:'Lateral Bounds'},
+      {value:'Depth Jumps (using a box)',label:'Depth Jumps (using a box)'}
+    ]},
+    { label:'Functional — Core', options:[
+      {value:'Russian Twists (with or without weight)',label:'Russian Twists (with or without weight)'},
+      {value:'Bicycle Crunches',label:'Bicycle Crunches'},
+      {value:'Mountain Climbers',label:'Mountain Climbers'},
+      {value:'Hanging Knee Tucks',label:'Hanging Knee Tucks'},
+      {value:'Cable Woodchoppers',label:'Cable Woodchoppers'}
+    ]},
+    { label:'Flexibility — Static Stretching', options:[
+      {value:'Hamstring stretch',label:'Hamstring stretch'},
+      {value:'Quadriceps stretch',label:'Quadriceps stretch'},
+      {value:'Chest opener',label:'Chest opener'},
+      {value:'Shoulder stretch',label:'Shoulder stretch'},
+      {value:'Calf stretch',label:'Calf stretch'}
+    ]},
+    { label:'Flexibility — Dynamic Stretching', options:[
+      {value:'Leg Swings',label:'Leg Swings'},
+      {value:'Arm Circles',label:'Arm Circles'},
+      {value:'Walking Lunges with Twist',label:'Walking Lunges with Twist'},
+      {value:'High Knees',label:'High Knees'},
+      {value:'Butt Kicks',label:'Butt Kicks'}
+    ]},
+    { label:'Flexibility — Yoga-Inspired', options:[
+      {value:'Downward Dog',label:'Downward Dog'},
+      {value:'Warrior Poses',label:'Warrior Poses'},
+      {value:'Cat-Cow Stretch',label:'Cat-Cow Stretch'},
+      {value:"Child's Pose",label:"Child's Pose"},
+      {value:'Pigeon Stretch',label:'Pigeon Stretch'}
+    ]},
+    { label:'Flexibility — Foam Rolling', options:[
+      {value:'Quads, hamstrings, glutes',label:'Quads, hamstrings, glutes'},
+      {value:'Upper back, lats',label:'Upper back, lats'},
+      {value:'Calves, IT band',label:'Calves, IT band'}
+    ]},
+    { label:'Group Classes — Aerobics', options:[
+      {value:'Step aerobics',label:'Step aerobics'},
+      {value:'Zumba',label:'Zumba'},
+      {value:'Dance-based cardio',label:'Dance-based cardio'}
+    ]},
+    { label:'Group Classes — Spin/Cycling', options:[
+      {value:'Guided interval rides',label:'Guided interval rides'},
+      {value:'Rhythm-based cycling',label:'Rhythm-based cycling'}
+    ]},
+    { label:'Group Classes — Bootcamp', options:[
+      {value:'Combination of bodyweight exercises in a circuit format',label:'Bodyweight circuit format'},
+      {value:'Often includes push-ups, squats, and burpees',label:'Push-ups, squats, and burpees'}
+    ]},
+    { label:'Group Classes — Yoga', options:[
+      {value:'Vinyasa, Hatha, or Power Yoga',label:'Vinyasa, Hatha, or Power Yoga'},
+      {value:'Focus on flexibility, balance, and core',label:'Focus on flexibility, balance, and core'}
+    ]},
+    { label:'Group Classes — Pilates', options:[
+      {value:'Mat-based core strengthening',label:'Mat-based core strengthening'},
+      {value:'Reformer Pilates (if equipment is available)',label:'Reformer Pilates (if equipment is available)'}
+    ]},
+    { label:'Group Classes — Kickboxing', options:[
+      {value:'Cardio kickboxing',label:'Cardio kickboxing'},
+      {value:'Bag work (punching/kicking heavy bags)',label:'Bag work (punching/kicking heavy bags)'}
+    ]},
+    { label:'Group Classes — TRX', options:[
+      {value:'TRX rows',label:'TRX rows'},
+      {value:'TRX squats',label:'TRX squats'},
+      {value:'TRX planks',label:'TRX planks'}
+    ]},
+    { label:'Misc — Medicine Ball', options:[
+      {value:'Wall Balls',label:'Wall Balls'},
+      {value:'Rotational Throws',label:'Rotational Throws'},
+      {value:'Overhead Slams',label:'Overhead Slams'}
+    ]},
+    { label:'Misc — Agility Drills', options:[
+      {value:'Ladder Drills (in-and-out steps)',label:'Ladder Drills (in-and-out steps)'},
+      {value:'Cone Drills (lateral shuffles, sprints)',label:'Cone Drills (lateral shuffles, sprints)'},
+      {value:'Hurdle Jumps',label:'Hurdle Jumps'}
+    ]},
+    { label:'Misc — Balance Training', options:[
+      {value:'Bosu Ball Squats',label:'Bosu Ball Squats'},
+      {value:'Single-Leg Balance Drills',label:'Single-Leg Balance Drills'},
+      {value:'Stability Ball Exercises (e.g., planks, crunches)',label:'Stability Ball Exercises (e.g., planks, crunches)'}
+    ]},
+    { label:'Misc — Swimming', options:[
+      {value:'Freestyle, breaststroke, backstroke',label:'Freestyle, breaststroke, backstroke'},
+      {value:'Interval swimming',label:'Interval swimming'},
+      {value:'Water aerobics',label:'Water aerobics'}
+    ]},
+    { label:'Custom', options:[{value:'custom',label:'Custom Workout'}]}
+  ];
+
+  const isCardio = exercise => WORKOUT_OPTIONS.some(g => g.label.startsWith('Cardio Workouts') && g.options.some(o => o.value === exercise));
+
+  const formatWorkoutDetails = workout => {
+    const reps = String(workout.reps);
+    const weight = String(workout.weight);
+    if (isCardio(workout.exercise)) return `${reps} min · ${weight} km`;
+    if (workout.sets > 1 && reps.includes(',') && weight.includes(',')) {
+      const ra = reps.split(',').map(r=>r.trim());
+      const wa = weight.split(',').map(w=>w.trim());
+      if (ra.length === workout.sets && wa.length === workout.sets) return ra.map((r,i)=>`${r} reps @ ${wa[i]} kg`).join(' · ');
+    }
+    return `${workout.sets} × ${reps} reps @ ${weight} kg`;
+  };
+
+  const useAccessibleUsers = (user, setUserProfiles) => {
+    const [targetUsers, setTargetUsers] = useState([]);
+    const [selectedTargets, setSelectedTargets] = useState([]);
+    const [error, setError] = useState('');
+    const fetched = useRef(false);
+    useEffect(() => {
+      if (fetched.current || !user?.username) return;
+      fetched.current = true;
+      const fetchAccessList = async () => {
+        try {
+          const { data } = await axios.get(`${API_BASE}/get-access`, { params: { viewer: user.username, adminUsername: user.username } });
+          if (data.success && Array.isArray(data.accessList)) {
+            const users = data.accessList.filter(a => a.viewer === user.username).map(a => a.target);
+            setTargetUsers(users); setSelectedTargets(users); setError('');
+            const profilePromises = users.concat(user.username).map(async u => {
+              try {
+                const { data: pd } = await axios.get(`${API_BASE}/profile-pictures?username=${u}`).catch(() => ({ data: { profilePicUrl: DEFAULT_PROFILE_PIC, eventColor: DEFAULT_EVENT_COLOR, displayName: u } }));
+                return [u, { pic: pd.profilePicUrl||DEFAULT_PROFILE_PIC, color: pd.eventColor||DEFAULT_EVENT_COLOR, displayName: pd.displayName||u }];
+              } catch { return [u, { pic: DEFAULT_PROFILE_PIC, color: DEFAULT_EVENT_COLOR, displayName: u }]; }
+            });
+            const profiles = Object.fromEntries(await Promise.all(profilePromises));
+            setUserProfiles(prev => ({ ...prev, ...profiles, [user.username]: { pic: user.profilePicUrl||DEFAULT_PROFILE_PIC, color: user.eventColor||DEFAULT_EVENT_COLOR, displayName: user.displayName||user.username } }));
+          } else {
+            setTargetUsers([]); setError(data.message||'Failed.');
+            setUserProfiles({ [user.username]: { pic: user.profilePicUrl||DEFAULT_PROFILE_PIC, color: user.eventColor||DEFAULT_EVENT_COLOR, displayName: user.displayName||user.username } });
+          }
+        } catch (err) {
+          setError(err.response?.data?.message||'Error.');
+          setUserProfiles({ [user.username]: { pic: user.profilePicUrl||DEFAULT_PROFILE_PIC, color: user.eventColor||DEFAULT_EVENT_COLOR, displayName: user.displayName||user.username } });
+        }
+      };
+      fetchAccessList();
+    }, [user?.username, setUserProfiles]);
+    return { targetUsers, selectedTargets, setSelectedTargets, error };
+  };
+
+  const GymWorkout = ({ user, setPage, onLogout, setUser }) => {
+    const [workouts, setWorkouts] = useState([]);
+    const [form, setForm] = useState({ id:null, day:new Date().toLocaleString('en-US',{weekday:'long'}), exercise:'', sets:'', reps:'', weight:'', date:getCurrentDateTime() });
+    const [message, setMessage] = useState({ text:'', type:'' });
+    const [showAddForm, setShowAddForm] = useState(false);
+    const [bulkData, setBulkData] = useState('');
+    const [importMessage, setImportMessage] = useState({ text:'', type:'' });
+    const [showImportTool, setShowImportTool] = useState(false);
+    const [selectedMonth, setSelectedMonth] = useState('08');
+    const [sortField, setSortField] = useState('date');
+    const [sortOrder, setSortOrder] = useState('desc');
+    const [exerciseType, setExerciseType] = useState('strength');
+    const [isCustom, setIsCustom] = useState(false);
+    const [customExercise, setCustomExercise] = useState('');
+    const { targetUsers, selectedTargets, setSelectedTargets, error } = useAccessibleUsers(user, profiles => setUserProfiles(profiles));
+    const [userProfiles, setUserProfiles] = useState({ [user.username]: { pic: user.profilePicUrl||DEFAULT_PROFILE_PIC, color: user.eventColor||DEFAULT_EVENT_COLOR, displayName: user.displayName||user.username } });
+
+    const msg = (text, type='ok') => { setMessage({text,type}); setTimeout(()=>setMessage({text:'',type:''}),5000); };
+    const iMsg = (text, type='ok') => { setImportMessage({text,type}); setTimeout(()=>setImportMessage({text:'',type:''}),5000); };
+
+    const fetchWorkouts = useCallback(async () => {
+      try {
+        const results = await Promise.all([user.username,...selectedTargets].map(u=>axios.get(`${API_BASE}/gymworkout`,{params:{user:u}}).then(({data})=>data.map(w=>({...w,reps:String(w.reps),weight:String(w.weight)}))).catch(()=>[])));
+        setWorkouts(results.flat());
+      } catch { msg('Error fetching workouts.','err'); }
+    }, [user.username, selectedTargets]);
+
+    const handleInputChange = useCallback(e => {
+      const { name, value } = e.target;
+      if (name==='exerciseSelect') {
+        if(value==='custom'){setIsCustom(true);setExerciseType('strength');setForm(p=>({...p,exercise:customExercise||''}));}
+        else{setIsCustom(false);setExerciseType(isCardio(value)?'cardio':'strength');setForm(p=>({...p,exercise:value}));setCustomExercise('');}
+      } else if (name==='customExercise') {
+        setCustomExercise(value);setForm(p=>({...p,exercise:value}));
+      } else { setForm(p=>({...p,[name]:value})); }
+    }, [customExercise]);
+
+    const handleSaveWorkout = useCallback(async () => {
+      if (!form.day||!form.exercise) { msg('Day and exercise required.','err'); return; }
+      const sets = exerciseType==='cardio'?1:parseInt(form.sets);
+      if (isNaN(sets)||sets<=0) { msg('Sets must be a positive number.','err'); return; }
+      const repsArray = form.reps.split(',').map(r=>r.trim());
+      const weightArray = form.weight.split(',').map(w=>w.trim());
+      if (exerciseType!=='cardio') {
+        if(sets>1&&(repsArray.length!==sets||weightArray.length!==sets)){msg('For multiple sets, provide comma-separated reps and weights matching the number of sets.','err');return;}
+        if(repsArray.some(r=>isNaN(parseInt(r))||parseInt(r)<=0)||weightArray.some(w=>isNaN(parseFloat(w))||parseFloat(w)<=0)){msg('Reps and weights must be positive numbers.','err');return;}
+      } else {
+        if(isNaN(parseFloat(form.reps))||parseFloat(form.reps)<=0||isNaN(parseFloat(form.weight))||parseFloat(form.weight)<=0){msg('Duration and distance must be positive numbers.','err');return;}
+      }
+      const wd = { user:user.username, day:form.day, exercise:form.exercise, sets, reps:form.reps, weight:form.weight, date:form.date };
+      try {
+        if(form.id){await axios.put(`${API_BASE}/gymworkout/${form.id}`,wd);msg('Workout updated.');}
+        else{await axios.post(`${API_BASE}/gymworkout`,wd);msg('Workout saved.');}
+        fetchWorkouts();
+        setForm({id:null,day:new Date().toLocaleString('en-US',{weekday:'long'}),exercise:'',sets:'',reps:'',weight:'',date:getCurrentDateTime()});
+        setShowAddForm(false);setIsCustom(false);setExerciseType('strength');setCustomExercise('');
+      } catch { msg('Error saving workout.','err'); }
+    }, [form,user.username,fetchWorkouts,exerciseType]);
+
+    const handleDeleteWorkout = useCallback(async id => {
+      try { await axios.delete(`${API_BASE}/gymworkout/${id}`);msg('Workout deleted.');fetchWorkouts(); } catch { msg('Error deleting.','err'); }
+    }, [fetchWorkouts]);
+
+    const startEdit = useCallback(workout => {
+      setForm({id:workout.id,day:workout.day,exercise:workout.exercise,sets:workout.sets.toString(),reps:String(workout.reps),weight:String(workout.weight),date:workout.date.slice(0,16)});
+      const type = isCardio(workout.exercise)?'cardio':'strength';
+      setExerciseType(type);
+      const custom = !WORKOUT_OPTIONS.some(g=>g.options.some(o=>o.value===workout.exercise));
+      setIsCustom(custom);setCustomExercise(custom?workout.exercise:'');setShowAddForm(true);
+    }, []);
+
+    const handleBulkImport = useCallback(async () => {
+      if(!bulkData.trim()){iMsg('Paste data first.','err');return;}
+      const toImport = bulkData.trim().split('\n').filter(l=>l.trim()).map(l=>{const[day,exercise,sets,reps,weight,date]=l.split(',').map(f=>f.trim());if(!day||!exercise||!sets||!reps||!weight||!date)return null;return{user:user.username,day,exercise,sets:parseInt(sets),reps,weight,date};}).filter(Boolean);
+      if(!toImport.length){iMsg('No valid data.','err');return;}
+      iMsg(`Importing ${toImport.length} workouts...`,'warn');
+      try { await Promise.all(toImport.map(w=>axios.post(`${API_BASE}/gymworkout`,w)));iMsg(`Imported ${toImport.length} workouts.`);setBulkData('');setShowImportTool(false);fetchWorkouts(); } catch { iMsg('Import failed.','err'); }
+    }, [bulkData,user.username,fetchWorkouts]);
+
+    const sortedWorkouts = useMemo(() => {
+      const filtered = workouts.filter(w=>w.date?.startsWith(`2025-${selectedMonth}`));
+      return [...filtered].sort((a,b)=>{
+        const fa=sortField==='sets'?parseFloat(a.sets)||0:a[sortField];
+        const fb=sortField==='sets'?parseFloat(b.sets)||0:b[sortField];
+        if(sortField==='sets') return sortOrder==='asc'?fa-fb:fb-fa;
+        return sortOrder==='asc'?new Date(fa)-new Date(fb):new Date(fb)-new Date(fa);
+      });
+    }, [workouts,selectedMonth,sortField,sortOrder]);
+
+    useEffect(()=>{if(user?.username)fetchWorkouts();},[fetchWorkouts,user]);
+
+    const month = MONTHS.find(m=>m.value===selectedMonth)?.label||'';
+
+    return (
+      <div className="page-wrap">
+        <button className="back-btn" onClick={()=>setPage('menu')}>← Back to Menu</button>
+        <div className="page-header">
+          <div className="page-eyebrow">§ Vectra Arch · Legacy · Fitness</div>
+          <div className="page-title">Gym Workout</div>
+          <div className="page-sub">Strength · Cardio · Weekly Training Log</div>
+        </div>
+        <div className="user-header">
+          <img className="user-avatar" src={userProfiles[user.username]?.pic||DEFAULT_PROFILE_PIC} alt={user.username} style={{borderColor:userProfiles[user.username]?.color||DEFAULT_EVENT_COLOR}}/>
+          <div className="user-display">{userProfiles[user.username]?.displayName||user.username}</div>
+          <div style={{marginLeft:'auto'}}><button className="va-btn danger sm" onClick={onLogout}>Sign Out ×</button></div>
+        </div>
+
+        {message.text&&<div className={`va-alert ${message.type}`}>{message.type==='ok'?'✓ ':'⚠ '}{message.text}</div>}
+        {error&&<div className="va-alert err">⚠ {error}</div>}
+
+        <div className="toolbar">
+          <span className="tb-label">Month</span>
+          <select className="mf-select" value={selectedMonth} onChange={e=>setSelectedMonth(e.target.value)}>
+            {MONTHS.map(m=><option key={m.value} value={m.value}>{m.label} 2025</option>)}
+          </select>
+          <span className="tb-label">Sort</span>
+          <select className="mf-select" value={sortField} onChange={e=>setSortField(e.target.value)}>
+            <option value="date">Date</option><option value="sets">Sets</option>
+          </select>
+          <select className="mf-select" value={sortOrder} onChange={e=>setSortOrder(e.target.value)}>
+            <option value="desc">Desc</option><option value="asc">Asc</option>
+          </select>
+          <div className="tb-spacer"/>
+          <button className="va-btn sm" onClick={()=>setShowImportTool(!showImportTool)}>{showImportTool?'Hide Import':'Bulk Import'}</button>
+          <button className="va-btn primary sm" onClick={()=>setShowAddForm(!showAddForm)}>{showAddForm?'Hide Form':'Log Workout ↗'}</button>
+        </div>
+
+        {targetUsers.length>0&&(
+          <div className="user-toggles">
+            {targetUsers.map(t=>(
+              <button key={t} className={`user-toggle ${selectedTargets.includes(t)?'on':'off'}`} onClick={()=>setSelectedTargets(prev=>prev.includes(t)?prev.filter(u=>u!==t):[...prev,t])}>
+                <img className="mini-avatar" src={userProfiles[t]?.pic||DEFAULT_PROFILE_PIC} alt={t} style={{border:`1px solid ${userProfiles[t]?.color||DEFAULT_EVENT_COLOR}`}}/>
+                {userProfiles[t]?.displayName||t}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {showImportTool&&(
+          <div className="import-box">
+            <div className="section-label">§ Bulk Import</div>
+            <div className="import-hint">Format: Day,Exercise,Sets,Reps,Weight,Date<br/>Strength: Monday,Bench Press,3,10,50,2025-08-01 09:00:00<br/>Cardio: Monday,Steady-state running,1,30,5,2025-08-01 09:00:00</div>
+            <textarea className="mf-textarea" rows="5" value={bulkData} onChange={e=>setBulkData(e.target.value)} placeholder="Paste CSV data..."/>
+            {importMessage.text&&<div className={`va-alert ${importMessage.type}`} style={{marginTop:'12px'}}>{importMessage.text}</div>}
+            <div className="btn-row" style={{marginTop:'12px'}}>
+              <button className="va-btn primary" onClick={handleBulkImport}>Import ↗</button>
+              <button className="va-btn" onClick={()=>setShowImportTool(false)}>Cancel</button>
+            </div>
+          </div>
+        )}
+
+        {showAddForm&&(
+          <div className="va-form">
+            <div className="section-label">§ {form.id?'Edit Workout':'Log Workout'}</div>
+            <div className="mf-label" style={{marginBottom:'8px'}}>Day</div>
+            <div className="toggle-group" style={{marginBottom:'20px'}}>
+              {DAYS.map(d=><button key={d} className={`toggle-chip ${form.day===d?'on':'off'}`} onClick={()=>setForm(p=>({...p,day:d}))}>{d}</button>)}
+            </div>
+            <div className="mf-field full">
+              <label className="mf-label">Exercise Template</label>
+              <select className="mf-field-select" name="exerciseSelect" value={isCustom?'custom':form.exercise} onChange={handleInputChange}>
+                <option value="">— Select exercise —</option>
+                {WORKOUT_OPTIONS.map(group=>(
+                  <optgroup key={group.label} label={group.label}>
+                    {group.options.map(opt=><option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                  </optgroup>
+                ))}
+              </select>
+            </div>
+            {isCustom&&(
+              <div className="mf-field full">
+                <label className="mf-label">Custom Exercise Name</label>
+                <input className="mf-input" name="customExercise" placeholder="Enter exercise name" value={customExercise} onChange={handleInputChange}/>
+              </div>
+            )}
+            {form.exercise&&(
+              <div className={`type-badge ${exerciseType}`} style={{marginBottom:'20px'}}>
+                {exerciseType==='cardio'?'◎ Cardio':'⬡ Strength'}
+              </div>
+            )}
+            <div className="form-grid">
+              {exerciseType==='strength'&&(
+                <div className="mf-field">
+                  <label className="mf-label">Sets</label>
+                  <input className="mf-input" name="sets" type="number" placeholder="3" value={form.sets} onChange={handleInputChange}/>
+                </div>
+              )}
+              <div className="mf-field">
+                <label className="mf-label">{exerciseType==='cardio'?'Duration (min)':'Reps'}{exerciseType!=='cardio'&&parseInt(form.sets)>1?' (comma-sep, e.g. 10,8,6)':''}</label>
+                <input className="mf-input" name="reps" type="text" placeholder={exerciseType==='cardio'?'30':parseInt(form.sets)>1?'10,8,6':'10'} value={form.reps} onChange={handleInputChange}/>
+              </div>
+              <div className="mf-field">
+                <label className="mf-label">{exerciseType==='cardio'?'Distance (km)':'Weight (kg)'}{exerciseType!=='cardio'&&parseInt(form.sets)>1?' (comma-sep, e.g. 50,60,70)':''}</label>
+                <input className="mf-input" name="weight" type="text" placeholder={exerciseType==='cardio'?'5':parseInt(form.sets)>1?'50,60,70':'80'} value={form.weight} onChange={handleInputChange}/>
+              </div>
+              <div className="mf-field">
+                <label className="mf-label">Date & Time</label>
+                <input className="mf-input" type="datetime-local" name="date" value={form.date} onChange={handleInputChange} step="1"/>
+              </div>
+            </div>
+            <div className="btn-row">
+              <button className="va-btn primary" onClick={handleSaveWorkout}>{form.id?'Update ↗':'Save ↗'}</button>
+              <button className="va-btn" onClick={()=>{setShowAddForm(false);setIsCustom(false);setExerciseType('strength');setCustomExercise('');setForm({id:null,day:new Date().toLocaleString('en-US',{weekday:'long'}),exercise:'',sets:'',reps:'',weight:'',date:getCurrentDateTime()});}}>Cancel</button>
+            </div>
+          </div>
+        )}
+
+        <div className="section-label">§ Weekly Plan · {month} 2025</div>
+        {DAYS.map(day=>{
+          const dayWorkouts = sortedWorkouts.filter(w=>w.day===day&&[user.username,...selectedTargets].includes(w.user));
+          const totalSets = dayWorkouts.reduce((s,w)=>s+(parseInt(w.sets)||0),0);
+          return (
+            <div key={day} className="day-section">
+              <div className="day-header">
+                <div className="day-name">{day}</div>
+                <div className="day-count">{dayWorkouts.length} exercises · {totalSets} sets</div>
+              </div>
+              {dayWorkouts.length===0
+                ? <div className="day-empty">§ Rest day</div>
+                : dayWorkouts.map(workout=>(
+                    <div key={workout.id} className="workout-card">
+                      <div className="workout-top">
+                        <img className="workout-avatar" src={userProfiles[workout.user]?.pic||DEFAULT_PROFILE_PIC} alt={workout.user} style={{border:`1px solid ${userProfiles[workout.user]?.color||DEFAULT_EVENT_COLOR}`}}/>
+                        <span className={`workout-type ${isCardio(workout.exercise)?'cardio':'strength'}`}>{isCardio(workout.exercise)?'Cardio':'Strength'}</span>
+                        <span className="workout-ex">{workout.exercise}</span>
+                      </div>
+                      <div className="workout-detail">{formatWorkoutDetails(workout)}</div>
+                      <div className="workout-meta">{formatDateTime(workout.date)} · {userProfiles[workout.user]?.displayName||workout.user}</div>
+                      {workout.user===user.username&&(
+                        <div className="workout-actions">
+                          <button className="va-btn sm" onClick={()=>startEdit(workout)}>Edit</button>
+                          <button className="va-btn danger sm" onClick={()=>handleDeleteWorkout(workout.id)}>Delete</button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+            </div>
+          );
+        })}
+
+        <div className="notes-box">
+          <div className="section-label">§ Notes</div>
+          <div className="note-item">Equipment availability varies by gym. Most offer free weights, machines, and cardio equipment.</div>
+          <div className="note-item">Workouts can be tailored for beginners (lighter weights, simpler movements) or advanced athletes.</div>
+          <div className="note-item">Proper form is critical to avoid injury, especially with free weights or compound movements like deadlifts.</div>
+          <div className="note-item">Combine exercises based on your goal — muscle gain, fat loss, or endurance — using progressive overload.</div>
+        </div>
+      </div>
+    );
+  };
+
+  const App = () => {
+    const [user, setUser] = useState(null);
+    useEffect(() => {
+      const s = localStorage.getItem('user');
+      if(s){try{setUser(JSON.parse(s));}catch{localStorage.removeItem('user');window.location.href='index.html';}}
+      else window.location.href='index.html';
+    }, []);
+    const handleLogout = useCallback(()=>{localStorage.removeItem('user');window.location.href='index.html';},[]);
+    if(!user)return null;
+    return <ErrorBoundary><GymWorkout user={user} setPage={()=>window.location.href='index.html'} onLogout={handleLogout} setUser={setUser}/></ErrorBoundary>;
+  };
+  ReactDOM.render(<App/>, document.getElementById('root'));
+</script>
+</body>
+</html>
