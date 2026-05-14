@@ -17503,3 +17503,5 @@
     at WriteStream.emit (node:domain:489:12)
     at emitErrorNT (node:internal/streams/destroy:151:8)
     at emitErrorCloseNT (node:internal/streams/destroy:116:3)
+2026-05-14T21:29:33: PM2 log: [PM2] This PM2 is not UP TO DATE
+2026-05-14T21:29:33: PM2 log: [PM2] Upgrade to version 7.0.1
