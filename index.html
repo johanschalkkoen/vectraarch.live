@@ -390,6 +390,35 @@
 </div>
 
 <script>
+<!-- TIME AND DATE -->
+function updateLiveClocks() {
+    const now = new Date();
+    
+    // Format the date/time string (e.g., 2026-05-14 19:45:02)
+    const year = now.getFullYear();
+    const dateStr = now.toLocaleDateString('en-GB').replace(/\//g, '.'); // 14.05.2026
+    const timeStr = now.toLocaleTimeString('en-GB', { hour12: false }); // 19:45:02
+
+    // 1. Update Navigation Status
+    const navClock = document.getElementById('nav-clock');
+    if (navClock) navClock.textContent = `LIVE · ${timeStr}`;
+
+    // 2. Update Hero Coords Status
+    const coordClock = document.getElementById('coord-clock');
+    if (coordClock) coordClock.textContent = `OPERATIONAL / ${year} · ${timeStr}`;
+
+    // 3. Update Footer
+    const footerClock = document.getElementById('footer-clock');
+    if (footerClock) {
+        footerClock.textContent = `Born Namibia 1984 · Built on Linux · ${dateStr} ${timeStr}`;
+    }
+}
+
+// Run immediately on load, then every second
+setInterval(updateLiveClocks, 1000);
+updateLiveClocks();
+<!-- END OF TIME AND DATE -->
+
   const obs = new IntersectionObserver(entries => {
     entries.forEach((e,i) => {
       if(e.isIntersecting){ setTimeout(()=>e.target.classList.add('visible'),i*70); obs.unobserve(e.target); }
