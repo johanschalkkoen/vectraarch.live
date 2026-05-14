@@ -47,7 +47,7 @@
 </div>
 
 <!-- HERO -->
-<section class="hero">
+<section class="hero" id="about">
   <p class="hero-label">§ Studio <span class="infinity-symbol">&infin;</span> · Sculpture · Gaming · Visual Work · Motion &amp; Form</p>
   <h1 class="hero-title">
     Kinetic
@@ -86,7 +86,7 @@
 </div>
 
 <!-- SCULPTURE SECTION -->
-<section class="section">
+<section class="section" id="sculpture">
   <div class="section-header reveal">
     <span class="sn">01</span>
     <span class="st">Sculpture</span>
@@ -133,14 +133,14 @@
 </section>
 
 <!-- Legacy SECTION -->
-<section class="section" style="padding-top:0;">
+<section class="section" id="legacy" style="padding-top:0;">
   <div class="section-header reveal">
     <span class="sn">01</span>
     <span class="st">Lifestyle App · Legacy </span>
     <div class="sr"></div>
   </div>
 
-  <a href="https://legacy.vectraarch.live" class="legacy-card reveal">
+  <a href="https://vectraarch.live/legacy" class="legacy-card reveal">
     <div class="legacy-corner">Legacy</div>
     <div class="legacy-eyebrow">§ Studio <span class="infinity-symbol">&infin;</span> · Partner Sharing and Planning app</div>
     <div class="legacy-title">
@@ -156,14 +156,14 @@
 </section>
 
 <!-- BO7 SECTION -->
-<section class="section" style="padding-top:0;">
+<section class="section" id="gaming" style="padding-top:0;">
   <div class="section-header reveal">
     <span class="sn">02</span>
     <span class="st">Gaming · Bo7</span>
     <div class="sr"></div>
   </div>
 
-  <a href="https://bo7.vectraarch.live" class="bo7-card reveal">
+  <a href="https://vectraarch.live/bo7" class="bo7-card reveal">
     <div class="bo7-corner">Bo7</div>
     <div class="bo7-eyebrow">§ External Studio <span class="infinity-symbol">&infin;</span> · Call of Duty Black Ops 7</div>
     <div class="bo7-title">
@@ -179,7 +179,7 @@
 </section>
 
 <!-- PRESS SECTION -->
-<section class="section" style="padding-top:0;">
+<section class="section" id="press" style="padding-top:0;">
   <div class="section-header reveal">
     <span class="sn">03</span>
     <span class="st">Published Work · Press</span>
@@ -203,14 +203,14 @@
 </section>
 
 <!-- FORGE SECTION -->
-<section class="section" style="padding-top:0;">
+<section class="section" id="forge" style="padding-top:0;">
   <div class="section-header reveal">
     <span class="sn">04</span>
     <span class="st">Book Forge · Writing Management</span>
     <div class="sr"></div>
   </div>
 
-  <a href="https://forge.vectraarch.live" class="bo7-card reveal">
+  <a href="https://vectraarch.live/forge" class="bo7-card reveal">
     <div class="bo7-corner">Forge</div>
     <div class="bo7-eyebrow">§ Studio <span class="infinity-symbol">&infin;</span> · Self-Hosted · Node.js · PostgreSQL</div>
     <div class="bo7-title">
@@ -226,14 +226,25 @@
   </a>
 </section>
 
+<!-- FOOTER  -->
 <footer>
-  <div class="footer-logo">Kinetic · Vectra Arch</div>
+  <div class="footer-logo">Vectra Arch · Kinetic · Schalk Johan Koen</div>
   <ul class="footer-links">
-    <li><a href="https://bo7.vectraarch.live">Bo7</a></li>
-    <li><a href="https://foundation.vectraarch.live">Foundation</a></li>
-    <li><a href="https://vectraarch.live">Home</a></li>
+    <li><a href="#about">About</a></li>
+    <li><a href="#sculpture">Sculpture</a></li>
+    <li><a href="#legacy">Lifestyle App</a></li>
+    <li><a href="#gaming">Gaming</a></li>
+    <li><a href="#press">Press</a></li>
+    <li><a href="#forge">Book Forge</a></li>
   </ul>
-  <div class="footer-meta">Built on Linux · 2026</div>
+  <div class="footer-meta" id="footer-clock">
+    Built on Linux · 2026
+  </div>
+  <div class="footer-legal" style="font-family:'DM Mono',monospace; font-size:10px; color:var(--text-dim); opacity:0.6; margin-top:20px; text-transform:uppercase; letter-spacing:0.1em;">
+    &copy; 1984-2026 Schalk Johan Koen. All Rights Reserved.
+    <br/>
+    Unauthorized duplication or distribution is a violation of applicable laws.
+  </div>
 </footer>
 
 <a href="#top" class="back-to-top" id="btt" title="Back to top">↑</a>
