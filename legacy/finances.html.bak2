@@ -447,12 +447,12 @@
     const [user, setUser] = useState(null);
     useEffect(() => {
       const s = localStorage.getItem('user');
-      if(s){try{setUser(JSON.parse(s));}catch{localStorage.removeItem('user');window.location.href='login.html';}}
-      else window.location.href='login.html';
+      if(s){try{setUser(JSON.parse(s));}catch{localStorage.removeItem('user');window.location.href='index.html';}}
+      else window.location.href='index.html';
     }, []);
-    const handleLogout = useCallback(()=>{localStorage.removeItem('user');window.location.href='login.html';},[]);
+    const handleLogout = useCallback(()=>{localStorage.removeItem('user');window.location.href='index.html';},[]);
     if(!user)return null;
-    return <Financial user={user} setPage={()=>window.location.href='login.html'} onLogout={handleLogout} setUser={setUser}/>;
+    return <Financial user={user} setPage={()=>window.location.href='index.html'} onLogout={handleLogout} setUser={setUser}/>;
   };
   ReactDOM.render(<App/>, document.getElementById('root'));
 </script>

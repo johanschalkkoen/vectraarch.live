@@ -165,7 +165,7 @@
         <div className="profile-wrap">
           <div className="profile-section">
             <div className="alert err">⚠ {this.state.error}</div>
-            <button className="va-btn" onClick={() => window.location.href = 'login.html'}>← Back to Login</button>
+            <button className="va-btn" onClick={() => window.location.href = 'index.html'}>← Back to Login</button>
           </div>
         </div>
       );
@@ -860,10 +860,10 @@
       } else { setError('Please log in to access your profile.'); }
     }, []);
 
-    const handleLogout = useCallback(() => { localStorage.removeItem('user'); window.location.href = 'login.html'; }, []);
+    const handleLogout = useCallback(() => { localStorage.removeItem('user'); window.location.href = 'index.html'; }, []);
 
     if (error) return (
-      <div className="profile-wrap"><div className="profile-section"><div className="alert err">⚠ {error}</div><button className="va-btn" onClick={() => window.location.href = 'login.html'}>← Go to Login</button></div></div>
+      <div className="profile-wrap"><div className="profile-section"><div className="alert err">⚠ {error}</div><button className="va-btn" onClick={() => window.location.href = 'index.html'}>← Go to Login</button></div></div>
     );
     if (!user) return (
       <div className="profile-wrap"><div className="profile-section"><div style={{fontFamily:"'DM Mono',monospace",fontSize:'10px',color:'var(--text-dim)',letterSpacing:'0.1em'}}>§ Loading...</div></div></div>
@@ -871,7 +871,7 @@
 
     return (
       <ErrorBoundary>
-        <ProfileSettings user={user} setPage={() => window.location.href = 'login.html'} onLogout={handleLogout} setUser={setUser}/>
+        <ProfileSettings user={user} setPage={() => window.location.href = 'index.html'} onLogout={handleLogout} setUser={setUser}/>
       </ErrorBoundary>
     );
   };

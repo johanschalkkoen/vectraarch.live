@@ -593,15 +593,15 @@
       const storedUser = localStorage.getItem('user');
       if (storedUser) {
         try { setUser(JSON.parse(storedUser)); }
-        catch { window.location.href = 'login.html'; }
-      } else { window.location.href = 'login.html'; }
+        catch { window.location.href = 'index.html'; }
+      } else { window.location.href = 'index.html'; }
     }, []);
     const handleLogout = useCallback(() => {
       localStorage.removeItem('user');
-      window.location.href = 'login.html';
+      window.location.href = 'index.html';
     }, []);
     if (!user) return null;
-    return <Admin user={user} setPage={() => window.location.href = 'login.html'} onLogout={handleLogout}/>;
+    return <Admin user={user} setPage={() => window.location.href = 'index.html'} onLogout={handleLogout}/>;
   };
 
   ReactDOM.render(<App/>, document.getElementById('root'));
