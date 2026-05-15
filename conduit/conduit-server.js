@@ -40,6 +40,15 @@ const pool = new Pool({
   port:     parseInt(process.env.DB_PORT || '5432'),
 });
 
+// Read-only connection to VectraArchLegacy — same credentials, different DB
+const legacyPool = new Pool({
+  user:     process.env.DB_USER,
+  host:     process.env.DB_HOST     || 'localhost',
+  database: 'VectraArchLegacy',
+  password: process.env.DB_PASSWORD,
+  port:     parseInt(process.env.DB_PORT || '5432'),
+});
+
 // ── MIDDLEWARE ────────────────────────────────────────────────────────────────
 app.set('trust proxy', 1);
 app.use(express.json());
@@ -684,6 +693,21 @@ app.get(BASE + '/users', isAuth, async (req, res) => {
   `);
   const users = result.rows;
 
+  // Query VectraArchLegacy users — read-only, separate DB
+  let legacyUsers = [];
+  try {
+    const lr = await legacyPool.query(`
+      SELECT username, first_name, last_name, display_name,
+             email, is_admin, activity_status, last_active,
+             (twofa_secret IS NOT NULL) AS twofa_enabled
+      FROM vectraarchlegacy_users
+      ORDER BY last_active DESC NULLS LAST
+    `);
+    legacyUsers = lr.rows;
+  } catch (e) {
+    console.error('[conduit] Legacy DB read error:', e.message);
+  }
+
   const rows = users.map(u => `
     <tr>
       <td>
@@ -754,10 +778,10 @@ app.get(BASE + '/users', isAuth, async (req, res) => {
     ${flash?`<div class="alert ${flash.type}">${esc(flash.msg)}</div>`:''}
 
     <div class="stat-row">
-      <div class="stat-cell"><div class="stat-num">${users.length}</div><div class="stat-label">Total Users</div></div>
-      <div class="stat-cell"><div class="stat-num">${users.filter(u=>u.role==='admin').length}</div><div class="stat-label">Admins</div></div>
-      <div class="stat-cell"><div class="stat-num">${users.filter(u=>u.type==='Google').length}</div><div class="stat-label">Google OAuth</div></div>
-      <div class="stat-cell"><div class="stat-num">${users.filter(u=>u.twofa_enabled).length}</div><div class="stat-label">2FA Enabled</div></div>
+      <div class="stat-cell"><div class="stat-num">${users.length}</div><div class="stat-label">Forge Users</div></div>
+      <div class="stat-cell"><div class="stat-num">${users.filter(u=>u.role==='admin').length}</div><div class="stat-label">Forge Admins</div></div>
+      <div class="stat-cell"><div class="stat-num">${legacyUsers.length}</div><div class="stat-label">Legacy Users</div></div>
+      <div class="stat-cell"><div class="stat-num">${legacyUsers.filter(u=>u.is_admin).length}</div><div class="stat-label">Legacy Admins</div></div>
     </div>
 
     <div class="section">
@@ -796,6 +820,30 @@ app.get(BASE + '/users', isAuth, async (req, res) => {
         <thead><tr><th>Name / Email / ID</th><th>Type</th><th>Role</th><th>Status</th><th>Logins</th><th>Last Login</th><th>2FA</th><th>Actions</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
+    </div>
+    <div class="section">
+      <div class="section-hdr"><span class="sh-num">03</span><span class="sh-title">Legacy Users · VectraArchLegacy · ${legacyUsers.length} Accounts</span><div class="sh-line"></div></div>
+      ${legacyUsers.length === 0
+        ? '<div style="padding:24px;background:var(--bg2);color:var(--dim);text-align:center;letter-spacing:0.1em;font-size:10px;">No Legacy users found — VectraArchLegacy DB may be unavailable</div>'
+        : `<table>
+            <thead><tr><th>Username / Display Name</th><th>Email</th><th>Role</th><th>Activity</th><th>2FA</th><th>Last Active</th></tr></thead>
+            <tbody>${legacyUsers.map(u => `
+              <tr>
+                <td>
+                  <div style="color:var(--text);font-size:12px;">${esc(u.username)}</div>
+                  ${u.display_name && u.display_name !== u.username
+                    ? `<div style="color:var(--dim);font-size:10px;">${esc(u.display_name)}</div>` : ''}
+                  ${u.first_name || u.last_name
+                    ? `<div style="color:var(--dim);font-size:10px;">${esc([u.first_name,u.last_name].filter(Boolean).join(' '))}</div>` : ''}
+                </td>
+                <td style="font-size:11px;color:var(--dim)">${esc(u.email||'—')}</td>
+                <td><span class="badge ${u.is_admin?'warn':'info'}">${u.is_admin?'Admin':'User'}</span></td>
+                <td><span class="badge ${u.activity_status?'ok':'info'}">${u.activity_status?'Active':'Inactive'}</span></td>
+                <td><span class="badge ${u.twofa_enabled?'ok':'info'}">${u.twofa_enabled?'On':'Off'}</span></td>
+                <td style="font-size:10px;color:var(--dim)">${u.last_active ? new Date(u.last_active).toLocaleString('en-ZA') : '—'}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>`}
     </div>
     <script>function toggleEdit(id){var el=document.getElementById('edit-'+id);el.style.display=el.style.display==='none'?'block':'none';}</script>`;
 
