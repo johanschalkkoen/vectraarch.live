@@ -1,4 +1,3 @@
-<!-- Volition.live -->
 <!DOCTYPE html>
 <html lang="en" id="top">
 <head>
@@ -105,7 +104,18 @@
 
   <div class="entry-grid reveal">
 
-    <!-- ENTRY 01 — real -->
+    <!-- ENTRY 004 — NEW: Fabric update -->
+    <div class="entry-card">
+      <div class="entry-date">2026 · May · Entry 004</div>
+      <div class="entry-title">Mapping What Was Already Built</div>
+      <span class="entry-tag">Documentation · Infrastructure</span>
+      <p class="entry-body">The constellation had been running for weeks before I actually drew what it was. Ten subdomains. Three Node.js processes. One database. SSL on everything. All of it live, all of it working — and none of it mapped anywhere a person could actually look at and understand in one read.</p>
+      <p class="entry-body" style="margin-top:12px;">So I drew it. A full architecture diagram: the VPS as the outer container, Nginx routing at the top, the split between static HTML sites and PM2-managed Node.js processes, PostgreSQL sitting in the middle feeding both Book Forge and Conduit, the auto-generation pipeline that writes Press into existence on every publish. Every subdomain. Every port. Every connection.</p>
+      <p class="entry-body" style="margin-top:12px;">Then I updated Fabric. The infrastructure portfolio had the stack documented — career progression, live processes, security layer — but it was missing the thing that makes the stack legible: the full picture of every site and how they relate. I added a new section, §03, that maps all ten subdomains in the same format the rest of Fabric uses. Static sites in a card grid. Node.js apps with their ports and responsibilities. Press called out explicitly as a generated output, not a running process. The shared foundation — SSL, Ansible, va.css, PostgreSQL — written out as its own layer.</p>
+      <p class="entry-body" style="margin-top:12px;">The reason for the update is the same reason documentation always gets updated: the system had outgrown its description. When you build fast, the code gets ahead of the record. This entry is the record catching up. The diagram exists. Fabric reflects reality. Both are better for it.</p>
+    </div>
+
+    <!-- ENTRY 001 -->
     <div class="entry-card">
       <div class="entry-date">2026 · May · Entry 001</div>
       <div class="entry-title">Building the Constellation</div>
@@ -115,7 +125,7 @@
       <p class="entry-body" style="margin-top:12px;">The first entry in this log is the log itself. The constellation is live. Everything is documented. Now the work of filling it begins.</p>
     </div>
 
-    <!-- ENTRY 02 — real -->
+    <!-- ENTRY 002 -->
     <div class="entry-card">
       <div class="entry-date">2026 · May · Entry 002</div>
       <div class="entry-title">Why I Built Book Forge</div>
@@ -124,21 +134,21 @@
       <p class="entry-body" style="margin-top:12px;">So I built it. Node.js, Express, PostgreSQL, EJS. Multi-user so my son could have his own account. Multi-book because I have more than one manuscript. Export to DOCX, PDF, EPUB, Markdown, and plain text because I do not want to be locked into any format. Publish to Press with a single click because the pipeline between writing and publishing should not require a separate tool.</p>
       <p class="entry-body" style="margin-top:12px;">The infrastructure engineer and the author are not two different people. They are the same discipline applied to different materials.</p>
     </div>
-    <!-- ENTRY 03 — real -->
+
+    <!-- ENTRY 003 -->
     <div class="entry-card">
       <div class="entry-date">2026 · May · Entry 003</div>
       <div class="entry-title">Why I Built Legacy</div>
       <span class="entry-tag">Creative Lifestyle App</span>
       <p class="entry-body">Financial Tracking: Log income and expenses with ease. The application provides a detailed table view, a monthly budget calculator, and options to filter, search, and bulk-import transactions.</p>
       <p class="entry-body">Integrated Calendar: A shared, interactive calendar that automatically displays financial entries and allows users to add custom personal events. Events are color-coded based on user preference to easily distinguish entries.</p>
-      <p class="entry-body">User Management & Profiles: Supports multiple users with secure authentication. Users can customize their profiles with a picture, contact details, and a personal event color. </p>
-      <p class="entry-body">Collaborative Data Sharing: An admin user can grant themselves view-only access to the financial and calendar data of other users, making it perfect for household management. </p>
-      <p class="entry-body">Secure Communication: The backend is configured to run exclusively over HTTPS, ensuring that all data transmitted between the client and server is encrypted. Passwords are securely hashed</p>
-      <p class="entry-body" style="margin-top:12px;">a full-stack, single-page web application designed for personal and collaborative life management. It's a comprehensive tool for managing finances and schedules, making it ideal for individuals, couples, or families to stay organized and aligned.</p>
+      <p class="entry-body">User Management &amp; Profiles: Supports multiple users with secure authentication. Users can customize their profiles with a picture, contact details, and a personal event color.</p>
+      <p class="entry-body">Collaborative Data Sharing: An admin user can grant themselves view-only access to the financial and calendar data of other users, making it perfect for household management.</p>
+      <p class="entry-body">Secure Communication: The backend is configured to run exclusively over HTTPS, ensuring that all data transmitted between the client and server is encrypted. Passwords are securely hashed.</p>
+      <p class="entry-body" style="margin-top:12px;">A full-stack, single-page web application designed for personal and collaborative life management. It's a comprehensive tool for managing finances and schedules, making it ideal for individuals, couples, or families to stay organized and aligned.</p>
     </div>
 
-
-    <!-- ENTRY 04 — coming -->
+    <!-- COMING -->
     <div class="entry-card coming">
       <div class="entry-date">Next entry</div>
       <div class="coming-label">§ Entry incoming · Being written</div>
