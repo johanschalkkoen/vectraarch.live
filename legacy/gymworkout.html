@@ -155,6 +155,7 @@
   const DEFAULT_PROFILE_PIC = 'https://placehold.co/50x50/808080/FFFFFF?text=U';
   const DEFAULT_EVENT_COLOR = '#00ff41';
   const MONTHS = Array.from({ length: 12 }, (_, i) => ({ value: (i + 1).toString().padStart(2, '0'), label: new Date(0, i).toLocaleString('default', { month: 'long' }) }));
+  const YEARS = Array.from({length:5},(_,i)=>new Date().getFullYear()-2+i);
   const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
   const capitalize = str => str ? str.charAt(0).toUpperCase() + str.slice(1) : '';
   const getCurrentDateTime = () => { const now = new Date(); now.setMinutes(now.getMinutes() - now.getTimezoneOffset()); return now.toISOString().slice(0, 19); };
@@ -395,7 +396,8 @@
     const [bulkData, setBulkData] = useState('');
     const [importMessage, setImportMessage] = useState({ text:'', type:'' });
     const [showImportTool, setShowImportTool] = useState(false);
-    const [selectedMonth, setSelectedMonth] = useState('08');
+    const [selectedMonth, setSelectedMonth] = useState(()=>(new Date().getMonth()+1).toString().padStart(2,'0'));
+    const [selectedYear, setSelectedYear] = useState(()=>new Date().getFullYear());
     const [sortField, setSortField] = useState('date');
     const [sortOrder, setSortOrder] = useState('desc');
     const [exerciseType, setExerciseType] = useState('strength');
@@ -436,7 +438,7 @@
       } else {
         if(isNaN(parseFloat(form.reps))||parseFloat(form.reps)<=0||isNaN(parseFloat(form.weight))||parseFloat(form.weight)<=0){msg('Duration and distance must be positive numbers.','err');return;}
       }
-      const wd = { user:user.username, day:form.day, exercise:form.exercise, sets, reps:form.reps, weight:form.weight, date:form.date };
+      const wd = { user:user.username, day:form.day, exercise:form.exercise, sets, reps:repsVal||form.reps, weight:weightVal||form.weight, date:form.date };
       try {
         if(form.id){await axios.put(`${API_BASE}/gymworkout/${form.id}`,wd);msg('Workout updated.');}
         else{await axios.post(`${API_BASE}/gymworkout`,wd);msg('Workout saved.');}
@@ -467,7 +469,7 @@
     }, [bulkData,user.username,fetchWorkouts]);
 
     const sortedWorkouts = useMemo(() => {
-      const filtered = workouts.filter(w=>w.date?.startsWith(`2025-${selectedMonth}`));
+      const filtered = workouts.filter(w=>w.date?.startsWith(`${selectedYear}-${selectedMonth}`));
       return [...filtered].sort((a,b)=>{
         const fa=sortField==='sets'?parseFloat(a.sets)||0:a[sortField];
         const fb=sortField==='sets'?parseFloat(b.sets)||0:b[sortField];
@@ -500,7 +502,11 @@
         <div className="toolbar">
           <span className="tb-label">Month</span>
           <select className="mf-select" value={selectedMonth} onChange={e=>setSelectedMonth(e.target.value)}>
-            {MONTHS.map(m=><option key={m.value} value={m.value}>{m.label} 2025</option>)}
+            {MONTHS.map(m=><option key={m.value} value={m.value}>{m.label} {selectedYear}</option>)}
+          </select>
+          <span className="tb-label">Year</span>
+          <select className="mf-select" value={selectedYear} onChange={e=>setSelectedYear(parseInt(e.target.value))}>
+            {YEARS.map(y=><option key={y} value={y}>{y}</option>)}
           </select>
           <span className="tb-label">Sort</span>
           <select className="mf-select" value={sortField} onChange={e=>setSortField(e.target.value)}>
@@ -594,7 +600,7 @@
           </div>
         )}
 
-        <div className="section-label">§ Weekly Plan · {month} 2025</div>
+        <div className="section-label">§ Weekly Plan · {month} {selectedYear}</div>
         {DAYS.map(day=>{
           const dayWorkouts = sortedWorkouts.filter(w=>w.day===day&&[user.username,...selectedTargets].includes(w.user));
           const totalSets = dayWorkouts.reduce((s,w)=>s+(parseInt(w.sets)||0),0);

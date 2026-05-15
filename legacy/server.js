@@ -672,12 +672,29 @@ app.post('/api/gymworkout', async (req, res) => {
     try {
         const r = await dbRun(
             'INSERT INTO vectraarchlegacy_gymworkout (username,day,exercise,sets,reps,weight,date) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id',
-            [user, day, exercise, parseInt(sets)||null, parseInt(reps)||null, parseFloat(weight)||null, date]
+            [user, day, exercise, parseInt(sets)||null, String(reps), String(weight), date]
         );
         await logTransaction(user, 'CREATE', 'gymworkout', r.rows[0].id, user);
         res.json({ success: true, message: 'Gym workout added successfully!' });
     } catch (e) {
         res.status(500).json({ success: false, message: 'Database error adding gym workout.', error: e.message });
+    }
+});
+
+app.put('/api/gymworkout/:id', async (req, res) => {
+    const { id } = req.params;
+    const { user, day, exercise, sets, reps, weight, date } = req.body;
+    if (!user || !day || !exercise || !sets || !reps || !weight || !date) return res.status(400).json({ success: false, message: 'All fields required.' });
+    try {
+        const row = await dbQuery('SELECT id FROM vectraarchlegacy_gymworkout WHERE id=$1 AND username=$2', [id, user]);
+        if (!row) return res.status(404).json({ success: false, message: 'Workout not found.' });
+        await dbTransaction([
+            { sql: 'UPDATE vectraarchlegacy_gymworkout SET day=$1,exercise=$2,sets=$3,reps=$4,weight=$5,date=$6 WHERE id=$7', params: [day, exercise, parseInt(sets)||null, String(reps), String(weight), date, id] },
+            { sql: 'INSERT INTO vectraarchlegacy_transaction_history (username,action,table_name,record_id,modified_by,modified_at) VALUES ($1,$2,$3,$4,$5,$6)', params: [user,'UPDATE','gymworkout',id,user,new Date().toISOString()] }
+        ]);
+        res.json({ success: true, message: 'Gym workout updated successfully!' });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Database error updating gym workout.', error: e.message });
     }
 });
 
