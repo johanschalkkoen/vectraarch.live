@@ -134,7 +134,7 @@
     <div class="sr"></div>
   </div>
 
-  <!-- NGINX MULTI-SITE -->
+  <!-- NGINX -->
   <div class="narrative reveal">
     <div class="narrative-tag">Nginx<span class="year">Live</span></div>
     <div>
@@ -143,7 +143,7 @@
     </div>
   </div>
 
-  <!-- PM2 PROCESSES -->
+  <!-- PM2 -->
   <div class="narrative reveal">
     <div class="narrative-tag">PM2<span class="year">3 Processes</span></div>
     <div>
@@ -188,10 +188,135 @@
   </div>
 </section>
 
-<!-- SECURITY LAYER -->
+<!-- CONSTELLATION ARCHITECTURE — NEW SECTION -->
 <section class="section">
   <div class="section-header reveal">
     <span class="sn">03</span>
+    <span class="st">Constellation Architecture · All Sites Mapped</span>
+    <div class="sr"></div>
+  </div>
+
+  <div class="narrative reveal">
+    <div class="narrative-tag">Overview<span class="year">2026</span></div>
+    <div>
+      <div class="narrative-heading">One VPS. Ten Subdomains. One Coherent System.</div>
+      <p class="narrative-text">The VectraArch constellation is not a collection of independent sites — it is a single engineered system running on one Ubuntu 24 LTS VPS. Nginx routes all traffic. PM2 keeps three Node.js processes alive permanently. A single PostgreSQL database serves both the writing application and the automation layer. Every subdomain shares the same stylesheet, the same SSL infrastructure, and the same philosophy: build it properly or don't build it at all.</p>
+    </div>
+  </div>
+
+  <!-- STATIC SITES GRID -->
+  <div class="narrative reveal">
+    <div class="narrative-tag">Static<span class="year">7 Sites</span></div>
+    <div>
+      <div class="narrative-heading">Static HTML · Served Direct from Web Root</div>
+      <p class="narrative-text">Seven sites served as static HTML directly from Nginx — no runtime, no process, zero overhead. All share <em>/shared/va.css</em> for a unified design system. Each has its own Nginx server block and Certbot SSL certificate.</p>
+    </div>
+  </div>
+
+  <div class="card-grid reveal">
+    <div class="card">
+      <div class="card-index">vectraarch.live</div>
+      <div class="card-title">Home</div>
+      <div class="card-meta">Static HTML · va.css · Nginx</div>
+      <p class="card-desc">Central hub. Personal bio, human systems content, studio grid linking all studios. Serves the global stylesheet at /shared/va.css used by every subdomain. Contact form routes through va-contact proxy.</p>
+    </div>
+    <div class="card">
+      <div class="card-index">fabric.vectraarch.live</div>
+      <div class="card-title">Fabric</div>
+      <div class="card-meta">Static HTML · Infrastructure portfolio</div>
+      <p class="card-desc">This site. Technical infrastructure documentation: career progression, live stack, security layer, and the full constellation map. References the real PM2 processes and PostgreSQL tables running on this server.</p>
+    </div>
+    <div class="card">
+      <div class="card-index">keystone.vectraarch.live</div>
+      <div class="card-title">Keystone</div>
+      <div class="card-meta">Static HTML · Architecture docs</div>
+      <p class="card-desc">The central locking piece. Full technical architecture of the VectraArch constellation — every system, every connection, every decision documented in one place.</p>
+    </div>
+    <div class="card">
+      <div class="card-index">kinetic.vectraarch.live</div>
+      <div class="card-title">Kinetic</div>
+      <div class="card-meta">Static HTML · Visual portfolio</div>
+      <p class="card-desc">Visual work and sculpture portfolio. Gaming content. The output of the studio that doesn't use a keyboard — anatomically precise clay work, visual design, and creative output across physical media.</p>
+    </div>
+    <div class="card">
+      <div class="card-index">volition.vectraarch.live</div>
+      <div class="card-title">Volition</div>
+      <div class="card-meta">Static HTML · Builder's log</div>
+      <p class="card-desc">The ongoing written record of building this. Decisions, failures, what came next. No redactions. Distinct from Press (finished fiction) and Kinetic (visual work). This is the commit history of a life under construction.</p>
+    </div>
+    <div class="card">
+      <div class="card-index">foundation.vectraarch.live</div>
+      <div class="card-title">Foundation</div>
+      <div class="card-meta">Static HTML · Central auth hub</div>
+      <p class="card-desc">Central authentication hub for the constellation. Identity management entry point — coordinates access across the ecosystem without exposing credentials at the client layer.</p>
+    </div>
+    <div class="card">
+      <div class="card-index">bo7.vectraarch.live</div>
+      <div class="card-title">Bo7</div>
+      <div class="card-meta">Static HTML · Booking via va-contact proxy</div>
+      <p class="card-desc">CoD Black Ops 7 coaching platform for ZenithB_Actual. Coaching packages, Discord integration, booking form routing through /api/booking on the va-contact proxy. Separate visual identity — cyber/neon aesthetic.</p>
+    </div>
+    <div class="card">
+      <div class="card-index">legacy.vectraarch.live</div>
+      <div class="card-title">Legacy</div>
+      <div class="card-meta">Static HTML · Lifestyle app</div>
+      <p class="card-desc">Full-stack single-page application for personal and collaborative life management. Financial tracking with income/expense logging, monthly budget calculator, and an integrated shared calendar that displays both financial and personal events.</p>
+    </div>
+  </div>
+
+  <!-- NODE.JS APPS -->
+  <div class="narrative reveal" style="margin-top:56px;">
+    <div class="narrative-tag">Node.js<span class="year">3 Apps</span></div>
+    <div>
+      <div class="narrative-heading">PM2-Managed · Proxied by Nginx · Always On</div>
+      <p class="narrative-text">Three Node.js applications managed by PM2 with startup persistence. Each proxied by Nginx through internal ports — nothing is publicly exposed directly. All three are persistent processes that survive reboots and are monitored for uptime.</p>
+    </div>
+  </div>
+
+  <div class="card-grid reveal">
+    <div class="card">
+      <div class="card-index">forge.vectraarch.live · :3000</div>
+      <div class="card-title">Book Forge</div>
+      <div class="card-meta">Node.js · Express · EJS · PostgreSQL · PM2</div>
+      <p class="card-desc">Full-stack writing management application. Multi-user, multi-book. Google OAuth + manual auth + TOTP 2FA via otplib. Manuscript chapters, character codex, factions, geography, research, timeline, world rules. Exports to DOCX, PDF, EPUB, Markdown, and plain text. Publishes to Press with a single click — writes a static HTML file directly to the press web root.</p>
+    </div>
+    <div class="card">
+      <div class="card-index">conduit.vectraarch.live · :3100</div>
+      <div class="card-title">Conduit Hub</div>
+      <div class="card-meta">Node.js · PostgreSQL · Telegram · PM2</div>
+      <p class="card-desc">Automation and social dashboard. Queries the Forge PostgreSQL database directly — no separate data store. Shows published volumes, fires Telegram announcements on each book release, and logs all trigger events to the conduit_log table. Site health monitoring across the constellation.</p>
+    </div>
+    <div class="card">
+      <div class="card-index">api.vectraarch.live · :3200</div>
+      <div class="card-title">Identity API</div>
+      <div class="card-meta">Node.js · VectraArch Identity Bridge · PM2</div>
+      <p class="card-desc">VectraArch Identity Bridge and contact proxy. Handles all Telegram form submissions server-side — credentials never touch the client. Routes booking requests from Bo7 through /api/booking. The only process that holds external API tokens in memory.</p>
+    </div>
+  </div>
+
+  <!-- AUTO-GENERATED -->
+  <div class="narrative reveal" style="margin-top:56px;">
+    <div class="narrative-tag">Generated<span class="year">On Publish</span></div>
+    <div>
+      <div class="narrative-heading">Press · Auto-Written by Book Forge on Every Release</div>
+      <p class="narrative-text">Press is not a Node.js application. It is a static HTML site that Book Forge generates from scratch every time a book is published. The publishing pipeline writes a complete <em>index.html</em> directly to the press web root — no CMS, no build step, no deploy hook. The infrastructure engineer and the author are the same person, using the same discipline applied to different materials.</p>
+    </div>
+  </div>
+
+  <!-- SHARED INFRASTRUCTURE LAYER -->
+  <div class="narrative reveal">
+    <div class="narrative-tag">Shared<span class="year">Foundation</span></div>
+    <div>
+      <div class="narrative-heading">SSL · Ansible · Shared Stylesheet · PostgreSQL</div>
+      <p class="narrative-text">Everything runs on the same foundation. SSL certificates issued and auto-renewed by Certbot across all ten subdomains. Ansible playbooks manage OS hardening, package configuration, and environment provisioning. The <em>/shared/va.css</em> stylesheet is served by the root Nginx virtual host and imported by every subdomain — one source of truth for the visual system. A single PostgreSQL 16 instance serves both Book Forge and Conduit, with role-based access enforced at the application layer.</p>
+    </div>
+  </div>
+</section>
+
+<!-- SECURITY LAYER -->
+<section class="section">
+  <div class="section-header reveal">
+    <span class="sn">04</span>
     <span class="st">Security Layer · What's Hardened</span>
     <div class="sr"></div>
   </div>
