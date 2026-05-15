@@ -56,7 +56,7 @@
     </div>
     <div class="hero-coords reveal">
       <div class="coord"><span class="key">OS</span><span>Ubuntu 24 LTS · Self-hosted VPS</span></div>
-      <div class="coord"><span class="key">Web</span><span>Nginx · Multi-site · SSL via Certbot</span></div>
+      <div class="coord"><span class="key">Web</span><span>Nginx · Single config · SSL via Certbot</span></div>
       <div class="coord"><span class="key">Runtime</span><span>Node.js · PM2 · PostgreSQL 16</span></div>
       <div class="coord"><span class="key">Automation</span><span>Ansible · Bash · Custom playbooks</span></div>
       <div class="coord"><span class="key">Current role</span><span>Senior Infrastructure Engineer</span></div>
@@ -73,14 +73,14 @@
     <div class="stress-sub">zero career downtime</div>
   </div>
   <div class="stress-cell reveal">
-    <div class="stress-num g">10</div>
-    <div class="stress-label">Live<br/>Subdomains</div>
-    <div class="stress-sub">all self-hosted · all SSL</div>
+    <div class="stress-num g">05</div>
+    <div class="stress-label">PM2<br/>Processes</div>
+    <div class="stress-sub">all online · all persistent</div>
   </div>
   <div class="stress-cell reveal">
-    <div class="stress-num g">03</div>
-    <div class="stress-label">PM2<br/>Processes</div>
-    <div class="stress-sub">BookForge · Conduit · va-contact</div>
+    <div class="stress-num g">01</div>
+    <div class="stress-label">Nginx<br/>Config</div>
+    <div class="stress-sub">vectraarch.live · all locations</div>
   </div>
   <div class="stress-cell reveal">
     <div class="stress-num g">01</div>
@@ -134,63 +134,57 @@
     <div class="sr"></div>
   </div>
 
-  <!-- NGINX -->
   <div class="narrative reveal">
     <div class="narrative-tag">Nginx<span class="year">Live</span></div>
     <div>
-      <div class="narrative-heading">10 Subdomains · Multi-Site · Certbot SSL</div>
-      <p class="narrative-text">Nginx managing ten separate virtual hosts on a single VPS. Each subdomain has its own server block, SSL certificate via Let's Encrypt Certbot, HSTS headers, and server_tokens off. Static sites serve directly from web root. Node.js applications proxy through internal ports. Rate limiting applied at the nginx layer for all public form endpoints.</p>
+      <div class="narrative-heading">Single Config · All Locations · Certbot SSL</div>
+      <p class="narrative-text">Nginx running a single unified config — <em>vectraarch.live</em> — managing all site locations from one file. Each path has its own location block, SSL certificate via Let's Encrypt Certbot, HSTS headers, and server_tokens off. Static sites serve directly from web root. Node.js applications proxy through internal ports. Rate limiting applied at the nginx layer for all public form endpoints.</p>
     </div>
   </div>
 
-  <!-- PM2 -->
   <div class="narrative reveal">
-    <div class="narrative-tag">PM2<span class="year">3 Processes</span></div>
+    <div class="narrative-tag">PM2<span class="year">5 Processes</span></div>
     <div>
-      <div class="narrative-heading">BookForge · Conduit Hub · VA Contact Proxy</div>
-      <p class="narrative-text">Three Node.js processes managed by PM2 with startup persistence. BookForge runs on port 3000 — the full writing management application. Conduit Hub runs on port 3100 — the automation dashboard querying the bookforge PostgreSQL database directly. VA Contact Proxy runs on port 3099 — handling all Telegram form submissions server-side so credentials never touch the client.</p>
+      <div class="narrative-heading">VectraArchForge · VectraArchConduit · VectraArchContact · VectraArchIdentity · VectraArchLegacy</div>
+      <p class="narrative-text">Five Node.js processes managed by PM2 with startup persistence and fork mode. All running as root, all online. VectraArchForge is the full writing management application. VectraArchConduit is the automation and social dashboard. VectraArchContact handles all Telegram contact form submissions server-side. VectraArchIdentity is the Identity Bridge API. VectraArchLegacy runs the lifestyle management application.</p>
     </div>
   </div>
 
-  <!-- POSTGRESQL -->
   <div class="narrative reveal">
-    <div class="narrative-tag">PostgreSQL<span class="year">16.13</span></div>
+    <div class="narrative-tag">PostgreSQL<span class="year">16</span></div>
     <div>
-      <div class="narrative-heading">bookforge Database · forge_master User</div>
+      <div class="narrative-heading">bookforge Database · Multi-Table · Multi-App</div>
       <p class="narrative-text">PostgreSQL 16 running locally. Single database — bookforge — with tables for users, books, entries, and conduit_log. The users table handles both Google OAuth identities and manual credential accounts with role-based access. The books table drives both the Book Forge application and the Press static catalogue rebuild. The conduit_log table records every automation trigger fired through the Conduit Hub dashboard.</p>
     </div>
   </div>
 
-  <!-- TERMINAL: live stack -->
+  <!-- TERMINAL: real pm2 list -->
   <div class="terminal reveal" style="margin-top:40px;">
     <div class="terminal-header">
       <div class="td"></div><div class="td"></div><div class="td"></div>
-      <span class="tp">schalk@vectraarch:~ $</span>
+      <span class="tp">root@vectraarch.live:~$</span>
     </div>
     <div class="tl"><span class="p">→ </span><span class="c">pm2 list</span></div>
-    <div class="tl"><span class="d">┌────────────────────────────┬──────────┬─────────┐</span></div>
-    <div class="tl"><span class="d">│ name                       │ status   │ memory  │</span></div>
-    <div class="tl"><span class="d">├────────────────────────────┼──────────┼─────────┤</span></div>
-    <div class="tl"><span class="h">│ VectraArchConduit          │</span><span class="g"> online   </span><span class="h">│ 90.2mb  │</span></div>
-    <div class="tl"><span class="h">│ VectraArchContact-hub      │</span><span class="g"> online   </span><span class="h">│ 76.3mb  │</span></div>
-    <div class="tl"><span class="h">│ VectraArchForge            │</span><span class="g"> online   </span><span class="h">│ 111.4mb │</span></div>
-    <div class="tl"><span class="h">│ VectraArchIdentity         │</span><span class="g"> online   </span><span class="h">│ 80.3mb  │</span></div>
-    <div class="tl"><span class="h">│ VectraArchLegacy           │</span><span class="g"> online   </span><span class="h">│ 86.9mb  │</span></div>
-    <div class="tl"><span class="d">└────────────────────────────┴──────────┴─────────┘</span></div>
+    <div class="tl"><span class="d">┌────┬───────────────────────┬─────────┬────────┬───────────┬──────────┬──────────┐</span></div>
+    <div class="tl"><span class="d">│ id │ name                  │ version │ uptime │ status    │ cpu      │ mem      │</span></div>
+    <div class="tl"><span class="d">├────┼───────────────────────┼─────────┼────────┼───────────┼──────────┼──────────┤</span></div>
+    <div class="tl"><span class="h">│ 9  │ VectraArchConduit     │</span><span class="d"> 1.0.0   │ 12h    │</span><span class="g"> online    </span><span class="d">│ 0%       │</span><span class="h"> 90.4mb   │</span></div>
+    <div class="tl"><span class="h">│ 11 │ VectraArchContact     │</span><span class="d"> N/A     │ 18h    │</span><span class="g"> online    </span><span class="d">│ 0%       │</span><span class="h"> 76.3mb   │</span></div>
+    <div class="tl"><span class="h">│ 8  │ VectraArchForge       │</span><span class="d"> 1.0.0   │ 19h    │</span><span class="g"> online    </span><span class="d">│ 0%       │</span><span class="h"> 111.4mb  │</span></div>
+    <div class="tl"><span class="h">│ 12 │ VectraArchIdentity    │</span><span class="d"> 1.0.0   │ 12h    │</span><span class="g"> online    </span><span class="d">│ 0%       │</span><span class="h"> 80.3mb   │</span></div>
+    <div class="tl"><span class="h">│ 10 │ VectraArchLegacy      │</span><span class="d"> 1.0.0   │ 12h    │</span><span class="g"> online    </span><span class="d">│ 0%       │</span><span class="h"> 87.0mb   │</span></div>
+    <div class="tl"><span class="d">└────┴───────────────────────┴─────────┴────────┴───────────┴──────────┴──────────┘</span></div>
     <div class="tl" style="margin-top:6px;"><span class="p">→ </span><span class="c">ls /etc/nginx/sites-enabled/</span></div>
-    <div class="tl"><span class="h">bo7.vectraarch.live &nbsp;&nbsp;&nbsp;&nbsp; conduit.vectraarch.live &nbsp; fabric.vectraarch.live</span></div>
-    <div class="tl"><span class="h">forge.vectraarch.live &nbsp;&nbsp; foundation.vectraarch.live keystone.vectraarch.live</span></div>
-    <div class="tl"><span class="h">kinetic.vectraarch.live &nbsp;manager.vectraarch.live &nbsp; press.vectraarch.live</span></div>
-    <div class="tl"><span class="h">vectraarch.live &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; volition.vectraarch.live</span></div>
+    <div class="tl"><span class="h">vectraarch.live</span></div>
     <div class="tl" style="margin-top:6px;"><span class="p">→ </span><span class="c">psql -d bookforge -c "\dt"</span></div>
     <div class="tl"><span class="h">books &nbsp;&nbsp;&nbsp; conduit_log &nbsp; entries &nbsp;&nbsp; users</span></div>
     <div class="tl" style="margin-top:6px;"><span class="p">→ </span><span class="c">certbot certificates | grep Domains</span></div>
-    <div class="tl"><span class="h">10 certificates · all valid · auto-renew enabled</span></div>
+    <div class="tl"><span class="h">certificates valid · auto-renew enabled · managed via vectraarch.live config</span></div>
     <div class="tl" style="margin-top:8px;"><span class="p">→ </span><span class="cursor" style="display:inline-block;width:8px;height:0.9em;background:var(--accent);vertical-align:middle;animation:blink 1.1s step-end infinite;"></span></div>
   </div>
 </section>
 
-<!-- CONSTELLATION ARCHITECTURE — NEW SECTION -->
+<!-- CONSTELLATION ARCHITECTURE -->
 <section class="section">
   <div class="section-header reveal">
     <span class="sn">03</span>
@@ -201,17 +195,16 @@
   <div class="narrative reveal">
     <div class="narrative-tag">Overview<span class="year">2026</span></div>
     <div>
-      <div class="narrative-heading">One VPS. Ten Subdomains. One Coherent System.</div>
-      <p class="narrative-text">The VectraArch constellation is not a collection of independent sites — it is a single engineered system running on one Ubuntu 24 LTS VPS. Nginx routes all traffic. PM2 keeps three Node.js processes alive permanently. A single PostgreSQL database serves both the writing application and the automation layer. Every subdomain shares the same stylesheet, the same SSL infrastructure, and the same philosophy: build it properly or don't build it at all.</p>
+      <div class="narrative-heading">One VPS. One Nginx Config. One Coherent System.</div>
+      <p class="narrative-text">The VectraArch constellation runs on one Ubuntu 24 LTS VPS. Nginx routes all traffic from a single config file. PM2 keeps five Node.js processes alive permanently. A single PostgreSQL database serves both the writing application and the automation layer. Every path shares the same stylesheet, the same SSL infrastructure, and the same discipline: build it properly or don't build it at all.</p>
     </div>
   </div>
 
-  <!-- STATIC SITES GRID -->
   <div class="narrative reveal">
-    <div class="narrative-tag">Static<span class="year">7 Sites</span></div>
+    <div class="narrative-tag">Static<span class="year">Sites</span></div>
     <div>
       <div class="narrative-heading">Static HTML · Served Direct from Web Root</div>
-      <p class="narrative-text">Seven sites served as static HTML directly from Nginx — no runtime, no process, zero overhead. All share <em>/shared/va.css</em> for a unified design system. Each has its own Nginx server block and Certbot SSL certificate.</p>
+      <p class="narrative-text">Static sites served as HTML directly from Nginx — no runtime, no process, zero overhead. All share <em>/shared/va.css</em> for a unified design system, served from the root web path.</p>
     </div>
   </div>
 
@@ -220,97 +213,90 @@
       <div class="card-index">vectraarch.live</div>
       <div class="card-title">Home</div>
       <div class="card-meta">Static HTML · va.css · Nginx</div>
-      <p class="card-desc">Central hub. Personal bio, human systems content, studio grid linking all studios. Serves the global stylesheet at /shared/va.css used by every subdomain. Contact form routes through va-contact proxy.</p>
+      <p class="card-desc">Central hub. Personal bio, human systems content, studio grid linking all studios. Serves the global stylesheet at /shared/va.css used by every path. Contact form routes through VectraArchContact.</p>
     </div>
     <div class="card">
-      <div class="card-index">fabric.vectraarch.live</div>
+      <div class="card-index">vectraarch.live/fabric</div>
       <div class="card-title">Fabric</div>
       <div class="card-meta">Static HTML · Infrastructure portfolio</div>
       <p class="card-desc">This site. Technical infrastructure documentation: career progression, live stack, security layer, and the full constellation map. References the real PM2 processes and PostgreSQL tables running on this server.</p>
     </div>
     <div class="card">
-      <div class="card-index">keystone.vectraarch.live</div>
+      <div class="card-index">vectraarch.live/keystone</div>
       <div class="card-title">Keystone</div>
       <div class="card-meta">Static HTML · Architecture docs</div>
       <p class="card-desc">The central locking piece. Full technical architecture of the VectraArch constellation — every system, every connection, every decision documented in one place.</p>
     </div>
     <div class="card">
-      <div class="card-index">kinetic.vectraarch.live</div>
+      <div class="card-index">vectraarch.live/kinetic</div>
       <div class="card-title">Kinetic</div>
       <div class="card-meta">Static HTML · Visual portfolio</div>
       <p class="card-desc">Visual work and sculpture portfolio. Gaming content. The output of the studio that doesn't use a keyboard — anatomically precise clay work, visual design, and creative output across physical media.</p>
     </div>
     <div class="card">
-      <div class="card-index">volition.vectraarch.live</div>
+      <div class="card-index">vectraarch.live/volition</div>
       <div class="card-title">Volition</div>
       <div class="card-meta">Static HTML · Builder's log</div>
-      <p class="card-desc">The ongoing written record of building this. Decisions, failures, what came next. No redactions. Distinct from Press (finished fiction) and Kinetic (visual work). This is the commit history of a life under construction.</p>
+      <p class="card-desc">The ongoing written record of building this. Decisions, failures, what came next. No redactions. The commit history of a life under construction.</p>
     </div>
     <div class="card">
-      <div class="card-index">foundation.vectraarch.live</div>
+      <div class="card-index">vectraarch.live/foundation</div>
       <div class="card-title">Foundation</div>
       <div class="card-meta">Static HTML · Central auth hub</div>
       <p class="card-desc">Central authentication hub for the constellation. Identity management entry point — coordinates access across the ecosystem without exposing credentials at the client layer.</p>
     </div>
     <div class="card">
-      <div class="card-index">bo7.vectraarch.live</div>
+      <div class="card-index">vectraarch.live/bo7</div>
       <div class="card-title">Bo7</div>
-      <div class="card-meta">Static HTML · Booking via va-contact proxy</div>
-      <p class="card-desc">CoD Black Ops 7 coaching platform for ZenithB_Actual. Coaching packages, Discord integration, booking form routing through /api/booking on the va-contact proxy. Separate visual identity — cyber/neon aesthetic.</p>
+      <div class="card-meta">Static HTML · Booking via VectraArchContact</div>
+      <p class="card-desc">CoD Black Ops 7 coaching platform for ZenithB_Actual. Coaching packages, Discord integration, booking form routing through /api/booking on the VectraArchContact process.</p>
     </div>
     <div class="card">
-      <div class="card-index">legacy.vectraarch.live</div>
-      <div class="card-title">Legacy</div>
-      <div class="card-meta">Static HTML · Lifestyle app</div>
-      <p class="card-desc">Full-stack single-page application for personal and collaborative life management. Financial tracking with income/expense logging, monthly budget calculator, and an integrated shared calendar that displays both financial and personal events.</p>
+      <div class="card-index">vectraarch.live/press</div>
+      <div class="card-title">Press</div>
+      <div class="card-meta">Auto-generated · Written by VectraArchForge</div>
+      <p class="card-desc">Public publishing catalogue. Not a CMS — a static HTML file written by VectraArchForge's rebuildPressIndex() on every publish event. No server-side logic required to serve it.</p>
     </div>
   </div>
 
-  <!-- NODE.JS APPS -->
   <div class="narrative reveal" style="margin-top:56px;">
-    <div class="narrative-tag">Node.js<span class="year">3 Apps</span></div>
+    <div class="narrative-tag">Node.js<span class="year">5 Apps</span></div>
     <div>
       <div class="narrative-heading">PM2-Managed · Proxied by Nginx · Always On</div>
-      <p class="narrative-text">Three Node.js applications managed by PM2 with startup persistence. Each proxied by Nginx through internal ports — nothing is publicly exposed directly. All three are persistent processes that survive reboots and are monitored for uptime.</p>
+      <p class="narrative-text">Five Node.js applications managed by PM2 in fork mode with startup persistence. Each proxied by Nginx through internal ports — nothing is publicly exposed directly.</p>
     </div>
   </div>
 
   <div class="card-grid reveal">
     <div class="card">
-      <div class="card-index">forge.vectraarch.live · :3000</div>
+      <div class="card-index">VectraArchForge · id 8</div>
       <div class="card-title">Book Forge</div>
-      <div class="card-meta">Node.js · Express · EJS · PostgreSQL · PM2</div>
-      <p class="card-desc">Full-stack writing management application. Multi-user, multi-book. Google OAuth + manual auth + TOTP 2FA via otplib. Manuscript chapters, character codex, factions, geography, research, timeline, world rules. Exports to DOCX, PDF, EPUB, Markdown, and plain text. Publishes to Press with a single click — writes a static HTML file directly to the press web root.</p>
+      <div class="card-meta">Node.js · Express · EJS · PostgreSQL · 111mb</div>
+      <p class="card-desc">Full-stack writing management application. Multi-user, multi-book. Google OAuth + manual auth + TOTP 2FA. Exports to DOCX, PDF, EPUB, Markdown. Publishes to Press by writing static HTML to the press web root on every release.</p>
     </div>
     <div class="card">
-      <div class="card-index">conduit.vectraarch.live · :3100</div>
+      <div class="card-index">VectraArchConduit · id 9</div>
       <div class="card-title">Conduit Hub</div>
-      <div class="card-meta">Node.js · PostgreSQL · Telegram · PM2</div>
-      <p class="card-desc">Automation and social dashboard. Queries the Forge PostgreSQL database directly — no separate data store. Shows published volumes, fires Telegram announcements on each book release, and logs all trigger events to the conduit_log table. Site health monitoring across the constellation.</p>
+      <div class="card-meta">Node.js · PostgreSQL · Telegram · 90mb</div>
+      <p class="card-desc">Automation and social dashboard. Queries the bookforge PostgreSQL database directly. Fires Telegram announcements on each book release. Logs all trigger events to the conduit_log table.</p>
     </div>
     <div class="card">
-      <div class="card-index">api.vectraarch.live · :3200</div>
+      <div class="card-index">VectraArchContact · id 11</div>
+      <div class="card-title">Contact Proxy</div>
+      <div class="card-meta">Node.js · Telegram · Server-side only · 76mb</div>
+      <p class="card-desc">Handles all contact and booking form submissions server-side. Telegram bot credentials never touch the client. Routes contact from the home page and booking requests from Bo7.</p>
+    </div>
+    <div class="card">
+      <div class="card-index">VectraArchIdentity · id 12</div>
       <div class="card-title">Identity API</div>
-      <div class="card-meta">Node.js · VectraArch Identity Bridge · PM2</div>
-      <p class="card-desc">VectraArch Identity Bridge and contact proxy. Handles all Telegram form submissions server-side — credentials never touch the client. Routes booking requests from Bo7 through /api/booking. The only process that holds external API tokens in memory.</p>
+      <div class="card-meta">Node.js · Identity Bridge · 80mb</div>
+      <p class="card-desc">VectraArch Identity Bridge. Manages authentication coordination across the constellation. External API tokens held server-side only.</p>
     </div>
-  </div>
-
-  <!-- AUTO-GENERATED -->
-  <div class="narrative reveal" style="margin-top:56px;">
-    <div class="narrative-tag">Generated<span class="year">On Publish</span></div>
-    <div>
-      <div class="narrative-heading">Press · Auto-Written by Book Forge on Every Release</div>
-      <p class="narrative-text">Press is not a Node.js application. It is a static HTML site that Book Forge generates from scratch every time a book is published. The publishing pipeline writes a complete <em>index.html</em> directly to the press web root — no CMS, no build step, no deploy hook. The infrastructure engineer and the author are the same person, using the same discipline applied to different materials.</p>
-    </div>
-  </div>
-
-  <!-- SHARED INFRASTRUCTURE LAYER -->
-  <div class="narrative reveal">
-    <div class="narrative-tag">Shared<span class="year">Foundation</span></div>
-    <div>
-      <div class="narrative-heading">SSL · Ansible · Shared Stylesheet · PostgreSQL</div>
-      <p class="narrative-text">Everything runs on the same foundation. SSL certificates issued and auto-renewed by Certbot across all ten subdomains. Ansible playbooks manage OS hardening, package configuration, and environment provisioning. The <em>/shared/va.css</em> stylesheet is served by the root Nginx virtual host and imported by every subdomain — one source of truth for the visual system. A single PostgreSQL 16 instance serves both Book Forge and Conduit, with role-based access enforced at the application layer.</p>
+    <div class="card">
+      <div class="card-index">VectraArchLegacy · id 10</div>
+      <div class="card-title">Legacy</div>
+      <div class="card-meta">Node.js · Lifestyle App · 87mb</div>
+      <p class="card-desc">Full-stack lifestyle management application. Financial tracking with income/expense logging, monthly budget calculator, integrated shared calendar, multi-user with secure authentication. Runs over HTTPS exclusively.</p>
     </div>
   </div>
 </section>
@@ -327,37 +313,37 @@
       <div class="card-index">01 · Transport</div>
       <div class="card-title">SSL / HSTS</div>
       <div class="card-meta">Let's Encrypt · Certbot · Auto-renew</div>
-      <p class="card-desc">Every subdomain has a valid SSL certificate managed by Certbot with automatic renewal. HSTS headers enforce HTTPS with one-year max-age and includeSubDomains on the main domain.</p>
+      <p class="card-desc">All paths served over HTTPS. SSL certificates managed by Certbot with automatic renewal. HSTS headers enforce HTTPS with one-year max-age. Managed within the single vectraarch.live Nginx config.</p>
     </div>
     <div class="card">
       <div class="card-index">02 · Tokens</div>
       <div class="card-title">Server-Side Credentials</div>
-      <div class="card-meta">Node.js Proxy · Never Client-Side</div>
-      <p class="card-desc">All API tokens and credentials — Telegram bot, DB passwords, session secrets — are held server-side only. A Node.js proxy on port 3099 handles all external API calls. No secrets in any HTML source.</p>
+      <div class="card-meta">VectraArchContact · Never Client-Side</div>
+      <p class="card-desc">All API tokens and credentials — Telegram bot, DB passwords, session secrets — are held server-side only. VectraArchContact handles all external API calls. No secrets in any HTML source, ever.</p>
     </div>
     <div class="card">
       <div class="card-index">03 · Rate Limiting</div>
       <div class="card-title">Nginx Rate Zones</div>
       <div class="card-meta">contact zone · global zone · burst control</div>
-      <p class="card-desc">Two rate limit zones defined at the nginx http level. Contact endpoints limited to 5 requests per minute per IP with burst of 3. Global zone applied to the Book Forge application and manager interface.</p>
+      <p class="card-desc">Two rate limit zones defined at the Nginx http level. Contact endpoints limited to 5 requests per minute per IP with burst of 3. Global zone applied to Forge and any authenticated interfaces.</p>
     </div>
     <div class="card">
       <div class="card-index">04 · Auth</div>
       <div class="card-title">2FA · Google OAuth</div>
       <div class="card-meta">TOTP via otplib · Passport.js</div>
-      <p class="card-desc">Book Forge supports TOTP-based two-factor authentication for manual accounts and Google OAuth for federated identity. Session-based auth with secure, HttpOnly, SameSite cookies. Role-based access control enforced at every route.</p>
+      <p class="card-desc">VectraArchForge supports TOTP-based 2FA for manual accounts and Google OAuth for federated identity. Session-based auth with secure, HttpOnly, SameSite cookies. Role-based access control enforced at every route.</p>
     </div>
     <div class="card">
       <div class="card-index">05 · Headers</div>
       <div class="card-title">Security Headers</div>
       <div class="card-meta">X-Frame-Options · X-Content-Type · Referrer</div>
-      <p class="card-desc">X-Frame-Options SAMEORIGIN, X-Content-Type-Options nosniff, Referrer-Policy strict-origin-when-cross-origin, and server_tokens off applied across all nginx server blocks. No version disclosure.</p>
+      <p class="card-desc">X-Frame-Options SAMEORIGIN, X-Content-Type-Options nosniff, Referrer-Policy strict-origin-when-cross-origin, and server_tokens off applied across all Nginx location blocks. No version disclosure.</p>
     </div>
     <div class="card">
       <div class="card-index">06 · OS</div>
       <div class="card-title">Ubuntu Hardening</div>
       <div class="card-meta">Ubuntu 24 LTS · Ansible-managed</div>
-      <p class="card-desc">Ubuntu 24 LTS with Ansible-managed configuration. Automated OS and package updates. Minimal attack surface — only necessary services running. Firewall rules managed at the VPS level with nginx as the only public-facing listener.</p>
+      <p class="card-desc">Ubuntu 24 LTS with Ansible-managed configuration. Automated OS and package updates. Minimal attack surface — only necessary services running. Nginx is the only public-facing listener.</p>
     </div>
   </div>
 </section>
@@ -365,15 +351,29 @@
 <footer>
   <div class="footer-logo">Fabric · Vectra Arch</div>
   <ul class="footer-links">
-    <li><a href="https://keystone.vectraarch.live">Keystone</a></li>
-    <li><a href="https://conduit.vectraarch.live">Conduit</a></li>
+    <li><a href="https://vectraarch.live/keystone">Keystone</a></li>
+    <li><a href="https://vectraarch.live/volition">Volition</a></li>
     <li><a href="https://vectraarch.live">Home</a></li>
   </ul>
-  <div class="footer-meta">Built on Linux · 2026</div>
+  <div class="footer-meta" id="footer-clock">Born Namibia 1984 · Built on Linux · 2026</div>
+  <div class="footer-legal" style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text-dim);opacity:0.6;margin-top:20px;text-transform:uppercase;letter-spacing:0.1em;">
+    &copy; 1984-2026 Schalk Johan Koen. All Rights Reserved.<br/>
+    Unauthorized duplication or distribution is a violation of applicable laws.
+  </div>
 </footer>
 
 <a href="#top" class="back-to-top" id="btt" title="Back to top">↑</a>
 <script>
+  function updateLiveClocks() {
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('en-GB').replace(/\//g,'.');
+    const timeStr = now.toLocaleTimeString('en-GB',{hour12:false});
+    const fc = document.getElementById('footer-clock');
+    if (fc) fc.textContent = 'Born Namibia 1984 · Built on Linux · ' + dateStr + ' ' + timeStr;
+  }
+  setInterval(updateLiveClocks, 1000);
+  updateLiveClocks();
+
   const obs = new IntersectionObserver(entries => {
     entries.forEach((e,i) => {
       if(e.isIntersecting){ setTimeout(()=>e.target.classList.add('visible'),i*70); obs.unobserve(e.target); }
