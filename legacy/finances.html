@@ -10,6 +10,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
   <link rel="manifest" href="/manifest.json">
   <title>Finances · Legacy · Vectra Arch</title>
+  <script src="/legacy/auth-guard.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.20.6/babel.min.js"></script>
@@ -132,6 +133,7 @@
   const DEFAULT_PROFILE_PIC = 'https://placehold.co/50x50/808080/FFFFFF?text=U';
   const DEFAULT_EVENT_COLOR = '#00ff41';
   const MONTHS = Array.from({ length: 12 }, (_, i) => ({ value: (i + 1).toString().padStart(2, '0'), label: new Date(0, i).toLocaleString('default', { month: 'long' }) }));
+  const YEARS = Array.from({length:5},(_,i)=>new Date().getFullYear()-2+i);
   const CURRENCY_CONFIG = { ZAR: { symbol: 'R', rate: 18.5 } };
   const capitalize = str => str ? str.charAt(0).toUpperCase() + str.slice(1) : '';
   const getCurrentDateTime = () => { const now = new Date(); now.setMinutes(now.getMinutes() - now.getTimezoneOffset()); return now.toISOString().slice(0, 19); };
@@ -184,7 +186,8 @@
     const [netTotal, setNetTotal] = useState(0);
     const [remainingBudget, setRemainingBudget] = useState(0);
     const [hideValues, setHideValues] = useState(false);
-    const [selectedMonth, setSelectedMonth] = useState('08');
+    const [selectedMonth, setSelectedMonth] = useState(()=>(new Date().getMonth()+1).toString().padStart(2,'0'));
+    const [selectedYear, setSelectedYear] = useState(()=>new Date().getFullYear());
     const [bulkData, setBulkData] = useState('');
     const [importMessage, setImportMessage] = useState({ text:'', type:'' });
     const [showAddItemForm, setShowAddItemForm] = useState(false);
@@ -222,7 +225,7 @@
     }, [items,budgets]);
 
     const sortedItems = useMemo(() => {
-      const filtered = allItems.filter(i=>i.date?.startsWith(`2026-${selectedMonth}`));
+      const filtered = allItems.filter(i=>i.date?.startsWith(`${selectedYear}-${selectedMonth}`));
       return [...filtered].sort((a,b)=>{
         const fa=sortField==='amount'?parseFloat(a.amount)||0:a[sortField];
         const fb=sortField==='amount'?parseFloat(b.amount)||0:b[sortField];
@@ -232,14 +235,14 @@
     }, [allItems,selectedMonth,sortField,sortOrder]);
 
     const calculateTotals = useCallback(() => {
-      const filtered = allItems.filter(i=>[user.username,...selectedTargets].includes(i.user)&&i.date?.startsWith(`2026-${selectedMonth}`));
+      const filtered = allItems.filter(i=>[user.username,...selectedTargets].includes(i.user)&&i.date?.startsWith(`${selectedYear}-${selectedMonth}`));
       const inc = filtered.filter(i=>i.type==='income').reduce((s,i)=>s+(parseFloat(i.amount)||0),0);
       const exp = filtered.filter(i=>i.type==='expense').reduce((s,i)=>s+(parseFloat(i.amount)||0),0);
       setTotalIncome(inc); setTotalExpenses(exp); setNetTotal(inc-exp);
-      const ub = budgets.filter(b=>b.user===user.username&&b.date?.startsWith(`2026-${selectedMonth}`));
+      const ub = budgets.filter(b=>b.user===user.username&&b.date?.startsWith(`${selectedYear}-${selectedMonth}`));
       const bi = ub.reduce((s,b)=>s+(parseFloat(b.income)||0),0);
       const be = ub.reduce((s,b)=>s+b.expenses.reduce((es,e)=>es+(parseFloat(e.amount)||0),0),0);
-      const fe = items.filter(i=>i.user===user.username&&i.type==='expense'&&i.date?.startsWith(`2026-${selectedMonth}`)).reduce((s,i)=>s+(parseFloat(i.amount)||0),0);
+      const fe = items.filter(i=>i.user===user.username&&i.type==='expense'&&i.date?.startsWith(`${selectedYear}-${selectedMonth}`)).reduce((s,i)=>s+(parseFloat(i.amount)||0),0);
       setRemainingBudget(bi-(be+fe));
     }, [allItems,selectedTargets,selectedMonth,user.username,budgets,items]);
 
@@ -312,7 +315,11 @@
         <div className="toolbar">
           <span className="tb-label">Month</span>
           <select className="mf-select" value={selectedMonth} onChange={e=>setSelectedMonth(e.target.value)}>
-            {MONTHS.map(m=><option key={m.value} value={m.value}>{m.label} 2026</option>)}
+            {MONTHS.map(m=><option key={m.value} value={m.value}>{m.label} {selectedYear}</option>)}
+          </select>
+          <span className="tb-label">Year</span>
+          <select className="mf-select" value={selectedYear} onChange={e=>setSelectedYear(parseInt(e.target.value))}>
+            {YEARS.map(y=><option key={y} value={y}>{y}</option>)}
           </select>
           <span className="tb-label">Sort</span>
           <select className="mf-select" value={sortField} onChange={e=>setSortField(e.target.value)}>
@@ -341,7 +348,7 @@
 
         {/* SUMMARY */}
         <div className="summary-card">
-          <div className="summary-title">§ Summary · {month} 2026</div>
+          <div className="summary-title">§ Summary · {month} {selectedYear}</div>
           <div className="summary-grid">
             <div className="si"><div className="si-label">Income</div><div className="si-value income">{hideValues?'****':formatAmount(totalIncome)}</div></div>
             <div className="si"><div className="si-label">Expenses</div><div className="si-value expense">{hideValues?'****':formatAmount(totalExpenses)}</div></div>
@@ -408,9 +415,9 @@
         )}
 
         {/* ITEM LIST */}
-        <div className="section-label">§ Items · {month} 2026 · {sortedItems.length} records</div>
+        <div className="section-label">§ Items · {month} {selectedYear} · {sortedItems.length} records</div>
         {sortedItems.length===0
-          ? <div style={{fontFamily:"'DM Mono',monospace",fontSize:'10px',color:'var(--text-dim)',padding:'24px',background:'var(--bg2)',textAlign:'center',letterSpacing:'0.1em'}}>No items for {month} 2026</div>
+          ? <div style={{fontFamily:"'DM Mono',monospace",fontSize:'10px',color:'var(--text-dim)',padding:'24px',background:'var(--bg2)',textAlign:'center',letterSpacing:'0.1em'}}>No items for {month} {selectedYear}</div>
           : <div className="item-list">
               {sortedItems.map(item=>(
                 <div key={item.id} className="item-card">
@@ -440,12 +447,12 @@
     const [user, setUser] = useState(null);
     useEffect(() => {
       const s = localStorage.getItem('user');
-      if(s){try{setUser(JSON.parse(s));}catch{localStorage.removeItem('user');window.location.href='index.html';}}
-      else window.location.href='index.html';
+      if(s){try{setUser(JSON.parse(s));}catch{localStorage.removeItem('user');window.location.href='login.html';}}
+      else window.location.href='login.html';
     }, []);
-    const handleLogout = useCallback(()=>{localStorage.removeItem('user');window.location.href='index.html';},[]);
+    const handleLogout = useCallback(()=>{localStorage.removeItem('user');window.location.href='login.html';},[]);
     if(!user)return null;
-    return <Financial user={user} setPage={()=>window.location.href='index.html'} onLogout={handleLogout} setUser={setUser}/>;
+    return <Financial user={user} setPage={()=>window.location.href='login.html'} onLogout={handleLogout} setUser={setUser}/>;
   };
   ReactDOM.render(<App/>, document.getElementById('root'));
 </script>

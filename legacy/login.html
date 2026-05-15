@@ -19,8 +19,8 @@
     <line x1="600" y1="200" x2="100" y2="900" stroke="rgba(212,160,23,0.04)" stroke-width="1"/>
     <rect x="460" y="80" width="100" height="1" fill="rgba(212,160,23,0.15)"/>
     <rect x="480" y="120" width="60" height="1" fill="rgba(212,160,23,0.1)"/>
-    <circle cx="540" cy="180" r="60" stroke="rgba(212,160,23,0.06)" stroke-width="1" fill="none"/>
-    <circle cx="540" cy="180" r="90" stroke="rgba(212,160,23,0.04)" stroke-width="0.5" fill="none"/>
+    <circle cx="540" cy="180" r="60"  stroke="rgba(212,160,23,0.06)"  stroke-width="1"   fill="none"/>
+    <circle cx="540" cy="180" r="90"  stroke="rgba(212,160,23,0.04)"  stroke-width="0.5" fill="none"/>
     <circle cx="540" cy="180" r="130" stroke="rgba(212,160,23,0.025)" stroke-width="0.5" fill="none"/>
   </svg>
 </div>
@@ -40,14 +40,22 @@
 
     <div class="auth-field">
       <label class="auth-label" for="username">Username</label>
-      <input class="auth-input" id="username" type="text" placeholder="username"
-             autocomplete="username" required autofocus/>
+      <input class="auth-input" id="username" type="text"
+             placeholder="username" autocomplete="username" required autofocus/>
     </div>
     <div class="auth-field">
       <label class="auth-label" for="password">Key</label>
-      <input class="auth-input" id="password" type="password" placeholder="········"
-             autocomplete="current-password" required/>
+      <input class="auth-input" id="password" type="password"
+             placeholder="········" autocomplete="current-password" required/>
     </div>
+
+    <!-- 2FA step (hidden until needed) -->
+    <div id="twofa-field" class="auth-field" style="display:none;">
+      <label class="auth-label" for="twofa">Authentication Code</label>
+      <input class="auth-input auth-input-code" id="twofa" type="text"
+             placeholder="000000" maxlength="6" autocomplete="one-time-code"/>
+    </div>
+
     <button class="auth-submit" id="submit-btn" onclick="doLogin()">Authenticate ↗</button>
 
     <a href="https://vectraarch.live/foundation/" class="auth-back">← Back to Foundation</a>
@@ -55,56 +63,115 @@
 </div>
 
 <script>
+  // If already authenticated, skip to app
+  (function () {
+    try {
+      var raw  = localStorage.getItem('user');
+      if (!raw) return;
+      var user = JSON.parse(raw);
+      if (user && user.username && user.success !== false) {
+        window.location.replace('/legacy/');
+      }
+    } catch (e) { localStorage.removeItem('user'); }
+  })();
+
+  var pendingUsername = null; // set when 2FA is required
+
   async function doLogin() {
-    const username = document.getElementById('username').value.trim();
-    const password = document.getElementById('password').value;
-    const errEl    = document.getElementById('auth-error');
-    const btn      = document.getElementById('submit-btn');
+    var username = document.getElementById('username').value.trim();
+    var password = document.getElementById('password').value;
+    var twofa    = document.getElementById('twofa').value.trim();
+    var errEl    = document.getElementById('auth-error');
+    var btn      = document.getElementById('submit-btn');
 
     errEl.style.display = 'none';
+
+    // ── 2FA step ──────────────────────────────────────────────────────────────
+    if (pendingUsername) {
+      if (!twofa) {
+        errEl.textContent   = '⚠ Enter the 6-digit code from your authenticator app.';
+        errEl.style.display = 'block';
+        return;
+      }
+      btn.textContent = 'Verifying...';
+      btn.disabled    = true;
+      try {
+        var r2 = await fetch('/legacy/api/verify-2fa', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ username: pendingUsername, token: twofa })
+        });
+        var d2 = await r2.json();
+        if (r2.ok && d2.success) {
+          // Store exactly as the existing app does
+          localStorage.setItem('user', JSON.stringify(d2));
+          window.location.replace('/legacy/');
+        } else {
+          errEl.textContent   = '⚠ ' + (d2.message || 'Invalid code.');
+          errEl.style.display = 'block';
+          btn.textContent     = 'Verify ↗';
+          btn.disabled        = false;
+        }
+      } catch (e) {
+        errEl.textContent   = '⚠ Connection error — try again.';
+        errEl.style.display = 'block';
+        btn.textContent     = 'Verify ↗';
+        btn.disabled        = false;
+      }
+      return;
+    }
+
+    // ── Login step ────────────────────────────────────────────────────────────
     if (!username || !password) {
-      errEl.textContent = '⚠ Username and key are required.';
+      errEl.textContent   = '⚠ Username and key are required.';
       errEl.style.display = 'block';
       return;
     }
 
     btn.textContent = 'Authenticating...';
-    btn.disabled = true;
+    btn.disabled    = true;
 
     try {
-      const res  = await fetch('/legacy/api/login', {
-        method: 'POST',
+      var res  = await fetch('/legacy/api/login', {
+        method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
+        body:    JSON.stringify({ username, password })
       });
-      const data = await res.json();
+      var data = await res.json();
 
-      if (res.ok && data.token) {
-        localStorage.setItem('legacy_token', data.token);
-        localStorage.setItem('legacy_user',  JSON.stringify(data.user || {}));
-        window.location.href = '/legacy/';
-      } else {
-        errEl.textContent = '⚠ ' + (data.message || 'Invalid credentials.');
+      if (!res.ok || !data.success) {
+        errEl.textContent   = '⚠ ' + (data.message || 'Invalid credentials.');
         errEl.style.display = 'block';
-        btn.textContent = 'Authenticate ↗';
-        btn.disabled = false;
+        btn.textContent     = 'Authenticate ↗';
+        btn.disabled        = false;
+        return;
       }
+
+      if (data.requires2FA) {
+        // Show 2FA field
+        pendingUsername = data.username || username;
+        document.getElementById('twofa-field').style.display = 'flex';
+        document.getElementById('twofa').focus();
+        btn.textContent = 'Verify ↗';
+        btn.disabled    = false;
+        return;
+      }
+
+      // Success — store exactly as the existing app does
+      localStorage.setItem('user', JSON.stringify(data));
+      window.location.replace('/legacy/');
+
     } catch (e) {
-      errEl.textContent = '⚠ Connection error — try again.';
+      errEl.textContent   = '⚠ Connection error — try again.';
       errEl.style.display = 'block';
-      btn.textContent = 'Authenticate ↗';
-      btn.disabled = false;
+      btn.textContent     = 'Authenticate ↗';
+      btn.disabled        = false;
     }
   }
 
-  // Allow Enter key
-  document.addEventListener('keydown', e => {
+  document.addEventListener('keydown', function (e) {
     if (e.key === 'Enter') doLogin();
   });
-
-  // If already authenticated, skip to app
-  const tok = localStorage.getItem('legacy_token');
-  if (tok) window.location.href = '/legacy/';
 </script>
 </body>
 </html>
