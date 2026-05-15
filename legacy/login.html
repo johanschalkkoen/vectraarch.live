@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Legacy · Access · VectraArch</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Barlow:wght@300;400;500;600&family=Barlow+Condensed:wght@300;400;500;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="/shared/va.css"/>
+  <link rel="stylesheet" href="/shared/auth.css"/>
+</head>
+<body>
+<div class="grid-bg"></div>
+<div class="accent-lines auth-accent-lines" aria-hidden="true">
+  <svg viewBox="0 0 600 900" fill="none" preserveAspectRatio="xMaxYMid slice">
+    <line x1="580" y1="0" x2="20" y2="900" stroke="rgba(212,160,23,0.07)" stroke-width="1"/>
+    <line x1="540" y1="0" x2="0" y2="760" stroke="rgba(212,160,23,0.05)" stroke-width="0.5"/>
+    <line x1="600" y1="200" x2="100" y2="900" stroke="rgba(212,160,23,0.04)" stroke-width="1"/>
+    <rect x="460" y="80" width="100" height="1" fill="rgba(212,160,23,0.15)"/>
+    <rect x="480" y="120" width="60" height="1" fill="rgba(212,160,23,0.1)"/>
+    <circle cx="540" cy="180" r="60" stroke="rgba(212,160,23,0.06)" stroke-width="1" fill="none"/>
+    <circle cx="540" cy="180" r="90" stroke="rgba(212,160,23,0.04)" stroke-width="0.5" fill="none"/>
+    <circle cx="540" cy="180" r="130" stroke="rgba(212,160,23,0.025)" stroke-width="0.5" fill="none"/>
+  </svg>
+</div>
+
+<div class="auth-wrap">
+  <div class="auth-card">
+    <div class="auth-eyebrow">§ Vectra Arch · Legacy</div>
+    <div class="auth-title">Access</div>
+    <div class="auth-sub">Lifestyle Management · Authorised Entry Only</div>
+
+    <div class="auth-warning">
+      <div class="auth-warning-dot"></div>
+      <span class="auth-warning-text">Restricted · Authorised Personnel Only</span>
+    </div>
+
+    <div id="auth-error" class="auth-error" style="display:none;"></div>
+
+    <div class="auth-field">
+      <label class="auth-label" for="username">Username</label>
+      <input class="auth-input" id="username" type="text" placeholder="username"
+             autocomplete="username" required autofocus/>
+    </div>
+    <div class="auth-field">
+      <label class="auth-label" for="password">Key</label>
+      <input class="auth-input" id="password" type="password" placeholder="········"
+             autocomplete="current-password" required/>
+    </div>
+    <button class="auth-submit" id="submit-btn" onclick="doLogin()">Authenticate ↗</button>
+
+    <a href="https://vectraarch.live/foundation/" class="auth-back">← Back to Foundation</a>
+  </div>
+</div>
+
+<script>
+  async function doLogin() {
+    const username = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value;
+    const errEl    = document.getElementById('auth-error');
+    const btn      = document.getElementById('submit-btn');
+
+    errEl.style.display = 'none';
+    if (!username || !password) {
+      errEl.textContent = '⚠ Username and key are required.';
+      errEl.style.display = 'block';
+      return;
+    }
+
+    btn.textContent = 'Authenticating...';
+    btn.disabled = true;
+
+    try {
+      const res  = await fetch('/legacy/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      const data = await res.json();
+
+      if (res.ok && data.token) {
+        localStorage.setItem('legacy_token', data.token);
+        localStorage.setItem('legacy_user',  JSON.stringify(data.user || {}));
+        window.location.href = '/legacy/';
+      } else {
+        errEl.textContent = '⚠ ' + (data.message || 'Invalid credentials.');
+        errEl.style.display = 'block';
+        btn.textContent = 'Authenticate ↗';
+        btn.disabled = false;
+      }
+    } catch (e) {
+      errEl.textContent = '⚠ Connection error — try again.';
+      errEl.style.display = 'block';
+      btn.textContent = 'Authenticate ↗';
+      btn.disabled = false;
+    }
+  }
+
+  // Allow Enter key
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter') doLogin();
+  });
+
+  // If already authenticated, skip to app
+  const tok = localStorage.getItem('legacy_token');
+  if (tok) window.location.href = '/legacy/';
+</script>
+</body>
+</html>
