@@ -655,6 +655,165 @@ app.delete('/api/calendar/:id', async (req, res) => {
 });
 
 // ── GYM WORKOUT ───────────────────────────────────────────────────────────────
+// ── GYM PROGRAM ───────────────────────────────────────────────────────────────
+// Run once on server start (add to your setupDB / table-creation block):
+//
+// CREATE TABLE IF NOT EXISTS vectraarchlegacy_gymprogram (
+//     id            SERIAL PRIMARY KEY,
+//     username      TEXT NOT NULL,
+//     name          TEXT NOT NULL,
+//     description   TEXT,
+//     goal          TEXT,
+//     duration_weeks INTEGER,
+//     difficulty    TEXT,
+//     days_per_week INTEGER,
+//     created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+// );
+//
+// CREATE TABLE IF NOT EXISTS vectraarchlegacy_gymprogram_exercise (
+//     id          SERIAL PRIMARY KEY,
+//     program_id  INTEGER NOT NULL REFERENCES vectraarchlegacy_gymprogram(id) ON DELETE CASCADE,
+//     day         TEXT NOT NULL,
+//     exercise    TEXT NOT NULL,
+//     sets        INTEGER,
+//     reps        TEXT,
+//     weight      TEXT
+// );
+//
+// ALTER TABLE vectraarchlegacy_gymworkout
+//     ADD COLUMN IF NOT EXISTS program_id INTEGER REFERENCES vectraarchlegacy_gymprogram(id) ON DELETE SET NULL;
+
+// GET all programs for a user
+app.get('/api/gymprogram', async (req, res) => {
+    const { user } = req.query;
+    if (!user) return res.status(400).json({ success: false, message: 'User required.' });
+    try {
+        const programs = await dbAll(
+            `SELECT id, username AS user, name, description, goal, duration_weeks AS "durationWeeks",
+                    difficulty, days_per_week AS "daysPerWeek", created_at AS "createdAt"
+             FROM vectraarchlegacy_gymprogram WHERE username = $1 ORDER BY created_at DESC`,
+            [user]
+        );
+        // Attach exercises to each program
+        for (const p of programs) {
+            p.exercises = await dbAll(
+                `SELECT id, day, exercise, sets, reps, weight FROM vectraarchlegacy_gymprogram_exercise WHERE program_id = $1 ORDER BY day, id`,
+                [p.id]
+            );
+        }
+        res.json(programs);
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Database error fetching gym programs.', error: e.message });
+    }
+});
+
+// POST create a program (with optional exercises array)
+app.post('/api/gymprogram', async (req, res) => {
+    const { user, name, description, goal, durationWeeks, difficulty, daysPerWeek, exercises } = req.body;
+    if (!user || !name) return res.status(400).json({ success: false, message: 'User and name required.' });
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        const r = await client.query(
+            `INSERT INTO vectraarchlegacy_gymprogram (username,name,description,goal,duration_weeks,difficulty,days_per_week)
+             VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
+            [user, name, description||null, goal||null, durationWeeks||null, difficulty||null, daysPerWeek||null]
+        );
+        const programId = r.rows[0].id;
+        if (Array.isArray(exercises) && exercises.length > 0) {
+            for (const ex of exercises) {
+                if (!ex.day || !ex.exercise) continue;
+                await client.query(
+                    `INSERT INTO vectraarchlegacy_gymprogram_exercise (program_id,day,exercise,sets,reps,weight) VALUES ($1,$2,$3,$4,$5,$6)`,
+                    [programId, ex.day, ex.exercise, ex.sets||null, ex.reps||null, ex.weight||null]
+                );
+            }
+        }
+        await client.query(
+            `INSERT INTO vectraarchlegacy_transaction_history (username,action,table_name,record_id,modified_by,modified_at)
+             VALUES ($1,'CREATE','gymprogram',$2,$3,$4)`,
+            [user, programId, user, new Date().toISOString()]
+        );
+        await client.query('COMMIT');
+        res.json({ success: true, message: 'Gym program created successfully!', id: programId });
+    } catch (e) {
+        await client.query('ROLLBACK');
+        res.status(500).json({ success: false, message: 'Database error creating gym program.', error: e.message });
+    } finally {
+        client.release();
+    }
+});
+
+// PUT update a program (replaces exercises entirely)
+app.put('/api/gymprogram/:id', async (req, res) => {
+    const { id } = req.params;
+    const { user, name, description, goal, durationWeeks, difficulty, daysPerWeek, exercises } = req.body;
+    if (!user || !name) return res.status(400).json({ success: false, message: 'User and name required.' });
+    const client = await pool.connect();
+    try {
+        const row = await dbQuery('SELECT id, username FROM vectraarchlegacy_gymprogram WHERE id=$1', [id]);
+        if (!row) return res.status(404).json({ success: false, message: 'Program not found.' });
+        if (row.username !== user) return res.status(403).json({ success: false, message: 'Not your program.' });
+        await client.query('BEGIN');
+        await client.query(
+            `UPDATE vectraarchlegacy_gymprogram SET name=$1,description=$2,goal=$3,duration_weeks=$4,difficulty=$5,days_per_week=$6 WHERE id=$7`,
+            [name, description||null, goal||null, durationWeeks||null, difficulty||null, daysPerWeek||null, id]
+        );
+        await client.query(`DELETE FROM vectraarchlegacy_gymprogram_exercise WHERE program_id=$1`, [id]);
+        if (Array.isArray(exercises) && exercises.length > 0) {
+            for (const ex of exercises) {
+                if (!ex.day || !ex.exercise) continue;
+                await client.query(
+                    `INSERT INTO vectraarchlegacy_gymprogram_exercise (program_id,day,exercise,sets,reps,weight) VALUES ($1,$2,$3,$4,$5,$6)`,
+                    [id, ex.day, ex.exercise, ex.sets||null, ex.reps||null, ex.weight||null]
+                );
+            }
+        }
+        await client.query(
+            `INSERT INTO vectraarchlegacy_transaction_history (username,action,table_name,record_id,modified_by,modified_at)
+             VALUES ($1,'UPDATE','gymprogram',$2,$3,$4)`,
+            [user, id, user, new Date().toISOString()]
+        );
+        await client.query('COMMIT');
+        res.json({ success: true, message: 'Gym program updated successfully!' });
+    } catch (e) {
+        await client.query('ROLLBACK');
+        res.status(500).json({ success: false, message: 'Database error updating gym program.', error: e.message });
+    } finally {
+        client.release();
+    }
+});
+
+// DELETE a program (cascades to exercises, nulls workout program_id via FK)
+app.delete('/api/gymprogram/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const row = await dbQuery('SELECT id, username FROM vectraarchlegacy_gymprogram WHERE id=$1', [id]);
+        if (!row) return res.status(404).json({ success: false, message: 'Program not found.' });
+        await dbTransaction([
+            { sql: 'DELETE FROM vectraarchlegacy_gymprogram WHERE id=$1', params: [id] },
+            { sql: `INSERT INTO vectraarchlegacy_transaction_history (username,action,table_name,record_id,modified_by,modified_at) VALUES ($1,'DELETE','gymprogram',$2,$3,$4)`, params: [row.username, id, row.username, new Date().toISOString()] }
+        ]);
+        res.json({ success: true, message: 'Gym program deleted successfully!' });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Database error deleting gym program.', error: e.message });
+    }
+});
+
+// PATCH assign a workout to a program
+app.patch('/api/gymworkout/:id/program', async (req, res) => {
+    const { id } = req.params;
+    const { programId, user } = req.body;
+    try {
+        const row = await dbQuery('SELECT id, username FROM vectraarchlegacy_gymworkout WHERE id=$1', [id]);
+        if (!row) return res.status(404).json({ success: false, message: 'Workout not found.' });
+        if (row.username !== user) return res.status(403).json({ success: false, message: 'Not your workout.' });
+        await dbRun('UPDATE vectraarchlegacy_gymworkout SET program_id=$1 WHERE id=$2', [programId||null, id]);
+        res.json({ success: true, message: 'Workout program assignment updated.' });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Database error assigning program.', error: e.message });
+    }
+});
 app.get('/api/gymworkout', async (req, res) => {
     const { user } = req.query;
     if (!user) return res.status(400).json({ success: false, message: 'User required.' });
@@ -1047,3 +1206,130 @@ const httpServer = http.createServer((req, res) => {
     res.end();
 });
 httpServer.listen(1000, () => console.log('HTTP Server running on port 1000'));
+
+// ── GYM PROGRAM ───────────────────────────────────────────────────────────────
+app.get('/api/gymprogram', async (req, res) => {
+    const { user } = req.query;
+    if (!user) return res.status(400).json({ success: false, message: 'User required.' });
+    try {
+        const programs = await dbAll(
+            `SELECT id, username AS user, name, description, goal, duration_weeks AS "durationWeeks",
+                    difficulty, days_per_week AS "daysPerWeek", created_at AS "createdAt"
+             FROM vectraarchlegacy_gymprogram WHERE username = $1 ORDER BY created_at DESC`,
+            [user]
+        );
+        for (const p of programs) {
+            p.exercises = await dbAll(
+                `SELECT id, day, exercise, sets, reps, weight FROM vectraarchlegacy_gymprogram_exercise WHERE program_id = $1 ORDER BY day, id`,
+                [p.id]
+            );
+        }
+        res.json(programs);
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Database error fetching gym programs.', error: e.message });
+    }
+});
+
+app.post('/api/gymprogram', async (req, res) => {
+    const { user, name, description, goal, durationWeeks, difficulty, daysPerWeek, exercises } = req.body;
+    if (!user || !name) return res.status(400).json({ success: false, message: 'User and name required.' });
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        const r = await client.query(
+            `INSERT INTO vectraarchlegacy_gymprogram (username,name,description,goal,duration_weeks,difficulty,days_per_week)
+             VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
+            [user, name, description||null, goal||null, durationWeeks||null, difficulty||null, daysPerWeek||null]
+        );
+        const programId = r.rows[0].id;
+        if (Array.isArray(exercises) && exercises.length > 0) {
+            for (const ex of exercises) {
+                if (!ex.day || !ex.exercise) continue;
+                await client.query(
+                    `INSERT INTO vectraarchlegacy_gymprogram_exercise (program_id,day,exercise,sets,reps,weight) VALUES ($1,$2,$3,$4,$5,$6)`,
+                    [programId, ex.day, ex.exercise, ex.sets||null, ex.reps||null, ex.weight||null]
+                );
+            }
+        }
+        await client.query(
+            `INSERT INTO vectraarchlegacy_transaction_history (username,action,table_name,record_id,modified_by,modified_at)
+             VALUES ($1,'CREATE','gymprogram',$2,$3,$4)`,
+            [user, programId, user, new Date().toISOString()]
+        );
+        await client.query('COMMIT');
+        res.json({ success: true, message: 'Gym program created successfully!', id: programId });
+    } catch (e) {
+        await client.query('ROLLBACK');
+        res.status(500).json({ success: false, message: 'Database error creating gym program.', error: e.message });
+    } finally {
+        client.release();
+    }
+});
+
+app.put('/api/gymprogram/:id', async (req, res) => {
+    const { id } = req.params;
+    const { user, name, description, goal, durationWeeks, difficulty, daysPerWeek, exercises } = req.body;
+    if (!user || !name) return res.status(400).json({ success: false, message: 'User and name required.' });
+    const client = await pool.connect();
+    try {
+        const row = await dbQuery('SELECT id, username FROM vectraarchlegacy_gymprogram WHERE id=$1', [id]);
+        if (!row) return res.status(404).json({ success: false, message: 'Program not found.' });
+        if (row.username !== user) return res.status(403).json({ success: false, message: 'Not your program.' });
+        await client.query('BEGIN');
+        await client.query(
+            `UPDATE vectraarchlegacy_gymprogram SET name=$1,description=$2,goal=$3,duration_weeks=$4,difficulty=$5,days_per_week=$6 WHERE id=$7`,
+            [name, description||null, goal||null, durationWeeks||null, difficulty||null, daysPerWeek||null, id]
+        );
+        await client.query(`DELETE FROM vectraarchlegacy_gymprogram_exercise WHERE program_id=$1`, [id]);
+        if (Array.isArray(exercises) && exercises.length > 0) {
+            for (const ex of exercises) {
+                if (!ex.day || !ex.exercise) continue;
+                await client.query(
+                    `INSERT INTO vectraarchlegacy_gymprogram_exercise (program_id,day,exercise,sets,reps,weight) VALUES ($1,$2,$3,$4,$5,$6)`,
+                    [id, ex.day, ex.exercise, ex.sets||null, ex.reps||null, ex.weight||null]
+                );
+            }
+        }
+        await client.query(
+            `INSERT INTO vectraarchlegacy_transaction_history (username,action,table_name,record_id,modified_by,modified_at)
+             VALUES ($1,'UPDATE','gymprogram',$2,$3,$4)`,
+            [user, id, user, new Date().toISOString()]
+        );
+        await client.query('COMMIT');
+        res.json({ success: true, message: 'Gym program updated successfully!' });
+    } catch (e) {
+        await client.query('ROLLBACK');
+        res.status(500).json({ success: false, message: 'Database error updating gym program.', error: e.message });
+    } finally {
+        client.release();
+    }
+});
+
+app.delete('/api/gymprogram/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const row = await dbQuery('SELECT id, username FROM vectraarchlegacy_gymprogram WHERE id=$1', [id]);
+        if (!row) return res.status(404).json({ success: false, message: 'Program not found.' });
+        await dbTransaction([
+            { sql: 'DELETE FROM vectraarchlegacy_gymprogram WHERE id=$1', params: [id] },
+            { sql: `INSERT INTO vectraarchlegacy_transaction_history (username,action,table_name,record_id,modified_by,modified_at) VALUES ($1,'DELETE','gymprogram',$2,$3,$4)`, params: [row.username, id, row.username, new Date().toISOString()] }
+        ]);
+        res.json({ success: true, message: 'Gym program deleted successfully!' });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Database error deleting gym program.', error: e.message });
+    }
+});
+
+app.patch('/api/gymworkout/:id/program', async (req, res) => {
+    const { id } = req.params;
+    const { programId, user } = req.body;
+    try {
+        const row = await dbQuery('SELECT id, username FROM vectraarchlegacy_gymworkout WHERE id=$1', [id]);
+        if (!row) return res.status(404).json({ success: false, message: 'Workout not found.' });
+        if (row.username !== user) return res.status(403).json({ success: false, message: 'Not your workout.' });
+        await dbRun('UPDATE vectraarchlegacy_gymworkout SET program_id=$1 WHERE id=$2', [programId||null, id]);
+        res.json({ success: true, message: 'Workout program assignment updated.' });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Database error assigning program.', error: e.message });
+    }
+});
