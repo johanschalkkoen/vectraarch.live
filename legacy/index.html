@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Legacy">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest.json">
+  <title>Legacy — Vectra Arch</title>
+  <script src="/legacy/auth-guard.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.20.6/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios@1.4.0/dist/axios.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/compressorjs@1.2.1/dist/compressor.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Barlow:wght@300;400;500;600&family=Barlow+Condensed:wght@300;400;500;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    :root{
+      --bg:#0a0a08;--bg2:#111110;--bg3:#191917;
+      --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.14);
+      --text:#e8e4d8;--text-muted:rgba(232,228,216,0.55);--text-dim:rgba(232,228,216,0.25);
+      --accent:#00ff41;--accent2:#00b32c;--red:#b84040;
+    }
+    html{scroll-behavior:smooth;}
+    body{
+      background:var(--bg);color:var(--text);
+      font-family:'Barlow',sans-serif;font-weight:300;font-size:16px;line-height:1.6;
+      overflow-x:hidden;cursor:crosshair;min-height:100vh;
+    }
+    body::before{
+      content:'';position:fixed;inset:0;
+      background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+      opacity:0.4;pointer-events:none;z-index:0;
+    }
+    .grid-bg{
+      position:fixed;inset:0;
+      background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);
+      background-size:80px 80px;pointer-events:none;z-index:0;
+    }
+    .accent-lines{position:fixed;top:0;right:0;width:50%;height:100%;pointer-events:none;overflow:hidden;z-index:0;}
+    .accent-lines svg{width:100%;height:100%;}
+
+    /* NAV */
+    nav{
+      position:fixed;top:0;left:0;right:0;z-index:100;
+      display:flex;align-items:center;justify-content:space-between;
+      padding:0 40px;height:60px;
+      border-bottom:1px solid var(--border);
+      background:rgba(10,10,8,0.88);backdrop-filter:blur(12px);
+    }
+    .nav-logo{
+      font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:15px;
+      letter-spacing:0.22em;text-transform:uppercase;color:var(--text);text-decoration:none;
+    }
+    .nav-logo span{color:var(--accent);}
+    .nav-status{
+      display:flex;align-items:center;gap:8px;
+      font-family:'DM Mono',monospace;font-size:10px;color:var(--text-dim);letter-spacing:0.1em;
+    }
+    .nav-status::before{
+      content:'';display:block;width:6px;height:6px;border-radius:50%;
+      background:var(--accent);box-shadow:0 0 6px var(--accent);
+    }
+
+    /* MAIN WRAP */
+    #root{position:relative;z-index:1;}
+    .page-wrap{
+      position:relative;z-index:1;min-height:100vh;
+      display:flex;flex-direction:column;align-items:center;
+      justify-content:center;padding:100px 40px 60px;gap:24px;
+    }
+
+    /* CARD */
+    .va-card{
+      width:100%;max-width:440px;
+      border:1px solid var(--border2);
+      background:var(--bg2);
+      padding:48px 40px 40px;
+      position:relative;
+    }
+    .va-card::before{
+      content:'';position:absolute;top:0;left:0;right:0;
+      height:2px;background:var(--accent);
+    }
+    .card-eyebrow{
+      font-family:'DM Mono',monospace;font-size:9px;
+      letter-spacing:0.28em;text-transform:uppercase;
+      color:var(--accent);margin-bottom:16px;
+    }
+    .card-title{
+      font-family:'Bebas Neue',sans-serif;font-size:56px;
+      line-height:0.9;color:var(--text);margin-bottom:4px;
+    }
+    .card-sub{
+      font-family:'Barlow Condensed',sans-serif;font-weight:300;
+      font-size:12px;letter-spacing:0.1em;text-transform:uppercase;
+      color:var(--text-muted);margin-bottom:36px;
+    }
+
+    /* FORM FIELDS */
+    .mf-field{display:flex;flex-direction:column;gap:6px;margin-bottom:20px;}
+    .mf-label{
+      font-family:'DM Mono',monospace;font-size:9px;
+      letter-spacing:0.22em;text-transform:uppercase;color:var(--text-dim);
+    }
+    .mf-input{
+      background:transparent;border:none;
+      border-bottom:1px solid var(--border2);
+      padding:10px 0;
+      font-family:'DM Mono',monospace;font-size:13px;
+      color:var(--text);outline:none;
+      transition:border-color 0.2s;width:100%;
+    }
+    .mf-input::placeholder{color:var(--text-dim);}
+    .mf-input:focus{border-bottom-color:var(--accent);}
+    .mf-submit{
+      width:100%;background:var(--accent);color:#0a0a08;border:none;
+      font-family:'DM Mono',monospace;font-size:11px;
+      letter-spacing:0.18em;text-transform:uppercase;
+      padding:14px 20px;cursor:crosshair;
+      transition:background 0.2s;margin-top:8px;
+    }
+    .mf-submit:hover{background:var(--accent2);color:#fff;}
+    .mf-submit:disabled{background:var(--border2);color:var(--text-dim);cursor:not-allowed;}
+
+    /* ERROR */
+    .mf-error{
+      font-family:'DM Mono',monospace;font-size:10px;
+      letter-spacing:0.1em;color:var(--red);
+      padding:10px 14px;border:1px solid rgba(184,64,64,0.3);
+      background:rgba(184,64,64,0.05);margin-bottom:16px;
+    }
+
+    /* MENU BUTTONS */
+    .menu-grid{display:flex;flex-direction:column;gap:1px;background:var(--border);}
+    .menu-btn{
+      background:var(--bg3);border:none;
+      padding:16px 20px;
+      font-family:'Barlow Condensed',sans-serif;font-weight:600;
+      font-size:14px;letter-spacing:0.08em;text-transform:uppercase;
+      color:var(--text-muted);cursor:crosshair;
+      transition:background 0.2s,color 0.2s;
+      text-align:left;display:flex;align-items:center;justify-content:space-between;
+      text-decoration:none;
+    }
+    .menu-btn:hover{background:var(--bg2);color:var(--text);}
+    .menu-btn:hover .menu-arrow{color:var(--accent);}
+    .menu-btn.danger{color:rgba(184,64,64,0.7);}
+    .menu-btn.danger:hover{background:rgba(184,64,64,0.06);color:var(--red);}
+    .menu-btn.danger:hover .menu-arrow{color:var(--red);}
+    .menu-arrow{
+      font-family:'DM Mono',monospace;font-size:11px;
+      color:var(--border2);transition:color 0.2s;
+    }
+    .menu-tag{
+      font-family:'DM Mono',monospace;font-size:9px;
+      letter-spacing:0.15em;padding:2px 8px;
+      border:1px solid rgba(0,255,65,0.2);
+      color:var(--accent);background:rgba(0,255,65,0.04);
+    }
+
+    /* USER HEADER */
+    .user-header{
+      display:flex;align-items:center;gap:16px;
+      padding-bottom:28px;margin-bottom:4px;
+      border-bottom:1px solid var(--border);
+    }
+    .user-avatar{
+      width:48px;height:48px;border-radius:50%;
+      object-fit:cover;object-position:center;
+      border:1px solid var(--accent);
+      flex-shrink:0;
+    }
+    .user-info{display:flex;flex-direction:column;gap:2px;}
+    .user-name{
+      font-family:'Barlow Condensed',sans-serif;font-weight:700;
+      font-size:20px;letter-spacing:0.04em;text-transform:uppercase;color:var(--text);
+    }
+    .user-role{
+      font-family:'DM Mono',monospace;font-size:9px;
+      letter-spacing:0.2em;text-transform:uppercase;color:var(--text-dim);
+    }
+
+    /* DIRECT LINKS */
+    .back-link{
+      font-family:'DM Mono',monospace;font-size:9px;
+      letter-spacing:0.2em;text-transform:uppercase;
+      color:var(--text-dim);text-decoration:none;
+      display:flex;align-items:center;gap:8px;
+      transition:color 0.2s;margin-top:16px;
+    }
+    .back-link:hover{color:var(--text-muted);}
+
+    @media(max-width:480px){
+      nav{padding:0 20px;}
+      .page-wrap{padding:80px 20px 40px;}
+      .va-card{padding:32px 24px 28px;}
+      .card-title{font-size:44px;}
+    }
+    @media(pointer:fine){body,a,button,.menu-btn,.mf-submit{cursor:crosshair;}}
+  </style>
+</head>
+<body>
+<div class="grid-bg"></div>
+<div class="accent-lines" aria-hidden="true">
+  <svg viewBox="0 0 600 900" fill="none" preserveAspectRatio="xMaxYMid slice">
+    <line x1="580" y1="0" x2="20" y2="900" stroke="rgba(0,255,65,0.07)" stroke-width="1"/>
+    <line x1="540" y1="0" x2="0" y2="760" stroke="rgba(0,255,65,0.05)" stroke-width="0.5"/>
+    <line x1="600" y1="200" x2="100" y2="900" stroke="rgba(0,255,65,0.04)" stroke-width="1"/>
+    <rect x="460" y="80" width="100" height="1" fill="rgba(0,255,65,0.15)"/>
+    <rect x="480" y="120" width="60" height="1" fill="rgba(0,255,65,0.1)"/>
+    <rect x="500" y="160" width="40" height="1" fill="rgba(0,255,65,0.07)"/>
+    <circle cx="540" cy="180" r="60" stroke="rgba(0,255,65,0.04)" stroke-width="1" fill="none"/>
+    <circle cx="540" cy="180" r="90" stroke="rgba(0,255,65,0.025)" stroke-width="0.5" fill="none"/>
+    <circle cx="540" cy="180" r="130" stroke="rgba(0,255,65,0.015)" stroke-width="0.5" fill="none"/>
+  </svg>
+</div>
+
+<nav>
+  <a href="https://vectraarch.live" class="nav-logo">Vectra<span>&nbsp;</span>Arch</a>
+  <div class="nav-status">LEGACY · PERSONAL OS</div>
+</nav>
+
+<div id="root"></div>
+
+<script type="text/babel">
+  const { useState, useEffect, useCallback, useMemo } = React;
+  const API_BASE = '/legacy/api';
+  const DEFAULT_PROFILE_PIC = 'https://placehold.co/50x50/808080/FFFFFF?text=U';
+  const DEFAULT_EVENT_COLOR = '#00ff41';
+
+  const capitalize = str => str ? str.charAt(0).toUpperCase() + str.slice(1) : '';
+
+  // ── LOGIN ──────────────────────────────────────────────────────────────
+  const Login = ({ onLogin }) => {
+    const [creds, setCreds] = useState({ username: '', password: '' });
+    const [showContact, setShowContact] = useState(false);
+    const [contactForm, setContactForm] = useState({ fname:'', lname:'', email:'', phone:'', subject:'', message:'' });
+    const [contactMsg, setContactMsg] = useState({ text:'', ok:false });
+    const [contactLoading, setContactLoading] = useState(false);
+    const [pending2FA, setPending2FA] = useState(false);
+    const [twoFAToken, setTwoFAToken] = useState('');
+    const [pendingUsername, setPendingUsername] = useState('');
+    const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
+
+    const handle = useCallback(e => {
+      setCreds(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    }, []);
+
+    const submit = useCallback(async e => {
+      e.preventDefault();
+      if (!creds.username || !creds.password) {
+        setError('Username and password required.');
+        return;
+      }
+      setLoading(true);
+      setError('');
+      try {
+        const { data } = await axios.post(`${API_BASE}/login`, creds);
+        if (data.success && data.requires2FA) {
+          setPendingUsername(creds.username);
+          setPending2FA(true);
+          return;
+        }
+        if (data.success) {
+          const { data: profile } = await axios.get(`${API_BASE}/profile-pictures?username=${creds.username}`)
+            .catch(() => ({ data: { profilePicUrl: DEFAULT_PROFILE_PIC, eventColor: DEFAULT_EVENT_COLOR, theme: 'dark' } }));
+          const userData = {
+            username: creds.username,
+            profilePicUrl: profile.profilePicUrl || DEFAULT_PROFILE_PIC,
+            displayName: profile.displayName || creds.username,
+            eventColor: profile.eventColor || DEFAULT_EVENT_COLOR,
+            email: profile.email || '',
+            phone: profile.phone || '',
+            address: profile.address || '',
+            isAdmin: profile.isAdmin || false,
+            gender: profile.gender || '',
+            bio: profile.bio || '',
+            pronouns: profile.pronouns || '',
+            telegram_chat_id: profile.telegram_chat_id || '',
+            theme: profile.theme || 'dark',
+            activityStatus: profile.activityStatus ?? true
+          };
+          localStorage.setItem('user', JSON.stringify(userData));
+          onLogin(userData);
+        } else {
+          setError(data.message || 'Authentication failed.');
+        }
+      } catch (err) {
+        setError(err.response?.data?.message || 'Connection error. Try again.');
+      } finally {
+        setLoading(false);
+      }
+    }, [creds, onLogin]);
+
+    const onKey = useCallback(e => {
+      if (e.key === 'Enter') submit(e);
+    }, [submit]);
+
+    const submitContact = useCallback(async e => {
+      e.preventDefault();
+      if (!contactForm.fname || !contactForm.lname || !contactForm.email || !contactForm.phone) {
+        setContactMsg({ text: '⚠ Please fill in all required fields.', ok: false }); return;
+      }
+      setContactLoading(true);
+      try {
+        const r = await fetch('/api/legacy', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(contactForm) });
+        const data = await r.json();
+        if (data.ok) {
+          setContactMsg({ text: '✓ Message sent. We will be in touch.', ok: true });
+          setContactForm({ fname:'', lname:'', email:'', phone:'', subject:'', message:'' });
+        } else {
+          setContactMsg({ text: '⚠ Failed to send. Please try again.', ok: false });
+        }
+      } catch { setContactMsg({ text: '⚠ Connection error.', ok: false }); }
+      finally { setContactLoading(false); }
+    }, [contactForm]);
+
+    const submit2FA = useCallback(async e => {
+      e.preventDefault();
+      if (!twoFAToken || twoFAToken.length !== 6) { setError('Enter the 6-digit code.'); return; }
+      setLoading(true); setError('');
+      try {
+        const { data } = await axios.post(`${API_BASE}/verify-2fa`, { username: pendingUsername, token: twoFAToken });
+        if (data.success) {
+          const { data: profile } = await axios.get(`${API_BASE}/profile-pictures?username=${pendingUsername}`)
+            .catch(() => ({ data: { profilePicUrl: DEFAULT_PROFILE_PIC, eventColor: DEFAULT_EVENT_COLOR, theme: 'dark' } }));
+          const userData = {
+            username: pendingUsername,
+            profilePicUrl: profile.profilePicUrl || DEFAULT_PROFILE_PIC,
+            displayName: profile.displayName || pendingUsername,
+            eventColor: profile.eventColor || DEFAULT_EVENT_COLOR,
+            email: profile.email || '',
+            phone: profile.phone || '',
+            address: profile.address || '',
+            isAdmin: profile.isAdmin || false,
+            gender: profile.gender || '',
+            bio: profile.bio || '',
+            pronouns: profile.pronouns || '',
+            telegram_chat_id: profile.telegram_chat_id || '',
+            theme: profile.theme || 'dark',
+            activityStatus: profile.activityStatus ?? true
+          };
+          localStorage.setItem('user', JSON.stringify(userData));
+          onLogin(userData);
+        } else {
+          setError(data.message || 'Invalid code.');
+        }
+      } catch (err) {
+        setError(err.response?.data?.message || 'Verification error. Try again.');
+      } finally {
+        setLoading(false);
+      }
+    }, [twoFAToken, pendingUsername, onLogin]);
+
+    return (
+      <div className="page-wrap">
+        <div className="va-card">
+          <div className="card-eyebrow">§ Vectra Arch · Studio </div>
+          <div className="card-title">Legacy · LifeStyle App</div>
+          <div className="card-sub">LifeStyle App · Authenticate to continue</div>
+
+          {error && <div className="mf-error">⚠ {error}</div>}
+
+          <div className="mf-field">
+            <label className="mf-label" htmlFor="username">Username</label>
+            <input
+              className="mf-input" id="username" name="username" type="text"
+              placeholder="username" autoComplete="username"
+              value={creds.username} onChange={handle} onKeyDown={onKey}
+            />
+          </div>
+          <div className="mf-field">
+            <label className="mf-label" htmlFor="password">Key</label>
+            <input
+              className="mf-input" id="password" name="password" type="password"
+              placeholder="········" autoComplete="current-password"
+              value={creds.password} onChange={handle} onKeyDown={onKey}
+            />
+          </div>
+
+          {!pending2FA ? (
+            <button className="mf-submit" onClick={submit} disabled={loading}>
+              {loading ? 'Authenticating...' : 'Authenticate ↗'}
+            </button>
+          ) : (
+            <div style={{marginTop:'8px'}}>
+              <div className="card-sub" style={{marginBottom:'20px',color:'var(--accent)'}}>§ Enter your authenticator code</div>
+              <div className="mf-field">
+                <label className="mf-label">Authentication Code</label>
+                <input
+                  className="mf-input"
+                  type="text"
+                  placeholder="000000"
+                  maxLength="6"
+                  value={twoFAToken}
+                  onChange={e => setTwoFAToken(e.target.value.replace(/[^0-9]/g,''))}
+                  onKeyDown={e => e.key==='Enter' && submit2FA(e)}
+                  autoFocus
+                  style={{fontSize:'24px',letterSpacing:'0.3em',textAlign:'center'}}
+                />
+              </div>
+              <button className="mf-submit" onClick={submit2FA} disabled={loading}>
+                {loading ? 'Verifying...' : 'Verify ↗'}
+              </button>
+              <div style={{marginTop:'12px',textAlign:'center'}}>
+                <button style={{background:'none',border:'none',fontFamily:"'DM Mono',monospace",fontSize:'9px',letterSpacing:'0.14em',color:'var(--text-dim)',cursor:'crosshair',textTransform:'uppercase'}}
+                  onClick={() => { setPending2FA(false); setTwoFAToken(''); setError(''); }}>
+                  ← Back to login
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        
+        {showContact && (
+          <div style={{position:'fixed',inset:0,zIndex:9999,background:'rgba(0,0,0,0.85)',backdropFilter:'blur(6px)',display:'flex',alignItems:'center',justifyContent:'center'}} onClick={e=>e.target===e.currentTarget&&setShowContact(false)}>
+            <div style={{background:'var(--bg2)',border:'1px solid var(--border2)',padding:'40px',maxWidth:'480px',width:'90%'}}>
+              <div style={{fontFamily:"'DM Mono',monospace",fontSize:'9px',letterSpacing:'0.25em',textTransform:'uppercase',color:'var(--accent)',marginBottom:'8px'}}>§ VectraArch · Legacy · Contact</div>
+              <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:'26px',letterSpacing:'0.06em',textTransform:'uppercase',color:'var(--text)',marginBottom:'24px'}}>Get In Touch</div>
+              {contactMsg.text && <div style={{padding:'10px 14px',marginBottom:'16px',fontFamily:"'DM Mono',monospace",fontSize:'11px',background:contactMsg.ok?'rgba(0,255,65,0.08)':'rgba(184,64,64,0.12)',color:contactMsg.ok?'var(--accent)':'var(--red)'}}>{contactMsg.text}</div>}
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'12px',marginBottom:'12px'}}>
+                <input style={{background:'var(--bg3)',border:'1px solid var(--border2)',color:'var(--text)',fontFamily:"'DM Mono',monospace",fontSize:'13px',padding:'10px 14px',outline:'none'}} placeholder="First Name *" value={contactForm.fname} onChange={e=>setContactForm(p=>({...p,fname:e.target.value}))}/>
+                <input style={{background:'var(--bg3)',border:'1px solid var(--border2)',color:'var(--text)',fontFamily:"'DM Mono',monospace",fontSize:'13px',padding:'10px 14px',outline:'none'}} placeholder="Last Name *" value={contactForm.lname} onChange={e=>setContactForm(p=>({...p,lname:e.target.value}))}/>
+              </div>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'12px',marginBottom:'12px'}}>
+                <input style={{background:'var(--bg3)',border:'1px solid var(--border2)',color:'var(--text)',fontFamily:"'DM Mono',monospace",fontSize:'13px',padding:'10px 14px',outline:'none'}} placeholder="Email *" type="email" value={contactForm.email} onChange={e=>setContactForm(p=>({...p,email:e.target.value}))}/>
+                <input style={{background:'var(--bg3)',border:'1px solid var(--border2)',color:'var(--text)',fontFamily:"'DM Mono',monospace",fontSize:'13px',padding:'10px 14px',outline:'none'}} placeholder="Phone *" type="tel" value={contactForm.phone} onChange={e=>setContactForm(p=>({...p,phone:e.target.value}))}/>
+              </div>
+              <input style={{width:'100%',background:'var(--bg3)',border:'1px solid var(--border2)',color:'var(--text)',fontFamily:"'DM Mono',monospace",fontSize:'13px',padding:'10px 14px',outline:'none',marginBottom:'12px'}} placeholder="Subject" value={contactForm.subject} onChange={e=>setContactForm(p=>({...p,subject:e.target.value}))}/>
+              <textarea rows="3" style={{width:'100%',background:'var(--bg3)',border:'1px solid var(--border2)',color:'var(--text)',fontFamily:"'DM Mono',monospace",fontSize:'13px',padding:'10px 14px',outline:'none',resize:'vertical',marginBottom:'20px'}} placeholder="Message" value={contactForm.message} onChange={e=>setContactForm(p=>({...p,message:e.target.value}))}/>
+              <div style={{display:'flex',gap:'10px'}}>
+                <button style={{flex:1,background:'var(--accent)',color:'#000',fontFamily:"'DM Mono',monospace",fontSize:'11px',letterSpacing:'0.18em',textTransform:'uppercase',border:'none',padding:'13px',cursor:'crosshair',fontWeight:600}} onClick={submitContact} disabled={contactLoading}>{contactLoading?'Sending...':'Send Message ↗'}</button>
+                <button style={{background:'transparent',border:'1px solid var(--border2)',color:'var(--text-muted)',fontFamily:"'DM Mono',monospace",fontSize:'11px',letterSpacing:'0.14em',textTransform:'uppercase',padding:'13px 18px',cursor:'crosshair'}} onClick={()=>{setShowContact(false);setContactMsg({text:'',ok:false});}}>Close</button>
+              </div>
+            </div>
+          </div>
+        )}
+        <button style={{background:'none',border:'none',fontFamily:"'DM Mono',monospace",fontSize:'9px',letterSpacing:'0.14em',color:'var(--accent)',cursor:'crosshair',textTransform:'uppercase',padding:0,marginTop:'8px'}} onClick={()=>setShowContact(true)}>Contact ↗</button>
+        <a href="https://vectraarch.live/foundation/" className="back-link">← Back to Foundation</a>
+      </div>
+    );
+  };
+
+  // ── MENU ───────────────────────────────────────────────────────────────
+  const Menu = ({ user, onLogout }) => {
+    const [hasPeriod, setHasPeriod] = useState(user.gender?.toLowerCase() === 'female');
+
+    useEffect(() => {
+      if (user.gender?.toLowerCase() !== 'female') {
+        axios.get(`${API_BASE}/get-access`, { params: { viewer: user.username } })
+          .then(({ data }) => {
+            if (data.success && data.accessList?.length) {
+              Promise.all(data.accessList.map(a =>
+                axios.get(`${API_BASE}/profile-pictures?username=${a.target}`).catch(() => ({ data: { gender: '' } }))
+              )).then(profiles => {
+                setHasPeriod(profiles.some(p => p.data.gender?.toLowerCase() === 'female'));
+              });
+            }
+          })
+          .catch(() => {});
+      }
+    }, [user.username, user.gender]);
+
+    const pages = useMemo(() => [
+      { key: 'financial',        label: 'Finances',         url: 'finances.html',         tag: null },
+      { key: 'budget',           label: 'Budget Calculator',url: 'budgetcalculator.html', tag: null },
+      ...(hasPeriod ? [{ key: 'period', label: 'Period Tracker', url: 'periodtracker.html', tag: 'Health' }] : []),
+      { key: 'gym',              label: 'Gym Workout',      url: 'gymworkout.html',        tag: null },
+      { key: 'meal',             label: 'Meal Plan',        url: 'mealplan.html',          tag: null },
+      { key: 'calendar',         label: 'Calendar',         url: 'calendar.html',          tag: null },
+      { key: 'profile',          label: 'Profile Settings', url: 'profilesettings.html',   tag: null },
+      ...(user.isAdmin ? [{ key: 'admin', label: 'Admin', url: 'admin.html', tag: 'Admin' }] : []),
+    ], [hasPeriod, user.isAdmin]);
+
+    return (
+      <div className="page-wrap">
+        <div className="va-card">
+          <div className="card-eyebrow">§ Vectra Arch · Legacy · LifeStyle App</div>
+
+          <div className="user-header">
+            <img
+              className="user-avatar"
+              src={user.profilePicUrl || DEFAULT_PROFILE_PIC}
+              alt={user.displayName}
+              style={{ borderColor: user.eventColor || DEFAULT_EVENT_COLOR }}
+            />
+            <div className="user-info">
+              <div className="user-name">{user.displayName || user.username}</div>
+              <div className="user-role">
+                {user.isAdmin ? '§ Admin · ' : '§ '}
+                {user.pronouns || 'Member'}
+              </div>
+            </div>
+          </div>
+
+          <div className="menu-grid" style={{ marginTop: '24px' }}>
+            {pages.map(p => (
+              <a key={p.key} className="menu-btn" href={p.url}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  {p.label}
+                  {p.tag && <span className="menu-tag">{p.tag}</span>}
+                </span>
+                <span className="menu-arrow">↗</span>
+              </a>
+            ))}
+            <button className="menu-btn danger" onClick={onLogout}>
+              <span>Sign Out</span>
+              <span className="menu-arrow">×</span>
+            </button>
+          </div>
+        </div>
+
+        <a href="https://vectraarch.live" className="back-link">← Vectra Arch Home</a>
+      </div>
+    );
+  };
+
+  // ── APP ────────────────────────────────────────────────────────────────
+  const App = () => {
+    const [user, setUser] = useState(null);
+    const [error, setError] = useState('');
+
+    useEffect(() => {
+      try {
+        const stored = localStorage.getItem('user');
+        if (stored) setUser(JSON.parse(stored));
+      } catch (e) {
+        setError('Error loading session: ' + e.message);
+      }
+    }, []);
+
+    const handleLogin = useCallback(userData => {
+      try {
+        localStorage.setItem('user', JSON.stringify(userData));
+        setUser(userData);
+      } catch (e) {
+        setError('Error saving session: ' + e.message);
+      }
+    }, []);
+
+    const handleLogout = useCallback(() => {
+      try {
+        localStorage.removeItem('user');
+        setUser(null);
+      } catch (e) {
+        setError('Error during logout: ' + e.message);
+      }
+    }, []);
+
+    if (error) return (
+      <div className="page-wrap">
+        <div className="va-card">
+          <div className="mf-error">⚠ {error}</div>
+        </div>
+      </div>
+    );
+
+    return user ? <Menu user={user} onLogout={handleLogout} /> : <Login onLogin={handleLogin} />;
+  };
+
+  try {
+    ReactDOM.render(<App />, document.getElementById('root'));
+  } catch (err) {
+    document.getElementById('root').innerHTML =
+      `<div class="page-wrap"><div class="va-card"><div class="mf-error">⚠ Render error: ${err.message}</div></div></div>`;
+  }
+</script>
+</body>
+</html>
