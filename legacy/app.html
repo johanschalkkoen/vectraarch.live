@@ -419,7 +419,6 @@ const Icons = {
   cycle:    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="20" height="20"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>,
   profile:  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="20" height="20"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
   search:   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="14" height="14"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>,
-  admin:    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="20" height="20"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
 };
 
 /* ── SHARED COMPONENTS ── */
@@ -612,30 +611,8 @@ const CalendarPage = ({user, partner, isShared}) => {
   const fetchEvents = useCallback(async()=>{
     const users=[user.username,...(isShared&&partner?[partner.username]:[])];
     try {
-      const [calAll, periodAll] = await Promise.all([
-        Promise.all(users.map(u=>axios.get(`${API}/calendar`,{params:{user:u}}).then(r=>r.data).catch(()=>[]))).then(r=>r.flat()),
-        Promise.all(users.map(u=>axios.get(`${API}/period`,{params:{user:u}}).then(r=>r.data).catch(()=>[]))).then(r=>r.flat())
-      ]);
-      // Convert period cycles into calendar dot events
-      const cycleEvents = [];
-      periodAll.forEach(c=>{
-        if(!c.startDate) return;
-        const start = new Date(c.startDate);
-        const end = c.endDate ? new Date(c.endDate) : new Date(start.getTime()+4*86400000);
-        const len = parseInt(c.cycleLength)||28;
-        // Mark each day of bleeding as a cycle dot
-        for(let d=new Date(start); d<=end; d.setDate(d.getDate()+1)){
-          cycleEvents.push({id:`cycle-${c.id}-${d.toISOString().slice(0,10)}`,title:'Period',date:d.toISOString().slice(0,10)+'T00:00:00',isCycle:true,user:c.user});
-        }
-        // Mark fertile window: ovulation ~14 days before next period, fertile 5 days around it
-        const nextStart = new Date(start.getTime()+len*86400000);
-        const ovulation = new Date(nextStart.getTime()-14*86400000);
-        for(let i=-2; i<=3; i++){
-          const fd = new Date(ovulation.getTime()+i*86400000);
-          cycleEvents.push({id:`fertile-${c.id}-${fd.toISOString().slice(0,10)}`,title:'Fertile',date:fd.toISOString().slice(0,10)+'T00:00:00',isFertile:true,user:c.user});
-        }
-      });
-      setEvents([...calAll, ...cycleEvents]);
+      const all = await Promise.all(users.map(u=>axios.get(`${API}/calendar`,{params:{user:u}}).then(r=>r.data).catch(()=>[])));
+      setEvents(all.flat());
     } catch {}
   },[user.username,partner,isShared]);
 
@@ -665,9 +642,8 @@ const CalendarPage = ({user, partner, isShared}) => {
 
   const eventType = e => {
     if(e.financial) return 'fin';
-    if((e.title||'').toLowerCase().includes('work')||e.eventCategory==='work') return 'work';
-    if(e.isCycle||e.eventCategory==='cycle'||(e.title||'').toLowerCase().includes('cycle')||(e.title||'').toLowerCase().includes('period')) return 'cycle';
-    if(e.isFertile||e.eventCategory==='fertile') return 'fertile';
+    if((e.title||'').toLowerCase().includes('work')) return 'work';
+    if((e.title||'').toLowerCase().includes('cycle')||(e.title||'').toLowerCase().includes('period')) return 'cycle';
     return 'personal';
   };
 
@@ -718,12 +694,7 @@ const CalendarPage = ({user, partner, isShared}) => {
                   <div className="cal-day-num">{item.date.getDate()}</div>
                   {dayEvts.length>0&&(
                     <div className="cal-day-dots">
-                      {dayEvts.slice(0,4).map((e,j)=>{
-                        const et=eventType(e);
-                        if(et==='cycle') return <span key={j} style={{fontSize:'8px',lineHeight:1}}>🩸</span>;
-                        if(et==='fertile') return <div key={j} className="cal-dot fertile"/>;
-                        return <div key={j} className={`cal-dot ${et}`}/>;
-                      })}
+                      {dayEvts.slice(0,3).map((e,j)=><div key={j} className={`cal-dot ${eventType(e)}`}/>)}
                     </div>
                   )}
                 </div>
@@ -1695,7 +1666,7 @@ const CyclePage = ({user, partner, isShared}) => {
 };
 
 /* ── PROFILE PAGE ── */
-const ProfilePage = ({user, setUser, partner, setPartner, sharingConfig, setSharingConfig, onLogout}) => {
+const ProfilePage = ({user, setUser, partner, setPartner, sharingConfig, setSharingConfig}) => {
   const [activeUser, setActiveUser] = useState(user);
   const [form, setForm] = useState({displayName:user.displayName||user.username,email:user.email||'',phone:user.phone||''});
   const [pushNotifs, setPushNotifs] = useState(true);
@@ -1819,15 +1790,6 @@ const ProfilePage = ({user, setUser, partner, setPartner, sharingConfig, setShar
 
           <button className="save-btn" onClick={handleSave}>SAVE CHANGES</button>
 
-          {/* Logout */}
-          <button onClick={onLogout} style={{
-            width:'100%',padding:'14px',background:'transparent',
-            border:'1px solid rgba(233,30,140,0.4)',color:'var(--pink)',
-            borderRadius:'6px',fontFamily:"'DM Mono',monospace",fontWeight:500,
-            fontSize:'12px',letterSpacing:'0.14em',textTransform:'uppercase',
-            marginBottom:'16px',cursor:'pointer'
-          }}>SIGN OUT ×</button>
-
           {/* Danger Zone */}
           <div className="profile-section-title" style={{color:'var(--red)',marginBottom:'8px'}}>§ DANGER ZONE</div>
           <div className="danger-zone">
@@ -1842,7 +1804,7 @@ const ProfilePage = ({user, setUser, partner, setPartner, sharingConfig, setShar
 };
 
 /* ── ROOT APP ── */
-const ALL_TABS = [
+const TABS = [
   {id:'finances', label:'FINANCES'},
   {id:'calendar', label:'CALENDAR'},
   {id:'budget',   label:'BUDGET'},
@@ -1850,20 +1812,15 @@ const ALL_TABS = [
   {id:'meals',    label:'MEALS'},
   {id:'cycle',    label:'CYCLE'},
   {id:'profile',  label:'PROFILE'},
-  {id:'admin',    label:'ADMIN', adminOnly:true},
 ];
 
 const App = () => {
   const [user, setUser] = useState(null);
   const [partner, setPartner] = useState(null);
   const [activeTab, setActiveTab] = useState('finances');
+  // Sharing config — per-tab
   const [sharingConfig, setSharingConfig] = useState({Finances:false,Calendar:false,Budget:false,Gym:false,Meals:false,Cycle:false});
   const [error, setError] = useState('');
-
-  const handleLogout = useCallback(()=>{
-    localStorage.removeItem('user');
-    window.location.href = '/legacy/index.html';
-  },[]);
 
   useEffect(()=>{
     const stored = localStorage.getItem('user');
@@ -1871,6 +1828,7 @@ const App = () => {
       try {
         const u = JSON.parse(stored);
         setUser(u);
+        // Try to load partner
         axios.get(`${API}/get-access`,{params:{viewer:u.username,adminUsername:u.username}})
           .then(async({data})=>{
             if(data.success&&data.accessList?.length>0){
@@ -1885,25 +1843,25 @@ const App = () => {
               }
             }
           }).catch(()=>{});
+        // Also load own profile
         axios.get(`${API}/profile-pictures`,{params:{username:u.username}}).then(({data})=>{
           setUser(prev=>({...prev,...data,profilePicUrl:data.profilePicUrl||prev.profilePicUrl||DP}));
         }).catch(()=>{});
       } catch { setError('Invalid session'); }
     } else {
-      window.location.href='/legacy/index.html';
+      window.location.href='index.html';
     }
   },[]);
 
   if(error) return <div style={{padding:'40px',color:'var(--red)',fontFamily:"'DM Mono',monospace"}}>{error}</div>;
   if(!user) return <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',color:'var(--text3)',fontFamily:"'DM Mono',monospace",fontSize:'11px',letterSpacing:'0.14em'}}>LOADING...</div>;
 
+  // Tab-specific sharing toggle
   const tabSharingKey = {finances:'Finances',calendar:'Calendar',budget:'Budget',gym:'Gym',meals:'Meals',cycle:'Cycle'}[activeTab];
   const isShared = tabSharingKey ? sharingConfig[tabSharingKey] : false;
   const toggleShared = () => { if(tabSharingKey) setSharingConfig(p=>({...p,[tabSharingKey]:!p[tabSharingKey]})); };
-  const sharedProps = {user, partner, isShared, onToggleShared:toggleShared};
 
-  // Only show admin tab for admin users
-  const visibleTabs = ALL_TABS.filter(t=>!t.adminOnly||user.isAdmin);
+  const sharedProps = {user, partner, isShared, onToggleShared:toggleShared};
 
   return (
     <div className="app-shell">
@@ -1914,11 +1872,10 @@ const App = () => {
         {activeTab==='gym'     &&<GymPage      {...sharedProps}/>}
         {activeTab==='meals'   &&<MealsPage    {...sharedProps}/>}
         {activeTab==='cycle'   &&<CyclePage    {...sharedProps}/>}
-        {activeTab==='profile' &&<ProfilePage  user={user} setUser={setUser} partner={partner} setPartner={setPartner} sharingConfig={sharingConfig} setSharingConfig={setSharingConfig} onLogout={handleLogout}/>}
-        {activeTab==='admin'   &&user.isAdmin&&<AdminPage user={user} onLogout={handleLogout}/>}
+        {activeTab==='profile' &&<ProfilePage  user={user} setUser={setUser} partner={partner} setPartner={setPartner} sharingConfig={sharingConfig} setSharingConfig={setSharingConfig}/>}
       </div>
       <div className="bottom-tabs">
-        {visibleTabs.map(t=>(
+        {TABS.map(t=>(
           <button key={t.id} className={`tab-btn ${activeTab===t.id?'active':''}`} onClick={()=>setActiveTab(t.id)}>
             <span className="tab-icon">{Icons[t.id]}</span>
             <span className="tab-label">{t.label}</span>
