@@ -70,7 +70,7 @@
       if (!raw) return;
       var user = JSON.parse(raw);
       if (user && user.username && user.success !== false) {
-        window.location.replace('/legacy/');
+        window.location.replace('/legacy/app.html');
       }
     } catch (e) { localStorage.removeItem('user'); }
   })();
@@ -105,7 +105,7 @@
         if (r2.ok && d2.success) {
           // Store exactly as the existing app does
           localStorage.setItem('user', JSON.stringify(d2));
-          window.location.replace('/legacy/');
+          window.location.replace('/legacy/app.html');
         } else {
           errEl.textContent   = '⚠ ' + (d2.message || 'Invalid code.');
           errEl.style.display = 'block';
@@ -159,7 +159,7 @@
 
       // Success — store exactly as the existing app does
       localStorage.setItem('user', JSON.stringify(data));
-      window.location.replace('/legacy/');
+      window.location.replace('/legacy/app.html');
 
     } catch (e) {
       errEl.textContent   = '⚠ Connection error — try again.';
