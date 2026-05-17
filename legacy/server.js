@@ -39,21 +39,17 @@ pool.connect((err, client, release) => {
 });
 
 // ── DB HELPERS ────────────────────────────────────────────────────────────────
-// dbQuery  → single row or null
 const dbQuery = async (sql, params = []) => {
     const r = await pool.query(sql, params);
     return r.rows[0] || null;
 };
-// dbAll → array of rows
 const dbAll = async (sql, params = []) => {
     const r = await pool.query(sql, params);
     return r.rows;
 };
-// dbRun → result object (use result.rows[0].id for RETURNING id)
 const dbRun = async (sql, params = []) => {
     return pool.query(sql, params);
 };
-// dbTransaction → run multiple queries atomically
 const dbTransaction = async (queries) => {
     const client = await pool.connect();
     try {
@@ -73,8 +69,6 @@ const dbTransaction = async (queries) => {
 };
 
 // ── COLUMN NAME MAP ───────────────────────────────────────────────────────────
-// SQLite used camelCase; PostgreSQL schema uses snake_case.
-// This helper maps a pg row to the camelCase shape the frontend expects.
 function mapUser(row) {
     if (!row) return null;
     return {
@@ -654,7 +648,26 @@ app.delete('/api/calendar/:id', async (req, res) => {
     }
 });
 
-// ── GYM WORKOUT ───────────────────────────────────────────────────────────────
+// ── GYM WORKOUT & NEW DB OPTIONS OPTIONS ──────────────────────────────────────
+app.get('/api/gym-options', async (req, res) => {
+    try {
+        const rows = await dbAll('SELECT category, exercise_value AS value, exercise_label AS label FROM legacy_gym_options ORDER BY id ASC');
+        const grouped = rows.reduce((acc, item) => {
+            let group = acc.find(g => g.label === item.category);
+            if (!group) {
+                group = { label: item.category, options: [] };
+                acc.push(group);
+            }
+            group.options.push({ value: item.value, label: item.label });
+            return acc;
+        }, []);
+        grouped.push({ label: 'Custom', options: [{ value: '__custom__', label: 'Custom exercise...' }] });
+        res.json({ success: true, data: grouped });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Error retrieving gym exercise items.', error: e.message });
+    }
+});
+
 app.get('/api/gymworkout', async (req, res) => {
     const { user } = req.query;
     if (!user) return res.status(400).json({ success: false, message: 'User required.' });
@@ -713,7 +726,26 @@ app.delete('/api/gymworkout/:id', async (req, res) => {
     }
 });
 
-// ── MEAL PLAN ─────────────────────────────────────────────────────────────────
+// ── MEAL PLAN & DB TEMPLATES ──────────────────────────────────────────────────
+app.get('/api/meal-templates', async (req, res) => {
+    try {
+        const rows = await dbAll('SELECT category, meal_value AS value, meal_label AS label, calories FROM legacy_meal_templates ORDER BY id ASC');
+        const grouped = rows.reduce((acc, item) => {
+            let group = acc.find(g => g.label === item.category);
+            if (!group) {
+                group = { label: item.category, options: [] };
+                acc.push(group);
+            }
+            group.options.push({ value: item.value, label: item.label, cal: item.calories });
+            return acc;
+        }, []);
+        grouped.push({ label: 'Custom', options: [{ value: '__custom__', label: 'Custom meal...', cal: 0 }] });
+        res.json({ success: true, data: grouped });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Error retrieving meal templates.', error: e.message });
+    }
+});
+
 app.get('/api/mealplan', async (req, res) => {
     const { user } = req.query;
     if (!user) return res.status(400).json({ success: false, message: 'User required.' });
@@ -978,11 +1010,6 @@ app.post('/api/2fa/reset', requireAdmin, async (req, res) => {
 });
 
 // ── IDENTITY PROXY ───────────────────────────────────────────────────────────
-// Forwards requests to VectraArchIdentity (:3200) with the API key injected
-// server-side. The key never reaches the browser.
-// Frontend calls /legacy/api/identity/* — this proxy strips the prefix and
-// forwards to http://127.0.0.1:3200/api/identity/*.
-
 const IDENTITY_URL  = 'http://127.0.0.1:3200';
 const IDENTITY_KEY  = process.env.IDENTITY_API_KEY || '';
 
@@ -1007,29 +1034,24 @@ async function forwardToIdentity(method, path, body, res) {
     }
 }
 
-// GET /legacy/api/identity/resolve?legacy_username=x  OR  ?forge_user_id=x
 app.get('/api/identity/resolve', async (req, res) => {
     const qs = new URLSearchParams(req.query).toString();
     await forwardToIdentity('GET', `/api/identity/resolve${qs ? '?' + qs : ''}`, null, res);
 });
 
-// GET /legacy/api/identity/links
 app.get('/api/identity/links', async (req, res) => {
     const qs = new URLSearchParams(req.query).toString();
     await forwardToIdentity('GET', `/api/identity/links${qs ? '?' + qs : ''}`, null, res);
 });
 
-// POST /legacy/api/identity/link  — body: { legacy_username, forge_user_id, linked_by? }
 app.post('/api/identity/link', async (req, res) => {
     await forwardToIdentity('POST', '/api/identity/link', req.body, res);
 });
 
-// DELETE /legacy/api/identity/link  — body: { legacy_username?, forge_user_id?, unlinked_by? }
 app.delete('/api/identity/link', async (req, res) => {
     await forwardToIdentity('DELETE', '/api/identity/link', req.body, res);
 });
 
-// GET /legacy/api/identity/health  — no auth needed, useful for monitoring
 app.get('/api/identity/health', async (req, res) => {
     await forwardToIdentity('GET', '/api/identity/health', null, res);
 });
