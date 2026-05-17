@@ -364,37 +364,35 @@ const CalendarPage = ({user, partner, isShared}) => {
               const isToday=item.date.toDateString()===new Date().toDateString();
               const isSelected=item.date.toDateString()===selectedDay.toDateString();
               const dayEvts=getEventsForDay(item.date);
+              const hasCycle   = dayEvts.some(e=>e.isCycle);
+              const hasFertile = dayEvts.some(e=>e.isFertile);
+              const realEvts   = dayEvts.filter(e=>!e.isCycle&&!e.isFertile);
               return (
-                {(()=>{
-                  const hasCycle   = dayEvts.some(e=>e.isCycle);
-                  const hasFertile = dayEvts.some(e=>e.isFertile);
-                  const realEvts   = dayEvts.filter(e=>!e.isCycle&&!e.isFertile);
-                  return (
-                    <div key={i}
-                      className={`cal-day${item.otherMonth?' other-month':''}${isToday&&!hasCycle?' today':''}${isSelected?' selected':''}`}
-                      style={hasCycle?{background:'rgba(233,30,140,0.38)',cursor:'pointer'}:hasFertile?{background:'rgba(29,233,182,0.12)',cursor:'pointer'}:{cursor:'pointer'}}
-                      onClick={()=>setSelectedDay(item.date)}>
-                      <div className="cal-day-num" style={hasCycle?{color:'#fff',fontWeight:700}:{}}>{item.date.getDate()}</div>
-                      {(realEvts.length>0||hasFertile)&&(
-                        <div className="cal-day-dots">
-                          {realEvts.slice(0,3).map((e,j)=>(
-                            <div key={j} className="cal-dot" style={{background:e.eventColor||e.event_color||'var(--yellow)'}}/>
-                          ))}
-                          {hasFertile&&<div className="cal-dot fertile"/>}
-                        </div>
-                      )}
+                <div key={i}
+                  className={`cal-day${item.otherMonth?' other-month':''}${isToday&&!hasCycle?' today':''}${isSelected?' selected':''}`}
+                  style={hasCycle?{background:'rgba(233,30,140,0.38)',cursor:'pointer'}:hasFertile?{background:'rgba(29,233,182,0.12)',cursor:'pointer'}:{cursor:'pointer'}}
+                  onClick={()=>setSelectedDay(item.date)}>
+                  <div className="cal-day-num" style={hasCycle?{color:'#fff',fontWeight:700}:{}}>{item.date.getDate()}</div>
+                  {(realEvts.length>0||hasFertile)&&(
+                    <div className="cal-day-dots">
+                      {realEvts.slice(0,3).map((e,j)=>(
+                        <div key={j} className="cal-dot" style={{background:e.eventColor||e.event_color||'var(--yellow)'}}/>
+                      ))}
+                      {hasFertile&&<div className="cal-dot fertile"/>}
                     </div>
-                  );
-                })()}
+                  )}
+                </div>
               );
             })}
           </div>
 
           {/* Legend */}
           <div className="cal-legend">
-            {[['fin','FIN'],['work','WORK'],['personal','PERSONAL'],['cycle','CYCLE'],['fertile','FERTILE']].map(([t,l])=>(
-              <div key={t} className="cal-legend-item"><div className={`cal-legend-dot cal-dot ${t}`}/>{l}</div>
-            ))}
+            <div className="cal-legend-item"><div style={{width:7,height:7,borderRadius:'50%',background:'rgba(233,30,140,0.85)',display:'inline-block'}}/>CYCLE</div>
+            <div className="cal-legend-item"><div style={{width:7,height:7,borderRadius:'50%',background:'var(--teal)',display:'inline-block'}}/>FERTILE</div>
+            <div className="cal-legend-item"><div style={{width:7,height:7,borderRadius:'50%',background:'var(--green)',display:'inline-block'}}/>FIN</div>
+            <div className="cal-legend-item"><div style={{width:7,height:7,borderRadius:'50%',background:'var(--blue)',display:'inline-block'}}/>WORK</div>
+            <div className="cal-legend-item"><div style={{width:7,height:7,borderRadius:'50%',background:'var(--yellow)',display:'inline-block'}}/>PERSONAL</div>
           </div>
 
           {/* Events for selected day */}
