@@ -82,6 +82,7 @@ const FinancesPage = ({user, partner, isShared}) => {
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({category:'',amount:'',type:'expense',date:now()});
+  const [editId, setEditId] = useState(null);
   const [alert, setAlert] = useState({msg:'',type:''});
 
   const msg = (m,t='ok') => { setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
@@ -115,9 +116,23 @@ const FinancesPage = ({user, partner, isShared}) => {
   const handleSave = async () => {
     if(!form.category||!form.amount){msg('Fill all fields.','err');return;}
     try {
-      await axios.post(`${API}/financial`,{user:user.username,category:form.category,amount:parseFloat(form.amount),type:form.type,date:form.date});
-      msg('Saved.');setShowForm(false);setForm({category:'',amount:'',type:'expense',date:now()});fetchAll();
+      if(editId){
+        await axios.put(`${API}/financial/${editId}`,{user:user.username,category:form.category,amount:parseFloat(form.amount),type:form.type,date:form.date});
+        msg('Updated.');
+      } else {
+        await axios.post(`${API}/financial`,{user:user.username,category:form.category,amount:parseFloat(form.amount),type:form.type,date:form.date});
+        msg('Saved.');
+      }
+      setShowForm(false);setEditId(null);setForm({category:'',amount:'',type:'expense',date:now()});fetchAll();
     } catch { msg('Error.','err'); }
+  };
+  const handleDelete = async(id)=>{
+    if(!confirm('Delete this transaction?')) return;
+    try { await axios.delete(`${API}/financial/${id}`); msg('Deleted.'); fetchAll(); } catch { msg('Error.','err'); }
+  };
+  const startEdit = (item) => {
+    setForm({category:item.category||'',amount:String(item.amount||''),type:item.type||'expense',date:(item.date||now()).slice(0,19)});
+    setEditId(item.id); setShowForm(true);
   };
 
   const monthLabel = MONTHS.find(m=>m.v===selectedMonth)?.l||'';
@@ -181,9 +196,15 @@ const FinancesPage = ({user, partner, isShared}) => {
                     <span className={`item-tag ${item.user===user.username?(user.username==='jane'?'jane':'joe'):'joe'}`}>{(item.user||'').toUpperCase().slice(0,4)}</span>
                     {(item.category||'').toUpperCase()}
                   </div>
-                  <div className="item-sub">{fmtDate(item.date)} · {item.category||''}</div>
+                  <div className="item-sub">{fmtDate(item.date)} · {item.type}</div>
                 </div>
                 <div className={`item-amount ${item.type}`}>{fmtR(item.amount)}</div>
+                {item.user===user.username&&(
+                  <div style={{display:'flex',flexDirection:'column',gap:4,marginLeft:8}}>
+                    <button onClick={()=>startEdit(item)} style={{fontFamily:"'DM Mono',monospace",fontSize:'8px',color:'var(--blue)',border:'1px solid rgba(68,138,255,0.3)',borderRadius:3,padding:'3px 7px',background:'transparent',cursor:'pointer',letterSpacing:'0.1em'}}>EDIT</button>
+                    <button onClick={()=>handleDelete(item.id)} style={{fontFamily:"'DM Mono',monospace",fontSize:'8px',color:'var(--red)',border:'1px solid rgba(255,61,61,0.3)',borderRadius:3,padding:'3px 7px',background:'transparent',cursor:'pointer',letterSpacing:'0.1em'}}>DEL</button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -196,7 +217,7 @@ const FinancesPage = ({user, partner, isShared}) => {
         <div className="modal-overlay" onClick={()=>setShowForm(false)}>
           <div className="modal-sheet" onClick={e=>e.stopPropagation()}>
             <div className="modal-handle"/>
-            <div className="modal-title">Add Transaction</div>
+            <div className="modal-title">{editId?"Edit Transaction":"Add Transaction"}</div>
             <div className="form-field">
               <label className="form-label">Category</label>
               <input className="form-input" placeholder="e.g. Groceries" value={form.category} onChange={e=>setForm(p=>({...p,category:e.target.value}))}/>
@@ -215,8 +236,8 @@ const FinancesPage = ({user, partner, isShared}) => {
               <label className="form-label">Date</label>
               <input className="form-input" type="datetime-local" value={form.date} onChange={e=>setForm(p=>({...p,date:e.target.value}))} step="1"/>
             </div>
-            <button className="form-submit" onClick={handleSave}>SAVE</button>
-            <button className="form-cancel" onClick={()=>setShowForm(false)}>Cancel</button>
+            <button className="form-submit" onClick={handleSave}>{editId?'UPDATE':'SAVE'}</button>
+            <button className="form-cancel" onClick={()=>{setShowForm(false);setEditId(null);setForm({category:'',amount:'',type:'expense',date:now()});}}>Cancel</button>
           </div>
         </div>
       )}
@@ -230,7 +251,8 @@ const CalendarPage = ({user, partner, isShared}) => {
   const [viewDate, setViewDate] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState(new Date());
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({title:'',date:now(),type:'personal'});
+  const [form, setForm] = useState({title:'',date:now(),type:'personal',color:'#448aff'});
+  const [selectedEvent, setSelectedEvent] = useState(null);
   const [alert, setAlert] = useState({msg:'',type:''});
 
   const msg = (m,t='ok')=>{ setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
@@ -300,9 +322,13 @@ const CalendarPage = ({user, partner, isShared}) => {
   const handleSave = async()=>{
     if(!form.title||!form.date){msg('Title and date required.','err');return;}
     try {
-      await axios.post(`${API}/calendar`,{user:user.username,title:form.title,date:form.date,financial:false});
-      msg('Event added.');setShowForm(false);setForm({title:'',date:now(),type:'personal'});fetchEvents();
+      await axios.post(`${API}/calendar`,{user:user.username,title:form.title,date:form.date,financial:false,eventColor:form.color,type:form.type});
+      msg('Event added.');setShowForm(false);setForm({title:'',date:now(),type:'personal',color:'#448aff'});fetchEvents();
     } catch { msg('Error.','err'); }
+  };
+  const handleDeleteEvent = async(id)=>{
+    if(!confirm('Delete this event?')) return;
+    try { await axios.delete(`${API}/calendar/${id}`); msg('Deleted.'); setSelectedEvent(null); fetchEvents(); } catch { msg('Error.','err'); }
   };
 
   const prevMonth=()=>setViewDate(d=>new Date(d.getFullYear(),d.getMonth()-1,1));
@@ -339,44 +365,76 @@ const CalendarPage = ({user, partner, isShared}) => {
               const isSelected=item.date.toDateString()===selectedDay.toDateString();
               const dayEvts=getEventsForDay(item.date);
               return (
-                <div key={i} className={`cal-day${item.otherMonth?' other-month':''}${isToday?' today':''}${isSelected?' selected':''}`}
-                  onClick={()=>setSelectedDay(item.date)}>
-                  <div className="cal-day-num">{item.date.getDate()}</div>
-                  {dayEvts.length>0&&(
-                    <div className="cal-day-dots">
-                      {dayEvts.slice(0,4).map((e,j)=>{
-                        const et=eventType(e);
-                        if(et==='cycle') return <span key={j} style={{fontSize:'8px',lineHeight:1}}>🩸</span>;
-                        if(et==='fertile') return <div key={j} className="cal-dot fertile"/>;
-                        return <div key={j} className={`cal-dot ${et}`}/>;
-                      })}
+                {(()=>{
+                  const hasCycle = dayEvts.some(e=>eventType(e)==='cycle');
+                  const hasFertile = dayEvts.some(e=>eventType(e)==='fertile');
+                  const nonCycleDots = dayEvts.filter(e=>!e.isCycle&&!e.isFertile);
+                  return (
+                    <div key={i}
+                      className={`cal-day${item.otherMonth?' other-month':''}${isToday&&!hasCycle?' today':''}${isSelected?' selected':''}`}
+                      style={hasCycle?{background:'rgba(233,30,140,0.35)',cursor:'pointer'}:hasFertile?{background:'rgba(29,233,182,0.12)',cursor:'pointer'}:{}}
+                      onClick={()=>setSelectedDay(item.date)}>
+                      <div className="cal-day-num" style={hasCycle?{color:'#fff',fontWeight:700}:{}}>{item.date.getDate()}</div>
+                      {(nonCycleDots.length>0||hasFertile)&&(
+                        <div className="cal-day-dots">
+                          {nonCycleDots.slice(0,3).map((e,j)=>(
+                            <div key={j} className="cal-dot" style={{background:e.eventColor||'var(--yellow)'}}/>
+                          ))}
+                          {hasFertile&&<div className="cal-dot fertile"/>}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
+                  );
+                })()}
               );
             })}
           </div>
 
           {/* Legend */}
           <div className="cal-legend">
-            {[['fin','FIN'],['work','WORK'],['personal','PERSONAL'],['cycle','CYCLE'],['fertile','FERTILE']].map(([t,l])=>(
-              <div key={t} className="cal-legend-item"><div className={`cal-legend-dot cal-dot ${t}`}/>{l}</div>
-            ))}
+            <div className="cal-legend-item"><div style={{width:7,height:7,borderRadius:'50%',background:'rgba(233,30,140,0.8)'}}/>CYCLE</div>
+            <div className="cal-legend-item"><div style={{width:7,height:7,borderRadius:'50%',background:'var(--teal)'}}/>FERTILE</div>
+            <div className="cal-legend-item"><div style={{width:7,height:7,borderRadius:'50%',background:'var(--green)'}}/>FIN</div>
+            <div className="cal-legend-item"><div style={{width:7,height:7,borderRadius:'50%',background:'var(--blue)'}}/>WORK</div>
+            <div className="cal-legend-item"><div style={{width:7,height:7,borderRadius:'50%',background:'var(--yellow)'}}/>PERSONAL</div>
           </div>
 
           {/* Events for selected day */}
           <div className="section-label">§ EVENTS · {selLabel}</div>
-          {selectedEvents.length===0
+          {selectedEvents.filter(e=>!e.isCycle&&!e.isFertile).length===0
             ? <div className="no-events"><div className="no-events-icon">📅</div><div className="no-events-text">NO EVENTS</div></div>
-            : selectedEvents.map(e=>(
-                <div key={e.id} className="item-card" style={{borderRadius:'6px',marginBottom:'6px'}}>
-                  <div className="item-body">
-                    <div className="item-title">{(e.title||'').toUpperCase()}</div>
-                    <div className="item-sub">{fmtDateTime(e.date)}</div>
+            : selectedEvents.filter(e=>!e.isCycle&&!e.isFertile).map(e=>{
+                const dotColor = e.eventColor || (e.financial?'var(--green)':e.type==='work'?'var(--blue)':'var(--yellow)');
+                return (
+                  <div key={e.id} className="item-card" style={{borderRadius:'6px',marginBottom:'6px',borderLeft:`3px solid ${dotColor}`,cursor:'pointer'}} onClick={()=>setSelectedEvent(e)}>
+                    <div style={{width:10,height:10,borderRadius:'50%',background:dotColor,flexShrink:0}}/>
+                    <div className="item-body">
+                      <div className="item-title">{(e.title||'').toUpperCase()}</div>
+                      <div className="item-sub">{fmtDateTime(e.date)} · {e.type||'personal'}</div>
+                    </div>
+                    {e.amount&&<div className="item-amount income">{fmtR(e.amount)}</div>}
                   </div>
-                </div>
-              ))
+                );
+              })
           }
+          {selectedEvents.some(e=>e.isCycle)&&(
+            <div style={{background:'rgba(233,30,140,0.12)',border:'1px solid rgba(233,30,140,0.3)',borderRadius:6,padding:'10px 14px',marginBottom:6,display:'flex',alignItems:'center',gap:10}}>
+              <span style={{fontSize:'16px'}}>🩸</span>
+              <div>
+                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,letterSpacing:'0.04em',color:'var(--pink)'}}>PERIOD DAY</div>
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)',letterSpacing:'0.08em'}}>Menstrual cycle tracked</div>
+              </div>
+            </div>
+          )}
+          {selectedEvents.some(e=>e.isFertile)&&(
+            <div style={{background:'rgba(29,233,182,0.1)',border:'1px solid rgba(29,233,182,0.3)',borderRadius:6,padding:'10px 14px',marginBottom:6,display:'flex',alignItems:'center',gap:10}}>
+              <span style={{fontSize:'16px'}}>🌿</span>
+              <div>
+                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,letterSpacing:'0.04em',color:'var(--teal)'}}>FERTILE WINDOW</div>
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)',letterSpacing:'0.08em'}}>High fertility period</div>
+              </div>
+            </div>
+          )}
           <div style={{height:'80px'}}/>
         </div>
       </div>
@@ -392,11 +450,50 @@ const CalendarPage = ({user, partner, isShared}) => {
               <input className="form-input" placeholder="Event title" value={form.title} onChange={e=>setForm(p=>({...p,title:e.target.value}))}/>
             </div>
             <div className="form-field">
+              <label className="form-label">Category</label>
+              <div className="type-toggle">
+                {[['personal','Personal','#ffd600'],['work','Work','#448aff'],['health','Health','#00e676'],['social','Social','#e040fb']].map(([v,l,col])=>(
+                  <button key={v} className={`type-toggle-btn ${form.type===v?'active':''}`}
+                    style={form.type===v?{borderColor:col,color:col,background:`${col}18`}:{}}
+                    onClick={()=>setForm(p=>({...p,type:v,color:col}))}>{l}</button>
+                ))}
+              </div>
+            </div>
+            <div className="form-field">
+              <label className="form-label">Custom Color</label>
+              <div style={{display:'flex',alignItems:'center',gap:10}}>
+                <input type="color" value={form.color} onChange={e=>setForm(p=>({...p,color:e.target.value}))} style={{width:44,height:36,border:'1px solid var(--border2)',borderRadius:4,background:'var(--bg3)',cursor:'pointer',padding:2}}/>
+                <span style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)'}}>{form.color}</span>
+                <div style={{width:24,height:24,borderRadius:'50%',background:form.color,border:'2px solid rgba(255,255,255,0.2)'}}/>
+              </div>
+            </div>
+            <div className="form-field">
               <label className="form-label">Date & Time</label>
               <input className="form-input" type="datetime-local" value={form.date} onChange={e=>setForm(p=>({...p,date:e.target.value}))} step="1"/>
             </div>
             <button className="form-submit" onClick={handleSave}>SAVE EVENT</button>
             <button className="form-cancel" onClick={()=>setShowForm(false)}>Cancel</button>
+          </div>
+        </div>
+      )}
+      {selectedEvent&&(
+        <div className="modal-overlay" onClick={()=>setSelectedEvent(null)}>
+          <div className="modal-sheet" onClick={e=>e.stopPropagation()}>
+            <div className="modal-handle"/>
+            <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:16}}>
+              <div style={{width:16,height:16,borderRadius:'50%',background:selectedEvent.eventColor||'var(--blue)',flexShrink:0}}/>
+              <div className="modal-title" style={{margin:0}}>{(selectedEvent.title||'').toUpperCase()}</div>
+            </div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:16}}>
+              <div><div className="form-label">Date & Time</div><div style={{fontFamily:"'DM Mono',monospace",fontSize:12,color:'var(--text)'}}>{fmtDateTime(selectedEvent.date)}</div></div>
+              <div><div className="form-label">Category</div><div style={{fontFamily:"'DM Mono',monospace",fontSize:12,color:'var(--text)'}}>{selectedEvent.type||'personal'}</div></div>
+              {selectedEvent.amount&&<div><div className="form-label">Amount</div><div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:18,fontWeight:700,color:'var(--green)'}}>{fmtR(selectedEvent.amount)}</div></div>}
+              {selectedEvent.user&&<div><div className="form-label">Added by</div><div style={{fontFamily:"'DM Mono',monospace",fontSize:12,color:'var(--text)'}}>{selectedEvent.user}</div></div>}
+            </div>
+            {selectedEvent.user===user.username&&!selectedEvent.financial&&(
+              <button className="form-submit" style={{background:'var(--red)',marginBottom:0}} onClick={()=>handleDeleteEvent(selectedEvent.id)}>DELETE EVENT</button>
+            )}
+            <button className="form-cancel" onClick={()=>setSelectedEvent(null)}>Close</button>
           </div>
         </div>
       )}
@@ -451,10 +548,13 @@ const BudgetPage = ({user, partner, isShared}) => {
   const handleSave = async()=>{
     if(!form.income){msg('Income required.','err');return;}
     try {
-      const category = form.expenses[0]?.category||'Budget';
       await axios.post(`${API}/budget`,{user:user.username,income:parseFloat(form.income),expenses:JSON.stringify(form.expenses.map(e=>({category:e.category,amount:parseFloat(e.amount||0)}))),date:form.date});
       msg('Budget saved.');setShowForm(false);fetchAll();
     } catch { msg('Error.','err'); }
+  };
+  const handleDeleteBudget = async(id)=>{
+    if(!confirm('Delete this budget?')) return;
+    try { await axios.delete(`${API}/budget/${id}`); msg('Deleted.'); fetchAll(); } catch { msg('Error.','err'); }
   };
 
   const monthLabel = MONTHS.find(m=>m.v===selectedMonth)?.l||'';
@@ -529,7 +629,10 @@ const BudgetPage = ({user, partner, isShared}) => {
                   </div>
                 </div>
                 <div className="progress-bar"><div className={`progress-fill ${status}`} style={{width:`${pct*100}%`}}/></div>
-                <div className="progress-label">{Math.round(pct*100)}% USED</div>
+                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                  <div className="progress-label">{Math.round(pct*100)}% USED</div>
+                  {b.user===user.username&&<button onClick={()=>handleDeleteBudget(b.id)} style={{fontFamily:"'DM Mono',monospace",fontSize:'8px',color:'var(--red)',border:'1px solid rgba(255,61,61,0.3)',borderRadius:3,padding:'3px 9px',background:'transparent',cursor:'pointer',letterSpacing:'0.1em'}}>DELETE</button>}
+                </div>
               </div>
             );
           })}
@@ -1119,62 +1222,61 @@ const CyclePage = ({user, partner, isShared}) => {
     return d;
   },[fertileStart]);
 
-  // Phase wheel SVG
+  // Phase wheel SVG — matches screenshot exactly
   const PhaseWheel = ({dayOfCycle=4, cycleLength=28}) => {
-    const cx=120,cy=120,r=90,innerR=50;
+    const SIZE=280, cx=140, cy=140, outerR=110, innerR=68, numR=outerR+16;
     const phases=[
-      {name:'Menstrual',days:5,color:'#e91e8c'},
-      {name:'Follicular',days:7,color:'#1de9b6'},
-      {name:'Ovulation',days:3,color:'#ffd600'},
-      {name:'Luteal',days:cycleLength-15,color:'#ff6d00'}
+      {name:'Menstrual', days:5,  color:'#e91e8c'},
+      {name:'Follicular',days:7,  color:'#1de9b6'},
+      {name:'Ovulation', days:3,  color:'#ffd600'},
+      {name:'Luteal',    days:Math.max(cycleLength-15,1), color:'#ff9800'}
     ];
-    let total=phases.reduce((s,p)=>s+p.days,0);
-    let segments=[];
-    let angle=-Math.PI/2;
+    const total=phases.reduce((s,p)=>s+p.days,0);
+    const segments=[]; let angle=-Math.PI/2;
     phases.forEach(p=>{
       const span=(p.days/total)*2*Math.PI;
       segments.push({...p,startAngle:angle,endAngle:angle+span});
       angle+=span;
     });
-
-    const arc=(cx,cy,r,start,end,inner=0)=>{
-      const x1=cx+r*Math.cos(start),y1=cy+r*Math.sin(start);
-      const x2=cx+r*Math.cos(end),y2=cy+r*Math.sin(end);
-      const large=end-start>Math.PI?1:0;
-      if(inner>0){
-        const ix1=cx+inner*Math.cos(end),iy1=cy+inner*Math.sin(end);
-        const ix2=cx+inner*Math.cos(start),iy2=cy+inner*Math.sin(start);
-        return `M${x1},${y1} A${r},${r},0,${large},1,${x2},${y2} L${ix1},${iy1} A${inner},${inner},0,${large},0,${ix2},${iy2} Z`;
-      }
-      return `M${cx},${cy} L${x1},${y1} A${r},${r},0,${large},1,${x2},${y2} Z`;
+    const donutArc=(sa,ea)=>{
+      const gap=0.018;
+      const s=sa+gap, e=ea-gap;
+      const x1=cx+outerR*Math.cos(s), y1=cy+outerR*Math.sin(s);
+      const x2=cx+outerR*Math.cos(e), y2=cy+outerR*Math.sin(e);
+      const ix1=cx+innerR*Math.cos(e), iy1=cy+innerR*Math.sin(e);
+      const ix2=cx+innerR*Math.cos(s), iy2=cy+innerR*Math.sin(s);
+      const lg=(e-s)>Math.PI?1:0;
+      return `M${x1},${y1} A${outerR},${outerR},0,${lg},1,${x2},${y2} L${ix1},${iy1} A${innerR},${innerR},0,${lg},0,${ix2},${iy2} Z`;
     };
-
-    // Day numbers ring
+    // Day numbers around the outside ring
     const dayNums=[];
     for(let d=1;d<=total;d++){
       const a=-Math.PI/2+(((d-0.5)/total)*2*Math.PI);
-      const nr=r+14;
-      dayNums.push({d,x:cx+nr*Math.cos(a),y:cy+nr*Math.sin(a)});
+      dayNums.push({d, x:cx+numR*Math.cos(a), y:cy+numR*Math.sin(a)});
     }
-
-    // Current day indicator
-    const dayAngle=-Math.PI/2+((dayOfCycle-0.5)/total)*2*Math.PI;
-    const indR=r+14;
-
+    // Current day bubble
+    const curA=-Math.PI/2+((dayOfCycle-0.5)/total)*2*Math.PI;
+    const curX=cx+numR*Math.cos(curA), curY=cy+numR*Math.sin(curA);
+    // Phase label
+    const phase=dayOfCycle<=5?'MENSTRUAL PHASE':dayOfCycle<=12?'FOLLICULAR PHASE':dayOfCycle<=15?'OVULATION PHASE':'LUTEAL PHASE';
     return (
-      <svg width="260" height="260" viewBox="0 0 260 260">
+      <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`} style={{overflow:'visible'}}>
         {segments.map((seg,i)=>(
-          <path key={i} d={arc(cx,cy,r,seg.startAngle,seg.endAngle,innerR)} fill={seg.color} opacity="0.85"/>
+          <path key={i} d={donutArc(seg.startAngle,seg.endAngle)} fill={seg.color} opacity="0.9"/>
         ))}
-        {/* center */}
-        <circle cx={cx} cy={cy} r={innerR} fill="var(--bg)"/>
-        <text x={cx} y={cy-8} textAnchor="middle" fill="var(--text)" fontFamily="'Barlow Condensed',sans-serif" fontWeight="700" fontSize="18">DAY {dayOfCycle}</text>
-        <text x={cx} y={cy+10} textAnchor="middle" fill="var(--text3)" fontFamily="'DM Mono',monospace" fontSize="7" letterSpacing="0.08em">
-          {dayOfCycle<=5?'MENSTRUAL':dayOfCycle<=12?'FOLLICULAR':dayOfCycle<=15?'OVULATION':'LUTEAL'} PHASE
-        </text>
-        {/* day indicator dot */}
-        <circle cx={cx+indR*Math.cos(dayAngle)} cy={cy+indR*Math.sin(dayAngle)} r="10" fill="white"/>
-        <text x={cx+indR*Math.cos(dayAngle)} y={cy+indR*Math.sin(dayAngle)+4} textAnchor="middle" fill="var(--bg)" fontFamily="'DM Mono',monospace" fontWeight="700" fontSize="9">{dayOfCycle}</text>
+        {/* Day numbers ring */}
+        {dayNums.map(({d,x,y})=>(
+          d!==dayOfCycle&&<text key={d} x={x} y={y} textAnchor="middle" dominantBaseline="middle"
+            fill="rgba(255,255,255,0.45)" fontFamily="'DM Mono',monospace" fontSize="7">{d}</text>
+        ))}
+        {/* Center */}
+        <circle cx={cx} cy={cy} r={innerR-2} fill="#0d0e10"/>
+        <text x={cx} y={cy-12} textAnchor="middle" fill="#f0f0f0" fontFamily="'Barlow Condensed',sans-serif" fontWeight="800" fontSize="22" letterSpacing="0.04em">DAY {dayOfCycle}</text>
+        <text x={cx} y={cy+8} textAnchor="middle" fill="#5a5f65" fontFamily="'DM Mono',monospace" fontSize="7" letterSpacing="0.1em">{phase}</text>
+        {/* Current day indicator bubble */}
+        <circle cx={curX} cy={curY} r="12" fill="white"/>
+        <text x={curX} y={curY+1} textAnchor="middle" dominantBaseline="middle"
+          fill="#0d0e10" fontFamily="'DM Mono',monospace" fontWeight="700" fontSize="8">{dayOfCycle}</text>
       </svg>
     );
   };
@@ -1185,11 +1287,23 @@ const CyclePage = ({user, partner, isShared}) => {
     return Math.max(1,Math.min(diff,avgLen));
   },[latestCycle,avgLen]);
 
+  const [editCycleId, setEditCycleId] = useState(null);
   const handleSave = async()=>{
     try {
+      if(editCycleId){
+        await axios.delete(`${API}/period/${editCycleId}`);
+      }
       await axios.post(`${API}/period`,{user:user.username,startDate:form.startDate,endDate:form.endDate||null,cycleLength:parseInt(form.cycleLength)||28,symptoms:form.symptoms.join(','),date:form.date});
-      msg('Cycle logged.');setShowForm(false);fetchCycles();
+      msg(editCycleId?'Cycle updated.':'Cycle logged.');setShowForm(false);setEditCycleId(null);fetchCycles();
     } catch { msg('Error.','err'); }
+  };
+  const handleDeleteCycle = async(id)=>{
+    if(!confirm('Delete this cycle record?')) return;
+    try { await axios.delete(`${API}/period/${id}`); msg('Deleted.'); fetchCycles(); } catch { msg('Error.','err'); }
+  };
+  const startEditCycle = (c) => {
+    setForm({startDate:(c.startDate||'').slice(0,10),endDate:(c.endDate||'').slice(0,10),cycleLength:String(c.cycleLength||28),symptoms:c.symptoms?c.symptoms.split(',').filter(Boolean):[],date:now()});
+    setEditCycleId(c.id); setShowForm(true);
   };
 
   const prevDay=()=>setViewDate(d=>{const n=new Date(d);n.setDate(n.getDate()-1);return n;});
@@ -1292,7 +1406,7 @@ const CyclePage = ({user, partner, isShared}) => {
         <div className="modal-overlay" onClick={()=>setShowForm(false)}>
           <div className="modal-sheet" onClick={e=>e.stopPropagation()}>
             <div className="modal-handle"/>
-            <div className="modal-title">Log Cycle</div>
+            <div className="modal-title">{editCycleId?'Edit Cycle':'Log Cycle'}</div>
             <div className="form-field">
               <label className="form-label">Start Date</label>
               <input className="form-input" type="date" value={form.startDate} onChange={e=>setForm(p=>({...p,startDate:e.target.value}))}/>
@@ -1311,8 +1425,8 @@ const CyclePage = ({user, partner, isShared}) => {
                 {SYMPTOMS.map(s=><button key={s} className={`type-toggle-btn ${form.symptoms.includes(s)?'active':''}`} onClick={()=>setForm(p=>({...p,symptoms:p.symptoms.includes(s)?p.symptoms.filter(x=>x!==s):[...p.symptoms,s]}))}>{s}</button>)}
               </div>
             </div>
-            <button className="form-submit" style={{background:'var(--pink)'}} onClick={handleSave}>SAVE CYCLE</button>
-            <button className="form-cancel" onClick={()=>setShowForm(false)}>Cancel</button>
+            <button className="form-submit" style={{background:'var(--pink)'}} onClick={handleSave}>{editCycleId?'UPDATE CYCLE':'SAVE CYCLE'}</button>
+            <button className="form-cancel" onClick={()=>{setShowForm(false);setEditCycleId(null);}}>Cancel</button>
           </div>
         </div>
       )}
@@ -1422,14 +1536,7 @@ const ProfilePage = ({user, setUser, partner, setPartner, sharingConfig, setShar
               </div>
               <div className={`toggle-switch ${pushNotifs?'on':'off'}`} onClick={()=>setPushNotifs(p=>!p)}/>
             </div>
-            <div className="divider"/>
-            <div className="toggle-row">
-              <div>
-                <div className="toggle-info-title">Dark Mode</div>
-                <div className="toggle-info-sub">Terminal dark theme (recommended)</div>
-              </div>
-              <div className={`toggle-switch ${darkMode?'on':'off'}`} onClick={()=>setDarkMode(p=>!p)}/>
-            </div>
+
           </div>
 
           {/* Event Color */}
