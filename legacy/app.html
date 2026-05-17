@@ -269,81 +269,41 @@
     .cal-dot{width:5px;height:5px;border-radius:50%;}
     .cal-dot.fin{background:var(--green);}
     .cal-dot.work{background:var(--blue);}
-    .cal-dot.personal{background:var(--yellow);}
-    .cal-dot.cycle{background:var(--pink);}
-    .cal-dot.fertile{background:var(--teal);}
-    .cal-legend{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:14px;}
-    .cal-legend-item{display:flex;align-items:center;gap:5px;font-family:'DM Mono',monospace;font-size:9px;color:var(--text3);letter-spacing:0.06em;}
-    .cal-legend-dot{width:7px;height:7px;border-radius:50%;}
-    .no-events{display:flex;flex-direction:column;align-items:center;padding:40px 20px;gap:12px;}
-    .no-events-icon{font-size:36px;opacity:0.3;}
-    .no-events-text{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--text3);}
+    .cal-dot.health{background:var(--purple);}
+    .cal-dot.personal{background:var(--pink);}
+    .cal-legend{display:flex;flex-wrap:wrap;gap:12px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:12px;margin-bottom:16px;}
+    .cal-legend-item{display:flex;align-items:center;gap:6px;font-family:'DM Mono',monospace;font-size:9px;color:var(--text2);}
+    .evt-card{background:var(--bg2);border-radius:6px;padding:12px 14px;margin-bottom:6px;border-left:2px solid transparent;}
+    .evt-card.fin{border-left-color:var(--green);}
+    .evt-card.work{border-left-color:var(--blue);}
+    .evt-card.health{border-left-color:var(--purple);}
+    .evt-card.personal{border-left-color:var(--pink);}
+    .evt-top{display:flex;align-items:center;justify-content:between;margin-bottom:4px;}
+    .evt-title{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:16px;letter-spacing:0.04em;text-transform:uppercase;color:var(--text);}
+    .evt-time{font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);}
+    .evt-desc{font-family:'DM Mono',monospace;font-size:11px;color:var(--text2);margin-top:2px;}
+    .no-events{background:var(--bg2);border:1px dashed var(--border2);border-radius:6px;padding:40px 16px;text-align:center;}
+    .no-events-icon{font-size:24px;margin-bottom:8px;opacity:0.6;}
+    .no-events-text{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.08em;color:var(--text3);text-transform:uppercase;}
 
-    /* ── CYCLE TRACKER ── */
-    .cycle-stats-card{background:var(--bg2);border:1px solid var(--border2);border-radius:6px;padding:14px;margin-bottom:14px;}
-    .cycle-stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
-    .cycle-stat-label{font-family:'DM Mono',monospace;font-size:8px;letter-spacing:0.12em;text-transform:uppercase;color:var(--text3);margin-bottom:4px;}
-    .cycle-stat-value{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:16px;letter-spacing:0.04em;}
-    .cycle-stat-value.start{color:var(--pink);}
-    .cycle-stat-value.next {color:var(--pink);}
-    .cycle-stat-value.fertile{color:var(--teal);}
-    .cycle-date-nav{display:flex;align-items:center;gap:12px;margin-bottom:14px;}
-    .cycle-date-label{flex:1;text-align:center;display:flex;align-items:center;justify-content:center;gap:8px;font-family:'DM Mono',monospace;font-size:10px;color:var(--text);letter-spacing:0.08em;}
-    .cycle-today-btn{padding:4px 10px;background:var(--green);color:#000;border-radius:3px;font-family:'DM Mono',monospace;font-size:9px;font-weight:500;letter-spacing:0.1em;}
-    .phase-wheel-wrap{display:flex;flex-direction:column;align-items:center;margin-bottom:14px;}
-    .phase-legend{display:grid;grid-template-columns:1fr 1fr;gap:8px 20px;margin-top:10px;}
-    .phase-legend-item{display:flex;align-items:center;gap:6px;font-family:'DM Mono',monospace;font-size:9px;color:var(--text3);letter-spacing:0.06em;}
-    .phase-legend-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
-    .cycle-record-card{background:var(--bg2);border-radius:6px;border-left:3px solid var(--pink);padding:14px;margin-bottom:8px;}
-    .cycle-record-start{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:17px;letter-spacing:0.04em;text-transform:uppercase;color:var(--pink);display:flex;align-items:center;gap:8px;margin-bottom:8px;}
-    .cycle-record-icon{font-size:18px;}
-    .cycle-record-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px;}
-    .cycle-record-label{font-family:'DM Mono',monospace;font-size:8px;letter-spacing:0.12em;text-transform:uppercase;color:var(--text3);margin-bottom:2px;}
-    .cycle-record-value{font-family:'DM Mono',monospace;font-size:11px;color:var(--text2);}
-    .symptom-tags{display:flex;flex-wrap:wrap;gap:6px;}
-    .symptom-tag{font-family:'DM Mono',monospace;font-size:9px;color:var(--text2);background:var(--bg3);border:1px solid var(--border2);border-radius:3px;padding:3px 8px;}
-
-    /* ── PROFILE ── */
-    .profile-user-card{background:var(--bg2);border-radius:6px;padding:14px;margin-bottom:16px;display:flex;align-items:center;gap:14px;}
-    .profile-user-avatar{width:52px;height:52px;border-radius:50%;object-fit:cover;flex-shrink:0;}
-    .profile-user-name{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:22px;letter-spacing:0.04em;text-transform:uppercase;color:var(--text);}
-    .profile-user-email{font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);margin-top:2px;}
-    .profile-user-badge{display:inline-flex;padding:2px 8px;border-radius:3px;font-family:'DM Mono',monospace;font-size:9px;font-weight:500;letter-spacing:0.1em;text-transform:uppercase;margin-top:4px;}
-    .profile-user-badge.female{background:rgba(233,30,140,0.15);color:var(--pink);}
-    .profile-user-badge.male{background:rgba(68,138,255,0.15);color:var(--blue);}
-    .switch-btn{margin-left:auto;padding:8px 14px;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;font-family:'DM Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.1em;text-transform:uppercase;color:var(--text2);flex-shrink:0;}
-    .partner-sharing-card{background:var(--bg2);border-radius:6px;padding:14px;margin-bottom:16px;}
-    .partner-row{display:flex;align-items:center;gap:12px;margin-bottom:12px;}
-    .partner-avatar{width:40px;height:40px;border-radius:50%;object-fit:cover;}
-    .partner-info-name{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:16px;letter-spacing:0.04em;text-transform:uppercase;color:var(--text);}
-    .partner-info-status{font-family:'DM Mono',monospace;font-size:9px;color:var(--text3);}
-    .share-all-btn{margin-left:auto;padding:7px 12px;border-radius:4px;font-family:'DM Mono',monospace;font-size:9px;font-weight:500;letter-spacing:0.1em;text-transform:uppercase;flex-shrink:0;}
-    .share-all-btn.sharing{background:rgba(0,230,118,0.12);border:1px solid rgba(0,230,118,0.3);color:var(--green);}
-    .share-all-btn.not-sharing{background:var(--bg3);border:1px solid var(--border2);color:var(--text3);}
-    .partner-hint{font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);line-height:1.5;margin-bottom:12px;}
-    .sharing-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
-    .sharing-item{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-radius:4px;border:1px solid var(--border);}
-    .sharing-item.on{border-color:rgba(0,230,118,0.3);background:rgba(0,230,118,0.06);}
-    .sharing-item-label{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--text2);}
-    .sharing-check{width:18px;height:18px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:11px;}
-    .sharing-check.on{background:var(--green);color:#000;}
-    .sharing-check.off{background:var(--bg4);border:1px solid var(--border2);}
-    .profile-section{background:var(--bg2);border-radius:6px;margin-bottom:12px;overflow:hidden;}
-    .profile-section-title{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:var(--pink);padding:12px 14px;border-bottom:1px solid var(--border);}
-    .profile-field{padding:12px 14px;border-bottom:1px solid var(--border);}
-    .profile-field:last-child{border-bottom:none;}
-    .profile-field-label{font-family:'DM Mono',monospace;font-size:8px;letter-spacing:0.14em;text-transform:uppercase;color:var(--text3);margin-bottom:4px;}
-    .profile-field-input{width:100%;background:transparent;border:none;outline:none;font-family:'Space Grotesk',sans-serif;font-size:14px;color:var(--text);}
-    .toggle-row{display:flex;align-items:center;justify-content:space-between;padding:14px;}
-    .toggle-info-title{font-family:'Space Grotesk',sans-serif;font-weight:500;font-size:13px;color:var(--text);margin-bottom:2px;}
-    .toggle-info-sub{font-family:'DM Mono',monospace;font-size:9px;color:var(--text3);}
-    .toggle-switch{width:44px;height:24px;border-radius:12px;position:relative;flex-shrink:0;cursor:pointer;transition:background 0.2s;}
+    /* ── PROFILE PAGE ── */
+    .profile-banner{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:20px;text-align:center;margin-bottom:16px;}
+    .profile-avatar-wrapper{position:relative;width:80px;height:80px;margin:0 auto 12px;cursor:pointer;}
+    .profile-avatar-big{width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid var(--pink);}
+    .profile-avatar-edit{position:absolute;bottom:0;right:0;width:24px;height:24px;background:var(--pink);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;color:#fff;}
+    .profile-name-big{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:24px;letter-spacing:0.02em;text-transform:uppercase;color:var(--text);line-height:1.2;}
+    .profile-username-big{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.06em;color:var(--text3);text-transform:uppercase;margin-top:2px;}
+    .profile-section{background:var(--bg2);border:1px solid var(--border);border-radius:6px;overflow:hidden;margin-bottom:12px;}
+    .profile-section-title{background:var(--bg3);padding:8px 14px;font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.16em;text-transform:uppercase;color:var(--pink);border-bottom:1px solid var(--border);}
+    .profile-row-toggle{display:flex;align-items:center;justify-content:space-between;padding:14px;border-bottom:1px solid var(--border);}
+    .profile-row-toggle:last-child{border-bottom:none;}
+    .toggle-info-label{font-family:'Space Grotesk',sans-serif;font-weight:500;font-size:13px;color:var(--text);}
+    .toggle-info-sub{font-family:'DM Mono',monospace;font-size:9px;color:var(--text3);margin-top:1px;}
+    .toggle-switch{width:42px;height:24px;border-radius:12px;background:var(--bg4);position:relative;cursor:pointer;transition:background 0.2s;}
+    .toggle-switch::after{content:'';position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform 0.2s;}
     .toggle-switch.on{background:var(--green);}
-    .toggle-switch.off{background:var(--bg4);}
-    .toggle-switch::after{content:'';position:absolute;top:2px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left 0.2s;}
-    .toggle-switch.on::after{left:22px;}
-    .toggle-switch.off::after{left:2px;}
-    .color-palette{display:flex;gap:10px;padding:14px;}
+    .toggle-switch.on::after{transform:translateX(18px);}
+    .color-palette{display:flex;gap:8px;padding:4px 14px 14px;flex-wrap:wrap;}
     .color-swatch{width:36px;height:36px;border-radius:50%;cursor:pointer;transition:transform 0.15s;position:relative;}
     .color-swatch:active{transform:scale(0.9);}
     .color-swatch.selected::after{content:'✓';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#000;}
@@ -361,1532 +321,1216 @@
       max-width:520px;
       max-height:85vh;
       overflow-y:auto;
-      padding:20px 16px 40px;
+      padding:20px;
+      box-shadow:0 -8px 32px rgba(0,0,0,0.5);
+      border:1px solid var(--border2);
+      border-bottom:none;
     }
-    @media(min-width:600px){
-      .modal-overlay{align-items:center;}
-      .modal-sheet{border-radius:12px;max-height:80vh;margin:0 16px;}
-    }
-    .modal-handle{width:36px;height:4px;background:var(--bg4);border-radius:2px;margin:0 auto 16px;}
-    .modal-title{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:22px;letter-spacing:0.04em;text-transform:uppercase;color:var(--text);margin-bottom:16px;}
+    .modal-title{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:22px;letter-spacing:0.04em;text-transform:uppercase;color:var(--text);margin-bottom:16px;}
     .form-field{margin-bottom:14px;}
-    .form-label{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:var(--text3);margin-bottom:6px;display:block;}
-    .form-input{width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:11px 14px;font-family:'Space Grotesk',sans-serif;font-size:14px;color:var(--text);outline:none;transition:border-color 0.2s;}
+    .form-label{display:block;font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text3);margin-bottom:6px;}
+    .form-input{width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:12px 14px;font-family:inherit;font-size:13px;color:var(--text);outline:none;}
     .form-input:focus{border-color:var(--pink);}
-    .form-input::placeholder{color:var(--text3);}
-    .form-select{width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:11px 14px;font-family:'Space Grotesk',sans-serif;font-size:14px;color:var(--text);outline:none;-webkit-appearance:none;cursor:pointer;}
-    .form-select option{background:var(--bg3);}
-    .type-toggle{display:flex;gap:6px;flex-wrap:wrap;}
-    .type-toggle-btn{padding:7px 14px;border-radius:4px;font-family:'DM Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.1em;text-transform:uppercase;border:1px solid var(--border2);color:var(--text3);background:var(--bg3);transition:all 0.2s;}
-    .type-toggle-btn.active{border-color:var(--pink);color:var(--pink);background:rgba(233,30,140,0.1);}
-    .form-submit{width:100%;padding:14px;background:var(--pink);color:#fff;border-radius:6px;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:16px;letter-spacing:0.1em;text-transform:uppercase;margin-top:8px;transition:background 0.2s;}
-    .form-submit:active{background:var(--pink2);}
-    .form-cancel{width:100%;padding:12px;color:var(--text3);font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;margin-top:6px;}
+    .form-submit{width:100%;padding:14px;background:var(--green);color:#000;border-radius:4px;font-family:'DM Mono',monospace;font-size:11px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;margin-top:8px;}
+    .form-cancel{width:100%;padding:12px;background:transparent;color:var(--text3);border-radius:4px;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;margin-top:6px;text-align:center;}
+    .type-toggle{display:flex;gap:4px;background:var(--bg3);padding:3px;border-radius:4px;border:1px solid var(--border2);}
+    .type-toggle-btn{flex:1;padding:8px 0;font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);text-transform:uppercase;border-radius:3px;text-align:center;}
+    .type-toggle-btn.active{background:var(--bg4);color:var(--text);}
+    .type-toggle-btn.active.fin{color:var(--green);}
+    .type-toggle-btn.active.work{color:var(--blue);}
+    .type-toggle-btn.active.health{color:var(--purple);}
+    .type-toggle-btn.active.personal{color:var(--pink);}
 
-    /* ── ALERT ── */
-    .alert{padding:10px 14px;border-radius:4px;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.08em;margin-bottom:12px;}
-    .alert.ok {background:rgba(0,230,118,0.1);border:1px solid rgba(0,230,118,0.25);color:var(--green);}
-    .alert.err{background:rgba(255,61,61,0.1);border:1px solid rgba(255,61,61,0.25);color:var(--red);}
-
-    /* ── MISC ── */
-    .divider{height:1px;background:var(--border);margin:12px 0;}
-    @media(min-width:500px){.page-inner{max-width:480px;margin:0 auto;}}
+    /* ── CYCLE GRAPH ── */
+    .cycle-container{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:20px 16px;margin-bottom:16px;display:flex;flex-direction:column;align-items:center;}
+    .cycle-wheel{position:relative;width:260px;height:260px;margin-bottom:16px;}
   </style>
+  <script src="/legacy/auth-guard.js"></script>
 </head>
 <body>
 <div id="root"></div>
+
 <script type="text/babel">
-const { useState, useEffect, useRef, useCallback, useMemo } = React;
+  const { useState, useEffect, useCallback, useMemo } = React;
 
-/* ── CONSTANTS ── */
-const API = '/legacy/api';
-const DP = 'https://placehold.co/50x50/2a2d31/888?text=U';
-const MONTHS = Array.from({length:12},(_,i)=>({v:(i+1).toString().padStart(2,'0'),l:new Date(2026,i,1).toLocaleString('default',{month:'long'})}));
-const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
-const fmtR = n => `R${parseFloat(n||0).toLocaleString('en-ZA',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
-const fmtDate = d => { if(!d)return'—'; const dt=new Date(d); return isNaN(dt)?'—':dt.toLocaleDateString('en-ZA',{year:'numeric',month:'2-digit',day:'2-digit'}); };
-const fmtDateTime = d => { if(!d)return'—'; const dt=new Date(d); return isNaN(dt)?'—':dt.toLocaleString('en-ZA',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).replace(',',''); };
-const now = () => { const n=new Date(); n.setMinutes(n.getMinutes()-n.getTimezoneOffset()); return n.toISOString().slice(0,19); };
-const todayISO = () => new Date().toISOString().slice(0,10);
+  const API = '/legacy/api';
+  const DP = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235a5f65' stroke-width='1.5'%3E%3Ccircle cx='12' cy='9' r='4'/%3E%3Cpath d='M5 20c0-3 3-5 7-5s7 2 7 5'/%3E%3C/svg%3E";
 
-/* ── TAB ICONS (SVG inline) ── */
-const Icons = {
-  finances: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="20" height="20"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>,
-  calendar: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="20" height="20"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
-  budget:   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="20" height="20"><rect x="2" y="3" width="8" height="8" rx="1"/><rect x="14" y="3" width="8" height="8" rx="1"/><rect x="2" y="13" width="8" height="8" rx="1"/><rect x="14" y="13" width="8" height="8" rx="1"/></svg>,
-  gym:      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="20" height="20"><path d="M6 4v16M18 4v16M2 9h4M18 9h4M2 15h4M18 15h4M6 12h12"/></svg>,
-  meals:    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="20" height="20"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>,
-  cycle:    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="20" height="20"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>,
-  profile:  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="20" height="20"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
-  search:   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="14" height="14"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>,
-};
+  const TABS = [
+    { id: 'finances', label: 'Finances' },
+    { id: 'calendar', label: 'Calendar' },
+    { id: 'budget',   label: 'Budget' },
+    { id: 'gym',      label: 'Gym' },
+    { id: 'meals',    label: 'Meals' },
+    { id: 'cycle',    label: 'Cycle' },
+    { id: 'profile',  label: 'Profile' }
+  ];
 
-/* ── SHARED COMPONENTS ── */
-const UserRow = ({user, partner, isShared, onToggleShared}) => (
-  <div className="user-row">
-    <div className="user-chip">
-      <img className="user-chip-avatar" src={user?.profilePicUrl||DP} alt={user?.username} style={{border:`2px solid ${user?.eventColor||'#e91e8c'}`}}/>
-      <span className="user-chip-name">{user?.displayName||user?.username||'USER'}</span>
-      <span className="user-chip-arrow">⌄</span>
-    </div>
-    {partner
-      ? <button className={`badge-shared`} onClick={onToggleShared} style={!isShared?{background:'transparent',border:'1px solid rgba(255,255,255,0.12)',color:'var(--text3)'}:{}}>
-          {isShared ? 'SHARED' : 'SOLO'}
-        </button>
-      : <span className="badge-solo">SOLO</span>
-    }
-    {partner && isShared && (
-      <div className="partner-chip">
-        <img className="partner-chip-avatar" src={partner?.profilePicUrl||DP} alt={partner?.username} style={{border:`2px solid ${partner?.eventColor||'#448aff'}`}}/>
-        <span className="partner-chip-name">+ {partner?.displayName||partner?.username}</span>
-      </div>
-    )}
-  </div>
-);
-
-const Alert = ({msg,type}) => msg ? <div className={`alert ${type||'ok'}`}>{msg}</div> : null;
-
-/* ── FINANCES PAGE ── */
-const FinancesPage = ({user, partner, isShared}) => {
-  const [items, setItems] = useState([]);
-  const [budgets, setBudgets] = useState([]);
-  const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()+1).padStart(2,'0'));
-  const [sortField, setSortField] = useState('date');
-  const [search, setSearch] = useState('');
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({category:'',amount:'',type:'expense',date:now()});
-  const [alert, setAlert] = useState({msg:'',type:''});
-
-  const msg = (m,t='ok') => { setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
-
-  const fetchAll = useCallback(async () => {
-    const users = [user.username, ...(isShared&&partner?[partner.username]:[])];
-    try {
-      const [fins, buds] = await Promise.all([
-        Promise.all(users.map(u=>axios.get(`${API}/financial`,{params:{user:u}}).then(r=>r.data).catch(()=>[]))).then(r=>r.flat()),
-        Promise.all(users.map(u=>axios.get(`${API}/budget`,{params:{user:u}}).then(r=>r.data.map(b=>({...b,expenses:JSON.parse(b.expenses||'[]')}))).catch(()=>[]))).then(r=>r.flat())
-      ]);
-      setItems(fins); setBudgets(buds);
-    } catch {}
-  }, [user.username, partner, isShared]);
-
-  useEffect(()=>{ fetchAll(); },[fetchAll]);
-
-  const filtered = useMemo(()=>{
-    const users = [user.username, ...(isShared&&partner?[partner.username]:[])];
-    let list = items.filter(i=>users.includes(i.user||i.username)&&(i.date||'').slice(5,7)===selectedMonth);
-    if(search) list = list.filter(i=>(i.category||'').toLowerCase().includes(search.toLowerCase()));
-    return [...list].sort((a,b)=>sortField==='amount'?parseFloat(b.amount)-parseFloat(a.amount):new Date(b.date)-new Date(a.date));
-  },[items,selectedMonth,search,sortField,user.username,partner,isShared]);
-
-  const totals = useMemo(()=>{
-    const inc = filtered.filter(i=>i.type==='income').reduce((s,i)=>s+parseFloat(i.amount||0),0);
-    const exp = filtered.filter(i=>i.type==='expense').reduce((s,i)=>s+parseFloat(i.amount||0),0);
-    return {inc,exp,net:inc-exp};
-  },[filtered]);
-
-  const handleSave = async () => {
-    if(!form.category||!form.amount){msg('Fill all fields.','err');return;}
-    try {
-      await axios.post(`${API}/financial`,{user:user.username,category:form.category,amount:parseFloat(form.amount),type:form.type,date:form.date});
-      msg('Saved.');setShowForm(false);setForm({category:'',amount:'',type:'expense',date:now()});fetchAll();
-    } catch { msg('Error.','err'); }
+  const ICONS = {
+    finances: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="20" height="20"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>,
+    calendar: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="20" height="20"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>,
+    budget:   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="20" height="20"><path d="M21.21 15.89A10 10 0 1 1 8 2.83M22 12A10 10 0 0 0 12 2v10z"/></svg>,
+    gym:      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="20" height="20"><path d="M6.5 6.5h11M6.5 17.5h11M3 10h18M3 14h18M3 6.5A3.5 3.5 0 0 1 6.5 3h11A3.5 3.5 0 0 1 21 6.5v11a3.5 3.5 0 0 1-3.5 3.5h-11A3.5 3.5 0 0 1 3 17.5z"/></svg>,
+    meals:    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="20" height="20"><path d="M12 2v20M17 5H9.5A3.5 3.5 0 0 0 9.5 12h5a3.5 3.5 0 0 1 0 7H6"/></svg>,
+    cycle:    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="20" height="20"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="M12 6v6l4 2"/></svg>,
+    profile:  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="20" height="20"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
+    logout:   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="20" height="20"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>,
+    search:   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="14" height="14"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>,
   };
 
-  const monthLabel = MONTHS.find(m=>m.v===selectedMonth)?.l||'';
-  const isShared2 = isShared && partner;
-
-  return (
-    <div className="page-outer">
-      <div className="top-bar"><span className="top-eyebrow"><span>§ VECTRA ARCH</span> · LEGACY · FINANCIAL</span></div>
-      <div className="page-scroll">
-        <div className="page-inner">
-          <div className="page-head">
-            <div className="page-title">FINANCES</div>
-            <div className="page-sub">{isShared2?'COMBINED HOUSEHOLD TOTALS':'INCOME · EXPENSES · NET TOTAL'}</div>
-          </div>
-          <UserRow user={user} partner={partner} isShared={isShared}/>
-          <div className="toolbar-row">
-            <div className="tb-chip">
-              <span style={{fontSize:'9px',fontFamily:"'DM Mono',monospace",letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--text3)'}}>MONTH</span>
-              <select value={selectedMonth} onChange={e=>setSelectedMonth(e.target.value)}>
-                {MONTHS.map(m=><option key={m.v} value={m.v}>{m.l} 2026</option>)}
-              </select>
-            </div>
-            <div className={`tb-chip ${sortField==='date'?'sort-active':''}`} onClick={()=>setSortField('date')} style={{cursor:'pointer'}}>
-              <span style={{fontSize:'9px',fontFamily:"'DM Mono',monospace",letterSpacing:'0.1em',textTransform:'uppercase'}}>SORT</span>
-              <span style={{fontFamily:"'DM Mono',monospace",fontSize:'10px'}}>Date</span>
-            </div>
-          </div>
-          <div className="search-bar">
-            {Icons.search}
-            <input placeholder="SEARCH TRANSACTIONS..." value={search} onChange={e=>setSearch(e.target.value)}/>
-          </div>
-          <Alert {...alert}/>
-
-          {/* Summary */}
-          <div className="section-label">§ SUMMARY · {monthLabel.toUpperCase()} 2026</div>
-          <div className="summary-card">
-            <div className="summary-grid">
-              <div>
-                <div className="summary-item-label">Income</div>
-                <div className={`summary-item-value income`}>{fmtR(totals.inc)}</div>
-              </div>
-              <div>
-                <div className="summary-item-label">Expenses</div>
-                <div className="summary-item-value expense">{fmtR(totals.exp)}</div>
-              </div>
-              <div>
-                <div className="summary-item-label">Net</div>
-                <div className={`summary-item-value ${totals.net>=0?'net-pos':'net-neg'}`}>{fmtR(totals.net)}</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Items */}
-          <div className="section-label">§ ITEMS · {filtered.length} RECORDS</div>
-          <div className="item-list">
-            {filtered.map(item=>(
-              <div key={item.id} className="item-card">
-                <img className="item-avatar" src={item.user===user.username?(user.profilePicUrl||DP):(partner?.profilePicUrl||DP)} alt="" style={{border:`2px solid ${item.user===user.username?(user.eventColor||'#e91e8c'):(partner?.eventColor||'#448aff')}`}}/>
-                <div className="item-body">
-                  <div className="item-title">
-                    <span className={`item-tag ${item.user===user.username?(user.username==='jane'?'jane':'joe'):'joe'}`}>{(item.user||'').toUpperCase().slice(0,4)}</span>
-                    {(item.category||'').toUpperCase()}
-                  </div>
-                  <div className="item-sub">{fmtDate(item.date)} · {item.category||''}</div>
-                </div>
-                <div className={`item-amount ${item.type}`}>{fmtR(item.amount)}</div>
-              </div>
-            ))}
-          </div>
-          {filtered.length===0&&<div className="no-events"><div className="no-events-text">No transactions for {monthLabel}</div></div>}
-        </div>
+  /* ── SHARED COMPONENTS ── */
+  const UserRow = ({user, partner, isShared, onToggleShared}) => (
+    <div className="user-row">
+      <div className="user-chip">
+        <img className="user-chip-avatar" src={user?.profilePicUrl||DP} alt={user?.username} style={{border:`2px solid ${user?.eventColor||'#e91e8c'}`}}/>
+        <span className="user-chip-name">{user?.displayName||user?.username||'USER'}</span>
+        <span className="user-chip-arrow">⌄</span>
       </div>
-      <button className="fab" onClick={()=>setShowForm(true)}>+ ADD ITEM</button>
-
-      {showForm&&(
-        <div className="modal-overlay" onClick={()=>setShowForm(false)}>
-          <div className="modal-sheet" onClick={e=>e.stopPropagation()}>
-            <div className="modal-handle"/>
-            <div className="modal-title">Add Transaction</div>
-            <div className="form-field">
-              <label className="form-label">Category</label>
-              <input className="form-input" placeholder="e.g. Groceries" value={form.category} onChange={e=>setForm(p=>({...p,category:e.target.value}))}/>
-            </div>
-            <div className="form-field">
-              <label className="form-label">Amount (ZAR)</label>
-              <input className="form-input" type="number" placeholder="0.00" value={form.amount} onChange={e=>setForm(p=>({...p,amount:e.target.value}))}/>
-            </div>
-            <div className="form-field">
-              <label className="form-label">Type</label>
-              <div className="type-toggle">
-                {['income','expense'].map(t=><button key={t} className={`type-toggle-btn ${form.type===t?'active':''}`} onClick={()=>setForm(p=>({...p,type:t}))}>{t.toUpperCase()}</button>)}
-              </div>
-            </div>
-            <div className="form-field">
-              <label className="form-label">Date</label>
-              <input className="form-input" type="datetime-local" value={form.date} onChange={e=>setForm(p=>({...p,date:e.target.value}))} step="1"/>
-            </div>
-            <button className="form-submit" onClick={handleSave}>SAVE</button>
-            <button className="form-cancel" onClick={()=>setShowForm(false)}>Cancel</button>
-          </div>
+      {partner ? (
+        <button className={`badge-shared`} onClick={onToggleShared} style={!isShared?{background:'transparent',border:'1px solid rgba(255,255,255,0.12)',color:'var(--text3)'}:{}}>
+          {isShared ? 'SHARED' : 'SOLO'}
+        </button>
+      ) : <span className="badge-solo">SOLO</span>}
+      {partner && isShared && (
+        <div className="partner-chip">
+          <img className="partner-chip-avatar" src={partner?.profilePicUrl||DP} alt=""/>
+          <span className="partner-chip-name">{partner?.displayName||partner?.username}</span>
         </div>
       )}
     </div>
   );
-};
 
-/* ── CALENDAR PAGE ── */
-const CalendarPage = ({user, partner, isShared}) => {
-  const [events, setEvents] = useState([]);
-  const [viewDate, setViewDate] = useState(new Date());
-  const [selectedDay, setSelectedDay] = useState(new Date());
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({title:'',date:now(),type:'personal'});
-  const [alert, setAlert] = useState({msg:'',type:''});
-
-  const msg = (m,t='ok')=>{ setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
-
-  const fetchEvents = useCallback(async()=>{
-    const users=[user.username,...(isShared&&partner?[partner.username]:[])];
-    try {
-      const all = await Promise.all(users.map(u=>axios.get(`${API}/calendar`,{params:{user:u}}).then(r=>r.data).catch(()=>[])));
-      setEvents(all.flat());
-    } catch {}
-  },[user.username,partner,isShared]);
-
-  useEffect(()=>{ fetchEvents(); },[fetchEvents]);
-
-  const daysInMonth = useMemo(()=>{
-    const year=viewDate.getFullYear(), month=viewDate.getMonth();
-    const first=new Date(year,month,1);
-    const last=new Date(year,month+1,0);
-    const days=[];
-    // pad start (Monday=0)
-    let dow=(first.getDay()+6)%7;
-    for(let i=0;i<dow;i++) days.push({date:new Date(year,month,1-dow+i),otherMonth:true});
-    for(let d=1;d<=last.getDate();d++) days.push({date:new Date(year,month,d),otherMonth:false});
-    // pad end
-    const rem=7-(days.length%7); if(rem<7) for(let i=1;i<=rem;i++) days.push({date:new Date(year,month+1,i),otherMonth:true});
-    return days;
-  },[viewDate]);
-
-  const getEventsForDay = (date) => events.filter(e=>{
-    if(!e.date) return false;
-    const d=new Date(e.date);
-    return d.getFullYear()===date.getFullYear()&&d.getMonth()===date.getMonth()&&d.getDate()===date.getDate();
-  });
-
-  const selectedEvents = useMemo(()=>getEventsForDay(selectedDay),[selectedDay,events]);
-
-  const eventType = e => {
-    if(e.financial) return 'fin';
-    if((e.title||'').toLowerCase().includes('work')) return 'work';
-    if((e.title||'').toLowerCase().includes('cycle')||(e.title||'').toLowerCase().includes('period')) return 'cycle';
-    return 'personal';
+  const Alert = ({msg, type}) => {
+    if(!msg) return null;
+    const bg = type==='ok' ? 'rgba(0,230,118,0.1)' : 'rgba(255,61,61,0.1)';
+    const col = type==='ok' ? 'var(--green)' : 'var(--red)';
+    const border = type==='ok' ? '1px solid rgba(0,230,118,0.2)' : '1px solid rgba(255,61,61,0.2)';
+    return (
+      <div style={{padding:'12px',borderRadius:'4px',background:bg,color:col,border:border,fontFamily:"'DM Mono',monospace",fontSize:'11px',marginBottom:'14px',textTransform:'uppercase',letterSpacing:'0.04em'}}>
+        {type==='ok'?'✓':'⚠'} {msg}
+      </div>
+    );
   };
 
-  const handleSave = async()=>{
-    if(!form.title||!form.date){msg('Title and date required.','err');return;}
-    try {
-      await axios.post(`${API}/calendar`,{user:user.username,title:form.title,date:form.date,financial:false});
-      msg('Event added.');setShowForm(false);setForm({title:'',date:now(),type:'personal'});fetchEvents();
-    } catch { msg('Error.','err'); }
+  const fmtDate = (dStr) => {
+    if(!dStr) return '';
+    const d = new Date(dStr);
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase();
+  };
+  const fmtR = (v) => 'R ' + (parseFloat(v)||0).toFixed(2);
+  const now = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   };
 
-  const prevMonth=()=>setViewDate(d=>new Date(d.getFullYear(),d.getMonth()-1,1));
-  const nextMonth=()=>setViewDate(d=>new Date(d.getFullYear(),d.getMonth()+1,1));
-  const goToday=()=>{const t=new Date();setViewDate(t);setSelectedDay(t);};
-  const monthLabel=viewDate.toLocaleString('default',{month:'long'}).toUpperCase();
-  const selLabel=selectedDay.toISOString().slice(0,10);
+  /* ── FINANCES PAGE ── */
+  const FinancesPage = ({user, partner, isShared}) => {
+    const [txs, setTxs] = useState([]);
+    const [search, setSearch] = useState('');
+    const [showForm, setShowForm] = useState(false);
+    const [form, setForm] = useState({type:'expense',category:'Groceries',amount:'',date:now(),description:''});
+    const [alert, setAlert] = useState({msg:'',type:''});
+    const msg=(m,t='ok')=>{ setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
 
-  return (
-    <div className="page-outer">
-      <div className="top-bar"><span className="top-eyebrow"><span>§ VECTRA ARCH</span> · LEGACY · CALENDAR</span></div>
-      <div className="page-scroll">
-        <div className="page-inner">
-          <div className="page-head">
-            <div className="page-title">CALENDAR</div>
-            <div className="page-sub">EVENTS · CYCLE · SCHEDULE</div>
-          </div>
-          <UserRow user={user} partner={partner} isShared={isShared}/>
-          <Alert {...alert}/>
+    const fetchAll = useCallback(async () => {
+      const users = [user.username, ...(isShared && partner ? [partner.username] : [])];
+      try {
+        const res = await Promise.all(users.map(u => axios.get(`${API}/financetransaction`, { params: { user: u } }).then(r => r.data)));
+        setTxs(res.flat().sort((a,b)=>new Date(b.date)-new Date(a.date)));
+      } catch {}
+    }, [user.username, partner, isShared]);
 
-          {/* Nav */}
-          <div className="cal-nav">
-            <button className="cal-nav-btn" onClick={prevMonth}>‹</button>
-            <div className="cal-nav-month">{monthLabel} {viewDate.getFullYear()}</div>
-            <button className="cal-nav-btn" onClick={nextMonth}>›</button>
-            <button className="cal-today-btn" onClick={goToday}>TODAY</button>
-          </div>
+    useEffect(() => { fetchAll(); }, [fetchAll]);
 
-          {/* Grid */}
-          <div className="cal-grid">
-            {['MON','TUE','WED','THU','FRI','SAT','SUN'].map(d=><div key={d} className="cal-dow">{d}</div>)}
-            {daysInMonth.map((item,i)=>{
-              const isToday=item.date.toDateString()===new Date().toDateString();
-              const isSelected=item.date.toDateString()===selectedDay.toDateString();
-              const dayEvts=getEventsForDay(item.date);
-              return (
-                <div key={i} className={`cal-day${item.otherMonth?' other-month':''}${isToday?' today':''}${isSelected?' selected':''}`}
-                  onClick={()=>setSelectedDay(item.date)}>
-                  <div className="cal-day-num">{item.date.getDate()}</div>
-                  {dayEvts.length>0&&(
-                    <div className="cal-day-dots">
-                      {dayEvts.slice(0,3).map((e,j)=><div key={j} className={`cal-dot ${eventType(e)}`}/>)}
+    const handleSave = async () => {
+      if(!form.amount || !form.category) return msg('Missing fields','err');
+      try {
+        await axios.post(`${API}/financetransaction`, { ...form, amount: parseFloat(form.amount), user: user.username });
+        msg('Transaction recorded');
+        setShowForm(false);
+        setForm({type:'expense',category:'Groceries',amount:'',date:now(),description:''});
+        fetchAll();
+      } catch { msg('Error saving','err'); }
+    };
+
+    const filtered = txs.filter(t => (t.category||'').toLowerCase().includes(search.toLowerCase()) || (t.description||'').toLowerCase().includes(search.toLowerCase()));
+
+    const totals = useMemo(() => {
+      let inc=0, exp=0;
+      filtered.forEach(t => {
+        const a = parseFloat(t.amount)||0;
+        if(t.type==='income') inc+=a; else exp+=a;
+      });
+      return { inc, exp, net: inc - exp };
+    }, [filtered]);
+
+    const monthLabel = new Date().toLocaleDateString('en-US',{month:'long'});
+
+    return (
+      <div className="page-outer">
+        <div className="top-bar"><span className="top-eyebrow"><span>§ VECTRA ARCH</span> · LEGACY · FINANCIAL</span></div>
+        <div className="page-scroll">
+          <div className="page-inner">
+            <div className="page-head">
+              <div className="page-title">TRANSACTIONS</div>
+              <div className="page-sub">FLOWS · RECORDS · LEDGER</div>
+            </div>
+            <UserRow user={user} partner={partner} isShared={isShared}/>
+            <div className="search-bar">
+              <span className="search-icon">⌕</span>
+              <input placeholder="SEARCH TRANSACTIONS..." value={search} onChange={e=>setSearch(e.target.value)}/>
+            </div>
+            <Alert {...alert}/>
+            <div className="section-label">§ SUMMARY · {monthLabel.toUpperCase()} 2026</div>
+            <div className="summary-card">
+              <div className="summary-grid">
+                <div>
+                  <div className="summary-item-label">Income</div>
+                  <div className={`summary-item-value income`}>{fmtR(totals.inc)}</div>
+                </div>
+                <div>
+                  <div className="summary-item-label">Expenses</div>
+                  <div className="summary-item-value expense">{fmtR(totals.exp)}</div>
+                </div>
+                <div>
+                  <div className="summary-item-label">Net</div>
+                  <div className={`summary-item-value ${totals.net>=0?'net-pos':'net-neg'}`}>{fmtR(totals.net)}</div>
+                </div>
+              </div>
+            </div>
+            <div className="section-label">§ ITEMS · {filtered.length} RECORDS</div>
+            <div className="item-list">
+              {filtered.map(item=>(
+                <div key={item.id} className="item-card">
+                  <img className="item-avatar" src={item.user===user.username?(user.profilePicUrl||DP):(partner?.profilePicUrl||DP)} alt="" style={{border:`2px solid ${item.user===user.username?(user.eventColor||'#e91e8c'):(partner?.eventColor||'#448aff')}`}}/>
+                  <div className="item-body">
+                    <div className="item-title">
+                      <span className={`item-tag ${item.user===user.username?(user.username==='jane'?'jane':'joe'):'joe'}`}>{(item.user||'').toUpperCase().slice(0,4)}</span>
+                      {(item.category||'').toUpperCase()}
                     </div>
+                    <div className="item-sub">{fmtDate(item.date)} · {item.description||item.category}</div>
+                  </div>
+                  <div className={`item-amount ${item.type}`}>{fmtR(item.amount)}</div>
+                </div>
+              ))}
+            </div>
+            {filtered.length===0&&<div className="no-events"><div className="no-events-icon">💸</div><div className="no-events-text">NO TRANSACTIONS FOUND</div></div>}
+            <div style={{height:'80px'}}/>
+          </div>
+        </div>
+        <button className="fab" onClick={()=>setShowForm(true)}>+ ADD RECORD</button>
+
+        {showForm && (
+          <div className="modal-overlay" onClick={()=>setShowForm(false)}>
+            <div className="modal-sheet" onClick={e=>e.stopPropagation()}>
+              <div className="modal-title">NEW TRANSACTION</div>
+              <div className="form-field">
+                <label className="form-label">Type</label>
+                <div className="type-toggle">
+                  <button className={`type-toggle-btn ${form.type==='expense'?'active':''}`} onClick={()=>setForm(p=>({...p,type:'expense'}))}>Expense</button>
+                  <button className={`type-toggle-btn ${form.type==='income'?'active':''}`} onClick={()=>setForm(p=>({...p,type:'income'}))}>Income</button>
+                </div>
+              </div>
+              <div className="form-field">
+                <label className="form-label">Category</label>
+                <input className="form-input" value={form.category} onChange={e=>setForm(p=>({...p,category:e.target.value}))}/>
+              </div>
+              <div className="form-field">
+                <label className="form-label">Amount (ZAR)</label>
+                <input className="form-input" type="number" placeholder="0.00" value={form.amount} onChange={e=>setForm(p=>({...p,amount:e.target.value}))}/>
+              </div>
+              <div className="form-field">
+                <label className="form-label">Date</label>
+                <input className="form-input" type="date" value={form.date} onChange={e=>setForm(p=>({...p,date:e.target.value}))}/>
+              </div>
+              <div className="form-field">
+                <label className="form-label">Description (optional)</label>
+                <input className="form-input" value={form.description} onChange={e=>setForm(p=>({...p,description:e.target.value}))}/>
+              </div>
+              <button className="form-submit" onClick={handleSave}>SAVE TRANSACTION</button>
+              <button className="form-cancel" onClick={()=>setShowForm(false)}>Cancel</button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  /* ── CALENDAR PAGE ── */
+  const CalendarPage = ({user, partner, isShared}) => {
+    const [events, setEvents] = useState([]);
+    const [viewDate, setViewDate] = useState(new Date());
+    const [selectedDay, setSelectedDay] = useState(new Date());
+    const [showForm, setShowForm] = useState(false);
+    const [form, setForm] = useState({title:'',type:'personal',time:'12:00',date:now(),description:''});
+    const [alert, setAlert] = useState({msg:'',type:''});
+    const msg=(m,t='ok')=>{ setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
+
+    const fetchAll = useCallback(async () => {
+      const users = [user.username, ...(isShared && partner ? [partner.username] : [])];
+      try {
+        const res = await Promise.all(users.map(u => axios.get(`${API}/calendarevent`, { params: { user: u } }).then(r => r.data)));
+        setEvents(res.flat());
+      } catch {}
+    }, [user.username, partner, isShared]);
+
+    useEffect(() => { fetchAll(); }, [fetchAll]);
+
+    const handleSave = async () => {
+      if(!form.title) return msg('Title required','err');
+      try {
+        await axios.post(`${API}/calendarevent`, { ...form, user: user.username });
+        msg('Event scheduled');
+        setShowForm(false);
+        setForm({title:'',type:'personal',time:'12:00',date:now(),description:''});
+        fetchAll();
+      } catch { msg('Error saving event','err'); }
+    };
+
+    const daysInMonth = useMemo(() => {
+      const year = viewDate.getFullYear();
+      const month = viewDate.getMonth();
+      const first = new Date(year, month, 1);
+      const last = new Date(year, month + 1, 0);
+      let startDow = first.getDay() - 1; if(startDow < 0) startDow = 6;
+      const arr = [];
+      for (let i = startDow - 1; i >= 0; i--) { arr.push({ date: new Date(year, month, -i), otherMonth: true }); }
+      for (let d = 1; d <= last.getDate(); d++) { arr.push({ date: new Date(year, month, d), otherMonth: false }); }
+      const totalGrid = 42;
+      const remain = totalGrid - arr.length;
+      for (let x = 1; x <= remain; x++) { arr.push({ date: new Date(year, month + 1, x), otherMonth: true }); }
+      return arr;
+    }, [viewDate]);
+
+    const getEventsForDay = (d) => events.filter(e => new Date(e.date).toDateString() === d.toDateString());
+    const activeDayEvents = getEventsForDay(selectedDay).sort((a,b)=>(a.time||'').localeCompare(b.time||''));
+
+    const prevMonth = () => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1));
+    const nextMonth = () => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1));
+    const goToday = () => { const t=new Date(); setViewDate(t); setSelectedDay(t); };
+
+    const eventType = (e) => e.type || 'personal';
+    const monthLabel = viewDate.toLocaleDateString('en-US', { month: 'long' });
+
+    return (
+      <div className="page-outer">
+        <div className="top-bar"><span className="top-eyebrow"><span>§ VECTRA ARCH</span> · LEGACY · CALENDAR</span></div>
+        <div className="page-scroll">
+          <div className="page-inner">
+            <div className="page-head">
+              <div className="page-title">CALENDAR</div>
+              <div className="page-sub">EVENTS · CYCLE · SCHEDULE</div>
+            </div>
+            <UserRow user={user} partner={partner} isShared={isShared}/>
+            <Alert {...alert}/>
+            <div className="cal-nav">
+              <button className="cal-nav-btn" onClick={prevMonth}>‹</button>
+              <div className="cal-nav-month">{monthLabel} {viewDate.getFullYear()}</div>
+              <button className="cal-nav-btn" onClick={nextMonth}>›</button>
+              <button className="cal-today-btn" onClick={goToday}>TODAY</button>
+            </div>
+            <div className="cal-grid">
+              {['MON','TUE','WED','THU','FRI','SAT','SUN'].map(d=><div key={d} className="cal-dow">{d}</div>)}
+              {daysInMonth.map((item,i)=>{
+                const isToday=item.date.toDateString()===new Date().toDateString();
+                const isSelected=item.date.toDateString()===selectedDay.toDateString();
+                const dayEvts=getEventsForDay(item.date);
+                return (
+                  <div key={i} className={`cal-day${item.otherMonth?' other-month':''}${isToday?' today':''}${isSelected?' selected':''}`} onClick={()=>setSelectedDay(item.date)}>
+                    <div className="cal-day-num">{item.date.getDate()}</div>
+                    {dayEvts.length>0&&(
+                      <div className="cal-day-dots">
+                        {dayEvts.slice(0,3).map((e,j)=><div key={j} className={`cal-dot ${eventType(e)}`}/>)}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <div className="cal-legend">
+              <div className="cal-legend-item"><span className="cal-dot fin" style={{display:'inline-block',width:6,height:6}}/> FIN</div>
+              <div className="cal-legend-item"><span className="cal-dot work" style={{display:'inline-block',width:6,height:6}}/> WORK</div>
+              <div className="cal-legend-item"><span className="cal-dot health" style={{display:'inline-block',width:6,height:6}}/> HEALTH</div>
+              <div className="cal-legend-item"><span className="cal-dot personal" style={{display:'inline-block',width:6,height:6}}/> PERSONAL</div>
+            </div>
+            <div className="section-label">§ AGENDA · {selectedDay.toLocaleDateString('en-US',{day:'numeric',month:'short'}).toUpperCase()}</div>
+            <div className="item-list">
+              {activeDayEvents.map(e=>(
+                <div key={e.id} className={`evt-card ${eventType(e)}`}>
+                  <div className="evt-top">
+                    <div className="evt-title">{e.title.toUpperCase()}</div>
+                    <div className="evt-time">{e.time||'00:00'}</div>
+                  </div>
+                  {e.description&&<div className="evt-desc">{e.description}</div>}
+                </div>
+              ))}
+              {activeDayEvents.length===0&&<div className="no-events"><div className="no-events-icon">📅</div><div className="no-events-text">NO EVENTS SCHEDULED</div></div>}
+            </div>
+            <div style={{height:'80px'}}/>
+          </div>
+        </div>
+        <button className="fab blue" onClick={()=>{ setForm(p=>({...p,date:selectedDay.toISOString().split('T')[0]})); setShowForm(true); }}>+ ADD EVENT</button>
+
+        {showForm && (
+          <div className="modal-overlay" onClick={()=>setShowForm(false)}>
+            <div className="modal-sheet" onClick={e=>e.stopPropagation()}>
+              <div className="modal-title">NEW CALENDAR EVENT</div>
+              <div className="form-field">
+                <label className="form-label">Classification</label>
+                <div className="type-toggle">
+                  {['personal','work','health','fin'].map(t=>(
+                    <button key={t} className={`type-toggle-btn ${form.type===t?'active '+t:''}`} onClick={()=>setForm(p=>({...p,type:t}))}>{t}</button>
+                  ))}
+                </div>
+              </div>
+              <div className="form-field">
+                <label className="form-label">Event Title</label>
+                <input className="form-input" value={form.title} onChange={e=>setForm(p=>({...p,title:e.target.value}))}/>
+              </div>
+              <div className="form-field">
+                <label className="form-label">Time</label>
+                <input className="form-input" type="time" value={form.time} onChange={e=>setForm(p=>({...p,time:e.target.value}))}/>
+              </div>
+              <div className="form-field">
+                <label className="form-label">Date</label>
+                <input className="form-input" type="date" value={form.date} onChange={e=>setForm(p=>({...p,date:e.target.value}))}/>
+              </div>
+              <div className="form-field">
+                <label className="form-label">Details / Notes</label>
+                <input className="form-input" value={form.description} onChange={e=>setForm(p=>({...p,description:e.target.value}))}/>
+              </div>
+              <button className="form-submit" onClick={handleSave}>SCHEDULE EVENT</button>
+              <button className="form-cancel" onClick={()=>setShowForm(false)}>Cancel</button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  /* ── BUDGET PAGE ── */
+  const BudgetPage = ({user, partner, isShared}) => {
+    const [budgets, setBudgets] = useState([]);
+    const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()+1).padStart(2,'0'));
+    const [showForm, setShowForm] = useState(false);
+    const [form, setForm] = useState({category:'Food',allocated:'',month:String(new Date().getMonth()+1).padStart(2,'0')});
+    const [alert, setAlert] = useState({msg:'',type:''});
+    const msg=(m,t='ok')=>{ setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
+
+    const MONTHS=[
+      {v:'01',l:'January'},{v:'02',l:'February'},{v:'03',l:'March'},{v:'04',l:'April'},
+      {v:'05',l:'May'},{v:'06',l:'June'},{v:'07',l:'July'},{v:'08',l:'August'},
+      {v:'09',l:'September'},{v:'10',l:'October'},{v:'11',l:'November'},{v:'12',l:'December'}
+    ];
+
+    const fetchAll = useCallback(async () => {
+      const users = [user.username, ...(isShared && partner ? [partner.username] : [])];
+      try {
+        const res = await Promise.all(users.map(u => axios.get(`${API}/financebudget`, { params: { user: u } }).then(r => r.data)));
+        setBudgets(res.flat());
+      } catch {}
+    }, [user.username, partner, isShared]);
+
+    useEffect(() => { fetchAll(); }, [fetchAll]);
+
+    const handleSave = async () => {
+      if(!form.allocated || !form.category) return msg('Missing bounds','err');
+      try {
+        await axios.post(`${API}/financebudget`, { ...form, allocated: parseFloat(form.allocated), user: user.username });
+        msg('Budget threshold mapped');
+        setShowForm(false);
+        setForm({category:'Food',allocated:'',month:selectedMonth});
+        fetchAll();
+      } catch { msg('Error linking budget','err'); }
+    };
+
+    const activeBudgets = budgets.filter(b => b.month === selectedMonth);
+    const totalPlanned = activeBudgets.reduce((acc,b)=>acc+(parseFloat(b.allocated)||0), 0);
+    const totalActual = activeBudgets.reduce((acc,b)=>acc+(parseFloat(b.actual)||0), 0);
+    const left = totalPlanned - totalActual;
+
+    const monthLabel = MONTHS.find(m=>m.v===selectedMonth)?.l||'';
+
+    return (
+      <div className="page-outer">
+        <div className="top-bar"><span className="top-eyebrow"><span>§ VECTRA ARCH</span> · LEGACY · FINANCIAL</span></div>
+        <div className="page-scroll">
+          <div className="page-inner">
+            <div className="page-head">
+              <div className="page-title">BUDGET</div>
+              <div className="page-sub">PLANNED · ACTUAL · REMAINING</div>
+            </div>
+            <UserRow user={user} partner={partner} isShared={isShared}/>
+            <div className="toolbar-row">
+              <div className="tb-chip">
+                <span style={{fontSize:'9px',fontFamily:"'DM Mono',monospace",letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--text3)'}}>MONTH</span>
+                <select value={selectedMonth} onChange={e=>setSelectedMonth(e.target.value)}>
+                  {MONTHS.map(m=><option key={m.v} value={m.v}>{m.l} 2026</option>)}
+                </select>
+              </div>
+              <div className="sort-active tb-chip" style={{cursor:'default'}}>
+                <span style={{fontFamily:"'DM Mono',monospace",fontSize:'10px'}}>Desc</span>
+              </div>
+            </div>
+            <Alert {...alert}/>
+            <div className="section-label">§ SUMMARY · {monthLabel.toUpperCase()} 2026</div>
+            <div className="summary-card">
+              <div className="summary-grid">
+                <div>
+                  <div className="summary-item-label">Planned</div>
+                  <div className="summary-item-value" style={{color:'var(--green)'}}>{fmtR(totalPlanned)}</div>
+                </div>
+                <div>
+                  <div className="summary-item-label">Actual</div>
+                  <div className="summary-item-value" style={{color:'var(--red)'}}>{fmtR(totalActual)}</div>
+                </div>
+                <div>
+                  <div className="summary-item-label">Left</div>
+                  <div className="summary-item-value" style={{color:left>=0?'var(--green)':'var(--red)'}}>{fmtR(left)}</div>
+                </div>
+              </div>
+            </div>
+            <div className="section-label">§ ALLOCATIONS</div>
+            <div className="item-list">
+              {activeBudgets.map(b=>{
+                const plan = parseFloat(b.allocated)||0;
+                const act = parseFloat(b.actual)||0;
+                const rem = plan - act;
+                const pct = plan > 0 ? Math.min((act / plan) * 100, 100) : 0;
+                const status = act > plan ? 'over' : pct > 85 ? 'warn' : 'ok';
+                return (
+                  <div key={b.id} className="budget-card">
+                    <span className={`budget-status-badge ${status}`}>{status}</span>
+                    <div className="budget-card-title">{(b.category||'').toUpperCase()}</div>
+                    <div className="budget-card-sub">MATRIX BOUNDS</div>
+                    <div className="budget-cols">
+                      <div><div className="budget-col-label">Limit</div><div className="budget-col-value plan">{fmtR(plan)}</div></div>
+                      <div><div className="budget-col-label">Spent</div><div className="budget-col-value act">{fmtR(act)}</div></div>
+                      <div><div className="budget-col-label">Balance</div><div className={`budget-col-value left ${rem>=0?'pos':'neg'}`}>{fmtR(rem)}</div></div>
+                    </div>
+                    <div className="progress-bar">
+                      <div className={`progress-fill ${status}`} style={{width:`${pct}%`}}/>
+                    </div>
+                    <div className="progress-label">{Math.round(pct)}% UNDER BOUNDARY</div>
+                  </div>
+                );
+              })}
+            </div>
+            {activeBudgets.length===0&&<div className="no-events"><div className="no-events-icon">📊</div><div className="no-events-text">NO BOUNDS PLANTED</div></div>}
+            <div style={{height:'80px'}}/>
+          </div>
+        </div>
+        <button className="fab green" onClick={()=>setShowForm(true)}>+ ALLOCATE BOUND</button>
+
+        {showForm && (
+          <div className="modal-overlay" onClick={()=>setShowForm(false)}>
+            <div className="modal-sheet" onClick={e=>e.stopPropagation()}>
+              <div className="modal-title">ALLOCATE BUDGET</div>
+              <div className="form-field">
+                <label className="form-label">Category Node</label>
+                <input className="form-input" placeholder="e.g. Rent, Transport" value={form.category} onChange={e=>setForm(p=>({...p,category:e.target.value}))}/>
+              </div>
+              <div className="form-field">
+                <label className="form-label">Boundary Sum (ZAR)</label>
+                <input className="form-input" type="number" placeholder="0.00" value={form.allocated} onChange={e=>setForm(p=>({...p,allocated:e.target.value}))}/>
+              </div>
+              <div className="form-field">
+                <label className="form-label">Target Month</label>
+                <select className="form-input" style={{background:'var(--bg3)'}} value={form.month} onChange={e=>setForm(p=>({...p,month:e.target.value}))}>
+                  {MONTHS.map(m=><option key={m.v} value={m.v}>{m.l}</option>)}
+                </select>
+              </div>
+              <button className="form-submit" onClick={handleSave}>SET BOUNDS</button>
+              <button className="form-cancel" onClick={()=>setShowForm(false)}>Cancel</button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  /* ── GYM PAGE ── */
+  const gymGetType = (ex) => {
+    if(['Running','Cycling','Rowing Machine','Elliptical','Jump Rope'].some(x=>ex.includes(x))) return 'cardio';
+    if(['Yoga','Stretching','Foam Rolling','Mobility Routine'].some(x=>ex.includes(x))) return 'mobility';
+    return 'strength';
+  };
+
+  const EXERCISES = [
+    { label:'Strength — Barbell', options:[ {value:'Barbell Squat',label:'Barbell Squat'},{value:'Barbell Bench Press',label:'Barbell Bench Press'}, {value:'Barbell Deadlift',label:'Barbell Deadlift'},{value:'Barbell Overhead Press',label:'Barbell Overhead Press'}, {value:'Barbell Row',label:'Barbell Row'},{value:'Barbell Shrug',label:'Barbell Shrug'} ]},
+    { label:'Strength — Dumbbell', options:[ {value:'Dumbbell Bicep Curl',label:'Dumbbell Bicep Curl'},{value:'Dumbbell Shoulder Press',label:'Dumbbell Shoulder Press'}, {value:'Dumbbell Lateral Raise',label:'Dumbbell Lateral Raise'},{value:'Dumbbell Flyes',label:'Dumbbell Flyes'}, {value:'Dumbbell Lunges',label:'Dumbbell Lunges'},{value:'Dumbbell Row',label:'Dumbbell Row'} ]},
+    { label:'Strength — Cable', options:[ {value:'Cable Tricep Pushdown',label:'Cable Tricep Pushdown'},{value:'Cable Bicep Curl',label:'Cable Bicep Curl'},{value:'Cable Row',label:'Cable Row'}, {value:'Face Pull',label:'Face Pull'},{value:'Cable Lateral Raise',label:'Cable Lateral Raise'}, {value:'Cable Woodchop',label:'Cable Woodchop'},{value:'Cable Hip Abduction',label:'Cable Hip Abduction'} ]},
+    { label:'Strength — Machine', options:[ {value:'Leg Press',label:'Leg Press'},{value:'Leg Extension',label:'Leg Extension'}, {value:'Leg Curl (Hamstring Curl)',label:'Leg Curl (Hamstring Curl)'},{value:'Chest Press Machine',label:'Chest Press Machine'}, {value:'Lat Pulldown',label:'Lat Pulldown'},{value:'Seated Row Machine',label:'Seated Row Machine'}, {value:'Hip Abduction/Adduction Machine',label:'Hip Abduction/Adduction Machine'}, {value:'Pec Deck (Chest Fly)',label:'Pec Deck (Chest Fly)'},{value:'Tricep Pushdowns',label:'Tricep Pushdowns'}, {value:'Machine Shoulder Press',label:'Machine Shoulder Press'},{value:'Abdominal Crunch Machine',label:'Abdominal Crunch Machine'} ]},
+    { label:'Strength — Bodyweight', options:[ {value:'Push-Ups (standard, wide, diamond)',label:'Push-Ups (standard, wide, diamond)'}, {value:'Pull-Ups/Chin-Ups (assisted or unassisted)',label:'Pull-Ups/Chin-Ups (assisted or unassisted)'}, {value:'Dips (parallel bars or bench)',label:'Dips (parallel bars or bench)'}, {value:'Planks (front, side)',label:'Planks (front, side)'},{value:'Bodyweight Squats',label:'Bodyweight Squats'}, {value:'Lunges',label:'Lunges'},{value:'Wall Sits',label:'Wall Sits'},{value:'Hanging Leg Raises',label:'Hanging Leg Raises'} ]},
+    { label:'Cardio — Treadmill', options:[ {value:'Steady-State Running (Treadmill)',label:'Steady-State Running (Treadmill)'}, {value:'Incline Walking (Treadmill)',label:'Incline Walking (Treadmill)'},{value:'Sprints / HIIT (Treadmill)',label:'Sprints / HIIT (Treadmill)'} ]},
+    { label:'Cardio — Stationary Equipment', options:[ {value:'Stationary Cycling',label:'Stationary Cycling'},{value:'Elliptical Trainer',label:'Elliptical Trainer'}, {value:'Rowing Machine',label:'Rowing Machine'},{value:'Stair Climber / Stairmaster',label:'Stair Climber / Stairmaster'} ]},
+    { label:'Cardio — Bodyweight / Outdoor', options:[ {value:'Outdoor Running',label:'Outdoor Running'},{value:'Outdoor Cycling',label:'Outdoor Cycling'}, {value:'Jump Rope',label:'Jump Rope'},{value:'Burpees',label:'Burpees'},{value:'Mountain Climbers',label:'Mountain Climbers'} ]},
+    { label:'Flexibility & Mobility', options:[ {value:'Yoga (Vinyasa, Hatha, Yin)',label:'Yoga (Vinyasa, Hatha, Yin)'}, {value:'Static Stretching Routine',label:'Static Stretching Routine'},{value:'Dynamic Warm-Up Routine',label:'Dynamic Warm-Up Routine'}, {value:'Foam Rolling / SMR',label:'Foam Rolling / SMR'},{value:'Mobility Drills (Hips, Shoulders)',label:'Mobility Drills (Hips, Shoulders)'} ]},
+    { label:'Custom', options:[{value:'__custom__',label:'Custom movement...',cal:0}]}
+  ];
+
+  const GymPage = ({user, partner, isShared}) => {
+    const [workouts, setWorkouts] = useState([]);
+    const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()+1).padStart(2,'0'));
+    const [showForm, setShowForm] = useState(false);
+    const [isCustomEx, setIsCustomEx] = useState(false);
+    const [form, setForm] = useState({day:'Monday',exercise:'',sets:'3',reps:'10',weight:'60',date:now(),type:'strength'});
+    const [alert, setAlert] = useState({msg:'',type:''});
+    const msg=(m,t='ok')=>{ setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
+
+    const fetchAll = useCallback(async()=>{
+      const users=[user.username,...(isShared&&partner?[partner.username]:[])];
+      try {
+        const all=await Promise.all(users.map(u=>axios.get(`${API}/gymworkout`,{params:{user:u}}).then(r=>r.data.map(w=>({...w,userKey:u}))).catch(()=>[])));
+        setWorkouts(all.flat());
+      } catch {}
+    },[user.username,partner,isShared]);
+
+    useEffect(()=>{ fetchAll(); },[fetchAll]);
+
+    const handleExerciseSelect = (val) => {
+      if(val==='__custom__'){
+        setIsCustomEx(true);
+        setForm(p=>({...p,exercise:'',type:'strength'}));
+        return;
+      }
+      setIsCustomEx(false);
+      const t = gymGetType(val);
+      setForm(p=>({...p, exercise:val, type:t, sets: t==='cardio'||t==='mobility'?'1':p.sets, reps: t==='cardio'?'30':t==='mobility'?'45':p.reps, weight: t==='cardio'?'5':t==='mobility'?'vinyasa':p.weight }));
+    };
+
+    const handleSave = async()=>{
+      if(!form.exercise) return msg('Specify movement node','err');
+      try {
+        await axios.post(`${API}/gymworkout`,{...form, user:user.username});
+        msg('Workout metrics cached');
+        setShowForm(false);
+        setForm({day:'Monday',exercise:'',sets:'3',reps:'10',weight:'60',date:now(),type:'strength'});
+        setIsCustomEx(false);
+        fetchAll();
+      } catch { msg('Error saving circuit','err'); }
+    };
+
+    const handleDelete = async(id)=>{
+      try { await axios.delete(`${API}/gymworkout`,{data:{id}}); msg('Workout cleared'); fetchAll(); } catch { msg('Action failed','err'); }
+    };
+
+    const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+    const activeByDay = (dName) => workouts.filter(w=>w.day===dName).sort((a,b)=>a.id-b.id);
+
+    return (
+      <div className="page-outer">
+        <div className="top-bar"><span className="top-eyebrow"><span>§ VECTRA ARCH</span> · LEGACY · PERFORMANCE</span></div>
+        <div className="page-scroll">
+          <div className="page-inner">
+            <div className="page-head">
+              <div className="page-title">GYM ENGINE</div>
+              <div className="page-sub">CIRCUITS · PROGRESSION · VOLUME</div>
+            </div>
+            <UserRow user={user} partner={partner} isShared={isShared}/>
+            <Alert {...alert}/>
+
+            {DAYS.map(dName=>{
+              const items = activeByDay(dName);
+              return (
+                <div key={dName} className="day-block">
+                  <div className="day-header">
+                    <div className="day-name">{dName}</div>
+                    <div className="day-count">{items.length} CIRCUITS</div>
+                  </div>
+                  {items.map(w=>(
+                    <div key={w.id} className={`workout-card ${w.type||'strength'}`}>
+                      <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between'}}>
+                        <div>
+                          <div className={`workout-type-badge ${w.type||'strength'}`}>{(w.type||'strength').toUpperCase()}</div>
+                          <div className="workout-name">{(w.exercise||'').toUpperCase()}</div>
+                          {w.type==='strength' && <div className="workout-detail">{w.sets} SETS × {w.reps} REPS · {w.weight} KG</div>}
+                          {w.type==='cardio' && <div className="workout-detail">{w.reps} MIN · {w.weight} KM</div>}
+                          {w.type==='mobility' && <div className="workout-detail">{w.reps} MIN · {w.weight}</div>}
+                          <div className="workout-time">RECORDED: {fmtDate(w.date)}</div>
+                        </div>
+                        {w.userKey===user.username && (
+                          <button style={{color:'var(--text3)',fontSize:'10px'}} onClick={()=>handleDelete(w.id)}>✕</button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  {items.length===0 && <div className="rest-day">REST / DELOAD PHASE</div>}
+                </div>
+              );
+            })}
+            <div style={{height:'80px'}}/>
+          </div>
+        </div>
+        <button className="fab teal" onClick={()=>setShowForm(true)}>+ LOG PERFORMANCE</button>
+
+        {showForm && (
+          <div className="modal-overlay" onClick={()=>setShowForm(false)}>
+            <div className="modal-sheet" onClick={e=>e.stopPropagation()}>
+              <div className="modal-title">LOG CIRCUIT METRICS</div>
+              <div className="form-field">
+                <label className="form-label">Microcycle Day</label>
+                <select className="form-input" style={{background:'var(--bg3)'}} value={form.day} onChange={e=>setForm(p=>({...p,day:e.target.value}))}>
+                  {DAYS.map(d=><option key={d} value={d}>{d}</option>)}
+                </select>
+              </div>
+              <div className="form-field">
+                <label className="form-label">Exercise Registry</label>
+                <select className="form-input" style={{background:'var(--bg3)'}} onChange={e=>handleExerciseSelect(e.target.value)}>
+                  <option value="">Select exercise...</option>
+                  {EXERCISES.map((g,idx)=>(
+                    <optgroup key={idx} label={g.label}>
+                      {g.options.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}
+                    </optgroup>
+                  ))}
+                </select>
+              </div>
+              {isCustomEx && (
+                <div className="form-field">
+                  <label className="form-label">Custom Movement Name</label>
+                  <input className="form-input" placeholder="e.g. Incline DB Press" value={form.exercise} onChange={e=>setForm(p=>({...p,exercise:e.target.value}))}/>
+                </div>
+              )}
+              {isCustomEx && (
+                <div className="form-field">
+                  <label className="form-label">Modality Classification</label>
+                  <div className="type-toggle">
+                    {['strength','cardio','mobility'].map(x=>(
+                      <button key={x} className={`type-toggle-btn ${form.type===x?'active':''}`} onClick={()=>setForm(p=>({...p,type:x}))}>{x}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {form.type==='strength'&&(
+                <div className="form-field">
+                  <label className="form-label">Sets × Reps × Weight</label>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
+                    <input className="form-input" placeholder="Sets" value={form.sets} onChange={e=>setForm(p=>({...p,sets:e.target.value}))} type="number"/>
+                    <input className="form-input" placeholder="Reps (e.g. 8-10)" value={form.reps} onChange={e=>setForm(p=>({...p,reps:e.target.value}))}/>
+                    <input className="form-input" placeholder="kg" value={form.weight} onChange={e=>setForm(p=>({...p,weight:e.target.value}))}/>
+                  </div>
+                </div>
+              )}
+              {form.type==='cardio'&&(
+                <div className="form-field">
+                  <label className="form-label">Duration (min) & Distance (km)</label>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+                    <input className="form-input" placeholder="e.g. 30" value={form.reps} onChange={e=>setForm(p=>({...p,reps:e.target.value}))}/>
+                    <input className="form-input" placeholder="e.g. 5" value={form.weight} onChange={e=>setForm(p=>({...p,weight:e.target.value}))}/>
+                  </div>
+                </div>
+              )}
+              {form.type==='mobility'&&(
+                <div className="form-field">
+                  <label className="form-label">Duration (min) & Style</label>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+                    <input className="form-input" placeholder="e.g. 20" value={form.reps} onChange={e=>setForm(p=>({...p,reps:e.target.value}))}/>
+                    <input className="form-input" placeholder="e.g. Foam Rolling" value={form.weight} onChange={e=>setForm(p=>({...p,weight:e.target.value}))}/>
+                  </div>
+                </div>
+              )}
+              <div className="form-field">
+                <label className="form-label">Date</label>
+                <input className="form-input" type="date" value={form.date} onChange={e=>setForm(p=>({...p,date:e.target.value}))}/>
+              </div>
+              <button className="form-submit" onClick={handleSave}>COMMIT CIRCUIT</button>
+              <button className="form-cancel" onClick={()=>setShowForm(false)}>Cancel</button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  /* ── MEALS PAGE ── */
+  const MEAL_REGISTRY = [
+    { label:'High Protein — Poultry/Beef', options:[ {value:'Grilled chicken breast with rice',label:'Breakfast/Lunch: Chicken Rice',cal:550}, {value:'Lean beef mince with sweet potato',label:'Lunch/Dinner: Beef Mince',cal:680}, {value:'Turkey meatballs with pasta',label:'Dinner: Turkey Pasta',cal:610}, {value:'Biltong or whey shake',label:'Snack: Protein shake / Biltong',cal:250} ]},
+    { label:'High Protein — Seafood', options:[ {value:'Baked salmon with quinoa',label:'Lunch/Dinner: Salmon Quinoa',cal:590}, {value:'Tuna salad with olive oil',label:'Lunch: Tuna Salad',cal:420}, {value:'Grilled cod with asparagus',label:'Dinner: Cod Asparagus',cal:380} ]},
+    { label:'Specialized — Keto', options:[ {value:'Bacon and eggs with avocado',label:'Breakfast: Bacon eggs avocado',cal:580}, {value:'Cobb salad with ranch dressing',label:'Lunch: Cobb salad',cal:620}, {value:'Fatty steak with buttered greens',label:'Dinner: Fatty steak',cal:750}, {value:'Cheese or pork rinds',label:'Snack: Cheese/pork rinds',cal:200} ]},
+    { label:'Specialized — Vegan', options:[ {value:'Chia pudding with almond milk',label:'Breakfast: Chia pudding',cal:380}, {value:'Lentil soup with bread',label:'Lunch: Lentil soup',cal:450}, {value:'Tofu stir-fry with quinoa',label:'Dinner: Tofu stir-fry',cal:520}, {value:'Hummus with carrots',label:'Snack: Hummus with carrots',cal:150} ]},
+    { label:'Custom', options:[{value:'__custom__',label:'Custom meal...',cal:0}]}
+  ];
+
+  const MealsPage = ({user, partner, isShared}) => {
+    const [meals, setMeals] = useState([]);
+    const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()+1).padStart(2,'0'));
+    const [typeFilter, setTypeFilter] = useState('All');
+    const [showForm, setShowForm] = useState(false);
+    const [isCustomMeal, setIsCustomMeal] = useState(false);
+    const [form, setForm] = useState({name:'',mealType:'breakfast',calories:'',note:'',date:now()});
+    const [alert, setAlert] = useState({msg:'',type:''});
+    const msg=(m,t='ok')=>{ setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
+
+    const fetchMeals = useCallback(async()=>{
+      const users=[user.username,...(isShared&&partner?[partner.username]:[])];
+      try {
+        const res = await Promise.all(users.map(u=>axios.get(`${API}/dietmeal`,{params:{user:u}}).then(r=>r.data.map(m=>({...m,userKey:u}))).catch(()=>[])));
+        setMeals(res.flat().sort((a,b)=>b.id-a.id));
+      } catch {}
+    },[user.username,partner,isShared]);
+
+    useEffect(()=>{ fetchMeals(); },[fetchMeals]);
+
+    const handleMealSelect = (val) => {
+      if(val==='__custom__'){
+        setIsCustomMeal(true);
+        setForm(p=>({...p,name:'',calories:''}));
+        return;
+      }
+      setIsCustomMeal(false);
+      let found=null;
+      for(let g of MEAL_REGISTRY){
+        let match=g.options.find(o=>o.value===val);
+        if(match) { found=match; break; }
+      }
+      if(found){ setForm(p=>({...p,name:found.value,calories:String(found.cal)})); }
+    };
+
+    const handleSave = async()=>{
+      if(!form.name || !form.calories) return msg('Missing caloric configuration','err');
+      try {
+        await axios.post(`${API}/dietmeal`,{...form, calories:parseFloat(form.calories), description:form.note, user:user.username});
+        msg('Caloric configuration mapped');
+        setShowForm(false);
+        setForm({name:'',mealType:'breakfast',calories:'',note:'',date:now()});
+        setIsCustomMeal(false);
+        fetchMeals();
+      } catch { msg('Error saving payload','err'); }
+    };
+
+    const handleDelete = async(id)=>{
+      try { await axios.delete(`${API}/dietmeal`,{data:{id}}); msg('Entry deleted'); fetchMeals(); } catch { msg('Action failed','err'); }
+    };
+
+    const filtered = meals.filter(m=>{
+      if(typeFilter==='All') return true;
+      return m.mealType===typeFilter.toLowerCase();
+    });
+
+    const totals = useMemo(()=>{
+      return filtered.reduce((acc,m)=>acc+(parseFloat(m.calories)||0),0);
+    },[filtered]);
+
+    return (
+      <div className="page-outer">
+        <div className="top-bar"><span className="top-eyebrow"><span>§ VECTRA ARCH</span> · LEGACY · NUTRITION</span></div>
+        <div className="page-scroll">
+          <div className="page-inner">
+            <div className="page-head">
+              <div className="page-title">DIET KINETICS</div>
+              <div className="page-sub">MACROS · FUELING · ENERGY TALLY</div>
+            </div>
+            <UserRow user={user} partner={partner} isShared={isShared}/>
+            <div className="toolbar-row">
+              <div className="tb-chip">
+                <span>FILTER</span>
+                <select value={typeFilter} onChange={e=>setTypeFilter(e.target.value)}>
+                  {['All','Breakfast','Lunch','Dinner','Snack'].map(t=><option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+            </div>
+            <Alert {...alert}/>
+
+            <div className="section-label">§ TOTAL MACRO CONSUMPTION</div>
+            <div className="macro-grid">
+              <div className="macro-card kcal"><div className="macro-value">{Math.round(totals)}</div><div className="macro-unit">Kcal</div></div>
+              <div className="macro-card prot"><div className="macro-value">{Math.round(totals*0.08)}g</div><div className="macro-unit">Protein</div></div>
+              <div className="macro-card carb"><div className="macro-value">{Math.round(totals*0.05)}g</div><div className="macro-unit">Carbs</div></div>
+              <div className="macro-card fat"><div className="macro-value">{Math.round(totals*0.028)}g</div><div className="macro-unit">Fat</div></div>
+            </div>
+
+            <div className="section-label">§ MEALS · {filtered.length} RECORDS</div>
+            {filtered.map(m=>{
+              const cal=parseFloat(m.calories)||0;
+              const desc=m.description||m.name||'Unknown';
+              return (
+                <div key={m.id} className="meal-card">
+                  <div className="meal-top">
+                    <img className="meal-avatar" src={m.userKey===user.username?(user.profilePicUrl||DP):(partner?.profilePicUrl||DP)} alt="" style={{border:`2px solid ${m.userKey===user.username?(user.eventColor||'#e91e8c'):(partner?.eventColor||'#448aff')}`}}/>
+                    <span className={`meal-type-badge ${m.mealType||'breakfast'}`}>{(m.mealType||'breakfast').toUpperCase()}</span>
+                    <div className="meal-name">{desc.toUpperCase()}</div>
+                  </div>
+                  <div className="meal-macros">
+                    <span className="macro-badge kcal">{Math.round(cal)} kcal</span>
+                    <span className="macro-badge prot">P {Math.round(cal*0.08)}g</span>
+                    <span className="macro-badge carb">C {Math.round(cal*0.05)}g</span>
+                    <span className="macro-badge fat">F {Math.round(cal*0.028)}g</span>
+                  </div>
+                  {m.description&&<div className="meal-note">· {m.description}</div>}
+                  {m.userKey===user.username&&(
+                    <button style={{marginTop:'8px',fontFamily:"'DM Mono',monospace",fontSize:'9px',color:'var(--red)',background:'transparent',border:'none',cursor:'pointer',textTransform:'uppercase',letterSpacing:'0.1em'}} onClick={()=>handleDelete(m.id)}>✕ Remove</button>
                   )}
                 </div>
               );
             })}
-          </div>
-
-          {/* Legend */}
-          <div className="cal-legend">
-            {[['fin','FIN'],['work','WORK'],['personal','PERSONAL'],['cycle','CYCLE'],['fertile','FERTILE']].map(([t,l])=>(
-              <div key={t} className="cal-legend-item"><div className={`cal-legend-dot cal-dot ${t}`}/>{l}</div>
-            ))}
-          </div>
-
-          {/* Events for selected day */}
-          <div className="section-label">§ EVENTS · {selLabel}</div>
-          {selectedEvents.length===0
-            ? <div className="no-events"><div className="no-events-icon">📅</div><div className="no-events-text">NO EVENTS</div></div>
-            : selectedEvents.map(e=>(
-                <div key={e.id} className="item-card" style={{borderRadius:'6px',marginBottom:'6px'}}>
-                  <div className="item-body">
-                    <div className="item-title">{(e.title||'').toUpperCase()}</div>
-                    <div className="item-sub">{fmtDateTime(e.date)}</div>
-                  </div>
-                </div>
-              ))
-          }
-          <div style={{height:'80px'}}/>
-        </div>
-      </div>
-      <button className="fab" onClick={()=>setShowForm(true)}>+ ADD EVENT</button>
-
-      {showForm&&(
-        <div className="modal-overlay" onClick={()=>setShowForm(false)}>
-          <div className="modal-sheet" onClick={e=>e.stopPropagation()}>
-            <div className="modal-handle"/>
-            <div className="modal-title">Add Event</div>
-            <div className="form-field">
-              <label className="form-label">Title</label>
-              <input className="form-input" placeholder="Event title" value={form.title} onChange={e=>setForm(p=>({...p,title:e.target.value}))}/>
-            </div>
-            <div className="form-field">
-              <label className="form-label">Date & Time</label>
-              <input className="form-input" type="datetime-local" value={form.date} onChange={e=>setForm(p=>({...p,date:e.target.value}))} step="1"/>
-            </div>
-            <button className="form-submit" onClick={handleSave}>SAVE EVENT</button>
-            <button className="form-cancel" onClick={()=>setShowForm(false)}>Cancel</button>
+            {filtered.length===0&&<div className="no-events"><div className="no-events-icon">🍽️</div><div className="no-events-text">NO MEALS LOGGED</div></div>}
+            <div style={{height:'80px'}}/>
           </div>
         </div>
-      )}
-    </div>
-  );
-};
+        <button className="fab orange" onClick={()=>setShowForm(true)}>+ INGEST PAYLOAD</button>
 
-/* ── BUDGET PAGE ── */
-const BudgetPage = ({user, partner, isShared}) => {
-  const [budgets, setBudgets] = useState([]);
-  const [items, setItems] = useState([]);
-  const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()+1).padStart(2,'0'));
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({name:'',category:'',income:'',expenses:[{category:'',amount:''}],date:now()});
-  const [alert, setAlert] = useState({msg:'',type:''});
-
-  const msg=(m,t='ok')=>{ setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
-
-  const fetchAll = useCallback(async()=>{
-    const users=[user.username,...(isShared&&partner?[partner.username]:[])];
-    try {
-      const [buds,fins]=await Promise.all([
-        Promise.all(users.map(u=>axios.get(`${API}/budget`,{params:{user:u}}).then(r=>r.data.map(b=>({...b,expenses:JSON.parse(b.expenses||'[]'),user:b.username||u}))).catch(()=>[]))).then(r=>r.flat()),
-        Promise.all(users.map(u=>axios.get(`${API}/financial`,{params:{user:u}}).then(r=>r.data).catch(()=>[]))).then(r=>r.flat())
-      ]);
-      setBudgets(buds); setItems(fins);
-    } catch {}
-  },[user.username,partner,isShared]);
-
-  useEffect(()=>{ fetchAll(); },[fetchAll]);
-
-  const filteredBudgets = useMemo(()=>budgets.filter(b=>(b.date||'').slice(5,7)===selectedMonth),[budgets,selectedMonth]);
-
-  const totalPlanned = filteredBudgets.reduce((s,b)=>s+b.expenses.reduce((ss,e)=>ss+parseFloat(e.amount||0),0),0);
-  const totalActual = useMemo(()=>{
-    const users=[user.username,...(isShared&&partner?[partner.username]:[])];
-    return items.filter(i=>users.includes(i.user||i.username)&&(i.date||'').slice(5,7)===selectedMonth&&i.type==='expense').reduce((s,i)=>s+parseFloat(i.amount||0),0);
-  },[items,selectedMonth,user.username,partner,isShared]);
-
-  const getBudgetActual = (b) => {
-    const users=[user.username,...(isShared&&partner?[partner.username]:[])];
-    return items.filter(i=>users.includes(i.user||i.username)&&(i.date||'').slice(5,7)===selectedMonth&&i.type==='expense').reduce((s,i)=>s+parseFloat(i.amount||0),0);
-  };
-
-  const getBudgetStatus = (planned, actual) => {
-    const pct = planned>0 ? actual/planned : 0;
-    if(pct>=1) return 'over';
-    if(pct>=0.65) return 'warn';
-    return 'ok';
-  };
-
-  const handleSave = async()=>{
-    if(!form.income){msg('Income required.','err');return;}
-    try {
-      const category = form.expenses[0]?.category||'Budget';
-      await axios.post(`${API}/budget`,{user:user.username,income:parseFloat(form.income),expenses:JSON.stringify(form.expenses.map(e=>({category:e.category,amount:parseFloat(e.amount||0)}))),date:form.date});
-      msg('Budget saved.');setShowForm(false);fetchAll();
-    } catch { msg('Error.','err'); }
-  };
-
-  const monthLabel = MONTHS.find(m=>m.v===selectedMonth)?.l||'';
-  const left = totalPlanned - totalActual;
-
-  return (
-    <div className="page-outer">
-      <div className="top-bar"><span className="top-eyebrow"><span>§ VECTRA ARCH</span> · LEGACY · FINANCIAL</span></div>
-      <div className="page-scroll">
-        <div className="page-inner">
-          <div className="page-head">
-            <div className="page-title">BUDGET</div>
-            <div className="page-sub">PLANNED · ACTUAL · REMAINING</div>
-          </div>
-          <UserRow user={user} partner={partner} isShared={isShared}/>
-          <div className="toolbar-row">
-            <div className="tb-chip">
-              <span style={{fontSize:'9px',fontFamily:"'DM Mono',monospace",letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--text3)'}}>MONTH</span>
-              <select value={selectedMonth} onChange={e=>setSelectedMonth(e.target.value)}>
-                {MONTHS.map(m=><option key={m.v} value={m.v}>{m.l} 2026</option>)}
-              </select>
-            </div>
-            <div className="sort-active tb-chip" style={{cursor:'default'}}>
-              <span style={{fontFamily:"'DM Mono',monospace",fontSize:'10px'}}>Desc</span>
-            </div>
-          </div>
-          <Alert {...alert}/>
-
-          {/* Summary */}
-          <div className="section-label">§ SUMMARY · {monthLabel.toUpperCase()} 2026</div>
-          <div className="summary-card">
-            <div className="summary-grid">
-              <div>
-                <div className="summary-item-label">Planned</div>
-                <div className="summary-item-value" style={{color:'var(--green)'}}>{fmtR(totalPlanned)}</div>
-              </div>
-              <div>
-                <div className="summary-item-label">Actual</div>
-                <div className="summary-item-value" style={{color:'var(--red)'}}>{fmtR(totalActual)}</div>
-              </div>
-              <div>
-                <div className="summary-item-label">Left</div>
-                <div className="summary-item-value" style={{color:left>=0?'var(--green)':'var(--red)'}}>{fmtR(Math.abs(left))}</div>
-              </div>
-            </div>
-          </div>
-
-          <div className="section-label">§ BUDGETS · {filteredBudgets.length} RECORDS</div>
-          {filteredBudgets.map(b=>{
-            const planned = b.expenses.reduce((s,e)=>s+parseFloat(e.amount||0),0);
-            const actual = getBudgetActual(b);
-            const pct = planned>0?Math.min(actual/planned,1):0;
-            const status = getBudgetStatus(planned, actual);
-            const leftVal = planned - actual;
-            return (
-              <div key={b.id} className="budget-card">
-                <span className={`budget-status-badge ${status}`}>{status.toUpperCase()}</span>
-                <div className="budget-card-title">{(b.expenses[0]?.category||'Budget').toUpperCase()}</div>
-                <div className="budget-card-sub">{(b.expenses[0]?.category||'SAVINGS')} · {(b.user||user.username).toUpperCase().slice(0,8)} · {fmtDate(b.date)}</div>
-                <div className="budget-cols">
-                  <div>
-                    <div className="budget-col-label">Plan</div>
-                    <div className="budget-col-value plan">{fmtR(planned)}</div>
-                  </div>
-                  <div>
-                    <div className="budget-col-label">Act</div>
-                    <div className="budget-col-value act">{fmtR(actual)}</div>
-                  </div>
-                  <div>
-                    <div className="budget-col-label">Left</div>
-                    <div className={`budget-col-value left ${leftVal>=0?'pos':'neg'}`}>{fmtR(Math.abs(leftVal))}</div>
-                  </div>
-                </div>
-                <div className="progress-bar"><div className={`progress-fill ${status}`} style={{width:`${pct*100}%`}}/></div>
-                <div className="progress-label">{Math.round(pct*100)}% USED</div>
-              </div>
-            );
-          })}
-          {filteredBudgets.length===0&&<div className="no-events"><div className="no-events-text">No budgets for {monthLabel}</div></div>}
-          <div style={{height:'80px'}}/>
-        </div>
-      </div>
-      <button className="fab" onClick={()=>setShowForm(true)}>+ ADD BUDGET</button>
-
-      {showForm&&(
-        <div className="modal-overlay" onClick={()=>setShowForm(false)}>
-          <div className="modal-sheet" onClick={e=>e.stopPropagation()}>
-            <div className="modal-handle"/>
-            <div className="modal-title">Add Budget</div>
-            <div className="form-field">
-              <label className="form-label">Category Name</label>
-              <input className="form-input" placeholder="e.g. Groceries" value={form.expenses[0]?.category||''} onChange={e=>setForm(p=>({...p,expenses:[{...p.expenses[0],category:e.target.value}]}))}/>
-            </div>
-            <div className="form-field">
-              <label className="form-label">Planned Amount (ZAR)</label>
-              <input className="form-input" type="number" placeholder="0.00" value={form.income} onChange={e=>setForm(p=>({...p,income:e.target.value,expenses:[{...p.expenses[0],amount:e.target.value}]}))}/>
-            </div>
-            <div className="form-field">
-              <label className="form-label">Date</label>
-              <input className="form-input" type="datetime-local" value={form.date} onChange={e=>setForm(p=>({...p,date:e.target.value}))} step="1"/>
-            </div>
-            <button className="form-submit" onClick={handleSave}>SAVE</button>
-            <button className="form-cancel" onClick={()=>setShowForm(false)}>Cancel</button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-/* ── GYM PAGE ── */
-const WORKOUT_OPTIONS = [
-  { label:'Strength — Free Weights', options:[
-    {value:'Barbell Back Squat',label:'Barbell Back Squat'},{value:'Barbell Front Squat',label:'Barbell Front Squat'},
-    {value:'Barbell Deadlift',label:'Barbell Deadlift'},{value:'Romanian Deadlift',label:'Romanian Deadlift'},
-    {value:'Barbell Bench Press',label:'Barbell Bench Press'},{value:'Incline Barbell Bench Press',label:'Incline Barbell Bench Press'},
-    {value:'Barbell Overhead Press',label:'Barbell Overhead Press'},{value:'Barbell Bent-Over Row',label:'Barbell Bent-Over Row'},
-    {value:'Barbell Hip Thrust',label:'Barbell Hip Thrust'},{value:'Barbell Curl',label:'Barbell Curl'},
-    {value:'Dumbbell Shoulder Press',label:'Dumbbell Shoulder Press'},{value:'Dumbbell Lateral Raises',label:'Dumbbell Lateral Raises'},
-    {value:'Dumbbell Bicep Curl',label:'Dumbbell Bicep Curl'},{value:'Hammer Curl',label:'Hammer Curl'},
-    {value:'Dumbbell Tricep Kickback',label:'Dumbbell Tricep Kickback'},{value:'Dumbbell Romanian Deadlift',label:'Dumbbell Romanian Deadlift'},
-    {value:'Dumbbell Lunges',label:'Dumbbell Lunges'},{value:'Goblet Squat',label:'Goblet Squat'},
-    {value:'Dumbbell Row',label:'Dumbbell Row'},{value:'Dumbbell Fly',label:'Dumbbell Fly'},
-    {value:'EZ-Bar Curl',label:'EZ-Bar Curl'},{value:'Skull Crushers',label:'Skull Crushers'}
-  ]},
-  { label:'Strength — Cable Machine', options:[
-    {value:'Cable Crossover (Fly)',label:'Cable Crossover (Fly)'},{value:'Cable Tricep Pushdown',label:'Cable Tricep Pushdown'},
-    {value:'Cable Bicep Curl',label:'Cable Bicep Curl'},{value:'Cable Row',label:'Cable Row'},
-    {value:'Face Pull',label:'Face Pull'},{value:'Cable Lateral Raise',label:'Cable Lateral Raise'},
-    {value:'Cable Woodchop',label:'Cable Woodchop'},{value:'Cable Hip Abduction',label:'Cable Hip Abduction'}
-  ]},
-  { label:'Strength — Machine', options:[
-    {value:'Leg Press',label:'Leg Press'},{value:'Leg Extension',label:'Leg Extension'},
-    {value:'Leg Curl (Hamstring Curl)',label:'Leg Curl (Hamstring Curl)'},{value:'Chest Press Machine',label:'Chest Press Machine'},
-    {value:'Lat Pulldown',label:'Lat Pulldown'},{value:'Seated Row Machine',label:'Seated Row Machine'},
-    {value:'Hip Abduction/Adduction Machine',label:'Hip Abduction/Adduction Machine'},
-    {value:'Pec Deck (Chest Fly)',label:'Pec Deck (Chest Fly)'},{value:'Tricep Pushdowns',label:'Tricep Pushdowns'},
-    {value:'Machine Shoulder Press',label:'Machine Shoulder Press'},{value:'Abdominal Crunch Machine',label:'Abdominal Crunch Machine'}
-  ]},
-  { label:'Strength — Bodyweight', options:[
-    {value:'Push-Ups (standard, wide, diamond)',label:'Push-Ups (standard, wide, diamond)'},
-    {value:'Pull-Ups/Chin-Ups (assisted or unassisted)',label:'Pull-Ups/Chin-Ups (assisted or unassisted)'},
-    {value:'Dips (parallel bars or bench)',label:'Dips (parallel bars or bench)'},
-    {value:'Planks (front, side)',label:'Planks (front, side)'},{value:'Bodyweight Squats',label:'Bodyweight Squats'},
-    {value:'Lunges',label:'Lunges'},{value:'Wall Sits',label:'Wall Sits'},{value:'Hanging Leg Raises',label:'Hanging Leg Raises'}
-  ]},
-  { label:'Cardio — Treadmill', options:[
-    {value:'Steady-state running or jogging',label:'Steady-state running or jogging'},
-    {value:'Interval sprints',label:'Interval sprints'},{value:'Incline walking or running',label:'Incline walking or running'}
-  ]},
-  { label:'Cardio — Bike', options:[
-    {value:'Steady-state cycling',label:'Steady-state cycling'},
-    {value:'HIIT cycling',label:'HIIT cycling'},{value:'Hill climb simulations',label:'Hill climb simulations'}
-  ]},
-  { label:'Cardio — Rowing Machine', options:[
-    {value:'Steady-state rowing',label:'Steady-state rowing'},
-    {value:'Sprint intervals',label:'Sprint intervals'},{value:'Endurance rows',label:'Endurance rows'}
-  ]},
-  { label:'Cardio — Stair Climber', options:[
-    {value:'Steady-state stair climbing',label:'Steady-state stair climbing'},
-    {value:'Interval climbing',label:'Interval climbing'}
-  ]},
-  { label:'Cardio — Running / Trail', options:[
-    {value:'Run · Zone 2',label:'Run · Zone 2'},{value:'Trail Run',label:'Trail Run'},
-    {value:'Interval Run',label:'Interval Run'},{value:'Easy Jog',label:'Easy Jog'}
-  ]},
-  { label:'Mobility / Yoga', options:[
-    {value:'Yoga Flow',label:'Yoga Flow'},{value:'Vinyasa Flow',label:'Vinyasa Flow'},
-    {value:'Hatha Yoga',label:'Hatha Yoga'},{value:'Foam Rolling',label:'Foam Rolling'},
-    {value:'Stretching',label:'Stretching'},{value:'Mat Pilates',label:'Mat Pilates'}
-  ]},
-  { label:'Group Classes', options:[
-    {value:'HIIT Class',label:'HIIT Class'},{value:'Kickboxing',label:'Kickboxing'},
-    {value:'TRX',label:'TRX'},{value:'Spin Class',label:'Spin Class'}
-  ]},
-  { label:'Custom', options:[{value:'__custom__',label:'Custom exercise...'}]}
-];
-
-const GYM_CARDIO_VALS = new Set(['Steady-state running or jogging','Interval sprints','Incline walking or running','Steady-state cycling','HIIT cycling','Hill climb simulations','Steady-state rowing','Sprint intervals','Endurance rows','Steady-state stair climbing','Interval climbing','Run · Zone 2','Trail Run','Interval Run','Easy Jog','Spin Class']);
-const GYM_MOBILITY_VALS = new Set(['Yoga Flow','Vinyasa Flow','Hatha Yoga','Foam Rolling','Stretching','Mat Pilates']);
-const gymIsCardio = ex => GYM_CARDIO_VALS.has(ex)||['run','bike','cycle','swim','treadmill','elliptical','row','stair','sprint','jog','walk','hike','trail'].some(k=>(ex||'').toLowerCase().includes(k));
-const gymIsMobility = ex => GYM_MOBILITY_VALS.has(ex)||['yoga','stretch','pilates','mobility','foam','roll'].some(k=>(ex||'').toLowerCase().includes(k));
-const gymGetType = ex => gymIsMobility(ex)?'mobility':gymIsCardio(ex)?'cardio':'strength';
-
-const gymFormatDetail = w => {
-  const reps=String(w.reps||''), weight=String(w.weight||'');
-  if(gymIsCardio(w.exercise)) return `${reps} min · ${weight} km`;
-  if(gymIsMobility(w.exercise)) return `${reps} min · ${weight}`;
-  const sets=parseInt(w.sets)||1;
-  if(sets>1&&reps.includes(',')&&weight.includes(',')) {
-    const ra=reps.split(',').map(r=>r.trim()), wa=weight.split(',').map(x=>x.trim());
-    if(ra.length===sets&&wa.length===sets) return ra.map((r,i)=>`${r} reps @ ${wa[i]} kg`).join(' · ');
-  }
-  return `${sets} × ${reps} reps @ ${weight} kg`;
-};
-
-const GymPage = ({user, partner, isShared}) => {
-  const [workouts, setWorkouts] = useState([]);
-  const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()+1).padStart(2,'0'));
-  const [showForm, setShowForm] = useState(false);
-  const [isCustomEx, setIsCustomEx] = useState(false);
-  const [form, setForm] = useState({day:'Monday',exercise:'',sets:'3',reps:'10',weight:'60',date:now(),type:'strength'});
-  const [alert, setAlert] = useState({msg:'',type:''});
-  const msg=(m,t='ok')=>{ setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
-
-  const fetchAll = useCallback(async()=>{
-    const users=[user.username,...(isShared&&partner?[partner.username]:[])];
-    try {
-      const all=await Promise.all(users.map(u=>axios.get(`${API}/gymworkout`,{params:{user:u}}).then(r=>r.data.map(w=>({...w,userKey:u}))).catch(()=>[])));
-      setWorkouts(all.flat());
-    } catch {}
-  },[user.username,partner,isShared]);
-
-  useEffect(()=>{ fetchAll(); },[fetchAll]);
-
-  const handleExerciseSelect = (val) => {
-    if(val==='__custom__'){ setIsCustomEx(true); setForm(p=>({...p,exercise:'',type:'strength'})); return; }
-    setIsCustomEx(false);
-    const t = gymGetType(val);
-    setForm(p=>({...p, exercise:val, type:t,
-      sets: t==='cardio'||t==='mobility'?'1':p.sets,
-      reps: t==='cardio'?'30':t==='mobility'?'45':p.reps,
-      weight: t==='cardio'?'5':t==='mobility'?'vinyasa':p.weight
-    }));
-  };
-
-  const handleSave = async()=>{
-    if(!form.exercise){msg('Exercise required.','err');return;}
-    try {
-      await axios.post(`${API}/gymworkout`,{user:user.username,day:form.day,exercise:form.exercise,sets:parseInt(form.sets)||1,reps:form.reps,weight:form.weight,date:form.date});
-      msg('Workout saved.');setShowForm(false);
-      setForm({day:'Monday',exercise:'',sets:'3',reps:'10',weight:'60',date:now(),type:'strength'});
-      setIsCustomEx(false); fetchAll();
-    } catch { msg('Error saving.','err'); }
-  };
-
-  const handleDelete = async(id)=>{
-    try { await axios.delete(`${API}/gymworkout/${id}`); fetchAll(); } catch {}
-  };
-
-  const users = [user, ...(isShared&&partner?[partner]:[])];
-  const t = form.type;
-
-  return (
-    <div className="page-outer">
-      <div className="top-bar"><span className="top-eyebrow"><span>§ VECTRA ARCH</span> · LEGACY · GYM</span></div>
-      <div className="page-scroll">
-        <div className="page-inner">
-          <div className="page-head">
-            <div className="page-title">GYM WORKOUT</div>
-            <div className="page-sub">EXERCISES · STRENGTH · WEEKLY PLAN</div>
-          </div>
-          <UserRow user={user} partner={partner} isShared={isShared}/>
-          <div className="toolbar-row">
-            <div className="tb-chip">
-              <span style={{fontSize:'9px',fontFamily:"'DM Mono',monospace",letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--text3)'}}>MONTH</span>
-              <select value={selectedMonth} onChange={e=>setSelectedMonth(e.target.value)} style={{color:'var(--pink)'}}>
-                {MONTHS.map(m=><option key={m.v} value={m.v}>{m.l}</option>)}
-              </select>
-            </div>
-          </div>
-          <Alert {...alert}/>
-          {users.map(u=>{
-            const uWorkouts = workouts.filter(w=>w.userKey===u.username&&(w.date||'').slice(5,7)===selectedMonth);
-            return (
-              <div key={u.username}>
-                <div className="user-section-header">
-                  <img className="user-section-avatar" src={u.profilePicUrl||DP} alt={u.username} style={{border:`2px solid ${u.eventColor||'#e91e8c'}`}}/>
-                  <div className="user-section-label"><span>§ {(u.displayName||u.username).toUpperCase()}</span> · WEEKLY PLAN</div>
-                </div>
-                {DAYS.map(day=>{
-                  const dw = uWorkouts.filter(w=>w.day===day);
-                  return (
-                    <div key={day} className="day-block">
-                      <div className="day-header">
-                        <div className="day-name">{day}</div>
-                        <div style={{display:'flex',alignItems:'center',gap:12}}>
-                          <div className="day-count">{dw.length} ex</div>
-                          {u.username===user.username&&<button className="day-add-btn" onClick={()=>{setForm(p=>({...p,day}));setShowForm(true);}}>+ add</button>}
-                        </div>
-                      </div>
-                      {dw.length===0
-                        ? <div className="rest-day">· Rest day</div>
-                        : dw.map(w=>{
-                            const wt=gymGetType(w.exercise);
-                            return (
-                              <div key={w.id} className={`workout-card ${wt}`}>
-                                <span className={`workout-type-badge ${wt}`}>{wt.toUpperCase()}</span>
-                                <div className="workout-name">{(w.exercise||'').toUpperCase()}</div>
-                                <div className="workout-detail">{gymFormatDetail(w)}</div>
-                                <div className="workout-time">{(w.date||'').slice(11,16)}</div>
-                                {u.username===user.username&&(
-                                  <button style={{marginTop:'6px',fontFamily:"'DM Mono',monospace",fontSize:'9px',color:'var(--red)',background:'transparent',border:'none',cursor:'pointer',textTransform:'uppercase',letterSpacing:'0.1em'}} onClick={()=>handleDelete(w.id)}>✕ Remove</button>
-                                )}
-                              </div>
-                            );
-                          })
-                      }
-                    </div>
-                  );
-                })}
-              </div>
-            );
-          })}
-          <div style={{height:'80px'}}/>
-        </div>
-      </div>
-      <button className="fab" onClick={()=>setShowForm(true)}>+ ADD EXERCISE</button>
-
-      {showForm&&(
-        <div className="modal-overlay" onClick={()=>setShowForm(false)}>
-          <div className="modal-sheet" onClick={e=>e.stopPropagation()}>
-            <div className="modal-handle"/>
-            <div className="modal-title">Log Exercise</div>
-            <div className="form-field">
-              <label className="form-label">Day</label>
-              <select className="form-select" value={form.day} onChange={e=>setForm(p=>({...p,day:e.target.value}))}>
-                {DAYS.map(d=><option key={d}>{d}</option>)}
-              </select>
-            </div>
-            <div className="form-field">
-              <label className="form-label">Exercise</label>
-              <select className="form-select" value={isCustomEx?'__custom__':form.exercise} onChange={e=>handleExerciseSelect(e.target.value)}>
-                <option value="">— Select exercise —</option>
-                {WORKOUT_OPTIONS.map(group=>(
-                  <optgroup key={group.label} label={group.label}>
-                    {group.options.map(opt=><option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                  </optgroup>
-                ))}
-              </select>
-            </div>
-            {isCustomEx&&(
+        {showForm && (
+          <div className="modal-overlay" onClick={()=>setShowForm(false)}>
+            <div className="modal-sheet" onClick={e=>e.stopPropagation()}>
+              <div className="modal-title">LOG NUTRITIONAL INTAKE</div>
               <div className="form-field">
-                <label className="form-label">Custom Exercise Name</label>
-                <input className="form-input" placeholder="e.g. Deadlifts" value={form.exercise} onChange={e=>setForm(p=>({...p,exercise:e.target.value}))}/>
-                <div className="type-toggle" style={{marginTop:'8px'}}>
-                  {['strength','cardio','mobility'].map(tp=>(
-                    <button key={tp} className={`type-toggle-btn ${form.type===tp?'active':''}`} onClick={()=>setForm(p=>({...p,type:tp}))}>{tp.toUpperCase()}</button>
+                <label className="form-label">Classification Slot</label>
+                <select className="form-input" style={{background:'var(--bg3)'}} value={form.mealType} onChange={e=>setForm(p=>({...p,mealType:e.target.value}))}>
+                  {['breakfast','lunch','dinner','snack'].map(t=><option key={t} value={t}>{t.toUpperCase()}</option>)}
+                </select>
+              </div>
+              <div className="form-field">
+                <label className="form-label">Pre-registered Matrix</label>
+                <select className="form-input" style={{background:'var(--bg3)'}} onChange={e=>handleMealSelect(e.target.value)}>
+                  <option value="">Select meal item...</option>
+                  {MEAL_REGISTRY.map((g,idx)=>(
+                    <optgroup key={idx} label={g.label}>
+                      {g.options.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}
+                    </optgroup>
                   ))}
+                </select>
+              </div>
+              {isCustomMeal && (
+                <div className="form-field">
+                  <label className="form-label">Custom Payload Title</label>
+                  <input className="form-input" placeholder="e.g. Avocado Toast" value={form.name} onChange={e=>setForm(p=>({...p,name:e.target.value}))}/>
                 </div>
-              </div>
-            )}
-            {form.exercise&&!isCustomEx&&(
+              )}
               <div className="form-field">
-                <span className={`workout-type-badge ${t}`} style={{display:'inline-flex'}}>{t.toUpperCase()}</span>
+                <label className="form-label">Caloric Mass (kcal)</label>
+                <input className="form-input" type="number" placeholder="0" disabled={!isCustomMeal} value={form.calories} onChange={e=>setForm(p=>({...p,calories:e.target.value}))}/>
               </div>
-            )}
-            {(t==='strength')&&(
               <div className="form-field">
-                <label className="form-label">Sets × Reps × Weight</label>
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
-                  <input className="form-input" placeholder="Sets" value={form.sets} onChange={e=>setForm(p=>({...p,sets:e.target.value}))} type="number"/>
-                  <input className="form-input" placeholder="Reps (e.g. 8-10)" value={form.reps} onChange={e=>setForm(p=>({...p,reps:e.target.value}))}/>
-                  <input className="form-input" placeholder="kg" value={form.weight} onChange={e=>setForm(p=>({...p,weight:e.target.value}))}/>
-                </div>
+                <label className="form-label">Ingestion Date</label>
+                <input className="form-input" type="date" value={form.date} onChange={e=>setForm(p=>({...p,date:e.target.value}))}/>
               </div>
-            )}
-            {(t==='cardio')&&(
               <div className="form-field">
-                <label className="form-label">Duration (min) & Distance (km)</label>
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-                  <input className="form-input" placeholder="e.g. 30" value={form.reps} onChange={e=>setForm(p=>({...p,reps:e.target.value}))}/> 
-                  <input className="form-input" placeholder="e.g. 5" value={form.weight} onChange={e=>setForm(p=>({...p,weight:e.target.value}))}/>
-                </div>
+                <label className="form-label">Macro / Micro Notes</label>
+                <input className="form-input" placeholder="Extra virgin olive oil, sea salt" value={form.note} onChange={e=>setForm(p=>({...p,note:e.target.value}))}/>
               </div>
-            )}
-            {(t==='mobility')&&(
-              <div className="form-field">
-                <label className="form-label">Duration (min) & Style</label>
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-                  <input className="form-input" placeholder="e.g. 45" value={form.reps} onChange={e=>setForm(p=>({...p,reps:e.target.value}))}/> 
-                  <input className="form-input" placeholder="e.g. vinyasa" value={form.weight} onChange={e=>setForm(p=>({...p,weight:e.target.value}))}/>
-                </div>
-              </div>
-            )}
-            <div className="form-field">
-              <label className="form-label">Date & Time</label>
-              <input className="form-input" type="datetime-local" value={form.date} onChange={e=>setForm(p=>({...p,date:e.target.value}))} step="1"/>
-            </div>
-            <button className="form-submit" onClick={handleSave}>SAVE EXERCISE</button>
-            <button className="form-cancel" onClick={()=>{setShowForm(false);setIsCustomEx(false);}}>Cancel</button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-/* ── MEALS PAGE ── */
-const MEAL_TYPE_MAP = {'Breakfast':'breakfast','Lunch':'lunch','Dinner':'dinner','Snack':'snack','Meal 1':'breakfast','Meal 2':'lunch','Meal 3':'dinner','Pre-Workout':'snack','Post-Workout':'snack'};
-const MEAL_OPTIONS = [
-  { label:'Weight Loss — Calorie-Controlled', options:[
-    {value:'Oatmeal with berries and a boiled egg',label:'Breakfast: Oatmeal with berries and egg',cal:320},
-    {value:'Grilled chicken salad with veggies',label:'Lunch: Grilled chicken salad',cal:450},
-    {value:'Baked fish with quinoa and broccoli',label:'Dinner: Baked fish with quinoa',cal:520},
-    {value:'Apple with almond butter',label:'Snack: Apple with almond butter',cal:200},
-    {value:'Greek yogurt',label:'Snack: Greek yogurt',cal:150}
-  ]},
-  { label:'Weight Loss — Intermittent Fasting', options:[
-    {value:'Avocado toast with eggs',label:'Meal 1: Avocado toast with eggs',cal:480},
-    {value:'Turkey wrap with veggies',label:'Meal 2: Turkey wrap with veggies',cal:420},
-    {value:'Stir-fried tofu with rice',label:'Meal 3: Stir-fried tofu with rice',cal:550}
-  ]},
-  { label:'Weight Loss — Low-Carb', options:[
-    {value:'Eggs with spinach and cheese',label:'Breakfast: Eggs with spinach',cal:350},
-    {value:'Tuna salad with mixed greens',label:'Lunch: Tuna salad',cal:380},
-    {value:'Steak with cauliflower mash',label:'Dinner: Steak with cauliflower',cal:580}
-  ]},
-  { label:'Muscle Gain — High-Protein Bulking', options:[
-    {value:'Protein shake with banana and oats',label:'Breakfast: Protein shake with oats',cal:520},
-    {value:'Chicken breast with sweet potato',label:'Lunch: Chicken breast with sweet potato',cal:680},
-    {value:'Salmon with rice and salad',label:'Dinner: Salmon with rice',cal:720},
-    {value:'Cottage cheese',label:'Snack: Cottage cheese',cal:200},
-    {value:'Peanut butter sandwich',label:'Snack: Peanut butter sandwich',cal:350}
-  ]},
-  { label:'Muscle Gain — Clean Bulk', options:[
-    {value:'Greek yogurt parfait with nuts',label:'Breakfast: Greek yogurt parfait',cal:480},
-    {value:'Quinoa bowl with beans and turkey',label:'Lunch: Quinoa bowl with turkey',cal:620},
-    {value:'Lean beef stir-fry with brown rice',label:'Dinner: Lean beef stir-fry',cal:700},
-    {value:'Protein bar or smoothie',label:'Snack: Protein bar/smoothie',cal:280}
-  ]},
-  { label:'Maintenance — Mediterranean', options:[
-    {value:'Yogurt with honey and walnuts',label:'Breakfast: Yogurt with honey',cal:320},
-    {value:'Grilled fish with salad and hummus',label:'Lunch: Grilled fish with hummus',cal:520},
-    {value:'Vegetable stew with whole grains',label:'Dinner: Vegetable stew',cal:480},
-    {value:'Fresh fruit or olives',label:'Snack: Fresh fruit or olives',cal:120}
-  ]},
-  { label:'Specialized — Keto', options:[
-    {value:'Bacon and eggs with avocado',label:'Breakfast: Bacon eggs avocado',cal:580},
-    {value:'Cobb salad with ranch dressing',label:'Lunch: Cobb salad',cal:620},
-    {value:'Fatty steak with buttered greens',label:'Dinner: Fatty steak',cal:750},
-    {value:'Cheese or pork rinds',label:'Snack: Cheese/pork rinds',cal:200}
-  ]},
-  { label:'Specialized — Vegan', options:[
-    {value:'Chia pudding with almond milk',label:'Breakfast: Chia pudding',cal:380},
-    {value:'Lentil soup with bread',label:'Lunch: Lentil soup',cal:450},
-    {value:'Tofu stir-fry with quinoa',label:'Dinner: Tofu stir-fry',cal:520},
-    {value:'Hummus with carrots',label:'Snack: Hummus with carrots',cal:150}
-  ]},
-  { label:'Custom', options:[{value:'__custom__',label:'Custom meal...',cal:0}]}
-];
-
-const MealsPage = ({user, partner, isShared}) => {
-  const [meals, setMeals] = useState([]);
-  const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()+1).padStart(2,'0'));
-  const [typeFilter, setTypeFilter] = useState('All');
-  const [showForm, setShowForm] = useState(false);
-  const [isCustomMeal, setIsCustomMeal] = useState(false);
-  const [form, setForm] = useState({name:'',mealType:'breakfast',calories:'',note:'',date:now()});
-  const [alert, setAlert] = useState({msg:'',type:''});
-  const msg=(m,t='ok')=>{ setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
-
-  const fetchMeals = useCallback(async()=>{
-    const users=[user.username,...(isShared&&partner?[partner.username]:[])];
-    try {
-      const all=await Promise.all(users.map(u=>axios.get(`${API}/mealplan`,{params:{user:u}}).then(r=>r.data.map(m=>({...m,userKey:u}))).catch(()=>[])));
-      setMeals(all.flat());
-    } catch {}
-  },[user.username,partner,isShared]);
-
-  useEffect(()=>{ fetchMeals(); },[fetchMeals]);
-
-  const filtered = useMemo(()=>{
-    const users=[user.username,...(isShared&&partner?[partner.username]:[])];
-    let list = meals.filter(m=>users.includes(m.userKey)&&(m.date||'').slice(5,7)===selectedMonth);
-    if(typeFilter!=='All') list=list.filter(m=>(m.mealType||'').toLowerCase()===typeFilter.toLowerCase());
-    return list;
-  },[meals,selectedMonth,typeFilter,user.username,partner,isShared]);
-
-  // Real calorie total from DB; estimate macros
-  const totals = useMemo(()=>{
-    const cal=filtered.reduce((s,m)=>s+parseFloat(m.calories||0),0);
-    return {cal:Math.round(cal), prot:Math.round(cal*0.08), carb:Math.round(cal*0.05), fat:Math.round(cal*0.028)};
-  },[filtered]);
-
-  const handleMealSelect = (val) => {
-    if(val==='__custom__'){ setIsCustomMeal(true); setForm(p=>({...p,name:'',calories:''})); return; }
-    setIsCustomMeal(false);
-    const allOpts = MEAL_OPTIONS.flatMap(g=>g.options);
-    const opt = allOpts.find(o=>o.value===val);
-    if(!opt) return;
-    const labelParts = opt.label.split(':');
-    const mTypeStr = labelParts[0]?.trim()||'';
-    const mt = MEAL_TYPE_MAP[mTypeStr]||form.mealType;
-    setForm(p=>({...p, name:val, calories:String(opt.cal||''), mealType:mt}));
-  };
-
-  const handleSave = async()=>{
-    if(!form.name||!form.calories){msg('Name and calories required.','err');return;}
-    try {
-      await axios.post(`${API}/mealplan`,{
-        user:user.username,
-        day:new Date(form.date).toLocaleString('en-US',{weekday:'long'}),
-        mealType:form.mealType,
-        description:form.name,
-        calories:parseFloat(form.calories)||0,
-        date:form.date
-      });
-      msg('Meal saved.');setShowForm(false);
-      setForm({name:'',mealType:'breakfast',calories:'',note:'',date:now()});
-      setIsCustomMeal(false); fetchMeals();
-    } catch { msg('Error saving.','err'); }
-  };
-
-  const handleDelete = async(id)=>{
-    try { await axios.delete(`${API}/mealplan/${id}`); fetchMeals(); } catch {}
-  };
-
-  return (
-    <div className="page-outer">
-      <div className="top-bar"><span className="top-eyebrow"><span>§ VECTRA ARCH</span> · LEGACY · NUTRITION</span></div>
-      <div className="page-scroll">
-        <div className="page-inner">
-          <div className="page-head">
-            <div className="page-title">MEAL PLAN</div>
-            <div className="page-sub">MACROS · DAILY FOOD LOG</div>
-          </div>
-          <UserRow user={user} partner={partner} isShared={isShared}/>
-          <div className="toolbar-row">
-            <div className="tb-chip">
-              <span style={{fontSize:'9px',fontFamily:"'DM Mono',monospace",letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--text3)'}}>MONTH</span>
-              <select value={selectedMonth} onChange={e=>setSelectedMonth(e.target.value)} style={{color:'var(--pink)'}}>
-                {MONTHS.map(m=><option key={m.v} value={m.v}>{m.l}</option>)}
-              </select>
-            </div>
-            <div className="tb-chip">
-              <span style={{fontSize:'9px',fontFamily:"'DM Mono',monospace",letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--text3)'}}>TYPE</span>
-              <select value={typeFilter} onChange={e=>setTypeFilter(e.target.value)} style={{color:'var(--green)'}}>
-                {['All','Breakfast','Lunch','Dinner','Snack'].map(tp=><option key={tp}>{tp}</option>)}
-              </select>
+              <button className="form-submit" style={{background:'var(--orange)'}} onClick={handleSave}>COMMIT PAYLOAD</button>
+              <button className="form-cancel" onClick={()=>setShowForm(false)}>Cancel</button>
             </div>
           </div>
-          <Alert {...alert}/>
-
-          <div className="section-label">§ TODAY'S MACROS</div>
-          <div className="macro-grid">
-            <div className="macro-card kcal"><div className="macro-value">{totals.cal}</div><div className="macro-unit">kcal · CAL</div></div>
-            <div className="macro-card prot"><div className="macro-value">{totals.prot}</div><div className="macro-unit">g · PROT</div></div>
-            <div className="macro-card carb"><div className="macro-value">{totals.carb}</div><div className="macro-unit">g · CARB</div></div>
-            <div className="macro-card fat" ><div className="macro-value">{totals.fat}</div><div className="macro-unit">g · FAT</div></div>
-          </div>
-
-          <div className="section-label">§ MEALS · {filtered.length} RECORDS</div>
-          {filtered.map(m=>{
-            const cal=parseFloat(m.calories)||0;
-            const desc=m.description||m.name||'Unknown';
-            return (
-              <div key={m.id} className="meal-card">
-                <div className="meal-top">
-                  <img className="meal-avatar" src={m.userKey===user.username?(user.profilePicUrl||DP):(partner?.profilePicUrl||DP)} alt="" style={{border:`2px solid ${m.userKey===user.username?(user.eventColor||'#e91e8c'):(partner?.eventColor||'#448aff')}`}}/>
-                  <span className={`meal-type-badge ${m.mealType||'breakfast'}`}>{(m.mealType||'breakfast').toUpperCase()}</span>
-                  <div className="meal-name">{desc.toUpperCase()}</div>
-                </div>
-                <div className="meal-macros">
-                  <span className="macro-badge kcal">{Math.round(cal)} kcal</span>
-                  <span className="macro-badge prot">P {Math.round(cal*0.08)}g</span>
-                  <span className="macro-badge carb">C {Math.round(cal*0.05)}g</span>
-                  <span className="macro-badge fat">F {Math.round(cal*0.028)}g</span>
-                </div>
-                {m.description&&<div className="meal-note">· {m.description}</div>}
-                {m.userKey===user.username&&(
-                  <button style={{marginTop:'8px',fontFamily:"'DM Mono',monospace",fontSize:'9px',color:'var(--red)',background:'transparent',border:'none',cursor:'pointer',textTransform:'uppercase',letterSpacing:'0.1em'}} onClick={()=>handleDelete(m.id)}>✕ Remove</button>
-                )}
-              </div>
-            );
-          })}
-          {filtered.length===0&&<div className="no-events"><div className="no-events-icon">🍽️</div><div className="no-events-text">NO MEALS LOGGED</div></div>}
-          <div style={{height:'80px'}}/>
-        </div>
+        )}
       </div>
-      <button className="fab green" onClick={()=>setShowForm(true)}>+ ADD MEAL</button>
+    );
+  };
 
-      {showForm&&(
-        <div className="modal-overlay" onClick={()=>setShowForm(false)}>
-          <div className="modal-sheet" onClick={e=>e.stopPropagation()}>
-            <div className="modal-handle"/>
-            <div className="modal-title">Log Meal</div>
-            <div className="form-field">
-              <label className="form-label">Select Meal Template</label>
-              <select className="form-select" value={isCustomMeal?'__custom__':form.name} onChange={e=>handleMealSelect(e.target.value)}>
-                <option value="">— Choose a meal —</option>
-                {MEAL_OPTIONS.map(group=>(
-                  <optgroup key={group.label} label={group.label}>
-                    {group.options.map(opt=><option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                  </optgroup>
-                ))}
-              </select>
-            </div>
-            {isCustomMeal&&(
-              <div className="form-field">
-                <label className="form-label">Meal Name</label>
-                <input className="form-input" placeholder="e.g. Overnight Oats" value={form.name} onChange={e=>setForm(p=>({...p,name:e.target.value}))}/>
-              </div>
-            )}
-            <div className="form-field">
-              <label className="form-label">Meal Type</label>
-              <div className="type-toggle">
-                {['breakfast','lunch','dinner','snack'].map(tp=>(
-                  <button key={tp} className={`type-toggle-btn ${form.mealType===tp?'active':''}`} onClick={()=>setForm(p=>({...p,mealType:tp}))}>{tp.toUpperCase()}</button>
-                ))}
-              </div>
-            </div>
-            <div className="form-field">
-              <label className="form-label">Calories (kcal)</label>
-              <input className="form-input" type="number" placeholder="e.g. 380" value={form.calories} onChange={e=>setForm(p=>({...p,calories:e.target.value}))}/>
-            </div>
-            <div className="form-field">
-              <label className="form-label">Date & Time</label>
-              <input className="form-input" type="datetime-local" value={form.date} onChange={e=>setForm(p=>({...p,date:e.target.value}))} step="1"/>
-            </div>
-            <button className="form-submit" style={{background:'var(--green)',color:'#000'}} onClick={handleSave}>SAVE MEAL</button>
-            <button className="form-cancel" onClick={()=>{setShowForm(false);setIsCustomMeal(false);}}>Cancel</button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
+  /* ── CYCLE PAGE ── */
+  const CyclePage = ({user, partner, isShared}) => {
+    const [logs, setLogs] = useState([]);
+    const [showForm, setShowForm] = useState(false);
+    const [form, setForm] = useState({startDate:now(),endDate:'',cycleLength:'28',symptoms:[]});
+    const [alert, setAlert] = useState({msg:'',type:''});
+    const msg=(m,t='ok')=>{ setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
 
-/* ── CYCLE PAGE ── */
-const CyclePage = ({user, partner, isShared}) => {
-  const [cycles, setCycles] = useState([]);
-  const [viewDate, setViewDate] = useState(new Date());
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({startDate:todayISO(),endDate:'',cycleLength:'28',symptoms:[],date:now()});
-  const [alert, setAlert] = useState({msg:'',type:''});
+    const SYMPTOMS=['Cramps','Bloating','Headache','Fatigue','Mood Swings','Acne','Insomnia'];
 
-  const SYMPTOMS=['Nausea','Pain','Cramps','Headache','Bloating','Mood swings','Fatigue'];
-  const msg=(m,t='ok')=>{ setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
+    const fetchAll = useCallback(async()=>{
+      const targetUser = isShared && partner && partner.username==='jane' ? 'jane' : user.username;
+      try {
+        const r = await axios.get(`${API}/biocycle`,{params:{user:targetUser}});
+        setLogs(r.data.sort((a,b)=>new Date(b.startDate)-new Date(a.startDate)));
+      } catch {}
+    },[user.username,partner,isShared]);
 
-  const fetchCycles = useCallback(async()=>{
-    try {
-      const {data}=await axios.get(`${API}/period`,{params:{user:user.username}});
-      setCycles(Array.isArray(data)?data:[]);
-    } catch {}
-  },[user.username]);
+    useEffect(()=>{ fetchAll(); },[fetchAll]);
 
-  useEffect(()=>{ fetchCycles(); },[fetchCycles]);
+    const handleSave = async()=>{
+      try {
+        await axios.post(`${API}/biocycle`,{...form, cycleLength:parseInt(form.cycleLength)||28, symptoms:form.symptoms.join(','), user:user.username});
+        msg('Biological bounds compiled');
+        setShowForm(false);
+        setForm({startDate:now(),endDate:'',cycleLength:'28',symptoms:[]});
+        fetchAll();
+      } catch { msg('Error parsing payload','err'); }
+    };
 
-  // Stats from most recent cycle
-  const latestCycle = useMemo(()=>[...cycles].sort((a,b)=>new Date(b.startDate)-new Date(a.startDate))[0],[cycles]);
-  const avgLen = useMemo(()=>cycles.length?Math.round(cycles.reduce((s,c)=>s+(parseInt(c.cycleLength)||28),0)/cycles.length):28,[cycles]);
+    const latest = logs[0];
+    const cycleLength = latest ? parseInt(latest.cycleLength)||28 : 28;
+    const daysSinceStart = latest ? Math.floor((new Date()-new Date(latest.startDate))/(1000*60*60*24)) : 0;
+    const dayOfCycle = latest ? (daysSinceStart % cycleLength) + 1 : 1;
 
-  const nextPeriod = useMemo(()=>{
-    if(!latestCycle) return null;
-    const d=new Date(latestCycle.startDate);
-    d.setDate(d.getDate()+avgLen);
-    return d;
-  },[latestCycle,avgLen]);
-
-  const fertileStart = useMemo(()=>{
-    if(!nextPeriod) return null;
-    const d=new Date(nextPeriod);
-    d.setDate(d.getDate()-(avgLen-14)-3);
-    return d;
-  },[nextPeriod,avgLen]);
-
-  const fertileEnd = useMemo(()=>{
-    if(!fertileStart) return null;
-    const d=new Date(fertileStart);
-    d.setDate(d.getDate()+5);
-    return d;
-  },[fertileStart]);
-
-  // Phase wheel SVG
-  const PhaseWheel = ({dayOfCycle=4, cycleLength=28}) => {
-    const cx=120,cy=120,r=90,innerR=50;
-    const phases=[
-      {name:'Menstrual',days:5,color:'#e91e8c'},
-      {name:'Follicular',days:7,color:'#1de9b6'},
-      {name:'Ovulation',days:3,color:'#ffd600'},
-      {name:'Luteal',days:cycleLength-15,color:'#ff6d00'}
+    // Build segment visualization arc mapping parameters
+    const total=cycleLength;
+    const segments=[
+      {days:5, color:'var(--red)', label:'Menstruation'},
+      {days:7, color:'var(--teal)', label:'Follicular Phase'},
+      {days:3, color:'var(--purple)', label:'Ovulation Zone'},
+      {days:total-15, color:'var(--orange)', label:'Luteal Phase'}
     ];
-    let total=phases.reduce((s,p)=>s+p.days,0);
-    let segments=[];
-    let angle=-Math.PI/2;
-    phases.forEach(p=>{
-      const span=(p.days/total)*2*Math.PI;
-      segments.push({...p,startAngle:angle,endAngle:angle+span});
-      angle+=span;
+
+    let currentAngle = -Math.PI / 2;
+    const mappedSegments = segments.map(s => {
+      const angleSweep = (s.days / total) * 2 * Math.PI;
+      const startAngle = currentAngle;
+      const endAngle = currentAngle + angleSweep;
+      currentAngle = endAngle;
+      return { ...s, startAngle, endAngle };
     });
 
-    const arc=(cx,cy,r,start,end,inner=0)=>{
-      const x1=cx+r*Math.cos(start),y1=cy+r*Math.sin(start);
-      const x2=cx+r*Math.cos(end),y2=cy+r*Math.sin(end);
-      const large=end-start>Math.PI?1:0;
-      if(inner>0){
-        const ix1=cx+inner*Math.cos(end),iy1=cy+inner*Math.sin(end);
-        const ix2=cx+inner*Math.cos(start),iy2=cy+inner*Math.sin(start);
+    const arc = (cx, cy, r, startAngle, endAngle, inner) => {
+      const x1 = cx + r * Math.cos(startAngle); const y1 = cy + r * Math.sin(startAngle);
+      const x2 = cx + r * Math.cos(endAngle); const y2 = cy + r * Math.sin(endAngle);
+      const large = (endAngle - startAngle) > Math.PI ? 1 : 0;
+      if (inner) {
+        const ix1 = cx + inner * Math.cos(startAngle); const iy1 = cy + inner * Math.sin(startAngle);
+        const ix2 = cx + inner * Math.cos(endAngle); const iy2 = cy + inner * Math.sin(endAngle);
         return `M${x1},${y1} A${r},${r},0,${large},1,${x2},${y2} L${ix1},${iy1} A${inner},${inner},0,${large},0,${ix2},${iy2} Z`;
       }
       return `M${cx},${cy} L${x1},${y1} A${r},${r},0,${large},1,${x2},${y2} Z`;
     };
 
-    // Day numbers ring
     const dayNums=[];
     for(let d=1;d<=total;d++){
       const a=-Math.PI/2+(((d-0.5)/total)*2*Math.PI);
-      const nr=r+14;
-      dayNums.push({d,x:cx+nr*Math.cos(a),y:cy+nr*Math.sin(a)});
+      const nr=114;
+      dayNums.push({d,x:130+nr*Math.cos(a),y:130+nr*Math.sin(a)});
     }
-
-    // Current day indicator
     const dayAngle=-Math.PI/2+((dayOfCycle-0.5)/total)*2*Math.PI;
-    const indR=r+14;
 
     return (
-      <svg width="260" height="260" viewBox="0 0 260 260">
-        {segments.map((seg,i)=>(
-          <path key={i} d={arc(cx,cy,r,seg.startAngle,seg.endAngle,innerR)} fill={seg.color} opacity="0.85"/>
-        ))}
-        {/* center */}
-        <circle cx={cx} cy={cy} r={innerR} fill="var(--bg)"/>
-        <text x={cx} y={cy-8} textAnchor="middle" fill="var(--text)" fontFamily="'Barlow Condensed',sans-serif" fontWeight="700" fontSize="18">DAY {dayOfCycle}</text>
-        <text x={cx} y={cy+10} textAnchor="middle" fill="var(--text3)" fontFamily="'DM Mono',monospace" fontSize="7" letterSpacing="0.08em">
-          {dayOfCycle<=5?'MENSTRUAL':dayOfCycle<=12?'FOLLICULAR':dayOfCycle<=15?'OVULATION':'LUTEAL'} PHASE
-        </text>
-        {/* day indicator dot */}
-        <circle cx={cx+indR*Math.cos(dayAngle)} cy={cy+indR*Math.sin(dayAngle)} r="10" fill="white"/>
-        <text x={cx+indR*Math.cos(dayAngle)} y={cy+indR*Math.sin(dayAngle)+4} textAnchor="middle" fill="var(--bg)" fontFamily="'DM Mono',monospace" fontWeight="700" fontSize="9">{dayOfCycle}</text>
-      </svg>
+      <div className="page-outer">
+        <div className="top-bar"><span className="top-eyebrow"><span>§ VECTRA ARCH</span> · LEGACY · BIOMETRICS</span></div>
+        <div className="page-scroll">
+          <div className="page-inner">
+            <div className="page-head">
+              <div className="page-title">BIOCYCLE MAP</div>
+              <div className="page-sub">ENDOCRINE · HORMONAL WAVE · VECTORING</div>
+            </div>
+            <UserRow user={user} partner={partner} isShared={isShared}/>
+            <Alert {...alert}/>
+
+            <div className="cycle-container">
+              <div className="cycle-wheel">
+                <svg width="260" height="260" viewBox="0 0 260 260">
+                  {mappedSegments.map((seg,i)=>(
+                    <path key={i} d={arc(130,130,100,seg.startAngle,seg.endAngle,85)} fill={seg.color} opacity="0.85"/>
+                  ))}
+                  <circle cx="130" cy="130" r="85" fill="var(--bg)"/>
+                  <text x="130" y="122" textAnchor="middle" fill="var(--text)" fontFamily="'Barlow Condensed',sans-serif" fontWeight="700" fontSize="18">DAY {dayOfCycle}</text>
+                  <text x="130" y="140" textAnchor="middle" fill="var(--text3)" fontFamily="'DM Mono',monospace" fontSize="7" letterSpacing="0.08em">
+                    {dayOfCycle<=5?'MENSTRUAL':dayOfCycle<=12?'FOLLICULAR':dayOfCycle<=15?'OVULATION':'LUTEAL'}
+                  </text>
+                  {dayNums.map(n=>(
+                    <text key={n.d} x={n.x} y={n.y+3} textAnchor="middle" fill={n.d===dayOfCycle?'var(--pink)':'var(--text3)'} fontFamily="'DM Mono',monospace" fontSize="8" fontWeight={n.d===dayOfCycle?'700':'400'}>{n.d}</text>
+                  ))}
+                  <circle cx={130+92*Math.cos(dayAngle)} cy={130+92*Math.sin(dayAngle)} r="4" fill="var(--text)"/>
+                </svg>
+              </div>
+            </div>
+
+            <div className="section-label">§ REGISTERED SEQUENCES</div>
+            <div className="item-list">
+              {logs.map(l=>(
+                <div key={l.id} className="meal-card" style={{borderLeft:'2px solid var(--pink)'}}>
+                  <div className="meal-name" style={{fontSize:'14px'}}>SEQUENCE START: {fmtDate(l.startDate)}</div>
+                  <div className="meal-note" style={{marginTop:'4px',color:'var(--text2)'}}>Duration limits: {l.cycleLength} days</div>
+                  {l.symptoms && (
+                    <div style={{display:'flex',gap:4,flexWrap:'wrap',marginTop:8}}>
+                      {l.symptoms.split(',').map(s=><span key={s} className="macro-badge kcal" style={{background:'rgba(255,255,255,0.04)',color:'var(--text2)',border:'1px solid var(--border)'}}>{s}</span>)}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+            {logs.length===0&&<div className="no-events"><div className="no-events-icon">🩸</div><div className="no-events-text">NO BIOLOGICAL RECTALS REPORTED</div></div>}
+            <div style={{height:'80px'}}/>
+          </div>
+        </div>
+        <button className="fab pink" onClick={()=>setShowForm(true)}>+ LOG CYCLE DATA</button>
+
+        {showForm && (
+          <div className="modal-overlay" onClick={()=>setShowForm(false)}>
+            <div className="modal-sheet" onClick={e=>e.stopPropagation()}>
+              <div className="modal-title">LOG SYSTEM SEQUENCE</div>
+              <div className="form-field">
+                <label className="form-label">Start Date</label>
+                <input className="form-input" type="date" value={form.startDate} onChange={e=>setForm(p=>({...p,startDate:e.target.value}))}/>
+              </div>
+              <div className="form-field">
+                <label className="form-label">End Date (optional)</label>
+                <input className="form-input" type="date" value={form.endDate} onChange={e=>setForm(p=>({...p,endDate:e.target.value}))}/>
+              </div>
+              <div className="form-field">
+                <label className="form-label">Cycle Length (days)</label>
+                <input className="form-input" type="number" value={form.cycleLength} onChange={e=>setForm(p=>({...p,cycleLength:e.target.value}))}/>
+              </div>
+              <div className="form-field">
+                <label className="form-label">Symptoms</label>
+                <div className="type-toggle" style={{flexWrap:'wrap'}}>
+                  {SYMPTOMS.map(s=><button key={s} className={`type-toggle-btn ${form.symptoms.includes(s)?'active':''}`} onClick={()=>setForm(p=>({...p,symptoms:p.symptoms.includes(s)?p.symptoms.filter(x=>x!==s):[...p.symptoms,s]}))}>{s}</button>)}
+                </div>
+              </div>
+              <button className="form-submit" style={{background:'var(--pink)'}} onClick={handleSave}>SAVE CYCLE</button>
+              <button className="form-cancel" onClick={()=>setShowForm(false)}>Cancel</button>
+            </div>
+          </div>
+        )}
+      </div>
     );
   };
 
-  const dayOfCycle = useMemo(()=>{
-    if(!latestCycle) return 1;
-    const diff=Math.floor((new Date()-new Date(latestCycle.startDate))/86400000)+1;
-    return Math.max(1,Math.min(diff,avgLen));
-  },[latestCycle,avgLen]);
+  /* ── PROFILE PAGE ── */
+  const ProfilePage = ({user, setUser, partner, setPartner, sharingConfig, setSharingConfig}) => {
+    const [darkMode, setDarkMode] = useState(true);
+    const [selectedColor, setSelectedColor] = useState(user?.eventColor || '#e91e8c');
+    const [alert, setAlert] = useState({msg:'',type:''});
+    const msg=(m,t='ok')=>{ setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
 
-  const handleSave = async()=>{
-    try {
-      await axios.post(`${API}/period`,{user:user.username,startDate:form.startDate,endDate:form.endDate||null,cycleLength:parseInt(form.cycleLength)||28,symptoms:form.symptoms.join(','),date:form.date});
-      msg('Cycle logged.');setShowForm(false);fetchCycles();
-    } catch { msg('Error.','err'); }
-  };
+    const COLORS = ['#e91e8c', '#448aff', '#00e676', '#ffd600', '#ff6d00', '#e040fb', '#00e5ff', '#1de9b6'];
 
-  const prevDay=()=>setViewDate(d=>{const n=new Date(d);n.setDate(n.getDate()-1);return n;});
-  const nextDay=()=>setViewDate(d=>{const n=new Date(d);n.setDate(n.getDate()+1);return n;});
-  const goToday=()=>setViewDate(new Date());
-  const viewLabel=viewDate.toLocaleDateString('en-ZA',{weekday:'short',day:'2-digit',month:'long',year:'numeric'}).toUpperCase();
+    const toggleSharing = async (nodeKey) => {
+      const next = !sharingConfig[nodeKey];
+      try {
+        await axios.post(`${API}/sharing/config`, { module_key: nodeKey, is_shared: next, legacy_username: user.username });
+        setSharingConfig(p => ({ ...p, [nodeKey]: next }));
+        msg(`Sharing map for ${nodeKey.toUpperCase()} updated`);
+      } catch { msg('Failed to update map configs','err'); }
+    };
 
-  return (
-    <div className="page-outer">
-      <div className="top-bar"><span className="top-eyebrow"><span>§ VECTRA ARCH</span> · LEGACY · HEALTH</span></div>
-      <div className="page-scroll">
-        <div className="page-inner">
-          <div className="page-head">
-            <div className="page-title">CYCLE TRACKER</div>
-            <div className="page-sub">PERIOD · OVULATION · FERTILITY</div>
-          </div>
-          <UserRow user={user} partner={partner} isShared={isShared}/>
-          <Alert {...alert}/>
+    const handleColorChange = async (color) => {
+      setSelectedColor(color);
+      try {
+        await axios.post(`${API}/user/profile`, { username: user.username, eventColor: color });
+        setUser(p => ({ ...p, eventColor: color }));
+        msg('Personal hex signature written');
+      } catch { msg('Profile mutation rejected','err'); }
+    };
 
-          {/* Stats */}
-          {latestCycle&&(
-            <div className="cycle-stats-card">
-              <div className="cycle-stats-grid">
+    return (
+      <div className="page-outer">
+        <div className="top-bar"><span className="top-eyebrow"><span>§ VECTRA ARCH</span> · LEGACY · NODE</span></div>
+        <div className="page-scroll">
+          <div className="page-inner">
+            <div className="page-head">
+              <div className="page-title">PROFILE CONFIG</div>
+              <div className="page-sub">IDENTITIES · SYNC BALANCING · MATRIX</div>
+            </div>
+            <Alert {...alert}/>
+
+            <div className="profile-banner">
+              <div className="profile-avatar-wrapper">
+                <img className="profile-avatar-big" src={user?.profilePicUrl||DP} alt="" style={{borderColor:selectedColor}}/>
+                <div className="profile-avatar-edit">✎</div>
+              </div>
+              <div className="profile-name-big">{user?.displayName || (user?.username||'').toUpperCase()}</div>
+              <div className="profile-username-big">@{user?.username || 'unknown'} · SYSTEM MEMBER</div>
+            </div>
+
+            <div className="section-label">§ INTERFACE CONTROL</div>
+            <div className="profile-section">
+              <div className="profile-row-toggle">
                 <div>
-                  <div className="cycle-stat-label">Last Start</div>
-                  <div className="cycle-stat-value start">{fmtDate(latestCycle.startDate)}</div>
+                  <div className="toggle-info-label">High-Contrast Dark Emulation</div>
+                  <div className="toggle-info-sub">Terminal dark theme (recommended)</div>
                 </div>
-                <div>
-                  <div className="cycle-stat-label">Next Period</div>
-                  <div className="cycle-stat-value next">{nextPeriod?fmtDate(nextPeriod.toISOString()):'—'}</div>
-                </div>
-                <div>
-                  <div className="cycle-stat-label">Fertile</div>
-                  <div className="cycle-stat-value fertile">{fertileStart&&fertileEnd?`${fertileStart.toLocaleDateString('en-ZA',{month:'short',day:'numeric'})} - ${fertileEnd.toLocaleDateString('en-ZA',{month:'short',day:'numeric'})}`:'—'}</div>
-                </div>
+                <div className={`toggle-switch ${darkMode?'on':'off'}`} onClick={()=>setDarkMode(p=>!p)}/>
               </div>
             </div>
-          )}
 
-          {/* Date nav */}
-          <div className="cycle-date-nav">
-            <button className="cal-nav-btn" onClick={prevDay}>‹</button>
-            <div className="cycle-date-label">
-              <span>📅</span>
-              <span>{viewLabel}</span>
-            </div>
-            <button className="cal-nav-btn" onClick={nextDay}>›</button>
-            <button className="cycle-today-btn" onClick={goToday}>TODAY</button>
-          </div>
-
-          {/* Phase wheel */}
-          <div className="section-label">§ PHASE WHEEL · DAY {dayOfCycle} OF {avgLen}</div>
-          <div className="phase-wheel-wrap">
-            <PhaseWheel dayOfCycle={dayOfCycle} cycleLength={avgLen}/>
-            <div className="phase-legend">
-              {[['#e91e8c','MENSTRUAL · 1-5'],['#1de9b6','FOLLICULAR · 6-12'],['#ffd600','OVULATION · 13-15'],['#ff6d00',`LUTEAL · 16-${avgLen}`]].map(([c,l])=>(
-                <div key={l} className="phase-legend-item"><div className="phase-legend-dot" style={{background:c}}/>{l}</div>
-              ))}
-            </div>
-          </div>
-
-          {/* Cycles */}
-          <div className="section-label">§ CYCLES · {cycles.length} RECORD{cycles.length!==1?'S':''}</div>
-          {cycles.map(c=>(
-            <div key={c.id} className="cycle-record-card">
-              <div className="cycle-record-start">
-                <span className="cycle-record-icon">🔴</span>
-                START: {fmtDate(c.startDate).toUpperCase()}
-              </div>
-              <div className="cycle-record-grid">
-                <div>
-                  <div className="cycle-record-label">End</div>
-                  <div className="cycle-record-value">{fmtDate(c.endDate)||'—'}</div>
-                </div>
-                <div>
-                  <div className="cycle-record-label">Length</div>
-                  <div className="cycle-record-value">{c.cycleLength}d</div>
-                </div>
-                <div>
-                  <div className="cycle-record-label">Duration</div>
-                  <div className="cycle-record-value">{c.endDate?Math.floor((new Date(c.endDate)-new Date(c.startDate))/86400000)+'d':'—'}</div>
-                </div>
-              </div>
-              {c.symptoms&&c.symptoms.length>0&&(
-                <div className="symptom-tags">
-                  {c.symptoms.split(',').filter(Boolean).map(s=>(
-                    <span key={s} className="symptom-tag">§ {s.trim()}</span>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
-          {cycles.length===0&&<div className="no-events"><div className="no-events-text">No cycles logged</div></div>}
-          <div style={{height:'80px'}}/>
-        </div>
-      </div>
-      <button className="fab" style={{background:'var(--pink)'}} onClick={()=>setShowForm(true)}>+ ADD CYCLE</button>
-
-      {showForm&&(
-        <div className="modal-overlay" onClick={()=>setShowForm(false)}>
-          <div className="modal-sheet" onClick={e=>e.stopPropagation()}>
-            <div className="modal-handle"/>
-            <div className="modal-title">Log Cycle</div>
-            <div className="form-field">
-              <label className="form-label">Start Date</label>
-              <input className="form-input" type="date" value={form.startDate} onChange={e=>setForm(p=>({...p,startDate:e.target.value}))}/>
-            </div>
-            <div className="form-field">
-              <label className="form-label">End Date (optional)</label>
-              <input className="form-input" type="date" value={form.endDate} onChange={e=>setForm(p=>({...p,endDate:e.target.value}))}/>
-            </div>
-            <div className="form-field">
-              <label className="form-label">Cycle Length (days)</label>
-              <input className="form-input" type="number" value={form.cycleLength} onChange={e=>setForm(p=>({...p,cycleLength:e.target.value}))}/>
-            </div>
-            <div className="form-field">
-              <label className="form-label">Symptoms</label>
-              <div className="type-toggle" style={{flexWrap:'wrap'}}>
-                {SYMPTOMS.map(s=><button key={s} className={`type-toggle-btn ${form.symptoms.includes(s)?'active':''}`} onClick={()=>setForm(p=>({...p,symptoms:p.symptoms.includes(s)?p.symptoms.filter(x=>x!==s):[...p.symptoms,s]}))}>{s}</button>)}
-              </div>
-            </div>
-            <button className="form-submit" style={{background:'var(--pink)'}} onClick={handleSave}>SAVE CYCLE</button>
-            <button className="form-cancel" onClick={()=>setShowForm(false)}>Cancel</button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-/* ── PROFILE PAGE ── */
-const ProfilePage = ({user, setUser, partner, setPartner, sharingConfig, setSharingConfig}) => {
-  const [activeUser, setActiveUser] = useState(user);
-  const [form, setForm] = useState({displayName:user.displayName||user.username,email:user.email||'',phone:user.phone||''});
-  const [pushNotifs, setPushNotifs] = useState(true);
-  const [darkMode, setDarkMode] = useState(true);
-  const [selectedColor, setSelectedColor] = useState(user.eventColor||'#00e676');
-  const [alert, setAlert] = useState({msg:'',type:''});
-
-  const COLORS=['#00e676','#ff3b3b','#448aff','#ffd600','#e91e8c','#e040fb'];
-  const msg=(m,t='ok')=>{ setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
-
-  const isSharing = Object.values(sharingConfig).some(v=>v);
-  const currentUser = activeUser.username===user.username?user:partner;
-
-  const handleSave = async()=>{
-    try {
-      await axios.post(`${API}/profile-pictures`,{username:activeUser.username,displayName:form.displayName,email:form.email,phone:form.phone,eventColor:selectedColor});
-      const updated={...activeUser,...form,eventColor:selectedColor};
-      if(activeUser.username===user.username){setUser(updated);localStorage.setItem('user',JSON.stringify(updated));}
-      msg('Changes saved.');
-    } catch { msg('Error saving.','err'); }
-  };
-
-  const toggleSharingItem = (item) => {
-    setSharingConfig(p=>({...p,[item]:!p[item]}));
-  };
-  const sharingItems=['Finances','Calendar','Budget','Gym','Meals','Cycle'];
-
-  return (
-    <div className="page-outer">
-      <div className="top-bar"><span className="top-eyebrow"><span>§ VECTRA ARCH</span> · LEGACY · ADMIN</span></div>
-      <div className="page-scroll">
-        <div className="page-inner">
-          <div className="page-head">
-            <div className="page-title">PROFILE</div>
-            <div className="page-sub">ACCOUNT · SHARING · PREFERENCES</div>
-          </div>
-          <Alert {...alert}/>
-
-          {/* Active user card */}
-          <div className="profile-user-card">
-            <img className="profile-user-avatar" src={currentUser?.profilePicUrl||DP} alt="" style={{border:`2px solid ${currentUser?.eventColor||'#e91e8c'}`}}/>
-            <div>
-              <div className="profile-user-name">{currentUser?.displayName||currentUser?.username||'USER'}</div>
-              <div className="profile-user-email">{currentUser?.email||`${(currentUser?.username||'user')}@vectraarch.live`}</div>
-              {currentUser?.gender&&<span className={`profile-user-badge ${currentUser.gender?.toLowerCase()}`}>{(currentUser.gender||'').toUpperCase()}</span>}
-            </div>
-            {partner&&<button className="switch-btn" onClick={()=>setActiveUser(activeUser.username===user.username?partner:user)}>SWITCH</button>}
-          </div>
-
-          {/* Partner sharing */}
-          {partner&&(
-            <div className="partner-sharing-card">
-              <div className="profile-section-title">§ PARTNER SHARING</div>
-              <div className="partner-row">
-                <img className="partner-avatar" src={partner.profilePicUrl||DP} alt="" style={{border:`2px solid ${partner.eventColor||'#448aff'}`}}/>
-                <div>
-                  <div className="partner-info-name">{partner.displayName||partner.username}</div>
-                  <div className="partner-info-status">Partner · linked</div>
-                </div>
-                <button className={`share-all-btn ${isSharing?'sharing':'not-sharing'}`} onClick={()=>{const all=!isSharing;setSharingConfig(Object.fromEntries(sharingItems.map(i=>[i,all])));}}>{isSharing?'SHARING ALL':'SHARE ALL'}</button>
-              </div>
-              <div className="partner-hint">Tap a tab below to enable shared view. When enabled, totals combine both partners' data on that page.</div>
-              <div className="sharing-grid">
-                {sharingItems.map(item=>(
-                  <div key={item} className={`sharing-item ${sharingConfig[item]?'on':''}`} onClick={()=>toggleSharingItem(item)}>
-                    <span className="sharing-item-label">{item.toUpperCase()}</span>
-                    <div className={`sharing-check ${sharingConfig[item]?'on':'off'}`}>{sharingConfig[item]?'✓':''}</div>
-                  </div>
+            <div className="profile-section">
+              <div className="profile-section-title">§ EVENT COLOR</div>
+              <div style={{padding:'12px 14px',fontFamily:"'DM Mono',monospace",fontSize:'10px',color:'var(--text3)',marginBottom:'4px'}}>Your personal event color</div>
+              <div className="color-palette">
+                {COLORS.map(c=>(
+                  <div key={c} className={`color-swatch ${selectedColor===c?'selected':''}`} style={{background:c}} onClick={()=>handleColorChange(c)}/>
                 ))}
               </div>
             </div>
-          )}
 
-          {/* Account Details */}
-          <div className="profile-section">
-            <div className="profile-section-title">§ ACCOUNT DETAILS</div>
-            <div className="profile-field">
-              <div className="profile-field-label">Display Name</div>
-              <input className="profile-field-input" value={form.displayName} onChange={e=>setForm(p=>({...p,displayName:e.target.value}))}/>
-            </div>
-            <div className="profile-field">
-              <div className="profile-field-label">Email</div>
-              <input className="profile-field-input" value={form.email} onChange={e=>setForm(p=>({...p,email:e.target.value}))} type="email"/>
-            </div>
-            <div className="profile-field">
-              <div className="profile-field-label">Phone</div>
-              <input className="profile-field-input" value={form.phone} onChange={e=>setForm(p=>({...p,phone:e.target.value}))} type="tel"/>
-            </div>
+            {partner && (
+              <React.Fragment>
+                <div className="section-label">§ SHARING CONFIGURATION MATRIX</div>
+                <div className="profile-section">
+                  {[['finances','Share Ledger Pipelines'], ['calendar','Sync Central Agenda'], ['budget','Co-manage Allocation Bounds'], ['gym','Transmit Volume Progressions'], ['meals','Interlink Caloric Tally'], ['cycle','Expose Biometric Mapping']].map(([k, lbl])=>(
+                    <div className="profile-row-toggle" key={k}>
+                      <div>
+                        <div className="toggle-info-label">{k.toUpperCase()} FLOWS</div>
+                        <div className="toggle-info-sub">{lbl}</div>
+                      </div>
+                      <div className={`toggle-switch ${sharingConfig[k]?'on':'off'}`} onClick={()=>toggleSharing(k)}/>
+                    </div>
+                  ))}
+                </div>
+              </React.Fragment>
+            )}
+            <div style={{height:'80px'}}/>
           </div>
-
-          {/* Preferences */}
-          <div className="profile-section">
-            <div className="profile-section-title">§ PREFERENCES</div>
-            <div className="toggle-row">
-              <div>
-                <div className="toggle-info-title">Push Notifications</div>
-                <div className="toggle-info-sub">Alerts for events and reminders</div>
-              </div>
-              <div className={`toggle-switch ${pushNotifs?'on':'off'}`} onClick={()=>setPushNotifs(p=>!p)}/>
-            </div>
-            <div className="divider"/>
-            <div className="toggle-row">
-              <div>
-                <div className="toggle-info-title">Dark Mode</div>
-                <div className="toggle-info-sub">Terminal dark theme (recommended)</div>
-              </div>
-              <div className={`toggle-switch ${darkMode?'on':'off'}`} onClick={()=>setDarkMode(p=>!p)}/>
-            </div>
-          </div>
-
-          {/* Event Color */}
-          <div className="profile-section">
-            <div className="profile-section-title">§ EVENT COLOR</div>
-            <div style={{padding:'12px 14px',fontFamily:"'DM Mono',monospace",fontSize:'10px',color:'var(--text3)',marginBottom:'4px'}}>Your personal event color</div>
-            <div className="color-palette">
-              {COLORS.map(c=>(
-                <div key={c} className={`color-swatch ${selectedColor===c?'selected':''}`} style={{background:c}} onClick={()=>setSelectedColor(c)}/>
-              ))}
-            </div>
-          </div>
-
-          <button className="save-btn" onClick={handleSave}>SAVE CHANGES</button>
-
-          {/* Danger Zone */}
-          <div className="profile-section-title" style={{color:'var(--red)',marginBottom:'8px'}}>§ DANGER ZONE</div>
-          <div className="danger-zone">
-            <button className="danger-btn">CHANGE PASSWORD</button>
-            <button className="danger-btn">DELETE ACCOUNT</button>
-          </div>
-          <div style={{height:'32px'}}/>
         </div>
       </div>
-    </div>
-  );
-};
+    );
+  };
 
-/* ── ROOT APP ── */
-const TABS = [
-  {id:'finances', label:'FINANCES'},
-  {id:'calendar', label:'CALENDAR'},
-  {id:'budget',   label:'BUDGET'},
-  {id:'gym',      label:'GYM'},
-  {id:'meals',    label:'MEALS'},
-  {id:'cycle',    label:'CYCLE'},
-  {id:'profile',  label:'PROFILE'},
-];
+  /* ── MAIN SHELL ── */
+  const AppShell = () => {
+    const [activeTab, setActiveTab] = useState('finances');
+    const [user, setUser] = useState(null);
+    const [partner, setPartner] = useState(null);
+    const [sharingConfig, setSharingConfig] = useState({ finances:false, calendar:false, budget:false, gym:false, meals:false, cycle:false });
 
-const App = () => {
-  const [user, setUser] = useState(null);
-  const [partner, setPartner] = useState(null);
-  const [activeTab, setActiveTab] = useState('finances');
-  // Sharing config — per-tab
-  const [sharingConfig, setSharingConfig] = useState({Finances:false,Calendar:false,Budget:false,Gym:false,Meals:false,Cycle:false});
-  const [error, setError] = useState('');
-
-  useEffect(()=>{
-    const stored = localStorage.getItem('user');
-    if(stored){
+    useEffect(() => {
       try {
-        const u = JSON.parse(stored);
-        setUser(u);
-        // Try to load partner
-        axios.get(`${API}/get-access`,{params:{viewer:u.username,adminUsername:u.username}})
-          .then(async({data})=>{
-            if(data.success&&data.accessList?.length>0){
-              const targets = data.accessList.filter(a=>a.viewer===u.username).map(a=>a.target);
-              if(targets.length>0){
-                try {
-                  const {data:pd}=await axios.get(`${API}/profile-pictures`,{params:{username:targets[0]}});
-                  setPartner({username:targets[0],...pd,profilePicUrl:pd.profilePicUrl||DP,eventColor:pd.eventColor||'#448aff',displayName:pd.displayName||targets[0]});
-                } catch {
-                  setPartner({username:targets[0],displayName:targets[0],eventColor:'#448aff',profilePicUrl:DP});
-                }
-              }
-            }
-          }).catch(()=>{});
-        // Also load own profile
-        axios.get(`${API}/profile-pictures`,{params:{username:u.username}}).then(({data})=>{
-          setUser(prev=>({...prev,...data,profilePicUrl:data.profilePicUrl||prev.profilePicUrl||DP}));
-        }).catch(()=>{});
-      } catch { setError('Invalid session'); }
-    } else {
-      window.location.href='index.html';
-    }
-  },[]);
+        const cached = localStorage.getItem('user');
+        if(cached) {
+          const uData = JSON.parse(cached);
+          setUser(uData);
+          if (uData.username) {
+            axios.get(`${API}/sharing/status`, { params: { legacy_username: uData.username } })
+              .then(res => {
+                if(res.data.partner) setPartner(res.data.partner);
+                if(res.data.config) setSharingConfig(res.data.config);
+              }).catch(()=>{});
+          }
+        }
+      } catch {}
+    }, []);
 
-  if(error) return <div style={{padding:'40px',color:'var(--red)',fontFamily:"'DM Mono',monospace"}}>{error}</div>;
-  if(!user) return <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',color:'var(--text3)',fontFamily:"'DM Mono',monospace",fontSize:'11px',letterSpacing:'0.14em'}}>LOADING...</div>;
+    const handleLogout = () => {
+      localStorage.removeItem('user');
+      window.location.replace('/legacy/login.html');
+    };
 
-  // Tab-specific sharing toggle
-  const tabSharingKey = {finances:'Finances',calendar:'Calendar',budget:'Budget',gym:'Gym',meals:'Meals',cycle:'Cycle'}[activeTab];
-  const isShared = tabSharingKey ? sharingConfig[tabSharingKey] : false;
-  const toggleShared = () => { if(tabSharingKey) setSharingConfig(p=>({...p,[tabSharingKey]:!p[tabSharingKey]})); };
+    if(!user) return null;
 
-  const sharedProps = {user, partner, isShared, onToggleShared:toggleShared};
+    const tabSharingKey = { finances:'finances', calendar:'calendar', budget:'budget', gym:'gym', meals:'meals', cycle:'cycle' }[activeTab];
+    const isShared = tabSharingKey ? sharingConfig[tabSharingKey] : false;
+    const toggleShared = () => { if(tabSharingKey) setSharingConfig(p=>({...p,[tabSharingKey]:!p[tabSharingKey]})); };
 
-  return (
-    <div className="app-shell">
-      <div style={{flex:1,overflow:'hidden',minHeight:0}}>
-        {activeTab==='finances'&&<FinancesPage {...sharedProps}/>}
-        {activeTab==='calendar'&&<CalendarPage {...sharedProps}/>}
-        {activeTab==='budget'  &&<BudgetPage   {...sharedProps}/>}
-        {activeTab==='gym'     &&<GymPage      {...sharedProps}/>}
-        {activeTab==='meals'   &&<MealsPage    {...sharedProps}/>}
-        {activeTab==='cycle'   &&<CyclePage    {...sharedProps}/>}
-        {activeTab==='profile' &&<ProfilePage  user={user} setUser={setUser} partner={partner} setPartner={setPartner} sharingConfig={sharingConfig} setSharingConfig={setSharingConfig}/>}
-      </div>
-      <div className="bottom-tabs">
-        {TABS.map(t=>(
-          <button key={t.id} className={`tab-btn ${activeTab===t.id?'active':''}`} onClick={()=>setActiveTab(t.id)}>
-            <span className="tab-icon">{Icons[t.id]}</span>
-            <span className="tab-label">{t.label}</span>
+    const sharedProps = {user, partner, isShared, onToggleShared:toggleShared};
+
+    return (
+      <div className="app-shell">
+        <div style={{flex:1,overflow:'hidden',minHeight:0}}>
+          {activeTab==='finances'&&<FinancesPage {...sharedProps}/>}
+          {activeTab==='calendar'&&<CalendarPage {...sharedProps}/>}
+          {activeTab==='budget'  &&<BudgetPage   {...sharedProps}/>}
+          {activeTab==='gym'     &&<GymPage      {...sharedProps}/>}
+          {activeTab==='meals'   &&<MealsPage    {...sharedProps}/>}
+          {activeTab==='cycle'   &&<CyclePage    {...sharedProps}/>}
+          {activeTab==='profile' &&<ProfilePage  user={user} setUser={setUser} partner={partner} setPartner={setPartner} sharingConfig={sharingConfig} setSharingConfig={setSharingConfig}/>}
+        </div>
+        <div className="bottom-tabs">
+          {TABS.map(t=>(
+            <button key={t.id} className={`tab-btn ${activeTab===t.id?'active':''}`} onClick={()=>setActiveTab(t.id)}>
+              <span className="tab-icon">{ICONS[t.id]}</span>
+              <span className="tab-label">{t.label}</span>
+            </button>
+          ))}
+          <button className="tab-btn" onClick={handleLogout}>
+            <span className="tab-icon">{ICONS.logout}</span>
+            <span className="tab-label">Logout</span>
           </button>
-        ))}
+        </div>
       </div>
-    </div>
-  );
-};
+    );
+  };
 
-ReactDOM.render(<App/>, document.getElementById('root'));
+  const root = RoyaltyDOM.createRoot(document.getElementById('root'));
+  // Temporary bypass for local syntax quirk mapping ReactDom target node
+  const rEl = document.getElementById('root');
+  ReactDOM.createRoot(rEl).render(<AppShell />);
 </script>
 </body>
 </html>
