@@ -129,7 +129,7 @@ const FinancesPage = ({user, partner, isShared}) => {
         <div className="page-inner">
           <div className="page-head">
             <div className="page-title">FINANCES</div>
-            <div className="page-sub">{isShared2?'COMBINED HOUSEHOLD TOTALS':'INCOME · EXPENSES · NET TOTAL'}</div>
+            <div className="page-sub">INCOME · EXPENSES · NET TOTAL</div>
           </div>
           <UserRow user={user} partner={partner} isShared={isShared}/>
           <div className="toolbar-row">
@@ -249,11 +249,9 @@ const CalendarPage = ({user, partner, isShared}) => {
     const first=new Date(year,month,1);
     const last=new Date(year,month+1,0);
     const days=[];
-    // pad start (Monday=0)
     let dow=(first.getDay()+6)%7;
     for(let i=0;i<dow;i++) days.push({date:new Date(year,month,1-dow+i),otherMonth:true});
     for(let d=1;d<=last.getDate();d++) days.push({date:new Date(year,month,d),otherMonth:false});
-    // pad end
     const rem=7-(days.length%7); if(rem<7) for(let i=1;i<=rem;i++) days.push({date:new Date(year,month+1,i),otherMonth:true});
     return days;
   },[viewDate]);
@@ -282,7 +280,7 @@ const CalendarPage = ({user, partner, isShared}) => {
   };
 
   const prevMonth=()=>setViewDate(d=>new Date(d.getFullYear(),d.getMonth()-1,1));
-  const nextMonth=()=>setViewDate(d=>new Date(d.getFullYear(),d.getMonth()+1,1));
+  const nextMonth=()=>setViewDate(d=>new Date(d.getFullYear(),d.getMonth+1,1));
   const goToday=()=>{const t=new Date();setViewDate(t);setSelectedDay(t);};
   const monthLabel=viewDate.toLocaleString('default',{month:'long'}).toUpperCase();
   const selLabel=selectedDay.toISOString().slice(0,10);
@@ -537,73 +535,6 @@ const BudgetPage = ({user, partner, isShared}) => {
 };
 
 /* ── GYM PAGE ── */
-const WORKOUT_OPTIONS = [
-  { label:'Strength — Free Weights', options:[
-    {value:'Barbell Back Squat',label:'Barbell Back Squat'},{value:'Barbell Front Squat',label:'Barbell Front Squat'},
-    {value:'Barbell Deadlift',label:'Barbell Deadlift'},{value:'Romanian Deadlift',label:'Romanian Deadlift'},
-    {value:'Barbell Bench Press',label:'Barbell Bench Press'},{value:'Incline Barbell Bench Press',label:'Incline Barbell Bench Press'},
-    {value:'Barbell Overhead Press',label:'Barbell Overhead Press'},{value:'Barbell Bent-Over Row',label:'Barbell Bent-Over Row'},
-    {value:'Barbell Hip Thrust',label:'Barbell Hip Thrust'},{value:'Barbell Curl',label:'Barbell Curl'},
-    {value:'Dumbbell Shoulder Press',label:'Dumbbell Shoulder Press'},{value:'Dumbbell Lateral Raises',label:'Dumbbell Lateral Raises'},
-    {value:'Dumbbell Bicep Curl',label:'Dumbbell Bicep Curl'},{value:'Hammer Curl',label:'Hammer Curl'},
-    {value:'Dumbbell Tricep Kickback',label:'Dumbbell Tricep Kickback'},{value:'Dumbbell Romanian Deadlift',label:'Dumbbell Romanian Deadlift'},
-    {value:'Dumbbell Lunges',label:'Dumbbell Lunges'},{value:'Goblet Squat',label:'Goblet Squat'},
-    {value:'Dumbbell Row',label:'Dumbbell Row'},{value:'Dumbbell Fly',label:'Dumbbell Fly'},
-    {value:'EZ-Bar Curl',label:'EZ-Bar Curl'},{value:'Skull Crushers',label:'Skull Crushers'}
-  ]},
-  { label:'Strength — Cable Machine', options:[
-    {value:'Cable Crossover (Fly)',label:'Cable Crossover (Fly)'},{value:'Cable Tricep Pushdown',label:'Cable Tricep Pushdown'},
-    {value:'Cable Bicep Curl',label:'Cable Bicep Curl'},{value:'Cable Row',label:'Cable Row'},
-    {value:'Face Pull',label:'Face Pull'},{value:'Cable Lateral Raise',label:'Cable Lateral Raise'},
-    {value:'Cable Woodchop',label:'Cable Woodchop'},{value:'Cable Hip Abduction',label:'Cable Hip Abduction'}
-  ]},
-  { label:'Strength — Machine', options:[
-    {value:'Leg Press',label:'Leg Press'},{value:'Leg Extension',label:'Leg Extension'},
-    {value:'Leg Curl (Hamstring Curl)',label:'Leg Curl (Hamstring Curl)'},{value:'Chest Press Machine',label:'Chest Press Machine'},
-    {value:'Lat Pulldown',label:'Lat Pulldown'},{value:'Seated Row Machine',label:'Seated Row Machine'},
-    {value:'Hip Abduction/Adduction Machine',label:'Hip Abduction/Adduction Machine'},
-    {value:'Pec Deck (Chest Fly)',label:'Pec Deck (Chest Fly)'},{value:'Tricep Pushdowns',label:'Tricep Pushdowns'},
-    {value:'Machine Shoulder Press',label:'Machine Shoulder Press'},{value:'Abdominal Crunch Machine',label:'Abdominal Crunch Machine'}
-  ]},
-  { label:'Strength — Bodyweight', options:[
-    {value:'Push-Ups (standard, wide, diamond)',label:'Push-Ups (standard, wide, diamond)'},
-    {value:'Pull-Ups/Chin-Ups (assisted or unassisted)',label:'Pull-Ups/Chin-Ups (assisted or unassisted)'},
-    {value:'Dips (parallel bars or bench)',label:'Dips (parallel bars or bench)'},
-    {value:'Planks (front, side)',label:'Planks (front, side)'},{value:'Bodyweight Squats',label:'Bodyweight Squats'},
-    {value:'Lunges',label:'Lunges'},{value:'Wall Sits',label:'Wall Sits'},{value:'Hanging Leg Raises',label:'Hanging Leg Raises'}
-  ]},
-  { label:'Cardio — Treadmill', options:[
-    {value:'Steady-state running or jogging',label:'Steady-state running or jogging'},
-    {value:'Interval sprints',label:'Interval sprints'},{value:'Incline walking or running',label:'Incline walking or running'}
-  ]},
-  { label:'Cardio — Bike', options:[
-    {value:'Steady-state cycling',label:'Steady-state cycling'},
-    {value:'HIIT cycling',label:'HIIT cycling'},{value:'Hill climb simulations',label:'Hill climb simulations'}
-  ]},
-  { label:'Cardio — Rowing Machine', options:[
-    {value:'Steady-state rowing',label:'Steady-state rowing'},
-    {value:'Sprint intervals',label:'Sprint intervals'},{value:'Endurance rows',label:'Endurance rows'}
-  ]},
-  { label:'Cardio — Stair Climber', options:[
-    {value:'Steady-state stair climbing',label:'Steady-state stair climbing'},
-    {value:'Interval climbing',label:'Interval climbing'}
-  ]},
-  { label:'Cardio — Running / Trail', options:[
-    {value:'Run · Zone 2',label:'Run · Zone 2'},{value:'Trail Run',label:'Trail Run'},
-    {value:'Interval Run',label:'Interval Run'},{value:'Easy Jog',label:'Easy Jog'}
-  ]},
-  { label:'Mobility / Yoga', options:[
-    {value:'Yoga Flow',label:'Yoga Flow'},{value:'Vinyasa Flow',label:'Vinyasa Flow'},
-    {value:'Hatha Yoga',label:'Hatha Yoga'},{value:'Foam Rolling',label:'Foam Rolling'},
-    {value:'Stretching',label:'Stretching'},{value:'Mat Pilates',label:'Mat Pilates'}
-  ]},
-  { label:'Group Classes', options:[
-    {value:'HIIT Class',label:'HIIT Class'},{value:'Kickboxing',label:'Kickboxing'},
-    {value:'TRX',label:'TRX'},{value:'Spin Class',label:'Spin Class'}
-  ]},
-  { label:'Custom', options:[{value:'__custom__',label:'Custom exercise...'}]}
-];
-
 const GYM_CARDIO_VALS = new Set(['Steady-state running or jogging','Interval sprints','Incline walking or running','Steady-state cycling','HIIT cycling','Hill climb simulations','Steady-state rowing','Sprint intervals','Endurance rows','Steady-state stair climbing','Interval climbing','Run · Zone 2','Trail Run','Interval Run','Easy Jog','Spin Class']);
 const GYM_MOBILITY_VALS = new Set(['Yoga Flow','Vinyasa Flow','Hatha Yoga','Foam Rolling','Stretching','Mat Pilates']);
 const gymIsCardio = ex => GYM_CARDIO_VALS.has(ex)||['run','bike','cycle','swim','treadmill','elliptical','row','stair','sprint','jog','walk','hike','trail'].some(k=>(ex||'').toLowerCase().includes(k));
@@ -624,6 +555,7 @@ const gymFormatDetail = w => {
 
 const GymPage = ({user, partner, isShared}) => {
   const [workouts, setWorkouts] = useState([]);
+  const [workoutOptions, setWorkoutOptions] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()+1).padStart(2,'0'));
   const [showForm, setShowForm] = useState(false);
   const [isCustomEx, setIsCustomEx] = useState(false);
@@ -634,8 +566,12 @@ const GymPage = ({user, partner, isShared}) => {
   const fetchAll = useCallback(async()=>{
     const users=[user.username,...(isShared&&partner?[partner.username]:[])];
     try {
-      const all=await Promise.all(users.map(u=>axios.get(`${API}/gymworkout`,{params:{user:u}}).then(r=>r.data.map(w=>({...w,userKey:u}))).catch(()=>[])));
-      setWorkouts(all.flat());
+      const [allW, opts] = await Promise.all([
+        Promise.all(users.map(u=>axios.get(`${API}/gymworkout`,{params:{user:u}}).then(r=>r.data.map(w=>({...w,userKey:u}))).catch(()=>[]))).then(r=>r.flat()),
+        axios.get(`${API}/gym-options`).then(r => r.data.data).catch(() => [])
+      ]);
+      setWorkouts(allW);
+      setWorkoutOptions(opts);
     } catch {}
   },[user.username,partner,isShared]);
 
@@ -674,10 +610,8 @@ const GymPage = ({user, partner, isShared}) => {
       <div className="top-bar"><span className="top-eyebrow"><span>§ VECTRA ARCH</span> · LEGACY · GYM</span></div>
       <div className="page-scroll">
         <div className="page-inner">
-          <div className="page-head">
-            <div className="page-title">GYM WORKOUT</div>
-            <div className="page-sub">EXERCISES · STRENGTH · WEEKLY PLAN</div>
-          </div>
+          <div className="page-title">GYM WORKOUT</div>
+          <div className="page-sub">EXERCISES · STRENGTH · WEEKLY PLAN</div>
           <UserRow user={user} partner={partner} isShared={isShared}/>
           <div className="toolbar-row">
             <div className="tb-chip">
@@ -750,7 +684,7 @@ const GymPage = ({user, partner, isShared}) => {
               <label className="form-label">Exercise</label>
               <select className="form-select" value={isCustomEx?'__custom__':form.exercise} onChange={e=>handleExerciseSelect(e.target.value)}>
                 <option value="">— Select exercise —</option>
-                {WORKOUT_OPTIONS.map(group=>(
+                {workoutOptions.map(group=>(
                   <optgroup key={group.label} label={group.label}>
                     {group.options.map(opt=><option key={opt.value} value={opt.value}>{opt.label}</option>)}
                   </optgroup>
@@ -778,7 +712,7 @@ const GymPage = ({user, partner, isShared}) => {
                 <label className="form-label">Sets × Reps × Weight</label>
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
                   <input className="form-input" placeholder="Sets" value={form.sets} onChange={e=>setForm(p=>({...p,sets:e.target.value}))} type="number"/>
-                  <input className="form-input" placeholder="Reps (e.g. 8-10)" value={form.reps} onChange={e=>setForm(p=>({...p,reps:e.target.value}))}/>
+                  <input className="form-input" placeholder="Reps" value={form.reps} onChange={e=>setForm(p=>({...p,reps:e.target.value}))}/>
                   <input className="form-input" placeholder="kg" value={form.weight} onChange={e=>setForm(p=>({...p,weight:e.target.value}))}/>
                 </div>
               </div>
@@ -816,60 +750,10 @@ const GymPage = ({user, partner, isShared}) => {
 
 /* ── MEALS PAGE ── */
 const MEAL_TYPE_MAP = {'Breakfast':'breakfast','Lunch':'lunch','Dinner':'dinner','Snack':'snack','Meal 1':'breakfast','Meal 2':'lunch','Meal 3':'dinner','Pre-Workout':'snack','Post-Workout':'snack'};
-const MEAL_OPTIONS = [
-  { label:'Weight Loss — Calorie-Controlled', options:[
-    {value:'Oatmeal with berries and a boiled egg',label:'Breakfast: Oatmeal with berries and egg',cal:320},
-    {value:'Grilled chicken salad with veggies',label:'Lunch: Grilled chicken salad',cal:450},
-    {value:'Baked fish with quinoa and broccoli',label:'Dinner: Baked fish with quinoa',cal:520},
-    {value:'Apple with almond butter',label:'Snack: Apple with almond butter',cal:200},
-    {value:'Greek yogurt',label:'Snack: Greek yogurt',cal:150}
-  ]},
-  { label:'Weight Loss — Intermittent Fasting', options:[
-    {value:'Avocado toast with eggs',label:'Meal 1: Avocado toast with eggs',cal:480},
-    {value:'Turkey wrap with veggies',label:'Meal 2: Turkey wrap with veggies',cal:420},
-    {value:'Stir-fried tofu with rice',label:'Meal 3: Stir-fried tofu with rice',cal:550}
-  ]},
-  { label:'Weight Loss — Low-Carb', options:[
-    {value:'Eggs with spinach and cheese',label:'Breakfast: Eggs with spinach',cal:350},
-    {value:'Tuna salad with mixed greens',label:'Lunch: Tuna salad',cal:380},
-    {value:'Steak with cauliflower mash',label:'Dinner: Steak with cauliflower',cal:580}
-  ]},
-  { label:'Muscle Gain — High-Protein Bulking', options:[
-    {value:'Protein shake with banana and oats',label:'Breakfast: Protein shake with oats',cal:520},
-    {value:'Chicken breast with sweet potato',label:'Lunch: Chicken breast with sweet potato',cal:680},
-    {value:'Salmon with rice and salad',label:'Dinner: Salmon with rice',cal:720},
-    {value:'Cottage cheese',label:'Snack: Cottage cheese',cal:200},
-    {value:'Peanut butter sandwich',label:'Snack: Peanut butter sandwich',cal:350}
-  ]},
-  { label:'Muscle Gain — Clean Bulk', options:[
-    {value:'Greek yogurt parfait with nuts',label:'Breakfast: Greek yogurt parfait',cal:480},
-    {value:'Quinoa bowl with beans and turkey',label:'Lunch: Quinoa bowl with turkey',cal:620},
-    {value:'Lean beef stir-fry with brown rice',label:'Dinner: Lean beef stir-fry',cal:700},
-    {value:'Protein bar or smoothie',label:'Snack: Protein bar/smoothie',cal:280}
-  ]},
-  { label:'Maintenance — Mediterranean', options:[
-    {value:'Yogurt with honey and walnuts',label:'Breakfast: Yogurt with honey',cal:320},
-    {value:'Grilled fish with salad and hummus',label:'Lunch: Grilled fish with hummus',cal:520},
-    {value:'Vegetable stew with whole grains',label:'Dinner: Vegetable stew',cal:480},
-    {value:'Fresh fruit or olives',label:'Snack: Fresh fruit or olives',cal:120}
-  ]},
-  { label:'Specialized — Keto', options:[
-    {value:'Bacon and eggs with avocado',label:'Breakfast: Bacon eggs avocado',cal:580},
-    {value:'Cobb salad with ranch dressing',label:'Lunch: Cobb salad',cal:620},
-    {value:'Fatty steak with buttered greens',label:'Dinner: Fatty steak',cal:750},
-    {value:'Cheese or pork rinds',label:'Snack: Cheese/pork rinds',cal:200}
-  ]},
-  { label:'Specialized — Vegan', options:[
-    {value:'Chia pudding with almond milk',label:'Breakfast: Chia pudding',cal:380},
-    {value:'Lentil soup with bread',label:'Lunch: Lentil soup',cal:450},
-    {value:'Tofu stir-fry with quinoa',label:'Dinner: Tofu stir-fry',cal:520},
-    {value:'Hummus with carrots',label:'Snack: Hummus with carrots',cal:150}
-  ]},
-  { label:'Custom', options:[{value:'__custom__',label:'Custom meal...',cal:0}]}
-];
 
 const MealsPage = ({user, partner, isShared}) => {
   const [meals, setMeals] = useState([]);
+  const [mealTemplates, setMealTemplates] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()+1).padStart(2,'0'));
   const [typeFilter, setTypeFilter] = useState('All');
   const [showForm, setShowForm] = useState(false);
@@ -881,8 +765,12 @@ const MealsPage = ({user, partner, isShared}) => {
   const fetchMeals = useCallback(async()=>{
     const users=[user.username,...(isShared&&partner?[partner.username]:[])];
     try {
-      const all=await Promise.all(users.map(u=>axios.get(`${API}/mealplan`,{params:{user:u}}).then(r=>r.data.map(m=>({...m,userKey:u}))).catch(()=>[])));
-      setMeals(all.flat());
+      const [allM, templates] = await Promise.all([
+        Promise.all(users.map(u=>axios.get(`${API}/mealplan`,{params:{user:u}}).then(r=>r.data.map(m=>({...m,userKey:u}))).catch(()=>[]))).then(r=>r.flat()),
+        axios.get(`${API}/meal-templates`).then(r => r.data.data).catch(() => [])
+      ]);
+      setMeals(allM);
+      setMealTemplates(templates);
     } catch {}
   },[user.username,partner,isShared]);
 
@@ -895,7 +783,6 @@ const MealsPage = ({user, partner, isShared}) => {
     return list;
   },[meals,selectedMonth,typeFilter,user.username,partner,isShared]);
 
-  // Real calorie total from DB; estimate macros
   const totals = useMemo(()=>{
     const cal=filtered.reduce((s,m)=>s+parseFloat(m.calories||0),0);
     return {cal:Math.round(cal), prot:Math.round(cal*0.08), carb:Math.round(cal*0.05), fat:Math.round(cal*0.028)};
@@ -904,7 +791,7 @@ const MealsPage = ({user, partner, isShared}) => {
   const handleMealSelect = (val) => {
     if(val==='__custom__'){ setIsCustomMeal(true); setForm(p=>({...p,name:'',calories:''})); return; }
     setIsCustomMeal(false);
-    const allOpts = MEAL_OPTIONS.flatMap(g=>g.options);
+    const allOpts = mealTemplates.flatMap(g=>g.options);
     const opt = allOpts.find(o=>o.value===val);
     if(!opt) return;
     const labelParts = opt.label.split(':');
@@ -939,10 +826,8 @@ const MealsPage = ({user, partner, isShared}) => {
       <div className="top-bar"><span className="top-eyebrow"><span>§ VECTRA ARCH</span> · LEGACY · NUTRITION</span></div>
       <div className="page-scroll">
         <div className="page-inner">
-          <div className="page-head">
-            <div className="page-title">MEAL PLAN</div>
-            <div className="page-sub">MACROS · DAILY FOOD LOG</div>
-          </div>
+          <div className="page-title">MEAL PLAN</div>
+          <div className="page-sub">MACROS · DAILY FOOD LOG</div>
           <UserRow user={user} partner={partner} isShared={isShared}/>
           <div className="toolbar-row">
             <div className="tb-chip">
@@ -1007,7 +892,7 @@ const MealsPage = ({user, partner, isShared}) => {
               <label className="form-label">Select Meal Template</label>
               <select className="form-select" value={isCustomMeal?'__custom__':form.name} onChange={e=>handleMealSelect(e.target.value)}>
                 <option value="">— Choose a meal —</option>
-                {MEAL_OPTIONS.map(group=>(
+                {mealTemplates.map(group=>(
                   <optgroup key={group.label} label={group.label}>
                     {group.options.map(opt=><option key={opt.value} value={opt.value}>{opt.label}</option>)}
                   </optgroup>
@@ -1065,7 +950,6 @@ const CyclePage = ({user, partner, isShared}) => {
 
   useEffect(()=>{ fetchCycles(); },[fetchCycles]);
 
-  // Stats from most recent cycle
   const latestCycle = useMemo(()=>[...cycles].sort((a,b)=>new Date(b.startDate)-new Date(a.startDate))[0],[cycles]);
   const avgLen = useMemo(()=>cycles.length?Math.round(cycles.reduce((s,c)=>s+(parseInt(c.cycleLength)||28),0)/cycles.length):28,[cycles]);
 
@@ -1090,7 +974,6 @@ const CyclePage = ({user, partner, isShared}) => {
     return d;
   },[fertileStart]);
 
-  // Phase wheel SVG
   const PhaseWheel = ({dayOfCycle=4, cycleLength=28}) => {
     const cx=120,cy=120,r=90,innerR=50;
     const phases=[
@@ -1120,7 +1003,6 @@ const CyclePage = ({user, partner, isShared}) => {
       return `M${cx},${cy} L${x1},${y1} A${r},${r},0,${large},1,${x2},${y2} Z`;
     };
 
-    // Day numbers ring
     const dayNums=[];
     for(let d=1;d<=total;d++){
       const a=-Math.PI/2+(((d-0.5)/total)*2*Math.PI);
@@ -1128,7 +1010,6 @@ const CyclePage = ({user, partner, isShared}) => {
       dayNums.push({d,x:cx+nr*Math.cos(a),y:cy+nr*Math.sin(a)});
     }
 
-    // Current day indicator
     const dayAngle=-Math.PI/2+((dayOfCycle-0.5)/total)*2*Math.PI;
     const indR=r+14;
 
@@ -1137,13 +1018,11 @@ const CyclePage = ({user, partner, isShared}) => {
         {segments.map((seg,i)=>(
           <path key={i} d={arc(cx,cy,r,seg.startAngle,seg.endAngle,innerR)} fill={seg.color} opacity="0.85"/>
         ))}
-        {/* center */}
         <circle cx={cx} cy={cy} r={innerR} fill="var(--bg)"/>
         <text x={cx} y={cy-8} textAnchor="middle" fill="var(--text)" fontFamily="'Barlow Condensed',sans-serif" fontWeight="700" fontSize="18">DAY {dayOfCycle}</text>
         <text x={cx} y={cy+10} textAnchor="middle" fill="var(--text3)" fontFamily="'DM Mono',monospace" fontSize="7" letterSpacing="0.08em">
           {dayOfCycle<=5?'MENSTRUAL':dayOfCycle<=12?'FOLLICULAR':dayOfCycle<=15?'OVULATION':'LUTEAL'} PHASE
         </text>
-        {/* day indicator dot */}
         <circle cx={cx+indR*Math.cos(dayAngle)} cy={cy+indR*Math.sin(dayAngle)} r="10" fill="white"/>
         <text x={cx+indR*Math.cos(dayAngle)} y={cy+indR*Math.sin(dayAngle)+4} textAnchor="middle" fill="var(--bg)" fontFamily="'DM Mono',monospace" fontWeight="700" fontSize="9">{dayOfCycle}</text>
       </svg>
@@ -1180,7 +1059,6 @@ const CyclePage = ({user, partner, isShared}) => {
           <UserRow user={user} partner={partner} isShared={isShared}/>
           <Alert {...alert}/>
 
-          {/* Stats */}
           {latestCycle&&(
             <div className="cycle-stats-card">
               <div className="cycle-stats-grid">
@@ -1200,7 +1078,6 @@ const CyclePage = ({user, partner, isShared}) => {
             </div>
           )}
 
-          {/* Date nav */}
           <div className="cycle-date-nav">
             <button className="cal-nav-btn" onClick={prevDay}>‹</button>
             <div className="cycle-date-label">
@@ -1211,7 +1088,6 @@ const CyclePage = ({user, partner, isShared}) => {
             <button className="cycle-today-btn" onClick={goToday}>TODAY</button>
           </div>
 
-          {/* Phase wheel */}
           <div className="section-label">§ PHASE WHEEL · DAY {dayOfCycle} OF {avgLen}</div>
           <div className="phase-wheel-wrap">
             <PhaseWheel dayOfCycle={dayOfCycle} cycleLength={avgLen}/>
@@ -1222,7 +1098,6 @@ const CyclePage = ({user, partner, isShared}) => {
             </div>
           </div>
 
-          {/* Cycles */}
           <div className="section-label">§ CYCLES · {cycles.length} RECORD{cycles.length!==1?'S':''}</div>
           {cycles.map(c=>(
             <div key={c.id} className="cycle-record-card">
@@ -1331,7 +1206,6 @@ const ProfilePage = ({user, setUser, partner, setPartner, sharingConfig, setShar
           </div>
           <Alert {...alert}/>
 
-          {/* Active user card */}
           <div className="profile-user-card">
             <img className="profile-user-avatar" src={currentUser?.profilePicUrl||DP} alt="" style={{border:`2px solid ${currentUser?.eventColor||'#e91e8c'}`}}/>
             <div>
@@ -1342,7 +1216,6 @@ const ProfilePage = ({user, setUser, partner, setPartner, sharingConfig, setShar
             {partner&&<button className="switch-btn" onClick={()=>setActiveUser(activeUser.username===user.username?partner:user)}>SWITCH</button>}
           </div>
 
-          {/* Partner sharing */}
           {partner&&(
             <div className="partner-sharing-card">
               <div className="profile-section-title">§ PARTNER SHARING</div>
@@ -1366,7 +1239,6 @@ const ProfilePage = ({user, setUser, partner, setPartner, sharingConfig, setShar
             </div>
           )}
 
-          {/* Account Details */}
           <div className="profile-section">
             <div className="profile-section-title">§ ACCOUNT DETAILS</div>
             <div className="profile-field">
@@ -1383,7 +1255,6 @@ const ProfilePage = ({user, setUser, partner, setPartner, sharingConfig, setShar
             </div>
           </div>
 
-          {/* Preferences */}
           <div className="profile-section">
             <div className="profile-section-title">§ PREFERENCES</div>
             <div className="toggle-row">
@@ -1403,7 +1274,6 @@ const ProfilePage = ({user, setUser, partner, setPartner, sharingConfig, setShar
             </div>
           </div>
 
-          {/* Event Color */}
           <div className="profile-section">
             <div className="profile-section-title">§ EVENT COLOR</div>
             <div style={{padding:'12px 14px',fontFamily:"'DM Mono',monospace",fontSize:'10px',color:'var(--text3)',marginBottom:'4px'}}>Your personal event color</div>
@@ -1416,7 +1286,6 @@ const ProfilePage = ({user, setUser, partner, setPartner, sharingConfig, setShar
 
           <button className="save-btn" onClick={handleSave}>SAVE CHANGES</button>
 
-          {/* Danger Zone */}
           <div className="profile-section-title" style={{color:'var(--red)',marginBottom:'8px'}}>§ DANGER ZONE</div>
           <div className="danger-zone">
             <button className="danger-btn">CHANGE PASSWORD</button>
@@ -1444,7 +1313,6 @@ const App = () => {
   const [user, setUser] = useState(null);
   const [partner, setPartner] = useState(null);
   const [activeTab, setActiveTab] = useState('finances');
-  // Sharing config — per-tab
   const [sharingConfig, setSharingConfig] = useState({Finances:false,Calendar:false,Budget:false,Gym:false,Meals:false,Cycle:false});
   const [error, setError] = useState('');
 
@@ -1454,7 +1322,6 @@ const App = () => {
       try {
         const u = JSON.parse(stored);
         setUser(u);
-        // Try to load partner
         axios.get(`${API}/get-access`,{params:{viewer:u.username,adminUsername:u.username}})
           .then(async({data})=>{
             if(data.success&&data.accessList?.length>0){
@@ -1469,7 +1336,6 @@ const App = () => {
               }
             }
           }).catch(()=>{});
-        // Also load own profile
         axios.get(`${API}/profile-pictures`,{params:{username:u.username}}).then(({data})=>{
           setUser(prev=>({...prev,...data,profilePicUrl:data.profilePicUrl||prev.profilePicUrl||DP}));
         }).catch(()=>{});
@@ -1482,7 +1348,6 @@ const App = () => {
   if(error) return <div style={{padding:'40px',color:'var(--red)',fontFamily:"'DM Mono',monospace"}}>{error}</div>;
   if(!user) return <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',color:'var(--text3)',fontFamily:"'DM Mono',monospace",fontSize:'11px',letterSpacing:'0.14em'}}>LOADING...</div>;
 
-  // Tab-specific sharing toggle
   const tabSharingKey = {finances:'Finances',calendar:'Calendar',budget:'Budget',gym:'Gym',meals:'Meals',cycle:'Cycle'}[activeTab];
   const isShared = tabSharingKey ? sharingConfig[tabSharingKey] : false;
   const toggleShared = () => { if(tabSharingKey) setSharingConfig(p=>({...p,[tabSharingKey]:!p[tabSharingKey]})); };
