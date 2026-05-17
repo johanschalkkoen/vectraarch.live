@@ -17,98 +17,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Barlow:wght@300;400;500;600&family=Barlow+Condensed:wght@300;400;500;700;800&display=swap" rel="stylesheet"/>
-  <style>
-    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-    :root{--bg:#0a0a08;--bg2:#111110;--bg3:#191917;--border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.14);--text:#e8e4d8;--text-muted:rgba(232,228,216,0.55);--text-dim:rgba(232,228,216,0.25);--accent:#00ff41;--accent2:#00b32c;--red:#b84040;--warn:#d4a800;}
-    html{scroll-behavior:smooth;}
-    body{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;font-weight:300;font-size:16px;line-height:1.6;overflow-x:hidden;cursor:crosshair;min-height:100vh;}
-    body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");opacity:0.4;pointer-events:none;z-index:0;}
-    .grid-bg{position:fixed;inset:0;background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);background-size:80px 80px;pointer-events:none;z-index:0;}
-    .accent-lines{position:fixed;top:0;right:0;width:50%;height:100%;pointer-events:none;overflow:hidden;z-index:0;}
-    .accent-lines svg{width:100%;height:100%;}
-    nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 40px;height:60px;border-bottom:1px solid var(--border);background:rgba(10,10,8,0.88);backdrop-filter:blur(12px);}
-    .nav-logo{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:15px;letter-spacing:0.22em;text-transform:uppercase;color:var(--text);text-decoration:none;}
-    .nav-logo span{color:var(--accent);}
-    .nav-status{display:flex;align-items:center;gap:8px;font-family:'DM Mono',monospace;font-size:10px;color:var(--text-dim);letter-spacing:0.1em;}
-    .nav-status::before{content:'';display:block;width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 6px var(--accent);}
-    #root{position:relative;z-index:1;}
-    .page-wrap{max-width:960px;margin:0 auto;padding:88px 40px 80px;position:relative;z-index:1;}
-    .page-header{margin-bottom:36px;padding-bottom:24px;border-bottom:1px solid var(--border);}
-    .page-eyebrow{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.28em;text-transform:uppercase;color:var(--accent);margin-bottom:12px;}
-    .page-title{font-family:'Bebas Neue',sans-serif;font-size:56px;line-height:0.9;color:var(--text);letter-spacing:0.02em;margin-bottom:4px;}
-    .page-sub{font-family:'Barlow Condensed',sans-serif;font-weight:300;font-size:13px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-muted);}
-    .user-header{display:flex;align-items:center;gap:16px;margin-bottom:28px;}
-    .user-avatar{width:44px;height:44px;border-radius:50%;object-fit:cover;border:1px solid var(--accent);flex-shrink:0;}
-    .user-display{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:18px;letter-spacing:0.04em;text-transform:uppercase;color:var(--text);}
-    .va-alert{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.1em;padding:12px 16px;border:1px solid;margin-bottom:20px;}
-    .va-alert.ok{color:var(--accent);border-color:rgba(0,255,65,0.25);background:rgba(0,255,65,0.05);}
-    .va-alert.err{color:var(--red);border-color:rgba(184,64,64,0.25);background:rgba(184,64,64,0.05);}
-    .toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:20px;padding:14px 18px;background:var(--bg2);border:1px solid var(--border2);}
-    .tb-label{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:var(--text-dim);white-space:nowrap;}
-    .mf-select{background:var(--bg);border:1px solid var(--border2);color:var(--text);font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.06em;padding:7px 12px;outline:none;transition:border-color 0.2s;cursor:crosshair;-webkit-appearance:none;}
-    .mf-select:focus{border-color:var(--accent);}
-    .mf-select option,.mf-select optgroup{background:var(--bg2);color:var(--text);}
-    .tb-spacer{flex:1;}
-    .section-label{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.25em;text-transform:uppercase;color:var(--accent);margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--border);}
-    .va-form{background:var(--bg2);border:1px solid var(--border2);padding:28px;margin-bottom:24px;}
-    .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 28px;}
-    .mf-field{display:flex;flex-direction:column;gap:6px;margin-bottom:18px;}
-    .mf-field.full{grid-column:1/-1;}
-    .mf-label{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.22em;text-transform:uppercase;color:var(--text-dim);}
-    .mf-input,.mf-field-select,.mf-textarea{background:transparent;border:none;border-bottom:1px solid var(--border2);padding:10px 0;font-family:'DM Mono',monospace;font-size:12px;color:var(--text);outline:none;transition:border-color 0.2s;width:100%;}
-    .mf-input:focus,.mf-field-select:focus{border-bottom-color:var(--accent);}
-    .mf-input::placeholder{color:var(--text-dim);}
-    .mf-field-select{cursor:pointer;-webkit-appearance:none;}
-    .mf-field-select option,.mf-field-select optgroup{background:var(--bg2);color:var(--text);}
-    .toggle-group{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:20px;}
-    .toggle-chip{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.14em;text-transform:uppercase;padding:6px 14px;border:1px solid;cursor:crosshair;transition:all 0.2s;background:none;}
-    .toggle-chip.on{color:var(--accent);border-color:rgba(0,255,65,0.3);background:rgba(0,255,65,0.06);}
-    .toggle-chip.off{color:var(--text-dim);border-color:var(--border2);}
-    .va-btn{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--text);background:none;border:1px solid var(--border2);padding:9px 16px;cursor:crosshair;transition:border-color 0.2s,color 0.2s;display:inline-flex;align-items:center;gap:6px;}
-    .va-btn:hover{border-color:var(--accent);color:var(--accent);}
-    .va-btn.primary{background:var(--accent);color:#0a0a08;border-color:var(--accent);}
-    .va-btn.primary:hover{background:var(--accent2);border-color:var(--accent2);color:#fff;}
-    .va-btn.danger{border-color:rgba(184,64,64,0.4);color:var(--red);}
-    .va-btn.danger:hover{border-color:var(--red);background:rgba(184,64,64,0.06);}
-    .va-btn.sm{padding:5px 12px;font-size:9px;}
-    .back-btn{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--text-muted);background:none;border:1px solid var(--border2);padding:10px 20px;cursor:crosshair;transition:border-color 0.2s,color 0.2s;display:inline-flex;align-items:center;gap:8px;margin-bottom:32px;}
-    .back-btn:hover{border-color:var(--text-dim);color:var(--text);}
-    .btn-row{display:flex;gap:8px;flex-wrap:wrap;}
-    .user-toggles{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;}
-    .user-toggle{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.14em;text-transform:uppercase;padding:6px 14px;border:1px solid;cursor:crosshair;transition:all 0.2s;display:flex;align-items:center;gap:8px;}
-    .user-toggle.on{color:var(--accent);border-color:rgba(0,255,65,0.3);background:rgba(0,255,65,0.06);}
-    .user-toggle.off{color:var(--text-dim);border-color:var(--border2);background:transparent;}
-    .mini-avatar{width:18px;height:18px;border-radius:50%;object-fit:cover;}
-    .import-box{background:var(--bg2);border:1px solid var(--border2);padding:24px;margin-bottom:24px;}
-    .import-hint{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.1em;color:var(--text-dim);margin-bottom:12px;line-height:1.8;}
-    .mf-textarea{background:transparent;border:1px solid var(--border2);padding:10px 14px;font-family:'DM Mono',monospace;font-size:12px;color:var(--text);outline:none;transition:border-color 0.2s;width:100%;resize:vertical;min-height:100px;}
-    .mf-textarea:focus{border-color:var(--accent);}
-    /* DAY SECTIONS */
-    .day-section{background:var(--bg2);border:1px solid var(--border2);margin-bottom:1px;}
-    .day-header{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
-    .day-name{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:0.04em;color:var(--text);}
-    .day-count{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.14em;color:var(--text-dim);}
-    .day-empty{padding:14px 20px;font-family:'DM Mono',monospace;font-size:10px;color:var(--text-dim);letter-spacing:0.1em;}
-    .meal-card{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:6px;transition:background 0.2s;}
-    .meal-card:hover{background:var(--bg3);}
-    .meal-card:last-child{border-bottom:none;}
-    .meal-top{display:flex;align-items:center;gap:10px;}
-    .meal-avatar{width:20px;height:20px;border-radius:50%;object-fit:cover;flex-shrink:0;}
-    .meal-type-badge{font-family:'DM Mono',monospace;font-size:8px;letter-spacing:0.14em;text-transform:uppercase;padding:2px 8px;border:1px solid;}
-    .meal-type-badge.breakfast{color:var(--warn);border-color:rgba(212,168,0,0.3);}
-    .meal-type-badge.lunch{color:var(--accent);border-color:rgba(0,255,65,0.3);}
-    .meal-type-badge.dinner{color:#6a8aff;border-color:rgba(106,138,255,0.3);}
-    .meal-type-badge.snack{color:var(--text-dim);border-color:var(--border2);}
-    .meal-desc{font-family:'DM Mono',monospace;font-size:11px;color:var(--text-muted);letter-spacing:0.06em;}
-    .meal-cal{font-family:'Bebas Neue',sans-serif;font-size:1rem;color:var(--text-dim);letter-spacing:0.08em;}
-    .meal-actions{display:flex;gap:6px;justify-content:flex-end;}
-    /* NOTES */
-    .notes-box{background:var(--bg2);border:1px solid var(--border2);padding:24px;margin-top:24px;}
-    .notes-list{display:flex;flex-direction:column;gap:8px;}
-    .note-item{font-family:'DM Mono',monospace;font-size:10px;color:var(--text-dim);letter-spacing:0.08em;line-height:1.8;padding-left:16px;border-left:2px solid var(--border2);}
-    @media(max-width:768px){nav{padding:0 20px;}.page-wrap{padding:80px 20px 60px;}.form-grid{grid-template-columns:1fr;}}
-    @media(pointer:fine){body,a,button{cursor:crosshair;}}
-  </style>
+  <link rel="stylesheet" href="/shared/va.css"/>
+  <link rel="stylesheet" href="/shared/legacy.css"/>
 </head>
 <body>
 <div class="grid-bg"></div>
@@ -147,14 +57,11 @@
   const DEFAULT_PROFILE_PIC = 'https://placehold.co/50x50/808080/FFFFFF?text=U';
   const DEFAULT_EVENT_COLOR = '#00ff41';
   const MONTHS = Array.from({ length: 12 }, (_, i) => ({ value: (i + 1).toString().padStart(2, '0'), label: new Date(0, i).toLocaleString('default', { month: 'long' }) }));
-  const YEARS = Array.from({length:5},(_,i)=>new Date().getFullYear()-2+i);
+  const MEAL_TYPES = ['breakfast','lunch','dinner','snack'];
+  const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
   const capitalize = str => str ? str.charAt(0).toUpperCase() + str.slice(1) : '';
   const getCurrentDateTime = () => { const now = new Date(); now.setMinutes(now.getMinutes() - now.getTimezoneOffset()); return now.toISOString().slice(0, 19); };
   const formatDateTime = date => { if (!date) return '—'; const d = new Date(date); if (isNaN(d.getTime())) return 'Invalid'; return d.toLocaleString('en-ZA', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', hour12:false }).replace(/,/,''); };
-  const formatDate = date => { if (!date) return ''; const d = new Date(date); return isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10); };
-
-  const MEAL_TYPES = ['breakfast','lunch','dinner','snack'];
-  const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
 
   const MEAL_OPTIONS = [
     { label:'Weight Loss — Calorie-Controlled (1,500-2,000 cal/day)', options:[
@@ -267,7 +174,7 @@
     return { targetUsers, selectedTargets, setSelectedTargets, error };
   };
 
-  const MealPlan = ({ user, setPage, onLogout, setUser }) => {
+  const MealPlan = ({ user, setPage, onLogout }) => {
     const [meals, setMeals] = useState([]);
     const [form, setForm] = useState({ id:null, day:new Date().toLocaleString('en-US',{weekday:'long'}), mealType:'breakfast', description:'', calories:'', date:getCurrentDateTime() });
     const [message, setMessage] = useState({ text:'', type:'' });
@@ -275,8 +182,7 @@
     const [bulkData, setBulkData] = useState('');
     const [importMessage, setImportMessage] = useState({ text:'', type:'' });
     const [showImportTool, setShowImportTool] = useState(false);
-    const [selectedMonth, setSelectedMonth] = useState(()=>(new Date().getMonth()+1).toString().padStart(2,'0'));
-    const [selectedYear, setSelectedYear] = useState(()=>new Date().getFullYear());
+    const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()+1).padStart(2,'0'));
     const [sortField, setSortField] = useState('date');
     const [sortOrder, setSortOrder] = useState('desc');
     const [isCustom, setIsCustom] = useState(false);
@@ -294,14 +200,14 @@
     }, [user.username, selectedTargets]);
 
     const sortedMeals = useMemo(() => {
-      const filtered = meals.filter(m=>m.date?.startsWith(`${selectedYear}-${selectedMonth}`));
+      const filtered = meals.filter(m=>m.date?.slice(5,7)===selectedMonth&&[user.username,...selectedTargets].includes(m.user));
       return [...filtered].sort((a,b)=>{
         const fa=sortField==='calories'?parseFloat(a.calories.split(',')[0])||0:a[sortField];
         const fb=sortField==='calories'?parseFloat(b.calories.split(',')[0])||0:b[sortField];
         if(sortField==='calories') return sortOrder==='asc'?fa-fb:fb-fa;
         return sortOrder==='asc'?new Date(fa)-new Date(fb):new Date(fb)-new Date(fa);
       });
-    }, [meals,selectedMonth,sortField,sortOrder]);
+    }, [meals,selectedMonth,sortField,sortOrder,user.username,selectedTargets]);
 
     const handleInputChange = useCallback(e => {
       const { name, value } = e.target;
@@ -346,7 +252,13 @@
 
     const handleBulkImport = useCallback(async () => {
       if(!bulkData.trim()){iMsg('Paste data first.','err');return;}
-      const toImport = bulkData.trim().split('\n').filter(l=>l.trim()).map(l=>{const[day,mealType,description,calories,date]=l.split(',').map(f=>f.trim());if(!day||!mealType||!description||!calories||!date)return null;const ca=calories.split(',').map(c=>parseInt(c.trim()));if(ca.some(c=>isNaN(c)||c<=0))return null;return{user:user.username,day,mealType,description,calories,date};}).filter(Boolean);
+      const toImport = bulkData.trim().split('\n').filter(l=>l.trim()).map(l=>{
+        const[day,mealType,description,calories,date]=l.split(',').map(f=>f.trim());
+        if(!day||!mealType||!description||!calories||!date)return null;
+        const ca=calories.split(',').map(c=>parseInt(c.trim()));
+        if(ca.some(c=>isNaN(c)||c<=0))return null;
+        return{user:user.username,day,mealType,description,calories,date};
+      }).filter(Boolean);
       if(!toImport.length){iMsg('No valid data.','err');return;}
       iMsg(`Importing ${toImport.length} meals...`,'warn');
       try { await Promise.all(toImport.map(m=>axios.post(`${API_BASE}/mealplan`,m)));iMsg(`Imported ${toImport.length} meals.`);setBulkData('');setShowImportTool(false);fetchMeals(); } catch { iMsg('Import failed.','err'); }
@@ -376,11 +288,7 @@
         <div className="toolbar">
           <span className="tb-label">Month</span>
           <select className="mf-select" value={selectedMonth} onChange={e=>setSelectedMonth(e.target.value)}>
-            {MONTHS.map(m=><option key={m.value} value={m.value}>{m.label} {selectedYear}</option>)}
-          </select>
-          <span className="tb-label">Year</span>
-          <select className="mf-select" value={selectedYear} onChange={e=>setSelectedYear(parseInt(e.target.value))}>
-            {YEARS.map(y=><option key={y} value={y}>{y}</option>)}
+            {MONTHS.map(m=><option key={m.value} value={m.value}>{m.label}</option>)}
           </select>
           <span className="tb-label">Sort</span>
           <select className="mf-select" value={sortField} onChange={e=>setSortField(e.target.value)}>
@@ -463,14 +371,15 @@
           </div>
         )}
 
-        <div className="section-label">§ Weekly Plan · {month} {selectedYear}</div>
+        <div className="section-label">§ Weekly Plan · {month}</div>
         {DAYS.map(day=>{
-          const dayMeals = sortedMeals.filter(m=>m.day===day&&[user.username,...selectedTargets].includes(m.user));
+          const dayMeals = sortedMeals.filter(m=>m.day===day);
+          const totalCal = dayMeals.reduce((s,m)=>s+(parseFloat(m.calories.split(',')[0])||0),0);
           return (
             <div key={day} className="day-section">
               <div className="day-header">
                 <div className="day-name">{day}</div>
-                <div className="day-count">{dayMeals.length} meals · {dayMeals.reduce((s,m)=>s+(parseFloat(m.calories.split(',')[0])||0),0)} kcal</div>
+                <div className="day-count">{dayMeals.length} meals · {totalCal} kcal</div>
               </div>
               {dayMeals.length===0
                 ? <div className="day-empty">§ No meals planned</div>
@@ -497,12 +406,10 @@
 
         <div className="notes-box">
           <div className="section-label">§ Notes</div>
-          <div className="notes-list">
-            <div className="note-item">Customise for age, gender, activity level, allergies, and preferences. Use tools like MyFitnessPal for tracking.</div>
-            <div className="note-item">Portion sizes based on individual needs via TDEE calculators. Consult a nutritionist for personalisation.</div>
-            <div className="note-item">Combine with workouts for best results. Include variety to prevent boredom.</div>
-            <div className="note-item">These are general guidelines. For medical conditions, seek professional advice.</div>
-          </div>
+          <div className="note-item">Customise for age, gender, activity level, allergies, and preferences. Use tools like MyFitnessPal for tracking.</div>
+          <div className="note-item">Portion sizes based on individual needs via TDEE calculators. Consult a nutritionist for personalisation.</div>
+          <div className="note-item">Combine with workouts for best results. Include variety to prevent boredom.</div>
+          <div className="note-item">These are general guidelines. For medical conditions, seek professional advice.</div>
         </div>
       </div>
     );
