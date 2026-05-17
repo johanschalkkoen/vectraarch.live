@@ -20,93 +20,194 @@
   <link rel="stylesheet" href="/shared/va.css"/>
   <link rel="stylesheet" href="/shared/legacy.css"/>
   <style>
-    /* Gymworkout-specific — type badges with correct colours inline for type-badge class variants */
-    .type-badge.cardio  { color: var(--blue);   border-color: rgba(106,138,255,0.3); background: rgba(106,138,255,0.05); }
-    .type-badge.strength{ color: var(--accent); border-color: rgba(0,255,65,0.3);    background: rgba(0,255,65,0.05); }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    :root{--bg:#0a0a08;--bg2:#111110;--bg3:#191917;--border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.14);--text:#e8e4d8;--text-muted:rgba(232,228,216,0.55);--text-dim:rgba(232,228,216,0.25);--accent:#00ff41;--accent2:#00b32c;--red:#b84040;--warn:#d4a800;--blue:#6a8aff;--purple:#b06aff;}
+    html{scroll-behavior:smooth;}
+    body{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;font-weight:300;font-size:16px;line-height:1.6;overflow-x:hidden;cursor:crosshair;min-height:100vh;}
+    body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");opacity:0.4;pointer-events:none;z-index:0;}
+    .grid-bg{position:fixed;inset:0;background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);background-size:80px 80px;pointer-events:none;z-index:0;}
+    .accent-lines{position:fixed;top:0;right:0;width:50%;height:100%;pointer-events:none;overflow:hidden;z-index:0;}
+    .accent-lines svg{width:100%;height:100%;}
+    nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 40px;height:60px;border-bottom:1px solid var(--border);background:rgba(10,10,8,0.88);backdrop-filter:blur(12px);}
+    .nav-logo{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:15px;letter-spacing:0.22em;text-transform:uppercase;color:var(--text);text-decoration:none;}
+    .nav-logo span{color:var(--accent);}
+    .nav-status{display:flex;align-items:center;gap:8px;font-family:'DM Mono',monospace;font-size:10px;color:var(--text-dim);letter-spacing:0.1em;}
+    .nav-status::before{content:'';display:block;width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 6px var(--accent);}
+    #root{position:relative;z-index:1;}
+    .page-wrap{max-width:960px;margin:0 auto;padding:88px 40px 80px;position:relative;z-index:1;}
+    .page-header{margin-bottom:36px;padding-bottom:24px;border-bottom:1px solid var(--border);}
+    .page-eyebrow{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.28em;text-transform:uppercase;color:var(--accent);margin-bottom:12px;}
+    .page-title{font-family:'Bebas Neue',sans-serif;font-size:56px;line-height:0.9;color:var(--text);letter-spacing:0.02em;margin-bottom:4px;}
+    .page-sub{font-family:'Barlow Condensed',sans-serif;font-weight:300;font-size:13px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-muted);}
+    .user-header{display:flex;align-items:center;gap:16px;margin-bottom:28px;}
+    .user-avatar{width:44px;height:44px;border-radius:50%;object-fit:cover;border:1px solid var(--accent);flex-shrink:0;}
+    .user-display{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:18px;letter-spacing:0.04em;text-transform:uppercase;color:var(--text);}
+    .va-alert{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.1em;padding:12px 16px;border:1px solid;margin-bottom:20px;}
+    .va-alert.ok{color:var(--accent);border-color:rgba(0,255,65,0.25);background:rgba(0,255,65,0.05);}
+    .va-alert.err{color:var(--red);border-color:rgba(184,64,64,0.25);background:rgba(184,64,64,0.05);}
+    .va-alert.warn{color:var(--warn);border-color:rgba(212,168,0,0.25);background:rgba(212,168,0,0.05);}
+    .toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:20px;padding:14px 18px;background:var(--bg2);border:1px solid var(--border2);}
+    .tb-label{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:var(--text-dim);white-space:nowrap;}
+    .mf-select{background:var(--bg);border:1px solid var(--border2);color:var(--text);font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.06em;padding:7px 12px;outline:none;transition:border-color 0.2s;cursor:crosshair;-webkit-appearance:none;}
+    .mf-select:focus{border-color:var(--accent);}
+    .mf-select option,.mf-select optgroup{background:var(--bg2);color:var(--text);}
+    .tb-spacer{flex:1;}
+    .section-label{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.25em;text-transform:uppercase;color:var(--accent);margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--border);}
+    .va-form{background:var(--bg2);border:1px solid var(--border2);padding:28px;margin-bottom:24px;}
+    .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 28px;}
+    .mf-field{display:flex;flex-direction:column;gap:6px;margin-bottom:18px;}
+    .mf-field.full{grid-column:1/-1;}
+    .mf-label{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.22em;text-transform:uppercase;color:var(--text-dim);}
+    .mf-input,.mf-field-select{background:transparent;border:none;border-bottom:1px solid var(--border2);padding:10px 0;font-family:'DM Mono',monospace;font-size:12px;color:var(--text);outline:none;transition:border-color 0.2s;width:100%;}
+    .mf-input:focus,.mf-field-select:focus{border-bottom-color:var(--accent);}
+    .mf-input::placeholder{color:var(--text-dim);}
+    .mf-field-select{cursor:pointer;-webkit-appearance:none;}
+    .mf-field-select option,.mf-field-select optgroup{background:var(--bg2);color:var(--text);}
+    .type-badge{display:inline-flex;align-items:center;gap:6px;font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.16em;text-transform:uppercase;padding:4px 12px;border:1px solid;margin-bottom:16px;}
+    .type-badge.strength{color:var(--accent);border-color:rgba(0,255,65,0.3);background:rgba(0,255,65,0.05);}
+    .type-badge.cardio{color:var(--blue);border-color:rgba(106,138,255,0.3);background:rgba(106,138,255,0.05);}
+    .btn-row{display:flex;gap:10px;margin-top:8px;flex-wrap:wrap;}
+    .va-btn{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;padding:10px 20px;border:1px solid var(--border2);background:transparent;color:var(--text-muted);cursor:crosshair;transition:all 0.2s;}
+    .va-btn:hover{border-color:var(--text-muted);color:var(--text);}
+    .va-btn.primary{border-color:var(--accent);color:var(--accent);}
+    .va-btn.primary:hover{background:rgba(0,255,65,0.08);}
+    .va-btn.danger{border-color:var(--red);color:var(--red);}
+    .va-btn.danger:hover{background:rgba(184,64,64,0.08);}
+    .va-btn.purple{border-color:var(--purple);color:var(--purple);}
+    .va-btn.purple:hover{background:rgba(176,106,255,0.08);}
+    .va-btn.sm{padding:6px 14px;font-size:9px;}
+    .va-btn.full{width:100%;}
+    .va-btn:disabled{opacity:0.35;cursor:not-allowed;}
+    .toggle-group{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px;}
+    .toggle-chip{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.14em;text-transform:uppercase;padding:6px 14px;border:1px solid var(--border2);background:transparent;color:var(--text-dim);cursor:crosshair;transition:all 0.2s;}
+    .toggle-chip.on{border-color:var(--accent);color:var(--accent);background:rgba(0,255,65,0.06);}
+    .user-toggles{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;}
+    .user-toggle{display:flex;align-items:center;gap:8px;font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.12em;text-transform:uppercase;padding:6px 14px;border:1px solid;cursor:crosshair;transition:all 0.2s;}
+    .user-toggle.on{border-color:var(--accent);color:var(--accent);background:rgba(0,255,65,0.05);}
+    .user-toggle.off{border-color:var(--border2);color:var(--text-dim);background:transparent;}
+    .mini-avatar{width:18px;height:18px;border-radius:50%;object-fit:cover;}
+    .import-box{background:var(--bg2);border:1px solid var(--border2);padding:24px;margin-bottom:24px;}
+    .import-hint{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.1em;color:var(--text-dim);margin-bottom:12px;line-height:1.8;}
+    .mf-textarea{background:transparent;border:1px solid var(--border2);padding:10px 14px;font-family:'DM Mono',monospace;font-size:12px;color:var(--text);outline:none;transition:border-color 0.2s;width:100%;resize:vertical;min-height:100px;}
+    .mf-textarea:focus{border-color:var(--accent);}
+    .day-section{background:var(--bg2);border:1px solid var(--border2);margin-bottom:1px;}
+    .day-header{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+    .day-name{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:0.04em;color:var(--text);}
+    .day-count{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.14em;color:var(--text-dim);}
+    .day-empty{padding:14px 20px;font-family:'DM Mono',monospace;font-size:10px;color:var(--text-dim);letter-spacing:0.1em;}
+    .workout-card{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:6px;transition:background 0.2s;}
+    .workout-card:hover{background:var(--bg3);}
+    .workout-card:last-child{border-bottom:none;}
+    .workout-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+    .workout-avatar{width:20px;height:20px;border-radius:50%;object-fit:cover;flex-shrink:0;}
+    .workout-ex{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:14px;letter-spacing:0.04em;text-transform:uppercase;color:var(--text);}
+    .workout-type{font-family:'DM Mono',monospace;font-size:8px;letter-spacing:0.14em;text-transform:uppercase;padding:2px 8px;border:1px solid;}
+    .workout-type.strength{color:var(--accent);border-color:rgba(0,255,65,0.3);}
+    .workout-type.cardio{color:var(--blue);border-color:rgba(106,138,255,0.3);}
+    .workout-program-badge{font-family:'DM Mono',monospace;font-size:8px;letter-spacing:0.12em;text-transform:uppercase;padding:2px 8px;border:1px solid var(--purple);color:var(--purple);background:rgba(176,106,255,0.06);}
+    .workout-detail{font-family:'DM Mono',monospace;font-size:11px;color:var(--text-muted);letter-spacing:0.06em;}
+    .workout-meta{font-family:'DM Mono',monospace;font-size:9px;color:var(--text-dim);letter-spacing:0.1em;}
+    .workout-actions{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap;}
+    .notes-box{background:var(--bg2);border:1px solid var(--border2);padding:24px;margin-top:24px;}
+    .note-item{font-family:'DM Mono',monospace;font-size:10px;color:var(--text-dim);letter-spacing:0.08em;padding:6px 0;border-bottom:1px solid var(--border);}
+    .note-item:last-child{border-bottom:none;}
+    .back-btn{display:inline-flex;align-items:center;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-dim);background:transparent;border:none;cursor:crosshair;padding:0;margin-bottom:28px;transition:color 0.2s;}
+    .back-btn:hover{color:var(--accent);}
 
-    /* Programs section */
-    .program-card { background: var(--bg2); border: 1px solid var(--border2); padding: 20px; margin-bottom: 1px; transition: background 0.2s; }
-    .program-card:hover { background: var(--bg3); }
-    .program-card.active { border-color: var(--purple); }
-    .program-card.active::before { content: ''; display: block; height: 2px; background: var(--purple); margin-bottom: 16px; }
-    .program-title { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 18px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text); margin-bottom: 4px; }
-    .program-meta  { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.12em; color: var(--text-dim); }
-    .program-actions { display: flex; gap: 6px; justify-content: flex-end; margin-top: 12px; flex-wrap: wrap; }
-    .program-day-section { background: var(--bg3); border: 1px solid var(--border); padding: 12px 16px; margin-bottom: 4px; }
-    .program-day-label { font-family: 'DM Mono', monospace; font-size: 8px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--purple); margin-bottom: 8px; }
-    .program-ex-row { display: grid; grid-template-columns: 1fr auto auto auto; gap: 8px; align-items: center; margin-bottom: 6px; }
+    /* ── PROGRAMS ── */
+    .programs-section{margin-bottom:32px;}
+    .program-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin-bottom:20px;}
+    .program-card{background:var(--bg2);border:1px solid var(--border2);padding:20px;display:flex;flex-direction:column;gap:10px;transition:border-color 0.2s;cursor:default;}
+    .program-card:hover{border-color:rgba(176,106,255,0.4);}
+    .program-card.active-program{border-color:var(--purple);background:rgba(176,106,255,0.04);}
+    .program-name{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:18px;letter-spacing:0.04em;text-transform:uppercase;color:var(--text);}
+    .program-meta-row{display:flex;flex-wrap:wrap;gap:6px;}
+    .program-tag{font-family:'DM Mono',monospace;font-size:8px;letter-spacing:0.14em;text-transform:uppercase;padding:2px 8px;border:1px solid var(--border2);color:var(--text-dim);}
+    .program-tag.goal{border-color:rgba(0,255,65,0.3);color:var(--accent);}
+    .program-tag.diff{border-color:rgba(212,168,0,0.3);color:var(--warn);}
+    .program-desc{font-family:'DM Mono',monospace;font-size:10px;color:var(--text-muted);letter-spacing:0.06em;line-height:1.7;}
+    .program-schedule{margin-top:4px;}
+    .program-day-row{font-family:'DM Mono',monospace;font-size:9px;color:var(--text-dim);letter-spacing:0.08em;padding:3px 0;border-bottom:1px solid var(--border);}
+    .program-day-row:last-child{border-bottom:none;}
+    .program-day-label{color:var(--text-muted);margin-right:8px;}
+    .program-actions{display:flex;gap:6px;margin-top:4px;flex-wrap:wrap;}
+    .prog-ex-row{display:grid;grid-template-columns:auto 1fr auto auto auto;gap:0 12px;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);}
+    .prog-ex-row:last-child{border-bottom:none;}
+    .prog-ex-day{font-family:'DM Mono',monospace;font-size:9px;color:var(--text-dim);letter-spacing:0.1em;width:80px;}
+    .prog-ex-name{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:13px;letter-spacing:0.04em;text-transform:uppercase;color:var(--text);}
+    .prog-ex-detail{font-family:'DM Mono',monospace;font-size:9px;color:var(--text-muted);}
+    .prog-ex-remove{background:none;border:none;color:var(--red);font-family:'DM Mono',monospace;font-size:10px;cursor:crosshair;padding:2px 6px;opacity:0.6;transition:opacity 0.2s;}
+    .prog-ex-remove:hover{opacity:1;}
+    .empty-programs{font-family:'DM Mono',monospace;font-size:10px;color:var(--text-dim);letter-spacing:0.1em;padding:24px;background:var(--bg2);border:1px solid var(--border2);text-align:center;}
+
+    @media(max-width:600px){
+      nav{padding:0 20px;}
+      .page-wrap{padding:80px 20px 60px;}
+      .page-title{font-size:40px;}
+      .form-grid{grid-template-columns:1fr;}
+      .mf-field.full{grid-column:1;}
+      .program-cards{grid-template-columns:1fr;}
+      .prog-ex-row{grid-template-columns:1fr 1fr;}
+    }
   </style>
 </head>
 <body>
 <div class="grid-bg"></div>
-<div class="accent-lines" aria-hidden="true">
-  <svg viewBox="0 0 600 900" fill="none" preserveAspectRatio="xMaxYMid slice">
-    <line x1="580" y1="0" x2="20" y2="900" stroke="rgba(0,255,65,0.07)" stroke-width="1"/>
-    <line x1="540" y1="0" x2="0" y2="760" stroke="rgba(0,255,65,0.05)" stroke-width="0.5"/>
-    <line x1="600" y1="200" x2="100" y2="900" stroke="rgba(0,255,65,0.04)" stroke-width="1"/>
-    <rect x="460" y="80" width="100" height="1" fill="rgba(0,255,65,0.15)"/>
-    <circle cx="540" cy="180" r="60" stroke="rgba(0,255,65,0.04)" stroke-width="1" fill="none"/>
-    <circle cx="540" cy="180" r="90" stroke="rgba(0,255,65,0.025)" stroke-width="0.5" fill="none"/>
+<div class="accent-lines">
+  <svg viewBox="0 0 600 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <line x1="580" y1="0" x2="400" y2="900" stroke="rgba(0,255,65,0.04)" stroke-width="1"/>
+    <line x1="520" y1="0" x2="340" y2="900" stroke="rgba(0,255,65,0.03)" stroke-width="1"/>
+    <line x1="460" y1="0" x2="460" y2="900" stroke="rgba(0,255,65,0.02)" stroke-width="1"/>
   </svg>
 </div>
 <nav>
-  <a href="https://vectraarch.live" class="nav-logo">Vectra<span>&nbsp;</span>Arch</a>
-  <div class="nav-status">LEGACY · GYM WORKOUT</div>
+  <a class="nav-logo" href="index.html">Vectra <span>Arch</span></a>
+  <div class="nav-status">Legacy · Gym Workout</div>
 </nav>
 <div id="root"></div>
 <script type="text/babel">
-  const { useState, useEffect, useRef, useCallback, useMemo } = React;
-
-  class ErrorBoundary extends React.Component {
-    state = { error: null };
-    componentDidCatch(error) { this.setState({ error }); }
-    render() {
-      if (this.state.error) return (
-        <div className="page-wrap">
-          <div className="va-alert err">⚠ {this.state.error.toString()}</div>
-          <button className="va-btn" onClick={()=>window.location.reload()}>Reload</button>
-        </div>
-      );
-      return this.props.children;
-    }
-  }
+  const { useState, useEffect, useCallback, useMemo, useRef } = React;
 
   const API_BASE = '/legacy/api';
-  const DEFAULT_PROFILE_PIC = 'https://placehold.co/50x50/808080/FFFFFF?text=U';
+  const DEFAULT_PROFILE_PIC = 'https://vectraarch.live/legacy/default-avatar.png';
   const DEFAULT_EVENT_COLOR = '#00ff41';
-  const MONTHS = Array.from({ length: 12 }, (_, i) => ({ value: (i + 1).toString().padStart(2, '0'), label: new Date(0, i).toLocaleString('default', { month: 'long' }) }));
   const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
-  const capitalize = str => str ? str.charAt(0).toUpperCase() + str.slice(1) : '';
-  const getCurrentDateTime = () => { const now = new Date(); now.setMinutes(now.getMinutes() - now.getTimezoneOffset()); return now.toISOString().slice(0, 19); };
-  const formatDateTime = date => { if (!date) return '—'; const d = new Date(date); if (isNaN(d.getTime())) return 'Invalid'; return d.toLocaleString('en-ZA', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', hour12:false }).replace(/,/,''); };
+  const MONTHS = [
+    {value:'01',label:'January'},{value:'02',label:'February'},{value:'03',label:'March'},
+    {value:'04',label:'April'},{value:'05',label:'May'},{value:'06',label:'June'},
+    {value:'07',label:'July'},{value:'08',label:'August'},{value:'09',label:'September'},
+    {value:'10',label:'October'},{value:'11',label:'November'},{value:'12',label:'December'}
+  ];
+  const GOALS = ['Strength','Muscle Gain','Weight Loss','Endurance','Flexibility','General Fitness'];
+  const DIFFICULTIES = ['Beginner','Intermediate','Advanced','Elite'];
+
+  const getCurrentDateTime = () => {
+    const n = new Date();
+    return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}T${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}`;
+  };
+  const formatDateTime = s => { try { const d=new Date(s); return d.toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}); } catch { return s; } };
 
   const WORKOUT_OPTIONS = [
-    { label:'Strength — Free Weights', options:[
-      {value:'Barbell Back Squat',label:'Barbell Back Squat'},{value:'Barbell Front Squat',label:'Barbell Front Squat'},
-      {value:'Barbell Deadlift',label:'Barbell Deadlift'},{value:'Romanian Deadlift',label:'Romanian Deadlift'},
-      {value:'Barbell Bench Press',label:'Barbell Bench Press'},{value:'Incline Barbell Bench Press',label:'Incline Barbell Bench Press'},
-      {value:'Barbell Overhead Press',label:'Barbell Overhead Press'},{value:'Barbell Bent-Over Row',label:'Barbell Bent-Over Row'},
-      {value:'Barbell Hip Thrust',label:'Barbell Hip Thrust'},{value:'Barbell Curl',label:'Barbell Curl'},
-      {value:'Dumbbell Shoulder Press',label:'Dumbbell Shoulder Press'},{value:'Dumbbell Lateral Raises',label:'Dumbbell Lateral Raises'},
-      {value:'Dumbbell Bicep Curl',label:'Dumbbell Bicep Curl'},{value:'Hammer Curl',label:'Hammer Curl'},
-      {value:'Dumbbell Tricep Kickback',label:'Dumbbell Tricep Kickback'},{value:'Dumbbell Romanian Deadlift',label:'Dumbbell Romanian Deadlift'},
-      {value:'Dumbbell Lunges',label:'Dumbbell Lunges'},{value:'Goblet Squat',label:'Goblet Squat'},
-      {value:'Dumbbell Row',label:'Dumbbell Row'},{value:'Dumbbell Fly',label:'Dumbbell Fly'},
-      {value:'EZ-Bar Curl',label:'EZ-Bar Curl'},{value:'Skull Crushers',label:'Skull Crushers'}
+    { label:'Strength — Barbell', options:[
+      {value:'Barbell Bench Press',label:'Barbell Bench Press'},{value:'Barbell Squat',label:'Barbell Squat'},
+      {value:'Deadlift',label:'Deadlift'},{value:'Barbell Row',label:'Barbell Row'},
+      {value:'Overhead Press',label:'Overhead Press'},{value:'Romanian Deadlift',label:'Romanian Deadlift'},
+      {value:'Barbell Curl',label:'Barbell Curl'},{value:'Barbell Lunge',label:'Barbell Lunge'}
     ]},
-    { label:'Strength — Cable Machine', options:[
-      {value:'Cable Crossover (Fly)',label:'Cable Crossover (Fly)'},{value:'Cable Tricep Pushdown',label:'Cable Tricep Pushdown'},
-      {value:'Cable Bicep Curl',label:'Cable Bicep Curl'},{value:'Cable Row',label:'Cable Row'},
-      {value:'Face Pull',label:'Face Pull'},{value:'Cable Lateral Raise',label:'Cable Lateral Raise'},
-      {value:'Cable Woodchop',label:'Cable Woodchop'},{value:'Cable Hip Abduction',label:'Cable Hip Abduction'}
+    { label:'Strength — Dumbbell', options:[
+      {value:'Dumbbell Bench Press',label:'Dumbbell Bench Press'},{value:'Dumbbell Row',label:'Dumbbell Row'},
+      {value:'Dumbbell Shoulder Press',label:'Dumbbell Shoulder Press'},{value:'Lateral Raise',label:'Lateral Raise'},
+      {value:'Dumbbell Curl',label:'Dumbbell Curl'},{value:'Tricep Kickback',label:'Tricep Kickback'},
+      {value:'Goblet Squat',label:'Goblet Squat'},{value:'Dumbbell Lunge',label:'Dumbbell Lunge'},
+      {value:'Dumbbell Fly',label:'Dumbbell Fly'},{value:'Bulgarian Split Squat',label:'Bulgarian Split Squat'}
     ]},
     { label:'Strength — Machine', options:[
       {value:'Leg Press',label:'Leg Press'},{value:'Leg Extension',label:'Leg Extension'},
-      {value:'Leg Curl (Hamstring Curl)',label:'Leg Curl (Hamstring Curl)'},{value:'Chest Press Machine',label:'Chest Press Machine'},
-      {value:'Lat Pulldown',label:'Lat Pulldown'},{value:'Seated Row Machine',label:'Seated Row Machine'},
-      {value:'Hip Abduction/Adduction Machine',label:'Hip Abduction/Adduction Machine'},
-      {value:'Pec Deck (Chest Fly)',label:'Pec Deck (Chest Fly)'},{value:'Tricep Pushdowns',label:'Tricep Pushdowns'},
-      {value:'Machine Shoulder Press',label:'Machine Shoulder Press'},{value:'Abdominal Crunch Machine',label:'Abdominal Crunch Machine'}
+      {value:'Leg Curl',label:'Leg Curl'},{value:'Seated Row',label:'Seated Row'},
+      {value:'Lat Pulldown',label:'Lat Pulldown'},{value:'Chest Fly Machine',label:'Chest Fly Machine'},
+      {value:'Pec Deck',label:'Pec Deck'},{value:'Cable Row',label:'Cable Row'},
+      {value:'Tricep Pushdowns',label:'Tricep Pushdowns'},{value:'Machine Shoulder Press',label:'Machine Shoulder Press'},
+      {value:'Abdominal Crunch Machine',label:'Abdominal Crunch Machine'}
     ]},
     { label:'Strength — Bodyweight', options:[
       {value:'Push-Ups (standard, wide, diamond)',label:'Push-Ups (standard, wide, diamond)'},
@@ -131,30 +232,95 @@
       {value:'Reverse pedaling',label:'Reverse pedaling'},{value:'Interval training',label:'Interval training'}
     ]},
     { label:'Cardio Workouts — Rowing Machine', options:[
-      {value:'Steady-state rowing',label:'Steady-state rowing'},
-      {value:'Sprint intervals',label:'Sprint intervals'},{value:'Endurance rows',label:'Endurance rows'}
+      {value:'Steady-state rowing',label:'Steady-state rowing'},{value:'Sprint intervals',label:'Sprint intervals'},
+      {value:'Endurance rows',label:'Endurance rows'}
     ]},
     { label:'Cardio Workouts — Stair Climber', options:[
-      {value:'Steady-state stair climbing',label:'Steady-state stair climbing'},
-      {value:'Interval climbing',label:'Interval climbing'}
+      {value:'Steady climbing',label:'Steady climbing'},{value:'Skip-a-step for intensity',label:'Skip-a-step for intensity'},
+      {value:'Interval climbs',label:'Interval climbs'}
     ]},
-    { label:'Group Classes — HIIT', options:[
-      {value:'High-intensity interval training circuits',label:'High-intensity interval training circuits'},
-      {value:'Plyometric exercises (burpees, jump squats)',label:'Plyometric exercises (burpees, jump squats)'},
-      {value:'Battle Ropes',label:'Battle Ropes'}
+    { label:'Cardio Workouts — Jump Rope', options:[
+      {value:'Double-unders',label:'Double-unders'},{value:'High-knee jumps',label:'High-knee jumps'},
+      {value:'Alternating foot jumps',label:'Alternating foot jumps'}
+    ]},
+    { label:'Cardio Workouts — Battle Ropes', options:[
+      {value:'Alternating waves',label:'Alternating waves'},{value:'Double slams',label:'Double slams'},
+      {value:'Circular motions',label:'Circular motions'}
+    ]},
+    { label:'Functional — Circuit Training', options:[
+      {value:'Combining exercises (e.g., squats, push-ups, kettlebell swings) in a sequence with minimal rest',label:'Circuit: squats, push-ups, kettlebell swings'},
+      {value:'AMRAP (As Many Rounds As Possible) circuits',label:'AMRAP circuits'},
+      {value:'EMOM (Every Minute on the Minute) workouts',label:'EMOM workouts'}
+    ]},
+    { label:'Functional — HIIT', options:[
+      {value:'Burpees',label:'Burpees'},{value:'Box Jumps',label:'Box Jumps'},
+      {value:'Medicine Ball Slams',label:'Medicine Ball Slams'},{value:'Sled Push/Pull',label:'Sled Push/Pull'},
+      {value:'Tire Flips (if available)',label:'Tire Flips (if available)'}
+    ]},
+    { label:'Functional — Plyometrics', options:[
+      {value:'Jump Squats',label:'Jump Squats'},{value:'Tuck Jumps',label:'Tuck Jumps'},
+      {value:'Lateral Bounds',label:'Lateral Bounds'},{value:'Depth Jumps (using a box)',label:'Depth Jumps (using a box)'}
+    ]},
+    { label:'Functional — Core', options:[
+      {value:'Russian Twists (with or without weight)',label:'Russian Twists (with or without weight)'},
+      {value:'Bicycle Crunches',label:'Bicycle Crunches'},{value:'Mountain Climbers',label:'Mountain Climbers'},
+      {value:'Hanging Knee Tucks',label:'Hanging Knee Tucks'},{value:'Cable Woodchoppers',label:'Cable Woodchoppers'}
+    ]},
+    { label:'Flexibility — Static Stretching', options:[
+      {value:'Hamstring stretch',label:'Hamstring stretch'},{value:'Quadriceps stretch',label:'Quadriceps stretch'},
+      {value:'Chest opener',label:'Chest opener'},{value:'Shoulder stretch',label:'Shoulder stretch'},
+      {value:'Calf stretch',label:'Calf stretch'}
+    ]},
+    { label:'Flexibility — Dynamic Stretching', options:[
+      {value:'Leg Swings',label:'Leg Swings'},{value:'Arm Circles',label:'Arm Circles'},
+      {value:'Walking Lunges with Twist',label:'Walking Lunges with Twist'},{value:'High Knees',label:'High Knees'},
+      {value:'Butt Kicks',label:'Butt Kicks'}
+    ]},
+    { label:'Flexibility — Yoga-Inspired', options:[
+      {value:'Downward Dog',label:'Downward Dog'},{value:'Warrior Poses',label:'Warrior Poses'},
+      {value:'Cat-Cow Stretch',label:'Cat-Cow Stretch'},{value:"Child's Pose",label:"Child's Pose"},
+      {value:'Pigeon Stretch',label:'Pigeon Stretch'}
+    ]},
+    { label:'Flexibility — Foam Rolling', options:[
+      {value:'Quads, hamstrings, glutes',label:'Quads, hamstrings, glutes'},
+      {value:'Upper back, lats',label:'Upper back, lats'},{value:'Calves, IT band',label:'Calves, IT band'}
+    ]},
+    { label:'Group Classes — Aerobics', options:[
+      {value:'Step aerobics',label:'Step aerobics'},{value:'Zumba',label:'Zumba'},
+      {value:'Dance-based cardio',label:'Dance-based cardio'}
+    ]},
+    { label:'Group Classes — Spin/Cycling', options:[
+      {value:'Guided interval rides',label:'Guided interval rides'},{value:'Rhythm-based cycling',label:'Rhythm-based cycling'}
+    ]},
+    { label:'Group Classes — Bootcamp', options:[
+      {value:'Combination of bodyweight exercises in a circuit format',label:'Bodyweight circuit format'},
+      {value:'Often includes push-ups, squats, and burpees',label:'Push-ups, squats, and burpees'}
     ]},
     { label:'Group Classes — Yoga', options:[
       {value:'Power Yoga',label:'Power Yoga'},{value:'Hatha Yoga',label:'Hatha Yoga'},{value:'Vinyasa Flow',label:'Vinyasa Flow'}
     ]},
     { label:'Group Classes — Pilates', options:[
       {value:'Mat-based core strengthening',label:'Mat-based core strengthening'},
-      {value:'Reformer Pilates (if equipment is available)',label:'Reformer Pilates'}
+      {value:'Reformer Pilates (if equipment is available)',label:'Reformer Pilates (if equipment is available)'}
+    ]},
+    { label:'Group Classes — Kickboxing', options:[
+      {value:'Cardio kickboxing',label:'Cardio kickboxing'},{value:'Bag work (punching/kicking heavy bags)',label:'Bag work (punching/kicking heavy bags)'}
     ]},
     { label:'Group Classes — TRX', options:[
       {value:'TRX rows',label:'TRX rows'},{value:'TRX squats',label:'TRX squats'},{value:'TRX planks',label:'TRX planks'}
     ]},
     { label:'Misc — Medicine Ball', options:[
-      {value:'Wall Balls',label:'Wall Balls'},{value:'Rotational Throws',label:'Rotational Throws'},{value:'Overhead Slams',label:'Overhead Slams'}
+      {value:'Wall Balls',label:'Wall Balls'},{value:'Rotational Throws',label:'Rotational Throws'},
+      {value:'Overhead Slams',label:'Overhead Slams'}
+    ]},
+    { label:'Misc — Agility Drills', options:[
+      {value:'Ladder Drills (in-and-out steps)',label:'Ladder Drills (in-and-out steps)'},
+      {value:'Cone Drills (lateral shuffles, sprints)',label:'Cone Drills (lateral shuffles, sprints)'},
+      {value:'Hurdle Jumps',label:'Hurdle Jumps'}
+    ]},
+    { label:'Misc — Balance Training', options:[
+      {value:'Bosu Ball Squats',label:'Bosu Ball Squats'},{value:'Single-Leg Balance Drills',label:'Single-Leg Balance Drills'},
+      {value:'Stability Ball Exercises (e.g., planks, crunches)',label:'Stability Ball Exercises (e.g., planks, crunches)'}
     ]},
     { label:'Misc — Swimming', options:[
       {value:'Freestyle, breaststroke, backstroke',label:'Freestyle, breaststroke, backstroke'},
@@ -177,6 +343,14 @@
     return `${workout.sets} × ${reps} reps @ ${weight} kg`;
   };
 
+  // ── ERROR BOUNDARY ───────────────────────────────────────────────────────────
+  class ErrorBoundary extends React.Component {
+    constructor(props){super(props);this.state={hasError:false,error:null};}
+    static getDerivedStateFromError(e){return{hasError:true,error:e};}
+    render(){if(this.state.hasError)return<div style={{padding:'40px',fontFamily:'monospace',color:'#b84040'}}>Error: {this.state.error?.message}</div>;return this.props.children;}
+  }
+
+  // ── ACCESSIBLE USERS HOOK ────────────────────────────────────────────────────
   const useAccessibleUsers = (user, setUserProfiles) => {
     const [targetUsers, setTargetUsers] = useState([]);
     const [selectedTargets, setSelectedTargets] = useState([]);
@@ -213,16 +387,165 @@
     return { targetUsers, selectedTargets, setSelectedTargets, error };
   };
 
-  const GymWorkout = ({ user, setPage, onLogout }) => {
+  // ── PROGRAM FORM COMPONENT ───────────────────────────────────────────────────
+  const ProgramForm = ({ user, editingProgram, onSaved, onCancel }) => {
+    const emptyForm = { name:'', description:'', goal:'', durationWeeks:'', difficulty:'', daysPerWeek:'' };
+    const [form, setForm] = useState(editingProgram ? {
+      name: editingProgram.name||'',
+      description: editingProgram.description||'',
+      goal: editingProgram.goal||'',
+      durationWeeks: editingProgram.durationWeeks||'',
+      difficulty: editingProgram.difficulty||'',
+      daysPerWeek: editingProgram.daysPerWeek||''
+    } : emptyForm);
+    const [exercises, setExercises] = useState(editingProgram?.exercises||[]);
+    const [exForm, setExForm] = useState({ day:'Monday', exercise:'', sets:'3', reps:'10', weight:'', isCustom:false, customExercise:'' });
+    const [exType, setExType] = useState('strength');
+    const [saving, setSaving] = useState(false);
+    const [err, setErr] = useState('');
+
+    const handleExSelect = e => {
+      const v = e.target.value;
+      if (v==='custom') { setExForm(p=>({...p,exercise:'',isCustom:true})); setExType('strength'); }
+      else { setExForm(p=>({...p,exercise:v,isCustom:false})); setExType(isCardio(v)?'cardio':'strength'); }
+    };
+
+    const addExercise = () => {
+      const ex = exForm.isCustom ? exForm.customExercise.trim() : exForm.exercise;
+      if (!ex) { setErr('Select or enter an exercise.'); return; }
+      setExercises(prev => [...prev, { day:exForm.day, exercise:ex, sets:parseInt(exForm.sets)||null, reps:exForm.reps, weight:exForm.weight }]);
+      setExForm(p=>({...p,exercise:'',isCustom:false,customExercise:'',sets:'3',reps:'10',weight:''}));
+      setExType('strength');
+      setErr('');
+    };
+
+    const removeExercise = idx => setExercises(prev => prev.filter((_,i)=>i!==idx));
+
+    const handleSave = async () => {
+      if (!form.name.trim()) { setErr('Program name is required.'); return; }
+      setSaving(true); setErr('');
+      try {
+        const payload = { user: user.username, ...form, durationWeeks: form.durationWeeks||null, daysPerWeek: form.daysPerWeek||null, exercises };
+        if (editingProgram) {
+          await axios.put(`${API_BASE}/gymprogram/${editingProgram.id}`, payload);
+        } else {
+          await axios.post(`${API_BASE}/gymprogram`, payload);
+        }
+        onSaved();
+      } catch (e) {
+        setErr(e.response?.data?.message || 'Error saving program.');
+      } finally { setSaving(false); }
+    };
+
+    return (
+      <div className="va-form">
+        <div className="section-label">§ {editingProgram ? 'Edit Program' : 'New Program'}</div>
+        {err && <div className="va-alert err" style={{marginBottom:'16px'}}>⚠ {err}</div>}
+        <div className="form-grid">
+          <div className="mf-field full">
+            <label className="mf-label">Program Name *</label>
+            <input className="mf-input" placeholder="e.g. Push / Pull / Legs" value={form.name} onChange={e=>setForm(p=>({...p,name:e.target.value}))}/>
+          </div>
+          <div className="mf-field full">
+            <label className="mf-label">Description</label>
+            <input className="mf-input" placeholder="Brief description of the program" value={form.description} onChange={e=>setForm(p=>({...p,description:e.target.value}))}/>
+          </div>
+          <div className="mf-field">
+            <label className="mf-label">Goal</label>
+            <select className="mf-field-select" value={form.goal} onChange={e=>setForm(p=>({...p,goal:e.target.value}))}>
+              <option value="">— Select goal —</option>
+              {GOALS.map(g=><option key={g} value={g}>{g}</option>)}
+            </select>
+          </div>
+          <div className="mf-field">
+            <label className="mf-label">Difficulty</label>
+            <select className="mf-field-select" value={form.difficulty} onChange={e=>setForm(p=>({...p,difficulty:e.target.value}))}>
+              <option value="">— Select difficulty —</option>
+              {DIFFICULTIES.map(d=><option key={d} value={d}>{d}</option>)}
+            </select>
+          </div>
+          <div className="mf-field">
+            <label className="mf-label">Duration (weeks)</label>
+            <input className="mf-input" type="number" min="1" max="52" placeholder="8" value={form.durationWeeks} onChange={e=>setForm(p=>({...p,durationWeeks:e.target.value}))}/>
+          </div>
+          <div className="mf-field">
+            <label className="mf-label">Days per week</label>
+            <input className="mf-input" type="number" min="1" max="7" placeholder="5" value={form.daysPerWeek} onChange={e=>setForm(p=>({...p,daysPerWeek:e.target.value}))}/>
+          </div>
+        </div>
+
+        <div className="section-label" style={{marginTop:'8px'}}>§ Program Schedule</div>
+        {exercises.length > 0 && (
+          <div style={{marginBottom:'16px'}}>
+            {exercises.map((ex,i)=>(
+              <div key={i} className="prog-ex-row">
+                <div className="prog-ex-day">{ex.day}</div>
+                <div className="prog-ex-name">{ex.exercise}</div>
+                <div className="prog-ex-detail">{ex.sets&&`${ex.sets}×`}{ex.reps&&`${ex.reps}`}{ex.weight&&` @ ${ex.weight}kg`}</div>
+                <button className="prog-ex-remove" onClick={()=>removeExercise(i)}>✕</button>
+              </div>
+            ))}
+          </div>
+        )}
+        <div style={{background:'var(--bg3)',border:'1px solid var(--border)',padding:'16px',marginBottom:'16px'}}>
+          <div className="mf-label" style={{marginBottom:'8px'}}>Add Exercise to Schedule</div>
+          <div className="toggle-group" style={{marginBottom:'12px'}}>
+            {DAYS.map(d=><button key={d} className={`toggle-chip ${exForm.day===d?'on':'off'}`} onClick={()=>setExForm(p=>({...p,day:d}))}>{d.slice(0,3)}</button>)}
+          </div>
+          <div className="form-grid">
+            <div className="mf-field full">
+              <label className="mf-label">Exercise</label>
+              <select className="mf-field-select" value={exForm.isCustom?'custom':exForm.exercise} onChange={handleExSelect}>
+                <option value="">— Select exercise —</option>
+                {WORKOUT_OPTIONS.map(group=>(
+                  <optgroup key={group.label} label={group.label}>
+                    {group.options.map(opt=><option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                  </optgroup>
+                ))}
+              </select>
+            </div>
+            {exForm.isCustom && (
+              <div className="mf-field full">
+                <label className="mf-label">Custom Exercise Name</label>
+                <input className="mf-input" placeholder="Enter exercise name" value={exForm.customExercise} onChange={e=>setExForm(p=>({...p,customExercise:e.target.value}))}/>
+              </div>
+            )}
+            {exType==='strength' && (
+              <div className="mf-field">
+                <label className="mf-label">Sets</label>
+                <input className="mf-input" type="number" min="1" placeholder="3" value={exForm.sets} onChange={e=>setExForm(p=>({...p,sets:e.target.value}))}/>
+              </div>
+            )}
+            <div className="mf-field">
+              <label className="mf-label">{exType==='cardio'?'Duration (min)':'Reps'}</label>
+              <input className="mf-input" type="text" placeholder={exType==='cardio'?'30':'10'} value={exForm.reps} onChange={e=>setExForm(p=>({...p,reps:e.target.value}))}/>
+            </div>
+            <div className="mf-field">
+              <label className="mf-label">{exType==='cardio'?'Distance (km)':'Weight (kg)'}</label>
+              <input className="mf-input" type="text" placeholder={exType==='cardio'?'5':'80'} value={exForm.weight} onChange={e=>setExForm(p=>({...p,weight:e.target.value}))}/>
+            </div>
+          </div>
+          <button className="va-btn sm" onClick={addExercise}>+ Add Exercise</button>
+        </div>
+
+        <div className="btn-row">
+          <button className="va-btn primary" onClick={handleSave} disabled={saving}>{saving?'Saving…':(editingProgram?'Update ↗':'Create Program ↗')}</button>
+          <button className="va-btn" onClick={onCancel}>Cancel</button>
+        </div>
+      </div>
+    );
+  };
+
+  // ── MAIN COMPONENT ───────────────────────────────────────────────────────────
+  const GymWorkout = ({ user, setPage, onLogout, setUser }) => {
     const [workouts, setWorkouts] = useState([]);
     const [programs, setPrograms] = useState([]);
-    const [activeProgram, setActiveProgram] = useState(null);
-    const [filterProgram, setFilterProgram] = useState('');
-    const [form, setForm] = useState({ id:null, day:new Date().toLocaleString('en-US',{weekday:'long'}), exercise:'', sets:'', reps:'', weight:'', date:getCurrentDateTime() });
+    const [activeProgram, setActiveProgram] = useState(null); // program id filter
+    const [form, setForm] = useState({ id:null, day:new Date().toLocaleString('en-US',{weekday:'long'}), exercise:'', sets:'', reps:'', weight:'', date:getCurrentDateTime(), programId:'' });
     const [message, setMessage] = useState({ text:'', type:'' });
     const [showAddForm, setShowAddForm] = useState(false);
     const [showProgramForm, setShowProgramForm] = useState(false);
-    const [showProgramsPanel, setShowProgramsPanel] = useState(false);
+    const [editingProgram, setEditingProgram] = useState(null);
     const [bulkData, setBulkData] = useState('');
     const [importMessage, setImportMessage] = useState({ text:'', type:'' });
     const [showImportTool, setShowImportTool] = useState(false);
@@ -254,9 +577,9 @@
 
     const fetchPrograms = useCallback(async () => {
       try {
-        const { data } = await axios.get(`${API_BASE}/gymprogram`, { params: { username: user.username } });
-        if (Array.isArray(data)) setPrograms(data);
-      } catch {}
+        const { data } = await axios.get(`${API_BASE}/gymprogram`, { params: { user: user.username } });
+        setPrograms(Array.isArray(data) ? data : []);
+      } catch { msg('Error fetching programs.','err'); }
     }, [user.username]);
 
     const handleInputChange = useCallback(e => {
@@ -281,12 +604,12 @@
       } else {
         if(isNaN(parseFloat(form.reps))||parseFloat(form.reps)<=0||isNaN(parseFloat(form.weight))||parseFloat(form.weight)<=0){msg('Duration and distance must be positive numbers.','err');return;}
       }
-      const wd = { user:user.username, day:form.day, exercise:form.exercise, sets, reps:form.reps, weight:form.weight, date:form.date };
+      const wd = { user:user.username, day:form.day, exercise:form.exercise, sets, reps:form.reps, weight:form.weight, date:form.date, programId:form.programId||null };
       try {
         if(form.id){await axios.put(`${API_BASE}/gymworkout/${form.id}`,wd);msg('Workout updated.');}
         else{await axios.post(`${API_BASE}/gymworkout`,wd);msg('Workout saved.');}
         fetchWorkouts();
-        setForm({id:null,day:new Date().toLocaleString('en-US',{weekday:'long'}),exercise:'',sets:'',reps:'',weight:'',date:getCurrentDateTime()});
+        setForm({id:null,day:new Date().toLocaleString('en-US',{weekday:'long'}),exercise:'',sets:'',reps:'',weight:'',date:getCurrentDateTime(),programId:''});
         setShowAddForm(false);setIsCustom(false);setExerciseType('strength');setCustomExercise('');
       } catch { msg('Error saving workout.','err'); }
     }, [form,user.username,fetchWorkouts,exerciseType]);
@@ -295,8 +618,13 @@
       try { await axios.delete(`${API_BASE}/gymworkout/${id}`);msg('Workout deleted.');fetchWorkouts(); } catch { msg('Error deleting.','err'); }
     }, [fetchWorkouts]);
 
+    const handleDeleteProgram = useCallback(async id => {
+      if (!window.confirm('Delete this program? Logged workouts will keep their history.')) return;
+      try { await axios.delete(`${API_BASE}/gymprogram/${id}`);msg('Program deleted.');fetchPrograms();if(activeProgram===id)setActiveProgram(null); } catch { msg('Error deleting program.','err'); }
+    }, [fetchPrograms, activeProgram]);
+
     const startEdit = useCallback(workout => {
-      setForm({id:workout.id,day:workout.day,exercise:workout.exercise,sets:workout.sets.toString(),reps:String(workout.reps),weight:String(workout.weight),date:workout.date.slice(0,16)});
+      setForm({id:workout.id,day:workout.day,exercise:workout.exercise,sets:workout.sets.toString(),reps:String(workout.reps),weight:String(workout.weight),date:workout.date.slice(0,16),programId:workout.program_id||''});
       const type = isCardio(workout.exercise)?'cardio':'strength';
       setExerciseType(type);
       const custom = !WORKOUT_OPTIONS.some(g=>g.options.some(o=>o.value===workout.exercise));
@@ -312,7 +640,10 @@
       }).filter(Boolean);
       if(!toImport.length){iMsg('No valid data.','err');return;}
       iMsg(`Importing ${toImport.length} workouts...`,'warn');
-      try { await Promise.all(toImport.map(w=>axios.post(`${API_BASE}/gymworkout`,w)));iMsg(`Imported ${toImport.length} workouts.`);setBulkData('');setShowImportTool(false);fetchWorkouts(); } catch { iMsg('Import failed.','err'); }
+      try {
+        await Promise.all(toImport.map(w=>axios.post(`${API_BASE}/gymworkout`,w)));
+        iMsg(`Imported ${toImport.length} workouts.`);setBulkData('');setShowImportTool(false);fetchWorkouts();
+      } catch { iMsg('Import failed.','err'); }
     }, [bulkData,user.username,fetchWorkouts]);
 
     // ── PROGRAMS ──
@@ -349,19 +680,23 @@
     }, []);
 
     const sortedWorkouts = useMemo(() => {
-      let filtered = workouts.filter(w=>w.date?.slice(5,7)===selectedMonth);
-      if (filterProgram) filtered = filtered.filter(w=>String(w.program_id)===filterProgram);
+      let filtered = workouts.filter(w=>w.date?.startsWith(`${new Date().getFullYear().toString().slice(0,2)}${selectedMonth.length===2?new Date().getFullYear().toString().slice(2):''}`) || w.date?.slice(5,7)===selectedMonth);
+      // simple month filter
+      filtered = workouts.filter(w => w.date && w.date.slice(5,7) === selectedMonth);
+      if (activeProgram) filtered = filtered.filter(w => String(w.program_id)===String(activeProgram));
+      filtered = filtered.filter(w=>[user.username,...selectedTargets].includes(w.user));
       return [...filtered].sort((a,b)=>{
         const fa=sortField==='sets'?parseFloat(a.sets)||0:a[sortField];
         const fb=sortField==='sets'?parseFloat(b.sets)||0:b[sortField];
         if(sortField==='sets') return sortOrder==='asc'?fa-fb:fb-fa;
         return sortOrder==='asc'?new Date(fa)-new Date(fb):new Date(fb)-new Date(fa);
       });
-    }, [workouts,selectedMonth,sortField,sortOrder,filterProgram]);
+    }, [workouts,selectedMonth,sortField,sortOrder,activeProgram,user.username,selectedTargets]);
 
     useEffect(()=>{if(user?.username){fetchWorkouts();fetchPrograms();}},[fetchWorkouts,fetchPrograms,user]);
 
     const month = MONTHS.find(m=>m.value===selectedMonth)?.label||'';
+    const activeProgramObj = programs.find(p=>p.id===activeProgram);
 
     return (
       <div className="page-wrap">
@@ -380,7 +715,64 @@
         {message.text&&<div className={`va-alert ${message.type}`}>{message.type==='ok'?'✓ ':'⚠ '}{message.text}</div>}
         {error&&<div className="va-alert err">⚠ {error}</div>}
 
-        {/* ── TOOLBAR ── */}
+        {/* ── PROGRAMS SECTION ── */}
+        <div className="programs-section">
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'16px'}}>
+            <div className="section-label" style={{marginBottom:0,paddingBottom:0,borderBottom:'none'}}>§ Programs</div>
+            <button className="va-btn purple sm" onClick={()=>{setEditingProgram(null);setShowProgramForm(!showProgramForm);}}>
+              {showProgramForm?'Hide':'New Program ↗'}
+            </button>
+          </div>
+
+          {showProgramForm && (
+            <ProgramForm
+              user={user}
+              editingProgram={editingProgram}
+              onSaved={()=>{fetchPrograms();setShowProgramForm(false);setEditingProgram(null);msg('Program saved.');}}
+              onCancel={()=>{setShowProgramForm(false);setEditingProgram(null);}}
+            />
+          )}
+
+          {programs.length === 0 && !showProgramForm ? (
+            <div className="empty-programs">§ No programs yet · Create one to organise your training</div>
+          ) : (
+            <div className="program-cards">
+              {programs.map(p=>(
+                <div key={p.id} className={`program-card ${activeProgram===p.id?'active-program':''}`}>
+                  <div className="program-name">{p.name}</div>
+                  <div className="program-meta-row">
+                    {p.goal&&<span className="program-tag goal">{p.goal}</span>}
+                    {p.difficulty&&<span className="program-tag diff">{p.difficulty}</span>}
+                    {p.durationWeeks&&<span className="program-tag">{p.durationWeeks}w</span>}
+                    {p.daysPerWeek&&<span className="program-tag">{p.daysPerWeek}d/wk</span>}
+                  </div>
+                  {p.description&&<div className="program-desc">{p.description}</div>}
+                  {p.exercises&&p.exercises.length>0&&(
+                    <div className="program-schedule">
+                      {DAYS.filter(d=>p.exercises.some(e=>e.day===d)).map(d=>(
+                        <div key={d} className="program-day-row">
+                          <span className="program-day-label">{d.slice(0,3)}</span>
+                          {p.exercises.filter(e=>e.day===d).map((e,i)=>(
+                            <span key={i}>{i>0?' · ':''}{e.exercise}{e.sets?` ${e.sets}×`:''}{e.reps?`${e.reps}`:''}</span>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div className="program-actions">
+                    <button className="va-btn sm purple" onClick={()=>setActiveProgram(activeProgram===p.id?null:p.id)}>
+                      {activeProgram===p.id?'Clear Filter':'Filter Workouts'}
+                    </button>
+                    <button className="va-btn sm" onClick={()=>{setEditingProgram(p);setShowProgramForm(true);window.scrollTo({top:0,behavior:'smooth'});}}>Edit</button>
+                    <button className="va-btn sm danger" onClick={()=>handleDeleteProgram(p.id)}>Delete</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* ── WORKOUT LOG TOOLBAR ── */}
         <div className="toolbar">
           <span className="tb-label">Month</span>
           <select className="mf-select" value={selectedMonth} onChange={e=>setSelectedMonth(e.target.value)}>
@@ -530,6 +922,15 @@
                 <span className={`type-badge ${exerciseType}`}>{exerciseType==='cardio'?'◎ Cardio':'⬡ Strength'}</span>
               </div>
             )}
+            {programs.length>0&&(
+              <div className="mf-field full">
+                <label className="mf-label">Assign to Program (optional)</label>
+                <select className="mf-field-select" name="programId" value={form.programId} onChange={handleInputChange}>
+                  <option value="">— No program —</option>
+                  {programs.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              </div>
+            )}
             <div className="form-grid">
               {exerciseType==='strength'&&(
                 <div className="mf-field">
@@ -561,15 +962,17 @@
             </div>
             <div className="btn-row">
               <button className="va-btn primary" onClick={handleSaveWorkout}>{form.id?'Update ↗':'Save ↗'}</button>
-              <button className="va-btn" onClick={()=>{setShowAddForm(false);setIsCustom(false);setExerciseType('strength');setCustomExercise('');setForm({id:null,day:new Date().toLocaleString('en-US',{weekday:'long'}),exercise:'',sets:'',reps:'',weight:'',date:getCurrentDateTime()});}}>Cancel</button>
+              <button className="va-btn" onClick={()=>{setShowAddForm(false);setIsCustom(false);setExerciseType('strength');setCustomExercise('');setForm({id:null,day:new Date().toLocaleString('en-US',{weekday:'long'}),exercise:'',sets:'',reps:'',weight:'',date:getCurrentDateTime(),programId:''});}}>Cancel</button>
             </div>
           </div>
         )}
 
-        {/* ── WEEKLY PLAN ── */}
-        <div className="section-label">§ Weekly Plan · {month}{filterProgram?' · '+programs.find(p=>String(p.id)===filterProgram)?.name:''}</div>
+        <div className="section-label">
+          § Weekly Plan · {month}{activeProgramObj?` · ${activeProgramObj.name}`:''}
+        </div>
+
         {DAYS.map(day=>{
-          const dayWorkouts = sortedWorkouts.filter(w=>w.day===day&&[user.username,...selectedTargets].includes(w.user));
+          const dayWorkouts = sortedWorkouts.filter(w=>w.day===day);
           const totalSets = dayWorkouts.reduce((s,w)=>s+(parseInt(w.sets)||0),0);
           return (
             <div key={day} className="day-section">
@@ -579,30 +982,27 @@
               </div>
               {dayWorkouts.length===0
                 ? <div className="day-empty">§ Rest day</div>
-                : dayWorkouts.map(workout=>(
-                    <div key={workout.id} className="workout-card">
-                      <div className="workout-top">
-                        <img className="workout-avatar" src={userProfiles[workout.user]?.pic||DEFAULT_PROFILE_PIC} alt={workout.user} style={{border:`1px solid ${userProfiles[workout.user]?.color||DEFAULT_EVENT_COLOR}`}}/>
-                        <span className={`workout-type ${isCardio(workout.exercise)?'cardio':'strength'}`}>{isCardio(workout.exercise)?'Cardio':'Strength'}</span>
-                        <span className="workout-ex">{workout.exercise}</span>
-                        {workout.program_id&&<span className="workout-program-badge">{programs.find(p=>p.id===workout.program_id)?.name||'Program'}</span>}
-                      </div>
-                      <div className="workout-detail">{formatWorkoutDetails(workout)}</div>
-                      <div className="workout-meta">{formatDateTime(workout.date)} · {userProfiles[workout.user]?.displayName||workout.user}</div>
-                      {workout.user===user.username&&(
-                        <div className="workout-actions">
-                          {programs.length>0&&(
-                            <select className="mf-select" style={{fontSize:'9px',padding:'4px 8px'}} value={workout.program_id||''} onChange={e=>handleAssignProgram(workout.id,e.target.value||null)}>
-                              <option value="">No program</option>
-                              {programs.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
-                            </select>
-                          )}
-                          <button className="va-btn sm" onClick={()=>startEdit(workout)}>Edit</button>
-                          <button className="va-btn danger sm" onClick={()=>handleDeleteWorkout(workout.id)}>Delete</button>
+                : dayWorkouts.map(workout=>{
+                    const progName = workout.program_id ? programs.find(p=>p.id===workout.program_id)?.name : null;
+                    return (
+                      <div key={workout.id} className="workout-card">
+                        <div className="workout-top">
+                          <img className="workout-avatar" src={userProfiles[workout.user]?.pic||DEFAULT_PROFILE_PIC} alt={workout.user} style={{border:`1px solid ${userProfiles[workout.user]?.color||DEFAULT_EVENT_COLOR}`}}/>
+                          <span className={`workout-type ${isCardio(workout.exercise)?'cardio':'strength'}`}>{isCardio(workout.exercise)?'Cardio':'Strength'}</span>
+                          {progName&&<span className="workout-program-badge">⬡ {progName}</span>}
+                          <span className="workout-ex">{workout.exercise}</span>
                         </div>
-                      )}
-                    </div>
-                  ))}
+                        <div className="workout-detail">{formatWorkoutDetails(workout)}</div>
+                        <div className="workout-meta">{formatDateTime(workout.date)} · {userProfiles[workout.user]?.displayName||workout.user}</div>
+                        {workout.user===user.username&&(
+                          <div className="workout-actions">
+                            <button className="va-btn sm" onClick={()=>startEdit(workout)}>Edit</button>
+                            <button className="va-btn danger sm" onClick={()=>handleDeleteWorkout(workout.id)}>Delete</button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
             </div>
           );
         })}
