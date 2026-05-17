@@ -42,7 +42,7 @@ const Icons = {
   budget:   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="20" height="20"><rect x="2" y="3" width="8" height="8" rx="1"/><rect x="14" y="3" width="8" height="8" rx="1"/><rect x="2" y="13" width="8" height="8" rx="1"/><rect x="14" y="13" width="8" height="8" rx="1"/></svg>,
   gym:      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="20" height="20"><path d="M6 4v16M18 4v16M2 9h4M18 9h4M2 15h4M18 15h4M6 12h12"/></svg>,
   meals:    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="20" height="20"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>,
-  cycle:    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="20" height="20"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>,
+  cycle:    <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M12 2C12 2 5 10.5 5 15a7 7 0 0 0 14 0C19 10.5 12 2 12 2z" opacity="0.9"/></svg>,
   profile:  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="20" height="20"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
   search:   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="14" height="14"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>,
   admin:    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="20" height="20"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
@@ -53,7 +53,7 @@ const UserRow = ({user, partner, isShared, onToggleShared}) => (
   <div className="user-row">
     <div className="user-chip">
       <img className="user-chip-avatar" src={user?.profilePicUrl||DP} alt={user?.username} style={{border:`2px solid ${user?.eventColor||'#e91e8c'}`}}/>
-      <span className="user-chip-name">{user?.displayName||user?.username||'USER'}</span>
+      <span className="user-chip-name">{user?.displayName||(user?.firstName&&user?.lastName?`${user.firstName} ${user.lastName}`:null)||user?.username||'USER'}</span>
       <span className="user-chip-arrow">⌄</span>
     </div>
     {partner
@@ -65,7 +65,7 @@ const UserRow = ({user, partner, isShared, onToggleShared}) => (
     {partner && isShared && (
       <div className="partner-chip">
         <img className="partner-chip-avatar" src={partner?.profilePicUrl||DP} alt={partner?.username} style={{border:`2px solid ${partner?.eventColor||'#448aff'}`}}/>
-        <span className="partner-chip-name">+ {partner?.displayName||partner?.username}</span>
+        <span className="partner-chip-name">+ {partner?.displayName||(partner?.firstName&&partner?.lastName?`${partner.firstName} ${partner.lastName}`:null)||partner?.username}</span>
       </div>
     )}
   </div>
@@ -211,7 +211,7 @@ const FinancesPage = ({user, partner, isShared}) => {
           {filtered.length===0&&<div className="no-events"><div className="no-events-text">No transactions for {monthLabel}</div></div>}
         </div>
       </div>
-      <button className="fab" onClick={()=>setShowForm(true)}>+ ADD ITEM</button>
+      <button className="fab" style={{background:'var(--green)',color:'#000',boxShadow:'0 4px 20px rgba(0,230,118,0.4)'}} onClick={()=>setShowForm(true)}>+ ADD ITEM</button>
 
       {showForm&&(
         <div className="modal-overlay" onClick={()=>setShowForm(false)}>
@@ -428,7 +428,7 @@ const CalendarPage = ({user, partner, isShared}) => {
           <div style={{height:'80px'}}/>
         </div>
       </div>
-      <button className="fab" onClick={()=>setShowForm(true)}>+ ADD EVENT</button>
+      <button className="fab" style={{background:'var(--blue)',boxShadow:'0 4px 20px rgba(68,138,255,0.4)'}} onClick={()=>setShowForm(true)}>+ ADD EVENT</button>
 
       {showForm&&(
         <div className="modal-overlay" onClick={()=>setShowForm(false)}>
@@ -630,7 +630,7 @@ const BudgetPage = ({user, partner, isShared}) => {
           <div style={{height:'80px'}}/>
         </div>
       </div>
-      <button className="fab" onClick={()=>setShowForm(true)}>+ ADD BUDGET</button>
+      <button className="fab" style={{background:'var(--yellow)',color:'#000',boxShadow:'0 4px 20px rgba(255,214,0,0.4)'}} onClick={()=>setShowForm(true)}>+ ADD BUDGET</button>
 
       {showForm&&(
         <div className="modal-overlay" onClick={()=>setShowForm(false)}>
@@ -863,7 +863,7 @@ const GymPage = ({user, partner, isShared}) => {
           <div style={{height:'80px'}}/>
         </div>
       </div>
-      <button className="fab" onClick={()=>setShowForm(true)}>+ ADD EXERCISE</button>
+      <button className="fab" style={{background:'var(--red)',boxShadow:'0 4px 20px rgba(255,61,61,0.4)'}} onClick={()=>setShowForm(true)}>+ ADD EXERCISE</button>
 
       {showForm&&(
         <div className="modal-overlay" onClick={()=>setShowForm(false)}>
@@ -1134,7 +1134,7 @@ const MealsPage = ({user, partner, isShared}) => {
           <div style={{height:'80px'}}/>
         </div>
       </div>
-      <button className="fab green" onClick={()=>setShowForm(true)}>+ ADD MEAL</button>
+      <button className="fab" style={{background:'#d67bff',boxShadow:'0 4px 20px rgba(214,123,255,0.4)'}} onClick={()=>setShowForm(true)}>+ ADD MEAL</button>
 
       {showForm&&(
         <div className="modal-overlay" onClick={()=>setShowForm(false)}>
@@ -1431,7 +1431,7 @@ const CyclePage = ({user, partner, isShared}) => {
 /* ── PROFILE PAGE ── */
 const ProfilePage = ({user, setUser, partner, setPartner, sharingConfig, setSharingConfig, onLogout}) => {
   const [activeUser, setActiveUser] = useState(user);
-  const [form, setForm] = useState({displayName:user.displayName||user.username,email:user.email||'',phone:user.phone||''});
+  const [form, setForm] = useState({firstName:user.firstName||'',lastName:user.lastName||'',displayName:user.displayName||user.username,email:user.email||'',phone:user.phone||''});
   const [pushNotifs, setPushNotifs] = useState(true);
   const [selectedColor, setSelectedColor] = useState(user.eventColor||'#00e676');
   const [alert, setAlert] = useState({msg:'',type:''});
@@ -1444,8 +1444,9 @@ const ProfilePage = ({user, setUser, partner, setPartner, sharingConfig, setShar
 
   const handleSave = async()=>{
     try {
-      await axios.post(`${API}/profile-pictures`,{username:activeUser.username,displayName:form.displayName,email:form.email,phone:form.phone,eventColor:selectedColor});
-      const updated={...activeUser,...form,eventColor:selectedColor};
+      await axios.post(`${API}/profile-pictures`,{username:activeUser.username,firstName:form.firstName,lastName:form.lastName,displayName:form.firstName&&form.lastName?`${form.firstName} ${form.lastName}`:form.displayName,email:form.email,phone:form.phone,eventColor:selectedColor});
+      const displayName=form.firstName&&form.lastName?`${form.firstName} ${form.lastName}`:form.displayName;
+      const updated={...activeUser,...form,displayName,eventColor:selectedColor};
       if(activeUser.username===user.username){setUser(updated);localStorage.setItem('user',JSON.stringify(updated));}
       msg('Changes saved.');
     } catch { msg('Error saving.','err'); }
@@ -1471,7 +1472,7 @@ const ProfilePage = ({user, setUser, partner, setPartner, sharingConfig, setShar
           <div className="profile-user-card">
             <img className="profile-user-avatar" src={currentUser?.profilePicUrl||DP} alt="" style={{border:`2px solid ${currentUser?.eventColor||'#e91e8c'}`}}/>
             <div>
-              <div className="profile-user-name">{currentUser?.displayName||currentUser?.username||'USER'}</div>
+              <div className="profile-user-name">{currentUser?.displayName||(currentUser?.firstName&&currentUser?.lastName?`${currentUser.firstName} ${currentUser.lastName}`:null)||currentUser?.username||'USER'}</div>
               <div className="profile-user-email">{currentUser?.email||`${(currentUser?.username||'user')}@vectraarch.live`}</div>
               {currentUser?.gender&&<span className={`profile-user-badge ${currentUser.gender?.toLowerCase()}`}>{(currentUser.gender||'').toUpperCase()}</span>}
             </div>
@@ -1485,7 +1486,7 @@ const ProfilePage = ({user, setUser, partner, setPartner, sharingConfig, setShar
               <div className="partner-row">
                 <img className="partner-avatar" src={partner.profilePicUrl||DP} alt="" style={{border:`2px solid ${partner.eventColor||'#448aff'}`}}/>
                 <div>
-                  <div className="partner-info-name">{partner.displayName||partner.username}</div>
+                  <div className="partner-info-name">{partner.displayName||(partner.firstName&&partner.lastName?`${partner.firstName} ${partner.lastName}`:null)||partner.username}</div>
                   <div className="partner-info-status">Partner · linked</div>
                 </div>
                 <button className={`share-all-btn ${isSharing?'sharing':'not-sharing'}`} onClick={()=>{const all=!isSharing;setSharingConfig(Object.fromEntries(sharingItems.map(i=>[i,all])));}}>{isSharing?'SHARING ALL':'SHARE ALL'}</button>
@@ -1702,14 +1703,14 @@ const AdminPage = ({user, onLogout}) => {
 };
 
 const ALL_TABS = [
-  {id:'finances', label:'FINANCES', color:'#00e676'},
-  {id:'calendar', label:'CALENDAR', color:'#448aff'},
-  {id:'budget',   label:'BUDGET',   color:'#ffd600'},
-  {id:'gym',      label:'GYM',      color:'#1de9b6'},
-  {id:'meals',    label:'MEALS',    color:'#ff9800'},
-  {id:'cycle',    label:'CYCLE',    color:'#e91e8c'},
-  {id:'profile',  label:'PROFILE',  color:'#b06aff'},
-  {id:'admin',    label:'ADMIN',    color:'#ff5252', adminOnly:true},
+  {id:'finances', label:'FINANCES', color:'#00e676'},  // green  ✓
+  {id:'calendar', label:'CALENDAR', color:'#448aff'},  // blue   ✓
+  {id:'budget',   label:'BUDGET',   color:'#ffd600'},  // yellow ✓
+  {id:'gym',      label:'GYM',      color:'#ff3b3b'},  // red    ✓
+  {id:'meals',    label:'MEALS',    color:'#d67bff'},  // violet — unique
+  {id:'cycle',    label:'CYCLE',    color:'#e91e8c'},  // pink   ✓ only one
+  {id:'profile',  label:'PROFILE',  color:'#b06aff'},  // purple ✓
+  {id:'admin',    label:'ADMIN',    color:'#ff9800', adminOnly:true}, // orange
 ];
 
 const App = () => {
@@ -1737,7 +1738,7 @@ const App = () => {
               if(targets.length>0){
                 try {
                   const {data:pd}=await axios.get(`${API}/profile-pictures`,{params:{username:targets[0]}});
-                  setPartner({username:targets[0],...pd,profilePicUrl:pd.profilePicUrl||DP,eventColor:pd.eventColor||'#448aff',displayName:pd.displayName||targets[0]});
+                  setPartner({username:targets[0],...pd,profilePicUrl:pd.profilePicUrl||DP,eventColor:pd.eventColor||'#448aff',displayName:pd.displayName||(pd.firstName&&pd.lastName?`${pd.firstName} ${pd.lastName}`:null)||targets[0],firstName:pd.firstName||'',lastName:pd.lastName||''});
                 } catch {
                   setPartner({username:targets[0],displayName:targets[0],eventColor:'#448aff',profilePicUrl:DP});
                 }
@@ -1745,7 +1746,8 @@ const App = () => {
             }
           }).catch(()=>{});
         axios.get(`${API}/profile-pictures`,{params:{username:u.username}}).then(({data})=>{
-          setUser(prev=>({...prev,...data,profilePicUrl:data.profilePicUrl||prev.profilePicUrl||DP}));
+          const dn=data.displayName||(data.firstName&&data.lastName?`${data.firstName} ${data.lastName}`:null)||u.username;
+          setUser(prev=>({...prev,...data,displayName:dn,firstName:data.firstName||prev.firstName||'',lastName:data.lastName||prev.lastName||'',profilePicUrl:data.profilePicUrl||prev.profilePicUrl||DP}));
         }).catch(()=>{});
       } catch { setError('Invalid session'); }
     } else {
