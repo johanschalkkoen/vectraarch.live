@@ -420,6 +420,7 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
   const [search, setSearch]             = useState('');
   const [confirmDelCal, setConfirmDelCal] = useState(null);
   const [actionCalEvent, setActionCalEvent] = useState(null);
+  const [editCalId, setEditCalId] = useState(null);
   const msg = (m,t='ok')=>{ setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
 
   const calUserIsMale    = (user.gender||'').toLowerCase()==='male';
@@ -494,6 +495,7 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
   const handleSave = async()=>{
     if(!form.title||!form.date){msg('Title and date required.','err');return;}
     try {
+      if(editCalId) await axios.delete(`${API}/calendar/${editCalId}`);
       await axios.post(`${API}/calendar`,{
         user:       user.username,
         title:      form.title,
@@ -504,11 +506,24 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
         type:       form.financial ? form.finType : form.type,
         amount:     form.amount||null,
       });
-      msg('Event saved.');
-      setShowForm(false);
+      msg(editCalId?'Event updated.':'Event saved.');
+      setShowForm(false);setEditCalId(null);
       setForm({title:'',date:now(),type:'personal',color:user?.eventColor||'#448aff',amount:'',finType:'income',financial:false});
       fetchEvents();
     } catch { msg('Error.','err'); }
+  };
+  const startEditCalEvent = (e) => {
+    setForm({
+      title:    e.title||'',
+      date:     (e.date||now()).slice(0,19),
+      type:     e.financial||e.is_financial ? (e.type||'income') : (e.type||'personal'),
+      color:    e.eventColor||e.event_color||user.eventColor||'#448aff',
+      amount:   String(e.amount||''),
+      finType:  e.type==='expense'?'expense':'income',
+      financial:!!(e.financial||e.is_financial),
+    });
+    setEditCalId(e.id);
+    setShowForm(true);
   };
   const handleDeleteEvent = async(id)=>{
     try { await axios.delete(`${API}/calendar/${id}`); msg('Deleted.'); setSelectedEvent(null); fetchEvents(); } catch { msg('Error.','err'); }
@@ -718,7 +733,7 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
       </button>
 
       <ActionSheet open={!!actionCalEvent} title={actionCalEvent?.title} tabColor={tabColor}
-        canEdit={false}
+        onEdit={()=>startEditCalEvent(actionCalEvent)}
         onDelete={()=>setConfirmDelCal(actionCalEvent?.id)}
         onClose={()=>setActionCalEvent(null)}/>
       <ConfirmModal open={!!confirmDelCal} message="Delete event?" detail={actionCalEvent?.title||selectedEvent?.title}
@@ -826,6 +841,7 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
   const [search, setSearch] = useState('');
   const [actionBudget, setActionBudget] = useState(null);
   const [confirmDelBud, setConfirmDelBud] = useState(null);
+  const [editBudgetId, setEditBudgetId] = useState(null);
   const [budgets, setBudgets] = useState([]);
   const [items, setItems] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()+1).padStart(2,'0'));
@@ -882,11 +898,20 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
     const expensesJson = JSON.stringify([{category:form.expenses[0].category||'Budget',amount:parseFloat(form.income)}]);
     const dateStr = form.date||now();
     try {
+      if(editBudgetId) await axios.delete(`${API}/budget/${editBudgetId}`);
       await axios.post(`${API}/budget`,{user:user.username,income:parseFloat(form.income),expenses:expensesJson,date:dateStr});
-      msg('Budget saved.');setShowForm(false);
+      msg(editBudgetId?'Budget updated.':'Budget saved.');
+      setShowForm(false);setEditBudgetId(null);
       setForm({name:'',category:'',income:'',expenses:[{category:'',amount:''}],date:now()});
       fetchAll();
     } catch(e) { msg(e.response?.data?.message||'Error saving budget.','err'); }
+  };
+  const startEditBudget = (b) => {
+    const cat = b.expenses?.[0]?.category||'';
+    const amt = b.expenses?.[0]?.amount||b.income||0;
+    setForm({name:cat,category:cat,income:String(amt),expenses:[{category:cat,amount:String(amt)}],date:(b.date||now()).slice(0,10)+'T00:00:00'});
+    setEditBudgetId(b.id);
+    setShowForm(true);
   };
   const handleBudgetDelete = async(id)=>{
     try { await axios.delete(`${API}/budget/${id}`); msg('Deleted.'); fetchAll(); } catch { msg('Error.','err'); }
@@ -969,7 +994,7 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
       </div>
       <button className="fab" style={{background:tabColor,boxShadow:`0 4px 20px ${tabColor}55`}} onClick={()=>setShowForm(true)}>+ ADD BUDGET</button>
       <ActionSheet open={!!actionBudget} title={actionBudget?.expenses?.[0]?.category||'Budget'} tabColor={tabColor}
-        canEdit={false}
+        onEdit={()=>startEditBudget(actionBudget)}
         onDelete={()=>setConfirmDelBud(actionBudget?.id)}
         onClose={()=>setActionBudget(null)}/>
       <ConfirmModal open={!!confirmDelBud} message="Delete budget?" detail="This cannot be undone."
