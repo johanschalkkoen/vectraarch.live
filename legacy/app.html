@@ -104,6 +104,50 @@ const UserRow = ({user, partner, partners=[], activePartners=[], permittedPartne
 
 const Alert = ({msg,type}) => msg ? <div className={`alert ${type||'ok'}`}>{msg}</div> : null;
 
+// ── Shared month navigator — matches calendar header style ──
+const MonthNav = ({selectedMonth, setSelectedMonth, tabColor='#00e676', label=''}) => {
+  const year  = new Date().getFullYear();
+  const mIdx  = parseInt(selectedMonth,10) - 1;
+  const mName = new Date(year, mIdx, 1).toLocaleString('default',{month:'long'}).toUpperCase();
+  const prev  = () => {
+    const n = parseInt(selectedMonth,10) - 1;
+    setSelectedMonth(n < 1 ? '12' : String(n).padStart(2,'0'));
+  };
+  const next  = () => {
+    const n = parseInt(selectedMonth,10) + 1;
+    setSelectedMonth(n > 12 ? '01' : String(n).padStart(2,'0'));
+  };
+  const goNow = () => setSelectedMonth(String(new Date().getMonth()+1).padStart(2,'0'));
+  return (
+    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 16px 4px'}}>
+      <button onClick={prev} style={{width:32,height:32,borderRadius:'50%',background:'var(--bg3)',border:'none',color:'var(--text)',fontSize:18,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>‹</button>
+      <div style={{textAlign:'center'}}>
+        <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:22,letterSpacing:'0.04em',color:'var(--text)'}}>{mName} {year}</div>
+        {label&&<div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)',marginTop:1,letterSpacing:'0.1em'}}>{label}</div>}
+      </div>
+      <div style={{display:'flex',gap:6}}>
+        <button onClick={goNow} style={{height:32,padding:'0 12px',borderRadius:16,background:tabColor,border:'none',color:'#fff',fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:600,letterSpacing:'0.1em',cursor:'pointer'}}>TODAY</button>
+        <button onClick={next} style={{width:32,height:32,borderRadius:'50%',background:'var(--bg3)',border:'none',color:'var(--text)',fontSize:18,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>›</button>
+      </div>
+    </div>
+  );
+};
+
+// ── Shared search bar ──
+const SearchBar = ({value, onChange, placeholder='Search...', tabColor='#00e676'}) => (
+  <div style={{display:'flex',alignItems:'center',gap:8,margin:'8px 16px',padding:'8px 12px',background:'var(--bg3)',borderRadius:20,border:'1px solid var(--border2)'}}>
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" strokeWidth="2.5">
+      <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+    </svg>
+    <input
+      value={value} onChange={e=>onChange(e.target.value)}
+      placeholder={placeholder}
+      style={{flex:1,background:'transparent',border:'none',outline:'none',fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text)',letterSpacing:'0.04em'}}
+    />
+    {value&&<button onClick={()=>onChange('')} style={{background:'transparent',border:'none',color:'var(--text3)',cursor:'pointer',fontSize:14,lineHeight:1,padding:0}}>×</button>}
+  </div>
+);
+
 // ── Avatar helpers — resolves pic/color for any username across user+partner ──
 // Usage: <ItemAvatar username={item.user} user={user} partner={partner} partners={partners} size={36}/>
 // getOwner: resolve user object from username — checks user, partner, and partners array
@@ -203,22 +247,8 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
             <div className="page-sub">{isShared2?'COMBINED HOUSEHOLD TOTALS':'INCOME · EXPENSES · NET TOTAL'}</div>
           </div>
           <UserRow user={user} partner={partner} partners={partners} activePartners={activePartners} permittedPartners={permittedPartners} selfVisible={selfVisible} tabSelected={tabSelected} isShared={isShared} onToggleUser={onToggleUser}/>
-          <div className="toolbar-row">
-            <div className="tb-chip">
-              <span style={{fontSize:'9px',fontFamily:"'DM Mono',monospace",letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--text3)'}}>MONTH</span>
-              <select value={selectedMonth} onChange={e=>setSelectedMonth(e.target.value)}>
-                {MONTHS.map(m=><option key={m.v} value={m.v}>{m.l} 2026</option>)}
-              </select>
-            </div>
-            <div className={`tb-chip ${sortField==='date'?'sort-active':''}`} onClick={()=>setSortField('date')} style={{cursor:'pointer'}}>
-              <span style={{fontSize:'9px',fontFamily:"'DM Mono',monospace",letterSpacing:'0.1em',textTransform:'uppercase'}}>SORT</span>
-              <span style={{fontFamily:"'DM Mono',monospace",fontSize:'10px'}}>Date</span>
-            </div>
-          </div>
-          <div className="search-bar">
-            {Icons.search}
-            <input placeholder="SEARCH TRANSACTIONS..." value={search} onChange={e=>setSearch(e.target.value)}/>
-          </div>
+          <MonthNav selectedMonth={selectedMonth} setSelectedMonth={setSelectedMonth} tabColor={tabColor}/>
+          <SearchBar value={search} onChange={setSearch} placeholder="Search transactions..." tabColor={tabColor}/>
           <Alert {...alert}/>
 
           {/* Summary */}
@@ -717,6 +747,7 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
 
 /* ── BUDGET PAGE ── */
 const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPartners=[], selfVisible=true, isShared, tabSelected, onToggleUser, tabColor='#ffd600'}) => {
+  const [search, setSearch] = useState('');
   const [budgets, setBudgets] = useState([]);
   const [items, setItems] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()+1).padStart(2,'0'));
@@ -797,17 +828,8 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
             <div className="page-sub">PLANNED · ACTUAL · REMAINING</div>
           </div>
           <UserRow user={user} partner={partner} partners={partners} activePartners={activePartners} permittedPartners={permittedPartners} selfVisible={selfVisible} tabSelected={tabSelected} isShared={isShared} onToggleUser={onToggleUser}/>
-          <div className="toolbar-row">
-            <div className="tb-chip">
-              <span style={{fontSize:'9px',fontFamily:"'DM Mono',monospace",letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--text3)'}}>MONTH</span>
-              <select value={selectedMonth} onChange={e=>setSelectedMonth(e.target.value)}>
-                {MONTHS.map(m=><option key={m.v} value={m.v}>{m.l} 2026</option>)}
-              </select>
-            </div>
-            <div className="sort-active tb-chip" style={{cursor:'default'}}>
-              <span style={{fontFamily:"'DM Mono',monospace",fontSize:'10px'}}>Desc</span>
-            </div>
-          </div>
+          <MonthNav selectedMonth={selectedMonth} setSelectedMonth={setSelectedMonth} tabColor={tabColor}/>
+          <SearchBar value={search} onChange={setSearch} placeholder="Search budgets..." tabColor={tabColor}/>
           <Alert {...alert}/>
 
           {/* Summary */}
@@ -829,8 +851,9 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
             </div>
           </div>
 
-          <div className="section-label">BUDGETS <span style={{color:tabColor}}>{filteredBudgets.length}</span> RECORDS</div>
-          {filteredBudgets.map(b=>{
+          <SearchBar value={search} onChange={setSearch} placeholder="Search budgets..." tabColor={tabColor}/>
+          <div className="section-label">BUDGETS <span style={{color:tabColor}}>{filteredBudgets.filter(b=>!search||(b.expenses[0]?.category||'').toLowerCase().includes(search.toLowerCase())).length}</span> RECORDS</div>
+          {filteredBudgets.filter(b=>!search||(b.expenses[0]?.category||'').toLowerCase().includes(search.toLowerCase())).map(b=>{
             const planned  = b.expenses.reduce((s,e)=>s+parseFloat(e.amount||0),0);
             const actual   = getBudgetActual(b);
             const pct      = planned>0?Math.min(actual/planned,1):0;
@@ -982,6 +1005,7 @@ const gymFormatDetail = w => {
 };
 
 const GymPage = ({user, partner, partners=[], activePartners=[], permittedPartners=[], selfVisible=true, isShared, tabSelected, onToggleUser, tabColor='#ff3b3b'}) => {
+  const [search, setSearch] = useState('');
   const [workouts, setWorkouts] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()+1).padStart(2,'0'));
   const [showForm, setShowForm] = useState(false);
@@ -1038,19 +1062,13 @@ const GymPage = ({user, partner, partners=[], activePartners=[], permittedPartne
             <div className="page-sub">EXERCISES · STRENGTH · WEEKLY PLAN</div>
           </div>
           <UserRow user={user} partner={partner} partners={partners} activePartners={activePartners} permittedPartners={permittedPartners} selfVisible={selfVisible} tabSelected={tabSelected} isShared={isShared} onToggleUser={onToggleUser}/>
-          <div className="toolbar-row">
-            <div className="tb-chip">
-              <span style={{fontSize:'9px',fontFamily:"'DM Mono',monospace",letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--text3)'}}>MONTH</span>
-              <select value={selectedMonth} onChange={e=>setSelectedMonth(e.target.value)} style={{color:tabColor}}>
-                {MONTHS.map(m=><option key={m.v} value={m.v}>{m.l}</option>)}
-              </select>
-            </div>
-          </div>
+          <MonthNav selectedMonth={selectedMonth} setSelectedMonth={setSelectedMonth} tabColor={tabColor}/>
           <Alert {...alert}/>
+          <SearchBar value={search} onChange={setSearch} placeholder="Search exercises..." tabColor={tabColor}/>
           {/* Days first — all users' workouts together under each day */}
           {DAYS.map(day=>{
             const visUsers=[...(selfVisible?[user.username]:[]),...(activePartners||[]).map(p=>p.username)];
-            const dayWorkouts = workouts.filter(w=>(w.day===day)&&(w.date||'').slice(5,7)===selectedMonth&&(visUsers.length===0||visUsers.includes(String(w.userKey))));
+            const dayWorkouts = workouts.filter(w=>(w.day===day)&&(w.date||'').slice(5,7)===selectedMonth&&(visUsers.length===0||visUsers.includes(String(w.userKey)))&&(!search||(w.exercise||'').toLowerCase().includes(search.toLowerCase())));
             const totalEx = dayWorkouts.length;
             return (
               <div key={day} className="day-block">
@@ -1227,6 +1245,7 @@ const MEAL_OPTIONS = [
 ];
 
 const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPartners=[], selfVisible=true, isShared, tabSelected, onToggleUser, tabColor='#d67bff'}) => {
+  const [search, setSearch] = useState('');
   const [meals, setMeals] = useState([]);
   const [mealTemplates, setMealTemplates] = useState(MEAL_OPTIONS); // start with static, replace with DB
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()+1).padStart(2,'0'));
@@ -1329,15 +1348,8 @@ const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPart
             <div className="page-sub">MACROS · DAILY FOOD LOG</div>
           </div>
           <UserRow user={user} partner={partner} partners={partners} activePartners={activePartners} permittedPartners={permittedPartners} selfVisible={selfVisible} tabSelected={tabSelected} isShared={isShared} onToggleUser={onToggleUser}/>
-          <div className="toolbar-row">
-            <div className="tb-chip">
-              <span style={{fontSize:'9px',fontFamily:"'DM Mono',monospace",letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--text3)'}}>MONTH</span>
-              <select value={selectedMonth} onChange={e=>setSelectedMonth(e.target.value)} style={{color:tabColor}}>
-                {MONTHS.map(m=><option key={m.v} value={m.v}>{m.l}</option>)}
-              </select>
-            </div>
-
-          </div>
+          <MonthNav selectedMonth={selectedMonth} setSelectedMonth={setSelectedMonth} tabColor={tabColor}/>
+          <SearchBar value={search} onChange={setSearch} placeholder="Search meals..." tabColor={tabColor}/>
           <Alert {...alert}/>
 
           <div className="section-label">TODAY'S MACROS</div>
@@ -1406,7 +1418,7 @@ const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPart
             const dayMeals = filtered.filter(m=>{
               // Match by stored day field, or derive from date
               const storedDay = m.day||(m.date?new Date(m.date).toLocaleDateString('en-US',{weekday:'long'}):'');
-              return storedDay===day;
+              return storedDay===day&&(!search||(m.description||m.name||'').toLowerCase().includes(search.toLowerCase()));
             });
             const totalMeals = dayMeals.length;
             const dayCal = dayMeals.reduce((s,m)=>s+parseFloat(m.calories||0),0);
