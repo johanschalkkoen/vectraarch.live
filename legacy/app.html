@@ -780,17 +780,9 @@ const gymFormatDetail = w => {
   return `${sets} × ${reps} reps @ ${weight} kg`;
 };
 
-const GymPage = ({user, partner, isShared, tabColor='#ff3b3b'}) => {
+const GymPage = ({user, partner, isShared, onToggleShared, tabColor='#ff3b3b'}) => {
   const [workouts, setWorkouts] = useState([]);
-  const [gymOptions, setGymOptions] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()+1).padStart(2,'0'));
-
-  useEffect(()=>{
-    axios.get(`${API}/gym-options`).then(r=>{
-      if(r.data.success&&r.data.data.length) setGymOptions(r.data.data);
-      else setGymOptions(WORKOUT_OPTIONS); // fallback to static
-    }).catch(()=>setGymOptions(WORKOUT_OPTIONS));
-  },[]);
   const [showForm, setShowForm] = useState(false);
   const [isCustomEx, setIsCustomEx] = useState(false);
   const [form, setForm] = useState({day:'Monday',exercise:'',sets:'3',reps:'10',weight:'60',date:now(),type:'strength'});
@@ -879,10 +871,7 @@ const GymPage = ({user, partner, isShared, tabColor='#ff3b3b'}) => {
                             const wt=gymGetType(w.exercise);
                             return (
                               <div key={w.id} className={`workout-card ${wt}`}>
-                                <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:4}}>
-                                  <ItemAvatar username={u.username} user={user} partner={partner} size={20}/>
-                                  <span className={`workout-type-badge ${wt}`} style={{margin:0}}>{wt.toUpperCase()}</span>
-                                </div>
+                                <span className={`workout-type-badge ${wt}`}>{wt.toUpperCase()}</span>
                                 <div className="workout-name">{(w.exercise||'').toUpperCase()}</div>
                                 <div className="workout-detail">{gymFormatDetail(w)}</div>
                                 <div className="workout-time">{(w.date||'').slice(11,16)}</div>
@@ -902,11 +891,11 @@ const GymPage = ({user, partner, isShared, tabColor='#ff3b3b'}) => {
           <div style={{height:'80px'}}/>
         </div>
       </div>
-      <button className="fab" style={{background:'var(--red)',boxShadow:'0 4px 20px rgba(255,61,61,0.4)'}} onClick={()=>setShowForm(true)}>+ ADD EXERCISE</button>
+      <button className="fab" onClick={()=>setShowForm(true)}>+ ADD EXERCISE</button>
 
       {showForm&&(
         <div className="modal-overlay" onClick={()=>setShowForm(false)}>
-          <div className="modal-sheet" style={{"--page-color":tabColor||"var(--pink)"}} onClick={e=>e.stopPropagation()}>
+          <div className="modal-sheet" style={{"--page-color":tabColor}} onClick={e=>e.stopPropagation()}>
             <div className="modal-handle"/>
             <div className="modal-title">Log Exercise</div>
             <div className="form-field">
@@ -919,7 +908,7 @@ const GymPage = ({user, partner, isShared, tabColor='#ff3b3b'}) => {
               <label className="form-label">Exercise</label>
               <select className="form-select" value={isCustomEx?'__custom__':form.exercise} onChange={e=>handleExerciseSelect(e.target.value)}>
                 <option value="">— Select exercise —</option>
-                {gymOptions.map(group=>(
+                {WORKOUT_OPTIONS.map(group=>(
                   <optgroup key={group.label} label={group.label}>
                     {group.options.map(opt=><option key={opt.value} value={opt.value}>{opt.label}</option>)}
                   </optgroup>
@@ -1037,17 +1026,9 @@ const MEAL_OPTIONS = [
   { label:'Custom', options:[{value:'__custom__',label:'Custom meal...',cal:0}]}
 ];
 
-const MealsPage = ({user, partner, isShared, tabColor='#d67bff'}) => {
+const MealsPage = ({user, partner, isShared, onToggleShared, tabColor='#d67bff'}) => {
   const [meals, setMeals] = useState([]);
-  const [mealTemplates, setMealTemplates] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()+1).padStart(2,'0'));
-
-  useEffect(()=>{
-    axios.get(`${API}/meal-templates`).then(r=>{
-      if(r.data.success&&r.data.data.length) setMealTemplates(r.data.data);
-      else setMealTemplates(MEAL_OPTIONS); // fallback to static
-    }).catch(()=>setMealTemplates(MEAL_OPTIONS));
-  },[]);
   const [typeFilter, setTypeFilter] = useState('All');
   const [showForm, setShowForm] = useState(false);
   const [isCustomMeal, setIsCustomMeal] = useState(false);
@@ -1081,7 +1062,7 @@ const MealsPage = ({user, partner, isShared, tabColor='#d67bff'}) => {
   const handleMealSelect = (val) => {
     if(val==='__custom__'){ setIsCustomMeal(true); setForm(p=>({...p,name:'',calories:''})); return; }
     setIsCustomMeal(false);
-    const allOpts = mealTemplates.flatMap(g=>g.options);
+    const allOpts = MEAL_OPTIONS.flatMap(g=>g.options);
     const opt = allOpts.find(o=>o.value===val);
     if(!opt) return;
     const labelParts = opt.label.split(':');
@@ -1152,7 +1133,7 @@ const MealsPage = ({user, partner, isShared, tabColor='#d67bff'}) => {
             return (
               <div key={m.id} className="meal-card">
                 <div className="meal-top">
-                  <ItemAvatar username={m.userKey} user={user} partner={partner} size={30}/>
+                  <img className="meal-avatar" src={String(m.userKey)===user.username?(user.profilePicUrl||DP):(partner?.profilePicUrl||DP)} alt="" style={{border:`2px solid ${String(m.userKey)===user.username?(user.eventColor||'#e91e8c'):(partner?.eventColor||'#448aff')}`}}/>
                   <span className={`meal-type-badge ${m.mealType||'breakfast'}`}>{(m.mealType||'breakfast').toUpperCase()}</span>
                   <div className="meal-name">{desc.toUpperCase()}</div>
                 </div>
@@ -1173,18 +1154,18 @@ const MealsPage = ({user, partner, isShared, tabColor='#d67bff'}) => {
           <div style={{height:'80px'}}/>
         </div>
       </div>
-      <button className="fab" style={{background:'#d67bff',boxShadow:'0 4px 20px rgba(214,123,255,0.4)'}} onClick={()=>setShowForm(true)}>+ ADD MEAL</button>
+      <button className="fab green" onClick={()=>setShowForm(true)}>+ ADD MEAL</button>
 
       {showForm&&(
         <div className="modal-overlay" onClick={()=>setShowForm(false)}>
-          <div className="modal-sheet" style={{"--page-color":tabColor||"var(--pink)"}} onClick={e=>e.stopPropagation()}>
+          <div className="modal-sheet" style={{"--page-color":tabColor}} onClick={e=>e.stopPropagation()}>
             <div className="modal-handle"/>
             <div className="modal-title">Log Meal</div>
             <div className="form-field">
               <label className="form-label">Select Meal Template</label>
               <select className="form-select" value={isCustomMeal?'__custom__':form.name} onChange={e=>handleMealSelect(e.target.value)}>
                 <option value="">— Choose a meal —</option>
-                {mealTemplates.map(group=>(
+                {MEAL_OPTIONS.map(group=>(
                   <optgroup key={group.label} label={group.label}>
                     {group.options.map(opt=><option key={opt.value} value={opt.value}>{opt.label}</option>)}
                   </optgroup>
@@ -1223,7 +1204,7 @@ const MealsPage = ({user, partner, isShared, tabColor='#d67bff'}) => {
 };
 
 /* ── CYCLE PAGE ── */
-const CyclePage = ({user, partner, isShared, tabColor='#e91e8c'}) => {
+const CyclePage = ({user, partner, isShared, onToggleShared, tabColor='#e91e8c'}) => {
   const [cycles, setCycles] = useState([]);
   const [viewDate, setViewDate] = useState(new Date());
   const [showForm, setShowForm] = useState(false);
@@ -1268,47 +1249,62 @@ const CyclePage = ({user, partner, isShared, tabColor='#e91e8c'}) => {
     return d;
   },[fertileStart]);
 
-  // Phase wheel — proper donut matching screenshot
+  // Phase wheel SVG
   const PhaseWheel = ({dayOfCycle=4, cycleLength=28}) => {
-    const S=280,cx=140,cy=140,outerR=108,innerR=66,numR=outerR+18;
+    const cx=120,cy=120,r=90,innerR=50;
     const phases=[
       {name:'Menstrual',days:5,color:'#e91e8c'},
       {name:'Follicular',days:7,color:'#1de9b6'},
       {name:'Ovulation',days:3,color:'#ffd600'},
-      {name:'Luteal',days:Math.max(cycleLength-15,1),color:'#ff9800'}
+      {name:'Luteal',days:cycleLength-15,color:'#ff6d00'}
     ];
-    const total=phases.reduce((s,p)=>s+p.days,0);
-    const segs=[];let angle=-Math.PI/2;
-    phases.forEach(p=>{const span=(p.days/total)*2*Math.PI;segs.push({...p,sa:angle,ea:angle+span});angle+=span;});
-    const arc=(sa,ea)=>{
-      const g=0.02,s=sa+g,e=ea-g;
-      const x1=cx+outerR*Math.cos(s),y1=cy+outerR*Math.sin(s);
-      const x2=cx+outerR*Math.cos(e),y2=cy+outerR*Math.sin(e);
-      const ix1=cx+innerR*Math.cos(e),iy1=cy+innerR*Math.sin(e);
-      const ix2=cx+innerR*Math.cos(s),iy2=cy+innerR*Math.sin(s);
-      const lg=(e-s)>Math.PI?1:0;
-      return `M${x1},${y1} A${outerR},${outerR},0,${lg},1,${x2},${y2} L${ix1},${iy1} A${innerR},${innerR},0,${lg},0,${ix2},${iy2} Z`;
+    let total=phases.reduce((s,p)=>s+p.days,0);
+    let segments=[];
+    let angle=-Math.PI/2;
+    phases.forEach(p=>{
+      const span=(p.days/total)*2*Math.PI;
+      segments.push({...p,startAngle:angle,endAngle:angle+span});
+      angle+=span;
+    });
+
+    const arc=(cx,cy,r,start,end,inner=0)=>{
+      const x1=cx+r*Math.cos(start),y1=cy+r*Math.sin(start);
+      const x2=cx+r*Math.cos(end),y2=cy+r*Math.sin(end);
+      const large=end-start>Math.PI?1:0;
+      if(inner>0){
+        const ix1=cx+inner*Math.cos(end),iy1=cy+inner*Math.sin(end);
+        const ix2=cx+inner*Math.cos(start),iy2=cy+inner*Math.sin(start);
+        return `M${x1},${y1} A${r},${r},0,${large},1,${x2},${y2} L${ix1},${iy1} A${inner},${inner},0,${large},0,${ix2},${iy2} Z`;
+      }
+      return `M${cx},${cy} L${x1},${y1} A${r},${r},0,${large},1,${x2},${y2} Z`;
     };
+
+    // Day numbers ring
     const dayNums=[];
     for(let d=1;d<=total;d++){
       const a=-Math.PI/2+(((d-0.5)/total)*2*Math.PI);
-      dayNums.push({d,x:cx+numR*Math.cos(a),y:cy+numR*Math.sin(a)});
+      const nr=r+14;
+      dayNums.push({d,x:cx+nr*Math.cos(a),y:cy+nr*Math.sin(a)});
     }
-    const curA=-Math.PI/2+((dayOfCycle-0.5)/total)*2*Math.PI;
-    const phase=dayOfCycle<=5?'MENSTRUAL':dayOfCycle<=12?'FOLLICULAR':dayOfCycle<=15?'OVULATION':'LUTEAL';
+
+    // Current day indicator
+    const dayAngle=-Math.PI/2+((dayOfCycle-0.5)/total)*2*Math.PI;
+    const indR=r+14;
+
     return (
-      <svg width={S} height={S} viewBox={`0 0 ${S} ${S}`}>
-        {segs.map((seg,i)=><path key={i} d={arc(seg.sa,seg.ea)} fill={seg.color} opacity="0.9"/>)}
-        {dayNums.map(({d,x,y})=>d!==dayOfCycle&&(
-          <text key={d} x={x} y={y} textAnchor="middle" dominantBaseline="middle"
-            fill="rgba(255,255,255,0.5)" fontFamily="'DM Mono',monospace" fontSize="7.5">{d}</text>
+      <svg width="260" height="260" viewBox="0 0 260 260">
+        {segments.map((seg,i)=>(
+          <path key={i} d={arc(cx,cy,r,seg.startAngle,seg.endAngle,innerR)} fill={seg.color} opacity="0.85"/>
         ))}
-        <circle cx={cx} cy={cy} r={innerR-1} fill="#0d0e10"/>
-        <text x={cx} y={cy-10} textAnchor="middle" fill="#f0f0f0" fontFamily="'Barlow Condensed',sans-serif" fontWeight="800" fontSize="24">DAY {dayOfCycle}</text>
-        <text x={cx} y={cy+10} textAnchor="middle" fill="#5a5f65" fontFamily="'DM Mono',monospace" fontSize="7.5" letterSpacing="0.1em">{phase} PHASE</text>
-        <circle cx={cx+numR*Math.cos(curA)} cy={cy+numR*Math.sin(curA)} r="11" fill="white"/>
-        <text x={cx+numR*Math.cos(curA)} y={cy+numR*Math.sin(curA)} textAnchor="middle" dominantBaseline="middle"
-          fill="#0d0e10" fontFamily="'DM Mono',monospace" fontWeight="700" fontSize="8">{dayOfCycle}</text>
+        {/* center */}
+        <circle cx={cx} cy={cy} r={innerR} fill="var(--bg)"/>
+        <text x={cx} y={cy-8} textAnchor="middle" fill="var(--text)" fontFamily="'Barlow Condensed',sans-serif" fontWeight="700" fontSize="18">DAY {dayOfCycle}</text>
+        <text x={cx} y={cy+10} textAnchor="middle" fill="var(--text3)" fontFamily="'DM Mono',monospace" fontSize="7" letterSpacing="0.08em">
+          {dayOfCycle<=5?'MENSTRUAL':dayOfCycle<=12?'FOLLICULAR':dayOfCycle<=15?'OVULATION':'LUTEAL'} PHASE
+        </text>
+        {/* day indicator dot */}
+        <circle cx={cx+indR*Math.cos(dayAngle)} cy={cy+indR*Math.sin(dayAngle)} r="10" fill="white"/>
+        <text x={cx+indR*Math.cos(dayAngle)} y={cy+indR*Math.sin(dayAngle)+4} textAnchor="middle" fill="var(--bg)" fontFamily="'DM Mono',monospace" fontWeight="700" fontSize="9">{dayOfCycle}</text>
       </svg>
     );
   };
@@ -1331,7 +1327,8 @@ const CyclePage = ({user, partner, isShared, tabColor='#e91e8c'}) => {
     try { await axios.delete(`${API}/period/${id}`); msg('Deleted.'); fetchCycles(); } catch { msg('Error.','err'); }
   };
   const startEditCycle = (cyc)=>{
-    setForm({startDate:(cyc.startDate||'').slice(0,10),endDate:(cyc.endDate||'').slice(0,10),cycleLength:String(cyc.cycleLength||28),symptoms:cyc.symptoms?cyc.symptoms.split(',').filter(Boolean):[],date:now()});
+    const initDate = now();
+    setForm({startDate:(cyc.startDate||'').slice(0,10),endDate:(cyc.endDate||'').slice(0,10),cycleLength:String(cyc.cycleLength||28),symptoms:cyc.symptoms?cyc.symptoms.split(',').filter(Boolean):[],date:initDate});
     setEditCycleId(cyc.id);setShowForm(true);
   };
 
@@ -1439,7 +1436,7 @@ const CyclePage = ({user, partner, isShared, tabColor='#e91e8c'}) => {
 
       {showForm&&(
         <div className="modal-overlay" onClick={()=>setShowForm(false)}>
-          <div className="modal-sheet" style={{"--page-color":tabColor||"var(--pink)"}} onClick={e=>e.stopPropagation()}>
+          <div className="modal-sheet" style={{"--page-color":tabColor}} onClick={e=>e.stopPropagation()}>
             <div className="modal-handle"/>
             <div className="modal-title">{editCycleId?'Edit':'Log'} Cycle</div>
             <div className="form-field">
@@ -1460,7 +1457,7 @@ const CyclePage = ({user, partner, isShared, tabColor='#e91e8c'}) => {
                 {SYMPTOMS.map(s=><button key={s} className={`type-toggle-btn ${form.symptoms.includes(s)?'active':''}`} onClick={()=>setForm(p=>({...p,symptoms:p.symptoms.includes(s)?p.symptoms.filter(x=>x!==s):[...p.symptoms,s]}))}>{s}</button>)}
               </div>
             </div>
-            <button className="form-submit" style={{background:'var(--pink)'}} onClick={handleSave}>{editCycleId?'UPDATE':'SAVE'} CYCLE</button>
+            <button className="form-submit" style={{background:tabColor}} onClick={handleSave}>{editCycleId?'UPDATE':'SAVE'} CYCLE</button>
             <button className="form-cancel" onClick={()=>{setShowForm(false);setEditCycleId(null);}}>Cancel</button>
           </div>
         </div>
