@@ -1866,8 +1866,9 @@ const ALL_TABS = [
 ];
 
 const App = () => {
-  const [user, setUser] = useState(null);
+  const [user, setUser]       = useState(null);
   const [partner, setPartner] = useState(null);
+  const [partners, setPartners] = useState([]);
   const [activeTab, setActiveTab] = useState('budget');
   const [sharingConfig, setSharingConfig] = useState({Finances:false,Calendar:false,Budget:false,Gym:false,Meals:false,Cycle:false});
   const [error, setError] = useState('');
