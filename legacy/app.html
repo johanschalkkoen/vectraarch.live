@@ -49,40 +49,56 @@ const Icons = {
 };
 
 /* ── SHARED COMPONENTS ── */
-const UserRow = ({user, partner, partners=[], activePartners=[], isShared, onToggleShared}) => (
-  <div className="user-row" style={{flexWrap:'wrap',gap:6}}>
-    <div className="user-chip">
-      <img className="user-chip-avatar" src={user?.profilePicUrl||DP} alt={user?.username} style={{border:`2px solid ${user?.eventColor||'#e91e8c'}`}}/>
-      <span className="user-chip-name">{user?.displayName||(user?.firstName&&user?.lastName?`${user.firstName} ${user.lastName}`:null)||user?.username||'USER'}</span>
-      <span className="user-chip-arrow">⌄</span>
-    </div>
-    {(partners.length>0?partners:partner?[partner]:[]).length > 0
-      ? <button className="badge-shared" onClick={onToggleShared} style={!isShared?{background:'transparent',border:'1px solid rgba(255,255,255,0.12)',color:'var(--text3)'}:{}}>
-          {isShared ? '● SHARED' : 'SOLO'}
-        </button>
-      : <span className="badge-solo">SOLO</span>
-    }
-    {activePartners.map(p=>(
-      <div key={p.username} className="partner-chip">
-        <img className="partner-chip-avatar" src={p.profilePicUrl||DP} alt={p.username} style={{border:`2px solid ${p.eventColor||'#448aff'}`}}/>
-        <span className="partner-chip-name">+ {p.displayName||(p.firstName&&p.lastName?`${p.firstName} ${p.lastName}`:null)||p.username}</span>
+const UserRow = ({user, partner, partners=[], activePartners=[], permittedPartners=[], isShared, onToggleShared}) => {
+  // permittedPartners = who has permission for this tab (set in Profile)
+  // activePartners    = currently visible (permission + view toggle on)
+  const hasPermitted = permittedPartners.length > 0;
+  return (
+    <div className="user-row" style={{flexWrap:'wrap',gap:6}}>
+      <div className="user-chip">
+        <img className="user-chip-avatar" src={user?.profilePicUrl||DP} alt={user?.username} style={{border:`2px solid ${user?.eventColor||'#e91e8c'}`}}/>
+        <span className="user-chip-name">{user?.displayName||(user?.firstName&&user?.lastName?`${user.firstName} ${user.lastName}`:null)||user?.username||'USER'}</span>
+        <span className="user-chip-arrow">⌄</span>
       </div>
-    ))}
-  </div>
-);
+      {hasPermitted
+        ? <button
+            className="badge-shared"
+            onClick={onToggleShared}
+            title={isShared ? 'Click to view solo' : 'Click to show shared data'}
+            style={!isShared ? {background:'transparent',border:'1px solid rgba(255,255,255,0.12)',color:'var(--text3)'} : {}}>
+            {isShared ? '● SHARED' : '○ SOLO'}
+          </button>
+        : <span className="badge-solo">SOLO</span>
+      }
+      {/* Always show permitted partner chips so user knows who is linked */}
+      {permittedPartners.map(p=>(
+        <div key={p.username} className="partner-chip" style={!isShared?{opacity:0.45}:{}}>
+          <img className="partner-chip-avatar" src={p.profilePicUrl||DP} alt={p.username}
+            style={{border:`2px solid ${p.eventColor||'#448aff'}`}}/>
+          <span className="partner-chip-name">
+            {isShared ? '+ ' : ''}
+            {p.displayName||(p.firstName&&p.lastName?`${p.firstName} ${p.lastName}`:null)||p.username}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+};
 
 const Alert = ({msg,type}) => msg ? <div className={`alert ${type||'ok'}`}>{msg}</div> : null;
 
 // ── Avatar helpers — resolves pic/color for any username across user+partner ──
 // Usage: <ItemAvatar username={item.user} user={user} partner={partner} size={36}/>
-const getOwner = (username, user, partner) => {
+// getOwner: resolve user object from username — checks user, partner, and partners array
+const getOwner = (username, user, partner, partners=[]) => {
   const uname = String(username||'');
   if(uname===user?.username) return user;
   if(uname===partner?.username) return partner;
+  if(partners?.length) { const found=partners.find(p=>p.username===uname); if(found) return found; }
   return null;
 };
-const ItemAvatar = ({username, user, partner, size=36}) => {
-  const owner = getOwner(username, user, partner);
+const ItemAvatar = ({username, user, partner, partners=[], size=36}) => {
+  const owner = getOwner(username, user, partner, partners);
   const pic   = owner?.profilePicUrl || DP;
   const color = owner?.eventColor    || '#888';
   return (
@@ -95,7 +111,7 @@ const ItemAvatar = ({username, user, partner, size=36}) => {
 };
 
 /* ── FINANCES PAGE ── */
-const FinancesPage = ({user, partner, partners=[], activePartners=[], isShared, onToggleShared, tabColor='#00e676'}) => {
+const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedPartners=[], isShared, onToggleShared, tabColor='#00e676'}) => {
   const [items, setItems] = useState([]);
   const [budgets, setBudgets] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()+1).padStart(2,'0'));
@@ -168,7 +184,7 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], isShared, 
             <div className="page-title">FINANCES</div>
             <div className="page-sub">{isShared2?'COMBINED HOUSEHOLD TOTALS':'INCOME · EXPENSES · NET TOTAL'}</div>
           </div>
-          <UserRow user={user} partner={partner} partners={partners} activePartners={activePartners} isShared={isShared} onToggleShared={onToggleShared}/>
+          <UserRow user={user} partner={partner} partners={partners} activePartners={activePartners} permittedPartners={permittedPartners} isShared={isShared} onToggleShared={onToggleShared}/>
           <div className="toolbar-row">
             <div className="tb-chip">
               <span style={{fontSize:'9px',fontFamily:"'DM Mono',monospace",letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--text3)'}}>MONTH</span>
@@ -276,7 +292,7 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], isShared, 
 };
 
 /* ── CALENDAR PAGE ── */
-const CalendarPage = ({user, partner, partners=[], activePartners=[], isShared, onToggleShared, tabColor='#448aff'}) => {
+const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedPartners=[], isShared, onToggleShared, tabColor='#448aff'}) => {
   const [events, setEvents] = useState([]);
   const [viewDate, setViewDate] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState(new Date());
@@ -376,7 +392,7 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], isShared, 
             <div className="page-title">CALENDAR</div>
             <div className="page-sub">EVENTS · CYCLE · SCHEDULE</div>
           </div>
-          <UserRow user={user} partner={partner} partners={partners} activePartners={activePartners} isShared={isShared} onToggleShared={onToggleShared}/>
+          <UserRow user={user} partner={partner} partners={partners} activePartners={activePartners} permittedPartners={permittedPartners} isShared={isShared} onToggleShared={onToggleShared}/>
           <Alert {...alert}/>
 
           {/* Nav */}
@@ -530,7 +546,7 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], isShared, 
 };
 
 /* ── BUDGET PAGE ── */
-const BudgetPage = ({user, partner, partners=[], activePartners=[], isShared, onToggleShared, tabColor='#ffd600'}) => {
+const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPartners=[], isShared, onToggleShared, tabColor='#ffd600'}) => {
   const [budgets, setBudgets] = useState([]);
   const [items, setItems] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()+1).padStart(2,'0'));
@@ -607,7 +623,7 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], isShared, on
             <div className="page-title">BUDGET</div>
             <div className="page-sub">PLANNED · ACTUAL · REMAINING</div>
           </div>
-          <UserRow user={user} partner={partner} partners={partners} activePartners={activePartners} isShared={isShared} onToggleShared={onToggleShared}/>
+          <UserRow user={user} partner={partner} partners={partners} activePartners={activePartners} permittedPartners={permittedPartners} isShared={isShared} onToggleShared={onToggleShared}/>
           <div className="toolbar-row">
             <div className="tb-chip">
               <span style={{fontSize:'9px',fontFamily:"'DM Mono',monospace",letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--text3)'}}>MONTH</span>
@@ -791,7 +807,7 @@ const gymFormatDetail = w => {
   return `${sets} × ${reps} reps @ ${weight} kg`;
 };
 
-const GymPage = ({user, partner, partners=[], activePartners=[], isShared, onToggleShared, tabColor='#ff3b3b'}) => {
+const GymPage = ({user, partner, partners=[], activePartners=[], permittedPartners=[], isShared, onToggleShared, tabColor='#ff3b3b'}) => {
   const [workouts, setWorkouts] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()+1).padStart(2,'0'));
   const [showForm, setShowForm] = useState(false);
@@ -847,7 +863,7 @@ const GymPage = ({user, partner, partners=[], activePartners=[], isShared, onTog
             <div className="page-title">GYM WORKOUT</div>
             <div className="page-sub">EXERCISES · STRENGTH · WEEKLY PLAN</div>
           </div>
-          <UserRow user={user} partner={partner} partners={partners} activePartners={activePartners} isShared={isShared} onToggleShared={onToggleShared}/>
+          <UserRow user={user} partner={partner} partners={partners} activePartners={activePartners} permittedPartners={permittedPartners} isShared={isShared} onToggleShared={onToggleShared}/>
           <div className="toolbar-row">
             <div className="tb-chip">
               <span style={{fontSize:'9px',fontFamily:"'DM Mono',monospace",letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--text3)'}}>MONTH</span>
@@ -1034,7 +1050,7 @@ const MEAL_OPTIONS = [
   { label:'Custom', options:[{value:'__custom__',label:'Custom meal...',cal:0}]}
 ];
 
-const MealsPage = ({user, partner, partners=[], activePartners=[], isShared, onToggleShared, tabColor='#d67bff'}) => {
+const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPartners=[], isShared, onToggleShared, tabColor='#d67bff'}) => {
   const [meals, setMeals] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()+1).padStart(2,'0'));
   const [typeFilter, setTypeFilter] = useState('All');
@@ -1109,7 +1125,7 @@ const MealsPage = ({user, partner, partners=[], activePartners=[], isShared, onT
             <div className="page-title">MEAL PLAN</div>
             <div className="page-sub">MACROS · DAILY FOOD LOG</div>
           </div>
-          <UserRow user={user} partner={partner} partners={partners} activePartners={activePartners} isShared={isShared} onToggleShared={onToggleShared}/>
+          <UserRow user={user} partner={partner} partners={partners} activePartners={activePartners} permittedPartners={permittedPartners} isShared={isShared} onToggleShared={onToggleShared}/>
           <div className="toolbar-row">
             <div className="tb-chip">
               <span style={{fontSize:'9px',fontFamily:"'DM Mono',monospace",letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--text3)'}}>MONTH</span>
@@ -1276,7 +1292,7 @@ const PhaseWheel = ({dayOfCycle=1, cycleLength=28, accentColor='#e91e8c'}) => {
   );
 };
 
-const CyclePage = ({user, partner, partners=[], activePartners=[], isShared, onToggleShared, tabColor='#e91e8c'}) => {
+const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPartners=[], isShared, onToggleShared, tabColor='#e91e8c'}) => {
   // allCycles stored per username: { username: [cycles] }
   const [allCycles, setAllCycles] = useState({});
   const [showForm, setShowForm]   = useState(false);
@@ -1364,7 +1380,7 @@ const CyclePage = ({user, partner, partners=[], activePartners=[], isShared, onT
             <div className="page-title">CYCLE TRACKER</div>
             <div className="page-sub">PERIOD · OVULATION · FERTILITY</div>
           </div>
-          <UserRow user={user} partner={partner} partners={partners} activePartners={activePartners} isShared={isShared} onToggleShared={onToggleShared}/>
+          <UserRow user={user} partner={partner} partners={partners} activePartners={activePartners} permittedPartners={permittedPartners} isShared={isShared} onToggleShared={onToggleShared}/>
           <Alert {...alert}/>
 
           {/* One section per user */}
@@ -1904,7 +1920,8 @@ const App = () => {
   const [partner, setPartner] = useState(null);
   const [partners, setPartners] = useState([]);
   const [activeTab, setActiveTab] = useState('budget');
-  const [sharingConfig, setSharingConfig] = useState({}); // { partnerUsername: { Finances:bool, Calendar:bool, ... } }
+  const [sharingConfig, setSharingConfig] = useState({}); // { partnerUsername: { Finances:bool, ... } } — managed in Profile only
+  const [viewConfig, setViewConfig] = useState({finances:true,calendar:true,budget:true,gym:true,meals:true,cycle:true}); // display toggle per tab
   const [error, setError] = useState('');
 
   const handleLogout = useCallback(()=>{
@@ -1945,9 +1962,8 @@ const App = () => {
           }).catch(()=>{});
         axios.get(`${API}/profile-pictures`,{params:{username:u.username}}).then(({data})=>{
           const dn=data.displayName||(data.firstName&&data.lastName?`${data.firstName} ${data.lastName}`:null)||u.username;
-          // Explicitly handle isAdmin: coerce to boolean, preserve from localStorage if API omits it
           const adminFlag = data.isAdmin!==undefined ? !!data.isAdmin : !!u.isAdmin;
-          const {success:_s, ...profileData} = data; // strip the success key
+          const {success:_s, ...profileData} = data;
           setUser(prev=>({
             ...prev,
             ...profileData,
@@ -1958,6 +1974,21 @@ const App = () => {
             isAdmin:        adminFlag,
             gender:         data.gender||prev.gender||'',
           }));
+        }).catch(()=>{});
+        // Load existing access links to pre-populate sharingConfig
+        axios.get(`${API}/get-access`,{params:{viewer:u.username,adminUsername:u.username}}).then(({data})=>{
+          if(data.success&&data.accessList?.length>0){
+            const targets=data.accessList.filter(a=>a.viewer===u.username).map(a=>a.target);
+            if(targets.length>0){
+              // Default: all tabs enabled for all linked partners
+              const defaultCfg={Finances:true,Calendar:true,Budget:true,Gym:true,Meals:true,Cycle:true};
+              setSharingConfig(prev=>{
+                const next={...prev};
+                targets.forEach(t=>{ if(!next[t]) next[t]={...defaultCfg}; });
+                return next;
+              });
+            }
+          }
         }).catch(()=>{});
       } catch { setError('Invalid session'); }
     } else {
@@ -1973,27 +2004,27 @@ const App = () => {
   const TAB_KEY = {finances:'Finances',calendar:'Calendar',budget:'Budget',gym:'Gym',meals:'Meals',cycle:'Cycle'};
   const tabSharingKey = TAB_KEY[activeTab];
 
-  // All linked partners (use partners array if populated, else single partner)
+  // All linked partners
   const allPartners = partners.length > 0 ? partners : (partner ? [partner] : []);
 
-  // For this tab: list of partner objects whose sharing for this tab is ON
-  const activePartners = allPartners.filter(p =>
+  // Partners who HAVE permission for this tab (set in Profile sharing)
+  const permittedPartners = allPartners.filter(p =>
     tabSharingKey && sharingConfig[p.username]?.[tabSharingKey]
   );
+
+  // Partners whose data is CURRENTLY VISIBLE (permission ON and view toggle ON)
+  const viewOn = viewConfig[activeTab] !== false; // default true
+  const activePartners = viewOn ? permittedPartners : [];
   const isShared = activePartners.length > 0;
 
-  // Toggle shared for primary partner (UserRow button)
+  // Toggle = view-only switch: shows/hides already-permitted partners
+  // Does NOT change sharingConfig (permissions are managed in Profile only)
   const toggleShared = () => {
-    if(!tabSharingKey || allPartners.length === 0) return;
-    // Toggle the primary partner's tab sharing
-    const pun = allPartners[0].username;
-    setSharingConfig(prev => ({
-      ...prev,
-      [pun]: { ...(prev[pun]||{}), [tabSharingKey]: !(prev[pun]?.[tabSharingKey]) }
-    }));
+    if(permittedPartners.length === 0) return; // nothing permitted — button does nothing
+    setViewConfig(prev => ({...prev, [activeTab]: !viewOn}));
   };
 
-  const sharedProps = {user, partner, partners:allPartners, activePartners, isShared, onToggleShared:toggleShared, tabColor, sharingConfig, setSharingConfig};
+  const sharedProps = {user, partner, partners:allPartners, activePartners, permittedPartners, isShared, onToggleShared:toggleShared, tabColor, sharingConfig, setSharingConfig};
 
   // Cycle tab: show if user is female, OR if any partner is female and cycle sharing is on
   const userIsFemale = (user.gender||'').toLowerCase()==='female';
