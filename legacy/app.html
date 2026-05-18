@@ -312,93 +312,89 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
 
 /* ── CALENDAR PAGE ── */
 const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedPartners=[], selfVisible=true, isShared, tabSelected, onToggleUser, tabColor='#448aff'}) => {
-  const [events, setEvents] = useState([]);
-  const [viewDate, setViewDate] = useState(new Date());
+  const [events, setEvents]           = useState([]);
+  const [viewDate, setViewDate]       = useState(new Date());
   const [selectedDay, setSelectedDay] = useState(new Date());
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({title:'',date:now(),type:'personal',color:'#448aff'});
+  const [showForm, setShowForm]       = useState(false);
+  const [form, setForm]               = useState({title:'',date:now(),type:'personal',color:user?.eventColor||'#448aff',amount:'',allDay:false});
   const [selectedEvent, setSelectedEvent] = useState(null);
-  const [alert, setAlert] = useState({msg:'',type:''});
-
+  const [alert, setAlert]             = useState({msg:'',type:''});
   const msg = (m,t='ok')=>{ setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
 
-  const calUserIsMale = (user.gender||'').toLowerCase()==='male';
-  // Males only see cycle/fertile events from female partners who share cycle
+  const calUserIsMale    = (user.gender||'').toLowerCase()==='male';
   const calFemalePartners = activePartners.filter(p=>(p.gender||'').toLowerCase()==='female');
-  const canSeeCycle = !calUserIsMale || calFemalePartners.length > 0;
+  const canSeeCycle       = !calUserIsMale || calFemalePartners.length > 0;
+
+  // ── date helpers — always compare in LOCAL date strings to avoid TZ bugs ──
+  const toLocalDate  = (d) => { const dt=new Date(d); return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`; };
+  const dayKey       = (date) => toLocalDate(date);
+  const todayKey     = dayKey(new Date());
+  const selectedKey  = dayKey(selectedDay);
 
   const fetchEvents = useCallback(async()=>{
     const users=[...(selfVisible?[user.username]:[]),...(activePartners||[]).map(p=>p.username)];
     if(users.length===0){setEvents([]);return;}
     try {
-      // Period data: males only fetch for female partners, not themselves
-      const periodUsers = calUserIsMale
-        ? calFemalePartners.map(p=>p.username)
-        : users;
+      const periodUsers = calUserIsMale ? calFemalePartners.map(p=>p.username) : users;
       const [calAll, periodAll] = await Promise.all([
         Promise.all(users.map(u=>axios.get(`${API}/calendar`,{params:{user:u}}).then(r=>r.data.map(e=>({...e,user:e.user||u}))).catch(()=>[]))).then(r=>r.flat()),
         periodUsers.length>0
           ? Promise.all(periodUsers.map(u=>axios.get(`${API}/period`,{params:{user:u}}).then(r=>r.data).catch(()=>[]))).then(r=>r.flat())
           : Promise.resolve([])
       ]);
-      // Convert period cycles into calendar dot events
       const cycleEvents = [];
       periodAll.forEach(cyc=>{
         if(!cyc.startDate) return;
         const start = new Date(cyc.startDate);
-        const end = cyc.endDate ? new Date(cyc.endDate) : new Date(start.getTime()+4*86400000);
-        const len = parseInt(cyc.cycleLength)||28;
-        for(let d=new Date(start); d<=end; d.setDate(d.getDate()+1)){
-          cycleEvents.push({id:`cycle-${cyc.id}-${d.toISOString().slice(0,10)}`,title:'Period',date:d.toISOString().slice(0,10)+'T00:00:00',isCycle:true,user:cyc.user});
-        }
-        const nextStart = new Date(start.getTime()+len*86400000);
-        const ovulation = new Date(nextStart.getTime()-14*86400000);
-        for(let i=-2; i<=3; i++){
-          const fd = new Date(ovulation.getTime()+i*86400000);
-          cycleEvents.push({id:`fertile-${cyc.id}-${fd.toISOString().slice(0,10)}`,title:'Fertile',date:fd.toISOString().slice(0,10)+'T00:00:00',isFertile:true,user:cyc.user});
+        const end   = cyc.endDate ? new Date(cyc.endDate) : new Date(start.getTime()+4*86400000);
+        const len   = parseInt(cyc.cycleLength)||28;
+        for(let d=new Date(start);d<=end;d.setDate(d.getDate()+1))
+          cycleEvents.push({id:`cycle-${cyc.id}-${toLocalDate(d)}`,title:'Period',date:toLocalDate(d)+'T00:00:00',isCycle:true,user:cyc.user||cyc.username});
+        const ovulation = new Date(start.getTime()+(len-14)*86400000);
+        for(let i=-4;i<=1;i++){
+          const fd=new Date(ovulation.getTime()+i*86400000);
+          cycleEvents.push({id:`fertile-${cyc.id}-${toLocalDate(fd)}`,title:'Fertile',date:toLocalDate(fd)+'T00:00:00',isFertile:true,user:cyc.user||cyc.username});
         }
       });
-      setEvents([...calAll, ...cycleEvents]);
-    } catch {}
+      setEvents([...calAll,...cycleEvents]);
+    } catch(e){ console.error(e); }
   },[user.username, partner, isShared, selfVisible, JSON.stringify((activePartners||[]).map(p=>p.username))]);
 
   useEffect(()=>{ fetchEvents(); },[fetchEvents]);
 
+  // ── calendar grid ──
+  const {year, month} = useMemo(()=>({year:viewDate.getFullYear(), month:viewDate.getMonth()}),[viewDate]);
   const daysInMonth = useMemo(()=>{
-    const year=viewDate.getFullYear(), month=viewDate.getMonth();
-    const first=new Date(year,month,1);
-    const last=new Date(year,month+1,0);
-    const days=[];
-    // pad start (Monday=0)
-    let dow=(first.getDay()+6)%7;
+    const first = new Date(year,month,1);
+    const last  = new Date(year,month+1,0);
+    const days  = [];
+    let dow = (first.getDay()+6)%7; // Mon=0
     for(let i=0;i<dow;i++) days.push({date:new Date(year,month,1-dow+i),otherMonth:true});
     for(let d=1;d<=last.getDate();d++) days.push({date:new Date(year,month,d),otherMonth:false});
-    // pad end
     const rem=7-(days.length%7); if(rem<7) for(let i=1;i<=rem;i++) days.push({date:new Date(year,month+1,i),otherMonth:true});
     return days;
-  },[viewDate]);
+  },[year,month]);
 
-  const getEventsForDay = (date) => events.filter(e=>{
-    if(!e.date) return false;
-    const d=new Date(e.date);
-    return d.getFullYear()===date.getFullYear()&&d.getMonth()===date.getMonth()&&d.getDate()===date.getDate();
-  });
+  // ── key fix: compare using local date strings, not Date objects ──
+  const eventsByDay = useMemo(()=>{
+    const map={};
+    events.forEach(e=>{
+      if(!e.date) return;
+      const k=toLocalDate(new Date(e.date));
+      if(!map[k]) map[k]=[];
+      map[k].push(e);
+    });
+    return map;
+  },[events]);
 
-  const selectedEvents = useMemo(()=>getEventsForDay(selectedDay),[selectedDay,events]);
-
-  const eventType = e => {
-    if(e.financial) return 'fin';
-    if((e.title||'').toLowerCase().includes('work')||e.eventCategory==='work') return 'work';
-    if(e.isCycle||e.eventCategory==='cycle'||(e.title||'').toLowerCase().includes('cycle')||(e.title||'').toLowerCase().includes('period')) return 'cycle';
-    if(e.isFertile||e.eventCategory==='fertile') return 'fertile';
-    return 'personal';
-  };
+  const getEventsForDay = (date) => eventsByDay[dayKey(date)] || [];
+  const selectedEvents  = useMemo(()=>getEventsForDay(selectedDay),[selectedKey,eventsByDay]);
 
   const handleSave = async()=>{
     if(!form.title||!form.date){msg('Title and date required.','err');return;}
     try {
-      await axios.post(`${API}/calendar`,{user:user.username,title:form.title,date:form.date,financial:false,eventColor:form.color,type:form.type});
-      msg('Event added.');setShowForm(false);setForm({title:'',date:now(),type:'personal',color:'#448aff'});fetchEvents();
+      await axios.post(`${API}/calendar`,{user:user.username,title:form.title,date:form.date,financial:false,eventColor:form.color||user.eventColor||'#448aff',type:form.type,amount:form.amount||null});
+      msg('Event saved.');setShowForm(false);setForm({title:'',date:now(),type:'personal',color:user?.eventColor||'#448aff',amount:'',allDay:false});fetchEvents();
     } catch { msg('Error.','err'); }
   };
   const handleDeleteEvent = async(id)=>{
@@ -406,168 +402,233 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
     try { await axios.delete(`${API}/calendar/${id}`); msg('Deleted.'); setSelectedEvent(null); fetchEvents(); } catch { msg('Error.','err'); }
   };
 
-  const prevMonth=()=>setViewDate(d=>new Date(d.getFullYear(),d.getMonth()-1,1));
-  const nextMonth=()=>setViewDate(d=>new Date(d.getFullYear(),d.getMonth()+1,1));
-  const goToday=()=>{const t=new Date();setViewDate(t);setSelectedDay(t);};
-  const monthLabel=viewDate.toLocaleString('default',{month:'long'}).toUpperCase();
-  const selLabel=selectedDay.toISOString().slice(0,10);
+  const prevMonth = ()=>setViewDate(new Date(year,month-1,1));
+  const nextMonth = ()=>setViewDate(new Date(year,month+1,1));
+  const goToday   = ()=>{ const t=new Date(); setViewDate(new Date(t.getFullYear(),t.getMonth(),1)); setSelectedDay(t); };
+
+  const MONTHS_SHORT=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const DAYS_FULL   =['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+  const EVENT_TYPES = ['personal','work','health','social','financial'];
+  const TYPE_COLORS = {personal:'var(--yellow)',work:'var(--blue)',health:'var(--green)',social:'var(--pink)',financial:'var(--green)'};
 
   return (
     <div className="page-outer">
-      <div className="top-bar"><span className="top-eyebrow"><span style={{color:user?.eventColor||'#00e676'}}>§ VECTRA ARCH</span> · LEGACY · CALENDAR</span></div>
+      <div className="top-bar">
+        <span className="top-eyebrow"><span style={{color:user?.eventColor||'#00e676'}}>§ VECTRA ARCH</span> · LEGACY · CALENDAR</span>
+      </div>
       <div className="page-scroll">
-        <div className="page-inner">
-          <div className="page-head">
-            <div className="page-title">CALENDAR</div>
-            <div className="page-sub">EVENTS · CYCLE · SCHEDULE</div>
-          </div>
-          <UserRow user={user} partner={partner} partners={partners} activePartners={activePartners} permittedPartners={permittedPartners} selfVisible={selfVisible} tabSelected={tabSelected} isShared={isShared} onToggleUser={onToggleUser}/>
+        <div className="page-inner" style={{padding:0}}>
+          <UserRow user={user} partner={partner} partners={partners} activePartners={activePartners} permittedPartners={permittedPartners} selfVisible={selfVisible} tabSelected={tabSelected} isShared={isShared} onToggleUser={onToggleUser}
+            style={{padding:'8px 16px'}}/>
           <Alert {...alert}/>
 
-          {/* Nav */}
-          <div className="cal-nav">
-            <button className="cal-nav-btn" onClick={prevMonth}>‹</button>
-            <div className="cal-nav-month">{monthLabel} {viewDate.getFullYear()}</div>
-            <button className="cal-nav-btn" onClick={nextMonth}>›</button>
-            <button className="cal-today-btn" onClick={goToday}>TODAY</button>
+          {/* ── iPhone-style month header ── */}
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 16px 4px'}}>
+            <button onClick={prevMonth} style={{width:32,height:32,borderRadius:'50%',background:'var(--bg3)',border:'none',color:'var(--text)',fontSize:18,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>‹</button>
+            <div style={{textAlign:'center'}}>
+              <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:22,letterSpacing:'0.04em',color:'var(--text)'}}>{MONTHS_SHORT[month].toUpperCase()} {year}</div>
+            </div>
+            <div style={{display:'flex',gap:6}}>
+              <button onClick={goToday} style={{height:32,padding:'0 12px',borderRadius:16,background:tabColor,border:'none',color:'#fff',fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:600,letterSpacing:'0.1em',cursor:'pointer'}}>TODAY</button>
+              <button onClick={nextMonth} style={{width:32,height:32,borderRadius:'50%',background:'var(--bg3)',border:'none',color:'var(--text)',fontSize:18,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>›</button>
+            </div>
           </div>
 
-          {/* Grid */}
-          <div className="cal-grid">
-            {['MON','TUE','WED','THU','FRI','SAT','SUN'].map(d=><div key={d} className="cal-dow">{d}</div>)}
+          {/* ── Day-of-week headers ── */}
+          <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',padding:'0 8px',marginBottom:4}}>
+            {['M','T','W','T','F','S','S'].map((d,i)=>(
+              <div key={i} style={{textAlign:'center',fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:600,letterSpacing:'0.1em',color:i>=5?'var(--red)':'var(--text3)',padding:'4px 0'}}>{d}</div>
+            ))}
+          </div>
+
+          {/* ── Calendar grid — iPhone style ── */}
+          <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',padding:'0 8px',gap:'2px 0'}}>
             {daysInMonth.map((item,i)=>{
-              const isToday=item.date.toDateString()===new Date().toDateString();
-              const isSelected=item.date.toDateString()===selectedDay.toDateString();
-              const dayEvts=getEventsForDay(item.date);
-              const hasCycle   = canSeeCycle && dayEvts.some(e=>e.isCycle);
-              const hasFertile = canSeeCycle && dayEvts.some(e=>e.isFertile);
-              const realEvts   = dayEvts.filter(e=>!e.isCycle&&!e.isFertile);
+              const k         = dayKey(item.date);
+              const dayEvts   = eventsByDay[k]||[];
+              const hasCycle  = canSeeCycle && dayEvts.some(e=>e.isCycle);
+              const hasFertile= canSeeCycle && dayEvts.some(e=>e.isFertile);
+              const realEvts  = dayEvts.filter(e=>!e.isCycle&&!e.isFertile);
+              const isToday   = k===todayKey;
+              const isSel     = k===selectedKey;
+              const isWeekend = i%7>=5;
+              const numColor  = item.otherMonth?'var(--border2)':hasCycle?'#fff':isToday?'#fff':isSel?tabColor:isWeekend?'var(--red)':'var(--text)';
+              const numBg     = isToday&&!hasCycle?tabColor:isSel&&!isToday&&!hasCycle?`${tabColor}22`:'transparent';
               return (
-                <div key={i}
-                  className={`cal-day${item.otherMonth?' other-month':''}${isToday&&!hasCycle?' today':''}${isSelected?' selected':''}`}
-                  style={hasCycle?{background:'rgba(233,30,140,0.38)',cursor:'pointer'}:hasFertile?{background:'rgba(29,233,182,0.15)',cursor:'pointer'}:{cursor:'pointer'}}
-                  onClick={()=>setSelectedDay(item.date)}>
-                  <div className="cal-day-num" style={hasCycle?{color:'#fff',fontWeight:700}:{}}>{item.date.getDate()}</div>
-                  {(realEvts.length>0||hasFertile)&&(
-                    <div className="cal-day-dots">
-                      {realEvts.slice(0,3).map((e,j)=>(
-                        <div key={j} className="cal-dot" style={{background:e.eventColor||e.event_color||'var(--yellow)'}}/>
-                      ))}
-                      {hasFertile&&<div className="cal-dot" style={{background:'#1de9b6'}}/>}
-                    </div>
-                  )}
+                <div key={i} onClick={()=>!item.otherMonth&&setSelectedDay(item.date)}
+                  style={{
+                    display:'flex',flexDirection:'column',alignItems:'center',
+                    padding:'4px 0 6px',cursor:item.otherMonth?'default':'pointer',
+                    background:hasCycle?'rgba(233,30,140,0.22)':hasFertile?'rgba(29,233,182,0.1)':'transparent',
+                    borderRadius:6,
+                    opacity:item.otherMonth?0.25:1,
+                  }}>
+                  {/* Day number */}
+                  <div style={{
+                    width:28,height:28,borderRadius:'50%',
+                    display:'flex',alignItems:'center',justifyContent:'center',
+                    background:numBg,
+                    fontFamily:"'Barlow Condensed',sans-serif",fontWeight:isSel||isToday?800:500,
+                    fontSize:15,color:numColor,
+                  }}>{item.date.getDate()}</div>
+                  {/* Event dots */}
+                  <div style={{display:'flex',gap:2,marginTop:2,height:5,alignItems:'center'}}>
+                    {realEvts.slice(0,3).map((e,j)=>{
+                      const owner=getOwner(e.user||e.username,user,partner,partners);
+                      const dc=owner?.eventColor||e.eventColor||e.event_color||'var(--yellow)';
+                      return <div key={j} style={{width:4,height:4,borderRadius:'50%',background:dc}}/>;
+                    })}
+                    {hasFertile&&<div style={{width:4,height:4,borderRadius:'50%',background:'#1de9b6'}}/>}
+                  </div>
                 </div>
               );
             })}
           </div>
 
-          {/* Legend */}
-          <div className="cal-legend">
-            {canSeeCycle&&<div className="cal-legend-item"><div style={{width:7,height:7,borderRadius:'50%',background:'#e91e8c',display:'inline-block'}}/>MENSTRUATION</div>}
-            {canSeeCycle&&<div className="cal-legend-item"><div style={{width:7,height:7,borderRadius:'50%',background:'#1de9b6',display:'inline-block'}}/>OVULATION</div>}
-            <div className="cal-legend-item"><div style={{width:7,height:7,borderRadius:'50%',background:'var(--green)',display:'inline-block'}}/>FIN</div>
-            <div className="cal-legend-item"><div style={{width:7,height:7,borderRadius:'50%',background:'var(--blue)',display:'inline-block'}}/>WORK</div>
-            <div className="cal-legend-item"><div style={{width:7,height:7,borderRadius:'50%',background:'var(--yellow)',display:'inline-block'}}/>PERSONAL</div>
+          {/* ── Selected day header — iPhone style ── */}
+          <div style={{padding:'14px 16px 6px',borderTop:'1px solid var(--border)',marginTop:8,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+            <div>
+              <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:18,color:'var(--text)',letterSpacing:'0.02em'}}>
+                {DAYS_FULL[selectedDay.getDay()].toUpperCase()}{' '}
+                <span style={{color:tabColor}}>{selectedDay.getDate()}</span>
+                {' '}{MONTHS_SHORT[selectedDay.getMonth()]} {selectedDay.getFullYear()}
+              </div>
+              <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)',marginTop:2}}>
+                {selectedEvents.filter(e=>!e.isCycle&&!e.isFertile).length} event{selectedEvents.filter(e=>!e.isCycle&&!e.isFertile).length!==1?'s':''}
+                {canSeeCycle&&selectedEvents.some(e=>e.isCycle)?' · 🩸 period':''}
+                {canSeeCycle&&selectedEvents.some(e=>e.isFertile)?' · 🩵 ovulation':''}
+              </div>
+            </div>
+            <button onClick={()=>{ setForm(p=>({...p,date:dayKey(selectedDay)+'T09:00:00'})); setShowForm(true); }}
+              style={{width:32,height:32,borderRadius:'50%',background:tabColor,border:'none',color:'#fff',fontSize:20,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>+</button>
           </div>
 
-          {/* Events for selected day */}
-          <div className="section-label">§ EVENTS · {selLabel}</div>
-          {canSeeCycle&&selectedEvents.some(e=>e.isCycle)&&(
-            <div style={{background:'rgba(233,30,140,0.12)',border:'1px solid rgba(233,30,140,0.3)',borderRadius:6,padding:'10px 14px',marginBottom:6,display:'flex',alignItems:'center',gap:10}}>
-              <span style={{fontSize:'16px'}}>🩸</span>
-              <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,color:'var(--pink)'}}>PERIOD DAY</div>
-            </div>
-          )}
-          {canSeeCycle&&selectedEvents.some(e=>e.isFertile)&&(
-            <div style={{background:'rgba(29,233,182,0.1)',border:'1px solid rgba(29,233,182,0.3)',borderRadius:6,padding:'10px 14px',marginBottom:6,display:'flex',alignItems:'center',gap:10}}>
-              <span style={{fontSize:'16px'}}>🌿</span>
-              <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,color:'#1de9b6'}}>OVULATION WINDOW</div>
-            </div>
-          )}
-          {selectedEvents.filter(e=>!e.isCycle&&!e.isFertile).length===0&&!selectedEvents.some(e=>e.isCycle||e.isFertile)&&(
-            <div className="no-events"><div className="no-events-icon">📅</div><div className="no-events-text">NO EVENTS</div></div>
-          )}
-          {selectedEvents.filter(e=>!e.isCycle&&!e.isFertile).map(e=>{
-            const calOwner=getOwner(e.user||e.username, user, partner, partners);
-            const coc = calOwner?.eventColor || e.eventColor||e.event_color||'var(--yellow)';
-            const typeColor = e.eventColor||e.event_color||coc;
-            return (
-              <div key={e.id} className="meal-card" style={{marginBottom:8,borderLeft:`3px solid ${coc}`,cursor:'pointer'}} onClick={()=>setSelectedEvent(e)}>
-                <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
-                  <ItemAvatar username={e.user||e.username} user={user} partner={partner} partners={partners} size={36}/>
-                  <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:600,letterSpacing:'0.12em',padding:'3px 8px',borderRadius:3,textTransform:'uppercase',flexShrink:0,background:`${coc}22`,color:coc,border:`1px solid ${coc}55`}}>{(e.type||'personal').toUpperCase()}</span>
-                  {calOwner&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:coc,letterSpacing:'0.08em'}}>{(calOwner.displayName||calOwner.username||'').toUpperCase()}</span>}
-                </div>
-                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-                  <div>
-                    <div className="meal-name">{(e.title||'').toUpperCase()}</div>
-                    <div className="meal-note" style={{marginTop:2}}>{fmtDateTime(e.date)}</div>
-                  </div>
-                  {e.amount&&<div className="item-amount income">{fmtR(e.amount)}</div>}
-                </div>
+          {/* ── Events list ── */}
+          <div style={{padding:'0 16px'}}>
+            {canSeeCycle&&selectedEvents.some(e=>e.isCycle)&&(
+              <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',background:'rgba(233,30,140,0.1)',border:'1px solid rgba(233,30,140,0.25)',borderRadius:8,marginBottom:8}}>
+                <span style={{fontSize:16}}>🩸</span>
+                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,color:'#e91e8c'}}>MENSTRUATION DAY</div>
               </div>
-            );
-          })}
+            )}
+            {canSeeCycle&&selectedEvents.some(e=>e.isFertile)&&(
+              <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',background:'rgba(29,233,182,0.08)',border:'1px solid rgba(29,233,182,0.25)',borderRadius:8,marginBottom:8}}>
+                <span style={{fontSize:16}}>🌿</span>
+                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,color:'#1de9b6'}}>OVULATION WINDOW</div>
+              </div>
+            )}
+            {selectedEvents.filter(e=>!e.isCycle&&!e.isFertile).length===0&&!selectedEvents.some(e=>e.isCycle||e.isFertile)&&(
+              <div style={{textAlign:'center',padding:'24px 0',color:'var(--text3)',fontFamily:"'DM Mono',monospace",fontSize:10,letterSpacing:'0.1em'}}>
+                NO EVENTS
+              </div>
+            )}
+            {selectedEvents.filter(e=>!e.isCycle&&!e.isFertile).map(e=>{
+              const calOwner = getOwner(e.user||e.username,user,partner,partners);
+              const coc      = calOwner?.eventColor||e.eventColor||e.event_color||'var(--yellow)';
+              const isOwn    = (e.user||e.username)===user.username;
+              return (
+                <div key={e.id}
+                  style={{display:'flex',alignItems:'center',gap:12,padding:'12px 14px',
+                    background:'var(--bg2)',borderRadius:10,marginBottom:8,
+                    borderLeft:`3px solid ${coc}`,cursor:'pointer'}}
+                  onClick={()=>setSelectedEvent(e)}>
+                  {/* Time dot */}
+                  <div style={{display:'flex',flexDirection:'column',alignItems:'center',flexShrink:0,width:36}}>
+                    <div style={{width:10,height:10,borderRadius:'50%',background:coc,marginBottom:2}}/>
+                    <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'var(--text3)',textAlign:'center'}}>
+                      {e.date&&e.date.length>10 ? new Date(e.date).toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit',hour12:false}) : 'ALL DAY'}
+                    </div>
+                  </div>
+                  {/* Content */}
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:16,color:'var(--text)',textTransform:'uppercase',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                      {e.title||'Untitled'}
+                    </div>
+                    <div style={{display:'flex',alignItems:'center',gap:6,marginTop:2}}>
+                      <img src={calOwner?.profilePicUrl||DP} alt=""
+                        style={{width:14,height:14,borderRadius:'50%',objectFit:'cover',border:`1px solid ${coc}`}}/>
+                      <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:coc,letterSpacing:'0.08em'}}>
+                        {(calOwner?.displayName||(calOwner?.firstName&&calOwner?.lastName?`${calOwner.firstName} ${calOwner.lastName}`:null)||calOwner?.username||'').toUpperCase()}
+                      </span>
+                      <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'var(--text3)',padding:'1px 5px',background:'var(--bg3)',borderRadius:2,letterSpacing:'0.08em'}}>
+                        {(e.type||'personal').toUpperCase()}
+                      </span>
+                      {e.amount&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--green)',marginLeft:'auto'}}>{fmtR(e.amount)}</span>}
+                    </div>
+                  </div>
+                  {isOwn&&<div style={{color:'var(--text3)',fontSize:12,flexShrink:0}}>›</div>}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* ── Legend ── */}
+          <div style={{display:'flex',flexWrap:'wrap',gap:10,padding:'12px 16px',borderTop:'1px solid var(--border)',marginTop:8}}>
+            {canSeeCycle&&<div style={{display:'flex',alignItems:'center',gap:5,fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.1em',color:'var(--text3)'}}><div style={{width:7,height:7,borderRadius:'50%',background:'#e91e8c'}}/> MENSTRUATION</div>}
+            {canSeeCycle&&<div style={{display:'flex',alignItems:'center',gap:5,fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.1em',color:'var(--text3)'}}><div style={{width:7,height:7,borderRadius:'50%',background:'#1de9b6'}}/> OVULATION</div>}
+            <div style={{display:'flex',alignItems:'center',gap:5,fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.1em',color:'var(--text3)'}}><div style={{width:7,height:7,borderRadius:'50%',background:'var(--yellow)'}}/> PERSONAL</div>
+            <div style={{display:'flex',alignItems:'center',gap:5,fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.1em',color:'var(--text3)'}}><div style={{width:7,height:7,borderRadius:'50%',background:'var(--blue)'}}/> WORK</div>
+            <div style={{display:'flex',alignItems:'center',gap:5,fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.1em',color:'var(--text3)'}}><div style={{width:7,height:7,borderRadius:'50%',background:'var(--green)'}}/> HEALTH</div>
+          </div>
           <div style={{height:'80px'}}/>
         </div>
       </div>
-      <button className="fab" style={{background:'var(--blue)',boxShadow:'0 4px 20px rgba(68,138,255,0.4)'}} onClick={()=>setShowForm(true)}>+ ADD EVENT</button>
 
+      {/* ── Event detail modal ── */}
+      {selectedEvent&&(
+        <div className="modal-overlay" onClick={()=>setSelectedEvent(null)}>
+          <div className="modal-sheet" onClick={e=>e.stopPropagation()} style={{borderRadius:'16px 16px 0 0'}}>
+            <div className="modal-handle"/>
+            <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:16}}>
+              <ItemAvatar username={selectedEvent.user||selectedEvent.username} user={user} partner={partner} partners={partners} size={40}/>
+              <div>
+                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:20,color:'var(--text)'}}>{(selectedEvent.title||'').toUpperCase()}</div>
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)',marginTop:2}}>
+                  {fmtDateTime(selectedEvent.date)} · {(selectedEvent.type||'personal').toUpperCase()}
+                </div>
+              </div>
+            </div>
+            {selectedEvent.amount&&<div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:18,color:'var(--green)',marginBottom:12}}>{fmtR(selectedEvent.amount)}</div>}
+            {(selectedEvent.user||selectedEvent.username)===user.username&&(
+              <button onClick={()=>handleDeleteEvent(selectedEvent.id)}
+                style={{width:'100%',padding:'12px',background:'rgba(255,61,61,0.12)',border:'1px solid rgba(255,61,61,0.3)',borderRadius:8,color:'var(--red)',fontFamily:"'DM Mono',monospace",fontSize:11,letterSpacing:'0.12em',cursor:'pointer',textTransform:'uppercase'}}>
+                DELETE EVENT
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Add event modal ── */}
       {showForm&&(
         <div className="modal-overlay" onClick={()=>setShowForm(false)}>
-          <div className="modal-sheet" style={{"--page-color":tabColor||"var(--pink)"}} onClick={e=>e.stopPropagation()}>
+          <div className="modal-sheet" style={{"--page-color":tabColor||"var(--pink)","borderRadius":'16px 16px 0 0'}} onClick={e=>e.stopPropagation()}>
             <div className="modal-handle"/>
-            <div className="modal-title">Add Event</div>
+            <div className="modal-title">New Event</div>
             <div className="form-field">
               <label className="form-label">Title</label>
-              <input className="form-input" placeholder="Event title" value={form.title} onChange={e=>setForm(p=>({...p,title:e.target.value}))}/>
+              <input className="form-input" placeholder="Event name" value={form.title} onChange={e=>setForm(p=>({...p,title:e.target.value}))} autoFocus/>
             </div>
             <div className="form-field">
-              <label className="form-label">Category</label>
+              <label className="form-label">Type</label>
               <div className="type-toggle">
-                {[['personal','Personal','#ffd600'],['work','Work','#448aff'],['health','Health','#00e676'],['social','Social','#e040fb']].map(([v,l,col])=>(
-                  <button key={v} className={`type-toggle-btn ${form.type===v?'active':''}`}
-                    style={form.type===v?{borderColor:col,color:col,background:col+'22'}:{borderColor:'var(--border2)',color:'var(--text3)'}}
-                    onClick={()=>setForm(p=>({...p,type:v,color:col}))}>{l}</button>
+                {EVENT_TYPES.map(t=>(
+                  <button key={t} className={`type-toggle-btn ${form.type===t?'active':''}`}
+                    onClick={()=>setForm(p=>({...p,type:t}))}>{t.toUpperCase()}</button>
                 ))}
               </div>
             </div>
             <div className="form-field">
-              <label className="form-label">Custom Colour</label>
-              <div style={{display:'flex',alignItems:'center',gap:10}}>
-                <input type="color" value={form.color} onChange={e=>setForm(p=>({...p,color:e.target.value}))} style={{width:44,height:36,border:'1px solid var(--border2)',borderRadius:4,background:'var(--bg3)',cursor:'pointer',padding:2}}/>
-                <span style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)'}}>{form.color}</span>
-                <div style={{width:20,height:20,borderRadius:'50%',background:form.color,border:'2px solid rgba(255,255,255,0.2)'}}/>
-              </div>
+              <label className="form-label">Date & Time</label>
+              <input className="form-input" type="datetime-local" value={form.date} onChange={e=>setForm(p=>({...p,date:e.target.value}))}/>
             </div>
             <div className="form-field">
-              <label className="form-label">Date & Time</label>
-              <input className="form-input" type="datetime-local" value={form.date} onChange={e=>setForm(p=>({...p,date:e.target.value}))} step="1"/>
+              <label className="form-label">Amount (optional)</label>
+              <input className="form-input" type="number" placeholder="e.g. 500" value={form.amount} onChange={e=>setForm(p=>({...p,amount:e.target.value}))}/>
             </div>
             <button className="form-submit" style={{background:tabColor}} onClick={handleSave}>SAVE EVENT</button>
             <button className="form-cancel" onClick={()=>setShowForm(false)}>Cancel</button>
-          </div>
-        </div>
-      )}
-      {selectedEvent&&(
-        <div className="modal-overlay" onClick={()=>setSelectedEvent(null)}>
-          <div className="modal-sheet" onClick={e=>e.stopPropagation()}>
-            <div className="modal-handle"/>
-            <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:16}}>
-              <ItemAvatar username={selectedEvent.user||selectedEvent.username} user={user} partner={partner} partners={partners} size={36}/>
-              <div style={{width:12,height:12,borderRadius:'50%',background:selectedEvent.eventColor||selectedEvent.event_color||'var(--blue)',flexShrink:0,border:'2px solid rgba(255,255,255,0.2)'}}/>
-              <div className="modal-title" style={{margin:0}}>{(selectedEvent.title||'').toUpperCase()}</div>
-            </div>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:16}}>
-              <div><div className="form-label">Date & Time</div><div style={{fontFamily:"'DM Mono',monospace",fontSize:12,color:'var(--text)'}}>{fmtDateTime(selectedEvent.date)}</div></div>
-              <div><div className="form-label">Category</div><div style={{fontFamily:"'DM Mono',monospace",fontSize:12,color:'var(--text)'}}>{selectedEvent.type||'personal'}</div></div>
-              {selectedEvent.amount&&<div><div className="form-label">Amount</div><div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:18,fontWeight:700,color:'var(--green)'}}>{fmtR(selectedEvent.amount)}</div></div>}
-              {selectedEvent.user&&<div><div className="form-label">Added by</div><div style={{fontFamily:"'DM Mono',monospace",fontSize:12,color:'var(--text)'}}>{selectedEvent.user}</div></div>}
-            </div>
-            {selectedEvent.user===user.username&&!selectedEvent.financial&&(
-              <button className="form-submit" style={{background:'var(--red)',marginBottom:0}} onClick={()=>handleDeleteEvent(selectedEvent.id)}>DELETE EVENT</button>
-            )}
-            <button className="form-cancel" onClick={()=>setSelectedEvent(null)}>Close</button>
           </div>
         </div>
       )}
@@ -1128,6 +1189,23 @@ const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPart
     return {cal:Math.round(cal), prot:Math.round(cal*0.08), carb:Math.round(cal*0.05), fat:Math.round(cal*0.028)};
   },[filtered]);
 
+  // TDEE per user — calculated from their profile health data
+  const getTDEE = (u) => {
+    const w = parseFloat(u.weight);
+    const h = parseFloat(u.height);
+    if(!w||!h) return null;
+    const age = u.dob ? Math.floor((new Date()-new Date(u.dob))/31557600000) : 30;
+    const isFemale = (u.gender||'').toLowerCase()==='female';
+    const bmr = isFemale ? 10*w+6.25*h-5*age-161 : 10*w+6.25*h-5*age+5;
+    return Math.round(bmr*1.4);
+  };
+  const userTDEE = getTDEE(user);
+
+  // Warning visibility (same localStorage flag as profile)
+  const [showMealWarning, setShowMealWarning] = useState(()=>{
+    try { const v=localStorage.getItem('legacyBmiWarning'); return v===null?true:v==='true'; } catch { return true; }
+  });
+
   const handleMealSelect = (val) => {
     if(val==='__custom__'){ setIsCustomMeal(true); setForm(p=>({...p,name:'',calories:''})); return; }
     if(!val) return;
@@ -1190,6 +1268,59 @@ const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPart
             <div className="macro-card carb"><div className="macro-value">{totals.carb}</div><div className="macro-unit">g · CARB</div></div>
             <div className="macro-card fat" ><div className="macro-value">{totals.fat}</div><div className="macro-unit">g · FAT</div></div>
           </div>
+
+          {/* ── Calorie target bar ── */}
+          {userTDEE&&(()=>{
+            const pct     = Math.min(totals.cal/userTDEE, 1.5);
+            const pctDisp = Math.round(pct*100);
+            const remain  = userTDEE - totals.cal;
+            const over    = totals.cal > userTDEE;
+            const barColor = pct<0.5?'var(--blue)':pct<0.85?'var(--green)':pct<=1?'var(--green)':pct<=1.1?'var(--yellow)':'var(--red)';
+            // Warning message
+            const warn = totals.cal===0
+              ? {icon:'📋', color:'var(--text3)', msg:'No meals logged today. Your daily target is '+userTDEE+' kcal.'}
+              : pct<0.5
+              ? {icon:'🍽️', color:'var(--blue)', msg:`Only ${pctDisp}% of daily target. Add ${remain} kcal more to reach your goal.`}
+              : pct<0.85
+              ? {icon:'⚡', color:'var(--blue)', msg:`${pctDisp}% of daily target. ${remain} kcal remaining — keep going.`}
+              : pct<=1
+              ? {icon:'✓', color:'var(--green)', msg:`${pctDisp}% of daily target. Almost there — ${remain} kcal left.`}
+              : pct<=1.1
+              ? {icon:'⚠', color:'var(--yellow)', msg:`${pctDisp}% of target — slightly over by ${-remain} kcal. Consider a lighter dinner.`}
+              : {icon:'⚠️', color:'var(--red)', msg:`${pctDisp}% of target — ${-remain} kcal over. Try to balance with lighter meals tomorrow.`};
+            return (
+              <div style={{marginBottom:16}}>
+                {/* Progress bar */}
+                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6}}>
+                  <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.12em',textTransform:'uppercase',color:'var(--text3)'}}>
+                    DAILY TARGET
+                  </span>
+                  <div style={{display:'flex',alignItems:'center',gap:8}}>
+                    <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:15,color:barColor}}>
+                      {totals.cal}
+                    </span>
+                    <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)'}}>/ {userTDEE} kcal</span>
+                    <button onClick={()=>setShowMealWarning(p=>{const n=!p;try{localStorage.setItem('legacyBmiWarning',String(n));}catch{}return n;})}
+                      style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'var(--text3)',background:'transparent',border:'none',cursor:'pointer',letterSpacing:'0.08em'}}>
+                      {showMealWarning?'▲':'▼'}
+                    </button>
+                  </div>
+                </div>
+                <div style={{height:6,background:'var(--bg3)',borderRadius:3,overflow:'hidden',marginBottom:6}}>
+                  <div style={{height:'100%',width:`${Math.min(pct,1)*100}%`,background:barColor,borderRadius:3,transition:'width 0.4s'}}/>
+                </div>
+                {showMealWarning&&(
+                  <div style={{display:'flex',alignItems:'center',gap:8,padding:'8px 12px',
+                    background:`${warn.color}12`,border:`1px solid ${warn.color}30`,borderRadius:4}}>
+                    <span style={{fontSize:13,flexShrink:0}}>{warn.icon}</span>
+                    <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:warn.color,letterSpacing:'0.06em',lineHeight:1.6}}>
+                      {warn.msg}
+                    </span>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Days first — all users' meals together under each day, same as Gym */}
           {DAYS.map(day=>{
@@ -1622,6 +1753,10 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
   });
   const [selectedColor, setSelectedColor]   = useState(user.eventColor||'#00e676');
   const [picPreview, setPicPreview]         = useState(user.profilePicUrl||DP);
+  const [showBmiWarning, setShowBmiWarning] = useState(()=>{
+    try { const v=localStorage.getItem('legacyBmiWarning'); return v===null?true:v==='true'; } catch { return true; }
+  });
+  const toggleBmiWarning = () => setShowBmiWarning(p=>{ const n=!p; try{localStorage.setItem('legacyBmiWarning',String(n));}catch{} return n; });
   const [picFile, setPicFile]               = useState(null);
   const [partnerLinked, setPartnerLinked]   = useState(false);
   const [alert, setAlert]                   = useState({msg:'',type:''});
@@ -1924,8 +2059,13 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
                       </span>
                     </div>
                   </div>
-                  {/* Warning / advice card */}
-                  <div style={{margin:'0 0 0 0',padding:'12px 14px',
+                  {/* Toggle + Warning / advice card */}
+                  <div style={{display:'flex',justifyContent:'flex-end',padding:'4px 14px 0'}}>
+                    <button onClick={toggleBmiWarning} style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--text3)',background:'transparent',border:'none',cursor:'pointer',padding:'2px 0'}}>
+                      {showBmiWarning ? '▲ Hide advice' : '▼ Show advice'}
+                    </button>
+                  </div>
+                  {showBmiWarning&&<div style={{margin:'0 0 0 0',padding:'12px 14px',
                     background:`${cfg.color}10`,
                     borderLeft:`3px solid ${cfg.color}`,
                     borderRadius:'0 0 6px 6px'}}>
@@ -1950,7 +2090,7 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
                         <span style={{color:'var(--green)',fontWeight:600}}>{minW}–{maxW} kg</span>
                       </div>
                     </div>
-                  </div>
+                  </div>}
                 </div>
               );
             })()}
