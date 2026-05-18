@@ -227,13 +227,14 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
           <div className="item-list">
             {filtered.map(item=>{
               const finOwner=getOwner(item.user||item.username, user, partner, partners);
+              const oc = finOwner?.eventColor||'#00e676';
               const isIncome=item.type==='income';
               return (
-                <div key={item.id} className="meal-card" style={{marginBottom:8}}>
+                <div key={item.id} className="meal-card" style={{marginBottom:8,borderLeft:`3px solid ${oc}`}}>
                   <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
                     <ItemAvatar username={item.user||item.username} user={user} partner={partner} partners={partners} size={36}/>
                     <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:600,letterSpacing:'0.12em',padding:'3px 8px',borderRadius:3,textTransform:'uppercase',flexShrink:0,background:isIncome?'rgba(0,230,118,0.15)':'rgba(255,61,61,0.15)',color:isIncome?'var(--green)':'var(--red)',border:`1px solid ${isIncome?'rgba(0,230,118,0.3)':'rgba(255,61,61,0.3)'}`}}>{(item.type||'expense').toUpperCase()}</span>
-                    {finOwner&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:finOwner.eventColor||'var(--text3)',letterSpacing:'0.08em'}}>{(finOwner.displayName||finOwner.username||'').toUpperCase()}</span>}
+                    {finOwner&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:oc,letterSpacing:'0.08em'}}>{(finOwner.displayName||finOwner.username||'').toUpperCase()}</span>}
                   </div>
                   <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
                     <div>
@@ -459,14 +460,15 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
             <div className="no-events"><div className="no-events-icon">📅</div><div className="no-events-text">NO EVENTS</div></div>
           )}
           {selectedEvents.filter(e=>!e.isCycle&&!e.isFertile).map(e=>{
-            const dotColor=e.eventColor||e.event_color||(e.financial?'var(--green)':'var(--yellow)');
             const calOwner=getOwner(e.user||e.username, user, partner, partners);
+            const coc = calOwner?.eventColor || e.eventColor||e.event_color||'var(--yellow)';
+            const typeColor = e.eventColor||e.event_color||coc;
             return (
-              <div key={e.id} className="meal-card" style={{marginBottom:8,borderLeft:`3px solid ${dotColor}`,cursor:'pointer'}} onClick={()=>setSelectedEvent(e)}>
+              <div key={e.id} className="meal-card" style={{marginBottom:8,borderLeft:`3px solid ${coc}`,cursor:'pointer'}} onClick={()=>setSelectedEvent(e)}>
                 <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
                   <ItemAvatar username={e.user||e.username} user={user} partner={partner} partners={partners} size={36}/>
                   <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:600,letterSpacing:'0.12em',padding:'3px 8px',borderRadius:3,textTransform:'uppercase',flexShrink:0,background:`${dotColor}22`,color:dotColor,border:`1px solid ${dotColor}55`}}>{(e.type||'personal').toUpperCase()}</span>
-                  {calOwner&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:calOwner.eventColor||'var(--text3)',letterSpacing:'0.08em'}}>{(calOwner.displayName||calOwner.username||'').toUpperCase()}</span>}
+                  {calOwner&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:coc,letterSpacing:'0.08em'}}>{(calOwner.displayName||calOwner.username||'').toUpperCase()}</span>}
                 </div>
                 <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
                   <div>
@@ -664,14 +666,15 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
             const status   = getBudgetStatus(planned, actual);
             const leftVal  = planned - actual;
             const budOwner = getOwner(b.user||user.username, user, partner, partners);
+            const boc = budOwner?.eventColor||'#ffd600';
             return (
-              <div key={b.id} className="meal-card" style={{marginBottom:8,position:'relative'}}>
+              <div key={b.id} className="meal-card" style={{marginBottom:8,position:'relative',borderLeft:`3px solid ${boc}`}}>
                 <span className={`budget-status-badge ${status}`}>{status.toUpperCase()}</span>
                 {/* Top row: avatar + BUDGET badge + owner name */}
                 <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
                   <ItemAvatar username={b.user||user.username} user={user} partner={partner} partners={partners} size={36}/>
-                  <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:600,letterSpacing:'0.12em',padding:'3px 8px',borderRadius:3,textTransform:'uppercase',flexShrink:0,background:'rgba(255,214,0,0.15)',color:'var(--yellow)',border:'1px solid rgba(255,214,0,0.3)'}}>BUDGET</span>
-                  {budOwner&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:budOwner.eventColor||'var(--text3)',letterSpacing:'0.08em'}}>{(budOwner.displayName||budOwner.username||'').toUpperCase()}</span>}
+                  <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:600,letterSpacing:'0.12em',padding:'3px 8px',borderRadius:3,textTransform:'uppercase',flexShrink:0,background:`${boc}22`,color:boc,border:`1px solid ${boc}55`}}>BUDGET</span>
+                  {budOwner&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:boc,letterSpacing:'0.08em'}}>{(budOwner.displayName||budOwner.username||'').toUpperCase()}</span>}
                 </div>
                 <div className="meal-name" style={{marginBottom:4}}>{(b.expenses[0]?.category||'Budget').toUpperCase()}</div>
                 <div className="meal-note" style={{marginBottom:10}}>{fmtDate(b.date)}</div>
@@ -892,12 +895,13 @@ const GymPage = ({user, partner, partners=[], activePartners=[], permittedPartne
                       const wt  = gymGetType(w.exercise);
                       const own = String(w.userKey)===user.username;
                       const owner = getOwner(String(w.userKey), user, partner, partners);
+                      const goc = owner?.eventColor||'#1de9b6';
                       return (
-                        <div key={w.id} className={`workout-card ${wt}`}>
+                        <div key={w.id} className={`workout-card ${wt}`} style={{borderLeftColor:goc}}>
                           <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
                             <ItemAvatar username={String(w.userKey)} user={user} partner={partner} partners={partners} size={22}/>
-                            <span className={`workout-type-badge ${wt}`} style={{margin:0}}>{wt.toUpperCase()}</span>
-                            {owner&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:owner.eventColor||'var(--text3)',letterSpacing:'0.08em'}}>{(owner.displayName||owner.username||'').toUpperCase()}</span>}
+                            <span className={`workout-type-badge ${wt}`} style={{margin:0,background:`${goc}22`,color:goc,border:`1px solid ${goc}55`}}>{wt.toUpperCase()}</span>
+                            {owner&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:goc,letterSpacing:'0.08em'}}>{(owner.displayName||owner.username||'').toUpperCase()}</span>}
                           </div>
                           <div className="workout-name">{(w.exercise||'').toUpperCase()}</div>
                           <div className="workout-detail">{gymFormatDetail(w)}</div>
@@ -1166,14 +1170,15 @@ const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPart
             const desc  = m.description||m.name||'Unknown';
             const own   = String(m.userKey)===user.username;
             const owner = getOwner(String(m.userKey), user, partner, partners);
+            const moc = owner?.eventColor||'#d67bff';
             const mt    = m.mealType||'breakfast';
             return (
-              <div key={m.id} className="meal-card">
-                {/* Top row: avatar + type badge + owner name — same as gym */}
+              <div key={m.id} className="meal-card" style={{marginBottom:8,borderLeft:`3px solid ${moc}`}}>
+                {/* Top row: avatar + type badge + owner name */}
                 <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
                   <ItemAvatar username={String(m.userKey)} user={user} partner={partner} partners={partners} size={36}/>
                   <span className={`meal-type-badge ${mt}`} style={{flexShrink:0}}>{mt.toUpperCase()}</span>
-                  {owner&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:owner.eventColor||'var(--text3)',letterSpacing:'0.08em'}}>{(owner.displayName||owner.username||'').toUpperCase()}</span>}
+                  {owner&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:moc,letterSpacing:'0.08em'}}>{(owner.displayName||owner.username||'').toUpperCase()}</span>}
                 </div>
                 {/* Meal name */}
                 <div className="meal-name" style={{marginBottom:8}}>{desc.toUpperCase()}</div>
@@ -1449,7 +1454,7 @@ const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPart
                     <div key={cyc.id} className="meal-card" style={{marginBottom:8,borderLeft:`3px solid ${accentColor}`}}>
                       <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
                         <ItemAvatar username={u.username} user={user} partner={partner} partners={partners} size={36}/>
-                        <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:600,letterSpacing:'0.12em',padding:'3px 8px',borderRadius:3,textTransform:'uppercase',flexShrink:0,background:'rgba(233,30,140,0.15)',color:'var(--pink)',border:'1px solid rgba(233,30,140,0.3)'}}>🩸 CYCLE</span>
+                        <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:600,letterSpacing:'0.12em',padding:'3px 8px',borderRadius:3,textTransform:'uppercase',flexShrink:0,background:`${accentColor}22`,color:accentColor,border:`1px solid ${accentColor}55`}}>🩸 CYCLE</span>
                         <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:accentColor,letterSpacing:'0.08em'}}>{(owner.displayName||(owner.firstName&&owner.lastName?`${owner.firstName} ${owner.lastName}`:null)||owner.username||'').toUpperCase()}</span>
                       </div>
                       <div className="meal-name" style={{marginBottom:8}}>START: {fmtDate(cyc.startDate).toUpperCase()}</div>
