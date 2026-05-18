@@ -445,7 +445,7 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
               return (
                 <div key={i}
                   className={`cal-day${item.otherMonth?' other-month':''}${isToday&&!hasCycle?' today':''}${isSelected?' selected':''}`}
-                  style={hasCycle?{background:'rgba(233,30,140,0.38)',cursor:'pointer'}:hasFertile?{background:'rgba(29,233,182,0.12)',cursor:'pointer'}:{cursor:'pointer'}}
+                  style={hasCycle?{background:'rgba(233,30,140,0.38)',cursor:'pointer'}:hasFertile?{background:'rgba(29,233,182,0.15)',cursor:'pointer'}:{cursor:'pointer'}}
                   onClick={()=>setSelectedDay(item.date)}>
                   <div className="cal-day-num" style={hasCycle?{color:'#fff',fontWeight:700}:{}}>{item.date.getDate()}</div>
                   {(realEvts.length>0||hasFertile)&&(
@@ -453,7 +453,7 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
                       {realEvts.slice(0,3).map((e,j)=>(
                         <div key={j} className="cal-dot" style={{background:e.eventColor||e.event_color||'var(--yellow)'}}/>
                       ))}
-                      {hasFertile&&<div className="cal-dot fertile"/>}
+                      {hasFertile&&<div className="cal-dot" style={{background:'#1de9b6'}}/>}
                     </div>
                   )}
                 </div>
@@ -463,8 +463,8 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
 
           {/* Legend */}
           <div className="cal-legend">
-            <div className="cal-legend-item"><div style={{width:7,height:7,borderRadius:'50%',background:'rgba(233,30,140,0.85)',display:'inline-block'}}/>CYCLE</div>
-            <div className="cal-legend-item"><div style={{width:7,height:7,borderRadius:'50%',background:'var(--teal)',display:'inline-block'}}/>FERTILE</div>
+            {canSeeCycle&&<div className="cal-legend-item"><div style={{width:7,height:7,borderRadius:'50%',background:'#e91e8c',display:'inline-block'}}/>MENSTRUATION</div>}
+            {canSeeCycle&&<div className="cal-legend-item"><div style={{width:7,height:7,borderRadius:'50%',background:'#1de9b6',display:'inline-block'}}/>OVULATION</div>}
             <div className="cal-legend-item"><div style={{width:7,height:7,borderRadius:'50%',background:'var(--green)',display:'inline-block'}}/>FIN</div>
             <div className="cal-legend-item"><div style={{width:7,height:7,borderRadius:'50%',background:'var(--blue)',display:'inline-block'}}/>WORK</div>
             <div className="cal-legend-item"><div style={{width:7,height:7,borderRadius:'50%',background:'var(--yellow)',display:'inline-block'}}/>PERSONAL</div>
@@ -481,7 +481,7 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
           {canSeeCycle&&selectedEvents.some(e=>e.isFertile)&&(
             <div style={{background:'rgba(29,233,182,0.1)',border:'1px solid rgba(29,233,182,0.3)',borderRadius:6,padding:'10px 14px',marginBottom:6,display:'flex',alignItems:'center',gap:10}}>
               <span style={{fontSize:'16px'}}>🌿</span>
-              <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,color:'var(--teal)'}}>FERTILE WINDOW</div>
+              <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,color:'#1de9b6'}}>OVULATION WINDOW</div>
             </div>
           )}
           {selectedEvents.filter(e=>!e.isCycle&&!e.isFertile).length===0&&!selectedEvents.some(e=>e.isCycle||e.isFertile)&&(
@@ -1322,11 +1322,16 @@ const cycleStats = (cycles) => {
 // Phase wheel SVG — proper donut
 const PhaseWheel = ({dayOfCycle=1, cycleLength=28, accentColor='#e91e8c'}) => {
   const S=260,cx=130,cy=130,outerR=100,innerR=62,numR=outerR+16;
+  // Match reference: Menstruation=pink, pre-ovulation gray, Ovulation=teal, post-ovulation gray
+  const mensDays  = 7;
+  const preOvDays = 4;   // days 8-11 gray
+  const ovDays    = 6;   // days 12-17 teal
+  const lutDays   = Math.max(cycleLength - mensDays - preOvDays - ovDays, 1);
   const phases=[
-    {name:'Menstrual', days:5,  color:'#e91e8c'},            // pink  — period
-    {name:'Follicular',days:7,  color:'#1de9b6'},            // teal  — fertile window
-    {name:'Ovulation', days:3,  color:'#00e676'},            // green — peak fertility
-    {name:'Luteal',    days:Math.max(cycleLength-15,1), color:'#3a3d42'} // gray — luteal
+    {name:'Menstruation', days:mensDays,  color:'#e91e8c'},  // pink
+    {name:'Pre-Ovulation',days:preOvDays, color:'#2a2d32'},  // dark gray
+    {name:'Ovulation',    days:ovDays,    color:'#1de9b6'},  // teal
+    {name:'Luteal',       days:lutDays,   color:'#2a2d32'},  // dark gray
   ];
   const total=phases.reduce((s,p)=>s+p.days,0);
   const segs=[];let angle=-Math.PI/2;
@@ -1346,7 +1351,10 @@ const PhaseWheel = ({dayOfCycle=1, cycleLength=28, accentColor='#e91e8c'}) => {
     dayNums.push({d,x:cx+numR*Math.cos(a),y:cy+numR*Math.sin(a)});
   }
   const curA=-Math.PI/2+((dayOfCycle-0.5)/total)*2*Math.PI;
-  const phase=dayOfCycle<=5?'MENSTRUAL':dayOfCycle<=12?'FOLLICULAR':dayOfCycle<=15?'OVULATION':'LUTEAL';
+  const phase = dayOfCycle<=mensDays?'MENSTRUATION'
+    : dayOfCycle<=(mensDays+preOvDays)?'PRE-OVULATION'
+    : dayOfCycle<=(mensDays+preOvDays+ovDays)?'OVULATION'
+    : 'LUTEAL';
   return (
     <svg width={S} height={S} viewBox={`0 0 ${S} ${S}`}>
       {segs.map((seg,i)=><path key={i} d={arc(seg.sa,seg.ea)} fill={seg.color} opacity="0.9"/>)}
@@ -1442,8 +1450,8 @@ const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPart
   };
 
   const phaseLegend = [
-    ['#e91e8c','MENSTRUAL · 1-5'],['#1de9b6','FOLLICULAR · 6-12'],
-    ['#ffd600','OVULATION · 13-15'],['#ff6d00','LUTEAL · 16-28']
+    ['#e91e8c','MENSTRUATION · 1-7'],
+    ['#1de9b6','OVULATION · 12-17'],
   ];
 
   return (
@@ -1482,10 +1490,17 @@ const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPart
                 {latest&&(
                   <div className="cycle-stats-card" style={{marginBottom:12}}>
                     <div className="cycle-stats-grid">
-                      <div><div className="cycle-stat-label">Last Start</div><div className="cycle-stat-value start">{fmtDate(latest.startDate)}</div></div>
-                      <div><div className="cycle-stat-label">Next Period</div><div className="cycle-stat-value next">{nextPeriod?fmtDate(nextPeriod.toISOString()):'—'}</div></div>
-                      <div><div className="cycle-stat-label">Fertile</div>
-                        <div className="cycle-stat-value fertile" style={{fontSize:13}}>
+                      <div>
+                        <div className="cycle-stat-label">Last Start</div>
+                        <div className="cycle-stat-value" style={{color:'#e91e8c'}}>{fmtDate(latest.startDate)}</div>
+                      </div>
+                      <div>
+                        <div className="cycle-stat-label">Next Period</div>
+                        <div className="cycle-stat-value" style={{color:'#e91e8c'}}>{nextPeriod?fmtDate(nextPeriod.toISOString()):'—'}</div>
+                      </div>
+                      <div>
+                        <div className="cycle-stat-label">Fertile Window</div>
+                        <div className="cycle-stat-value" style={{color:'#1de9b6',fontSize:13}}>
                           {fertileStart&&fertileEnd?`${fertileStart.toLocaleDateString('en-ZA',{month:'short',day:'numeric'})} - ${fertileEnd.toLocaleDateString('en-ZA',{month:'short',day:'numeric'})}`:'—'}
                         </div>
                       </div>
