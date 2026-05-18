@@ -1850,6 +1850,8 @@ const App = () => {
     if(stored){
       try {
         const u = JSON.parse(stored);
+        // Coerce isAdmin to boolean in case server stored 0/1 integer
+        u.isAdmin = !!(u.isAdmin || u.is_admin);
         setUser(u);
         axios.get(`${API}/get-access`,{params:{viewer:u.username,adminUsername:u.username}})
           .then(async({data})=>{
@@ -1867,7 +1869,19 @@ const App = () => {
           }).catch(()=>{});
         axios.get(`${API}/profile-pictures`,{params:{username:u.username}}).then(({data})=>{
           const dn=data.displayName||(data.firstName&&data.lastName?`${data.firstName} ${data.lastName}`:null)||u.username;
-          setUser(prev=>({...prev,...data,displayName:dn,firstName:data.firstName||prev.firstName||'',lastName:data.lastName||prev.lastName||'',profilePicUrl:data.profilePicUrl||prev.profilePicUrl||DP}));
+          // Explicitly handle isAdmin: coerce to boolean, preserve from localStorage if API omits it
+          const adminFlag = data.isAdmin!==undefined ? !!data.isAdmin : !!u.isAdmin;
+          const {success:_s, ...profileData} = data; // strip the success key
+          setUser(prev=>({
+            ...prev,
+            ...profileData,
+            displayName:    dn,
+            firstName:      data.firstName||prev.firstName||'',
+            lastName:       data.lastName||prev.lastName||'',
+            profilePicUrl:  data.profilePicUrl||prev.profilePicUrl||DP,
+            isAdmin:        adminFlag,
+            gender:         data.gender||prev.gender||'',
+          }));
         }).catch(()=>{});
       } catch { setError('Invalid session'); }
     } else {
@@ -1887,8 +1901,9 @@ const App = () => {
   const userIsFemale = (user.gender||'').toLowerCase()==='female';
   const partnerIsFemale = (partner?.gender||'').toLowerCase()==='female';
   const showCycle = userIsFemale || (partnerIsFemale && sharingConfig.Cycle);
+  const isAdmin = !!(user.isAdmin || user.is_admin); // handle int (1/0) or bool
   const visibleTabs = ALL_TABS.filter(t=>{
-    if(t.adminOnly) return user.isAdmin;
+    if(t.adminOnly) return isAdmin;
     if(t.cycleOnly) return showCycle;
     return true;
   });
@@ -1903,7 +1918,7 @@ const App = () => {
         {activeTab==='meals'   &&<MealsPage    {...sharedProps}/>}
         {activeTab==='cycle'   &&<CyclePage    {...sharedProps}/>}
         {activeTab==='profile' &&<ProfilePage  user={user} setUser={setUser} partner={partner} setPartner={setPartner} sharingConfig={sharingConfig} setSharingConfig={setSharingConfig} onLogout={handleLogout}/>}
-        {activeTab==='admin'   &&user.isAdmin&&<AdminPage user={user} onLogout={handleLogout}/>}
+        {activeTab==='admin'   &&isAdmin&&<AdminPage user={user} onLogout={handleLogout}/>}
       </div>
       <div className="bottom-tabs">
         {visibleTabs.map(t=>(
