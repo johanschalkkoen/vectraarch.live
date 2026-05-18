@@ -210,22 +210,35 @@ const FinancesPage = ({user, partner, isShared, onToggleShared, tabColor='#00e67
           <div className="section-label">§ ITEMS · {filtered.length} RECORDS</div>
           <div className="item-list">
             {filtered.map(item=>(
-              <div key={item.id} className="item-card" style={{position:'relative'}}>
-                <ItemAvatar username={item.user||item.username} user={user} partner={partner} size={36}/>
-                <div className="item-body">
-                  <div className="item-title">
-                    <span style={{fontFamily:"'DM Mono',monospace",fontSize:'8px',fontWeight:500,letterSpacing:'0.12em',padding:'2px 6px',borderRadius:3,background:item.user===user.username?`${user.eventColor||'#e91e8c'}22`:`${partner?.eventColor||'#448aff'}22`,color:item.user===user.username?(user.eventColor||'#e91e8c'):(partner?.eventColor||'#448aff')}}>{(item.user||item.username||'').toUpperCase().slice(0,4)}</span>
-                    {(item.category||'').toUpperCase()}
-                  </div>
-                  <div className="item-sub">{fmtDate(item.date)} · {item.category||''}</div>
+              <div key={item.id} className="item-card" style={{flexDirection:'column',alignItems:'stretch',position:'relative'}}>
+                {/* Top row: avatar + type badge + owner name */}
+                <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
+                  <ItemAvatar username={item.user||item.username} user={user} partner={partner} size={36}/>
+                  <span style={{
+                    fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:600,letterSpacing:'0.12em',
+                    padding:'3px 8px',borderRadius:3,textTransform:'uppercase',flexShrink:0,
+                    background:item.type==='income'?'rgba(0,230,118,0.15)':'rgba(255,61,61,0.15)',
+                    color:item.type==='income'?'var(--green)':'var(--red)',
+                    border:`1px solid ${item.type==='income'?'rgba(0,230,118,0.3)':'rgba(255,61,61,0.3)'}`
+                  }}>{(item.type||'expense').toUpperCase()}</span>
+                  {(()=>{const owner=getOwner(item.user||item.username,user,partner);return owner&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:owner.eventColor||'var(--text3)',letterSpacing:'0.08em'}}>{(owner.displayName||owner.username||'').toUpperCase().slice(0,14)}</span>;})()}
                 </div>
-                <div className={`item-amount ${item.type}`}>{fmtR(item.amount)}</div>
-                {(item.user||item.username)===user.username&&(
-                  <div style={{display:'flex',flexDirection:'column',gap:3,marginLeft:6}}>
-                    <button onClick={()=>startFinEdit(item)} style={{fontFamily:"'DM Mono',monospace",fontSize:'8px',color:'var(--blue)',border:'1px solid rgba(68,138,255,0.35)',borderRadius:3,padding:'3px 7px',background:'transparent',cursor:'pointer',letterSpacing:'0.1em'}}>EDIT</button>
-                    <button onClick={()=>handleFinDelete(item.id)} style={{fontFamily:"'DM Mono',monospace",fontSize:'8px',color:'var(--red)',border:'1px solid rgba(255,61,61,0.35)',borderRadius:3,padding:'3px 7px',background:'transparent',cursor:'pointer',letterSpacing:'0.1em'}}>DEL</button>
+                {/* Category + amount row */}
+                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                  <div>
+                    <div className="item-title" style={{fontSize:15}}>{(item.category||'').toUpperCase()}</div>
+                    <div className="item-sub">{fmtDate(item.date)}</div>
                   </div>
-                )}
+                  <div style={{display:'flex',alignItems:'center',gap:8}}>
+                    <div className={`item-amount ${item.type}`}>{fmtR(item.amount)}</div>
+                    {(item.user||item.username)===user.username&&(
+                      <div style={{display:'flex',flexDirection:'column',gap:3}}>
+                        <button onClick={()=>startFinEdit(item)} style={{fontFamily:"'DM Mono',monospace",fontSize:'8px',color:'var(--blue)',border:'1px solid rgba(68,138,255,0.35)',borderRadius:3,padding:'3px 7px',background:'transparent',cursor:'pointer',letterSpacing:'0.1em'}}>EDIT</button>
+                        <button onClick={()=>handleFinDelete(item.id)} style={{fontFamily:"'DM Mono',monospace",fontSize:'8px',color:'var(--red)',border:'1px solid rgba(255,61,61,0.35)',borderRadius:3,padding:'3px 7px',background:'transparent',cursor:'pointer',letterSpacing:'0.1em'}}>DEL</button>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             ))}
           </div>
@@ -435,14 +448,27 @@ const CalendarPage = ({user, partner, isShared, onToggleShared, tabColor='#448af
           )}
           {selectedEvents.filter(e=>!e.isCycle&&!e.isFertile).map(e=>{
             const dotColor=e.eventColor||e.event_color||(e.financial?'var(--green)':'var(--yellow)');
+            const evType=(e.type||'personal').toUpperCase();
             return (
-              <div key={e.id} className="item-card" style={{borderRadius:'6px',marginBottom:'6px',borderLeft:`3px solid ${dotColor}`,cursor:'pointer'}} onClick={()=>setSelectedEvent(e)}>
-                <ItemAvatar username={e.user||e.username} user={user} partner={partner} size={36}/>
-                <div className="item-body">
-                  <div className="item-title">{(e.title||'').toUpperCase()}</div>
-                  <div className="item-sub">{fmtDateTime(e.date)} · {e.type||'personal'}</div>
+              <div key={e.id} className="item-card" style={{flexDirection:'column',alignItems:'stretch',borderRadius:'6px',marginBottom:'6px',borderLeft:`3px solid ${dotColor}`,cursor:'pointer'}} onClick={()=>setSelectedEvent(e)}>
+                {/* Top row: avatar + event-type badge + owner name */}
+                <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
+                  <ItemAvatar username={e.user||e.username} user={user} partner={partner} size={36}/>
+                  <span style={{
+                    fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:600,letterSpacing:'0.12em',
+                    padding:'3px 8px',borderRadius:3,textTransform:'uppercase',flexShrink:0,
+                    background:`${dotColor}22`,color:dotColor,border:`1px solid ${dotColor}55`
+                  }}>{evType}</span>
+                  {(()=>{const owner=getOwner(e.user||e.username,user,partner);return owner&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:owner.eventColor||'var(--text3)',letterSpacing:'0.08em'}}>{(owner.displayName||owner.username||'').toUpperCase().slice(0,14)}</span>;})()}
                 </div>
-                {e.amount&&<div className="item-amount income">{fmtR(e.amount)}</div>}
+                {/* Title + date + amount */}
+                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                  <div>
+                    <div className="item-title" style={{fontSize:15}}>{(e.title||'').toUpperCase()}</div>
+                    <div className="item-sub">{fmtDateTime(e.date)}</div>
+                  </div>
+                  {e.amount&&<div className="item-amount income">{fmtR(e.amount)}</div>}
+                </div>
               </div>
             );
           })}
@@ -634,11 +660,18 @@ const BudgetPage = ({user, partner, isShared, onToggleShared, tabColor='#ffd600'
             return (
               <div key={b.id} className="budget-card">
                 <span className={`budget-status-badge ${status}`}>{status.toUpperCase()}</span>
-                <div className="budget-card-title">{(b.expenses[0]?.category||'Budget').toUpperCase()}</div>
-                <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
-                  <ItemAvatar username={b.user||user.username} user={user} partner={partner} size={24}/>
-                  <div className="budget-card-sub" style={{margin:0}}>{(b.expenses[0]?.category||'SAVINGS')} · {(b.user||user.username).toUpperCase().slice(0,8)} · {fmtDate(b.date)}</div>
+                {/* Top row: avatar + BUDGET badge + owner name */}
+                <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
+                  <ItemAvatar username={b.user||user.username} user={user} partner={partner} size={36}/>
+                  <span style={{
+                    fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:600,letterSpacing:'0.12em',
+                    padding:'3px 8px',borderRadius:3,textTransform:'uppercase',flexShrink:0,
+                    background:'rgba(255,214,0,0.15)',color:'var(--yellow)',border:'1px solid rgba(255,214,0,0.3)'
+                  }}>BUDGET</span>
+                  {(()=>{const owner=getOwner(b.user||user.username,user,partner);return owner&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:owner.eventColor||'var(--text3)',letterSpacing:'0.08em'}}>{(owner.displayName||owner.username||'').toUpperCase().slice(0,14)}</span>;})()}
                 </div>
+                <div className="budget-card-title">{(b.expenses[0]?.category||'Budget').toUpperCase()}</div>
+                <div className="budget-card-sub">{fmtDate(b.date)}</div>
                 <div className="budget-cols">
                   <div>
                     <div className="budget-col-label">Plan</div>
