@@ -73,6 +73,27 @@ const UserRow = ({user, partner, isShared, onToggleShared}) => (
 
 const Alert = ({msg,type}) => msg ? <div className={`alert ${type||'ok'}`}>{msg}</div> : null;
 
+// ── Avatar helpers — resolves pic/color for any username across user+partner ──
+// Usage: <ItemAvatar username={item.user} user={user} partner={partner} size={36}/>
+const getOwner = (username, user, partner) => {
+  const uname = String(username||'');
+  if(uname===user?.username) return user;
+  if(uname===partner?.username) return partner;
+  return null;
+};
+const ItemAvatar = ({username, user, partner, size=36}) => {
+  const owner = getOwner(username, user, partner);
+  const pic   = owner?.profilePicUrl || DP;
+  const color = owner?.eventColor    || '#888';
+  return (
+    <img
+      src={pic} alt={String(username||'')}
+      style={{width:size,height:size,borderRadius:'50%',objectFit:'cover',
+              flexShrink:0,border:`2px solid ${color}`}}
+    />
+  );
+};
+
 /* ── FINANCES PAGE ── */
 const FinancesPage = ({user, partner, isShared}) => {
   const [items, setItems] = useState([]);
@@ -190,10 +211,10 @@ const FinancesPage = ({user, partner, isShared}) => {
           <div className="item-list">
             {filtered.map(item=>(
               <div key={item.id} className="item-card" style={{position:'relative'}}>
-                <img className="item-avatar" src={item.user===user.username?(user.profilePicUrl||DP):(partner?.profilePicUrl||DP)} alt="" style={{border:`2px solid ${item.user===user.username?(user.eventColor||'#e91e8c'):(partner?.eventColor||'#448aff')}`}}/>
+                <ItemAvatar username={item.user||item.username} user={user} partner={partner} size={36}/>
                 <div className="item-body">
                   <div className="item-title">
-                    <span className={`item-tag ${item.user===user.username?(user.username==='jane'?'jane':'joe'):'joe'}`}>{(item.user||'').toUpperCase().slice(0,4)}</span>
+                    <span style={{fontFamily:"'DM Mono',monospace",fontSize:'8px',fontWeight:500,letterSpacing:'0.12em',padding:'2px 6px',borderRadius:3,background:item.user===user.username?`${user.eventColor||'#e91e8c'}22`:`${partner?.eventColor||'#448aff'}22`,color:item.user===user.username?(user.eventColor||'#e91e8c'):(partner?.eventColor||'#448aff')}}>{(item.user||item.username||'').toUpperCase().slice(0,4)}</span>
                     {(item.category||'').toUpperCase()}
                   </div>
                   <div className="item-sub">{fmtDate(item.date)} · {item.category||''}</div>
@@ -471,7 +492,8 @@ const CalendarPage = ({user, partner, isShared}) => {
           <div className="modal-sheet" onClick={e=>e.stopPropagation()}>
             <div className="modal-handle"/>
             <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:16}}>
-              <div style={{width:14,height:14,borderRadius:'50%',background:selectedEvent.eventColor||selectedEvent.event_color||'var(--blue)',flexShrink:0}}/>
+              <ItemAvatar username={selectedEvent.user||selectedEvent.username} user={user} partner={partner} size={36}/>
+              <div style={{width:12,height:12,borderRadius:'50%',background:selectedEvent.eventColor||selectedEvent.event_color||'var(--blue)',flexShrink:0,border:'2px solid rgba(255,255,255,0.2)'}}/>
               <div className="modal-title" style={{margin:0}}>{(selectedEvent.title||'').toUpperCase()}</div>
             </div>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:16}}>
@@ -613,7 +635,10 @@ const BudgetPage = ({user, partner, isShared}) => {
               <div key={b.id} className="budget-card">
                 <span className={`budget-status-badge ${status}`}>{status.toUpperCase()}</span>
                 <div className="budget-card-title">{(b.expenses[0]?.category||'Budget').toUpperCase()}</div>
-                <div className="budget-card-sub">{(b.expenses[0]?.category||'SAVINGS')} · {(b.user||user.username).toUpperCase().slice(0,8)} · {fmtDate(b.date)}</div>
+                <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
+                  <ItemAvatar username={b.user||user.username} user={user} partner={partner} size={24}/>
+                  <div className="budget-card-sub" style={{margin:0}}>{(b.expenses[0]?.category||'SAVINGS')} · {(b.user||user.username).toUpperCase().slice(0,8)} · {fmtDate(b.date)}</div>
+                </div>
                 <div className="budget-cols">
                   <div>
                     <div className="budget-col-label">Plan</div>
@@ -775,7 +800,7 @@ const GymPage = ({user, partner, isShared}) => {
   const fetchAll = useCallback(async()=>{
     const users=[user.username,...(isShared&&partner?[partner.username]:[])];
     try {
-      const all=await Promise.all(users.map(u=>axios.get(`${API}/gymworkout`,{params:{user:u}}).then(r=>r.data.map(w=>({...w,userKey:u}))).catch(()=>[])));
+      const all=await Promise.all(users.map(u=>axios.get(`${API}/gymworkout`,{params:{user:u}}).then(r=>r.data.map(w=>({...w,userKey:String(u)}))).catch(()=>[])));
       setWorkouts(all.flat());
     } catch {}
   },[user.username,partner,isShared]);
@@ -830,7 +855,7 @@ const GymPage = ({user, partner, isShared}) => {
           </div>
           <Alert {...alert}/>
           {users.map(u=>{
-            const uWorkouts = workouts.filter(w=>w.userKey===u.username&&(w.date||'').slice(5,7)===selectedMonth);
+            const uWorkouts = workouts.filter(w=>String(w.userKey)===u.username&&(w.date||'').slice(5,7)===selectedMonth);
             return (
               <div key={u.username}>
                 <div className="user-section-header">
@@ -854,7 +879,10 @@ const GymPage = ({user, partner, isShared}) => {
                             const wt=gymGetType(w.exercise);
                             return (
                               <div key={w.id} className={`workout-card ${wt}`}>
-                                <span className={`workout-type-badge ${wt}`}>{wt.toUpperCase()}</span>
+                                <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:4}}>
+                                  <ItemAvatar username={u.username} user={user} partner={partner} size={20}/>
+                                  <span className={`workout-type-badge ${wt}`} style={{margin:0}}>{wt.toUpperCase()}</span>
+                                </div>
                                 <div className="workout-name">{(w.exercise||'').toUpperCase()}</div>
                                 <div className="workout-detail">{gymFormatDetail(w)}</div>
                                 <div className="workout-time">{(w.date||'').slice(11,16)}</div>
@@ -1030,7 +1058,7 @@ const MealsPage = ({user, partner, isShared}) => {
   const fetchMeals = useCallback(async()=>{
     const users=[user.username,...(isShared&&partner?[partner.username]:[])];
     try {
-      const all=await Promise.all(users.map(u=>axios.get(`${API}/mealplan`,{params:{user:u}}).then(r=>r.data.map(m=>({...m,userKey:u}))).catch(()=>[])));
+      const all=await Promise.all(users.map(u=>axios.get(`${API}/mealplan`,{params:{user:u}}).then(r=>r.data.map(m=>({...m,userKey:String(u)}))).catch(()=>[])));
       setMeals(all.flat());
     } catch {}
   },[user.username,partner,isShared]);
@@ -1039,7 +1067,7 @@ const MealsPage = ({user, partner, isShared}) => {
 
   const filtered = useMemo(()=>{
     const users=[user.username,...(isShared&&partner?[partner.username]:[])];
-    let list = meals.filter(m=>users.includes(m.userKey)&&(m.date||'').slice(5,7)===selectedMonth);
+    let list = meals.filter(m=>users.map(String).includes(String(m.userKey))&&(m.date||'').slice(5,7)===selectedMonth);
     if(typeFilter!=='All') list=list.filter(m=>(m.mealType||'').toLowerCase()===typeFilter.toLowerCase());
     return list;
   },[meals,selectedMonth,typeFilter,user.username,partner,isShared]);
@@ -1124,7 +1152,7 @@ const MealsPage = ({user, partner, isShared}) => {
             return (
               <div key={m.id} className="meal-card">
                 <div className="meal-top">
-                  <img className="meal-avatar" src={m.userKey===user.username?(user.profilePicUrl||DP):(partner?.profilePicUrl||DP)} alt="" style={{border:`2px solid ${m.userKey===user.username?(user.eventColor||'#e91e8c'):(partner?.eventColor||'#448aff')}`}}/>
+                  <ItemAvatar username={m.userKey} user={user} partner={partner} size={30}/>
                   <span className={`meal-type-badge ${m.mealType||'breakfast'}`}>{(m.mealType||'breakfast').toUpperCase()}</span>
                   <div className="meal-name">{desc.toUpperCase()}</div>
                 </div>
@@ -1135,7 +1163,7 @@ const MealsPage = ({user, partner, isShared}) => {
                   <span className="macro-badge fat">F {Math.round(cal*0.028)}g</span>
                 </div>
                 {m.description&&<div className="meal-note">· {m.description}</div>}
-                {m.userKey===user.username&&(
+                {String(m.userKey)===user.username&&(
                   <button style={{marginTop:'8px',fontFamily:"'DM Mono',monospace",fontSize:'9px',color:'var(--red)',background:'transparent',border:'none',cursor:'pointer',textTransform:'uppercase',letterSpacing:'0.1em'}} onClick={()=>handleDelete(m.id)}>✕ Remove</button>
                 )}
               </div>
@@ -1371,8 +1399,10 @@ const CyclePage = ({user, partner, isShared}) => {
           {cycles.map(c=>(
             <div key={c.id} className="cycle-record-card">
               <div className="cycle-record-start">
-                <span className="cycle-record-icon">🔴</span>
-                START: {fmtDate(c.startDate).toUpperCase()}
+                <div style={{display:'flex',alignItems:'center',gap:8}}>
+                  <ItemAvatar username={user.username} user={user} partner={partner} size={22}/>
+                  <span>🩸 START: {fmtDate(c.startDate).toUpperCase()}</span>
+                </div>
               </div>
               <div className="cycle-record-grid">
                 <div>
