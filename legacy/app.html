@@ -125,7 +125,7 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
   const msg = (m,t='ok') => { setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
 
   const fetchAll = useCallback(async () => {
-    const users = [user.username, ...activePartners.map(p=>p.username)];
+    const users = [user.username, ...(activePartners||[]).map(p=>p.username)];
     try {
       const [fins, buds] = await Promise.all([
         Promise.all(users.map(u=>axios.get(`${API}/financial`,{params:{user:u}}).then(r=>r.data).catch(()=>[]))).then(r=>r.flat()),
@@ -138,7 +138,7 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
   useEffect(()=>{ fetchAll(); },[fetchAll]);
 
   const filtered = useMemo(()=>{
-    const users = [user.username, ...activePartners.map(p=>p.username)];
+    const users = [user.username, ...(activePartners||[]).map(p=>p.username)];
     let list = items.filter(i=>users.includes(i.user||i.username)&&(i.date||'').slice(5,7)===selectedMonth);
     if(search) list = list.filter(i=>(i.category||'').toLowerCase().includes(search.toLowerCase()));
     return [...list].sort((a,b)=>sortField==='amount'?parseFloat(b.amount)-parseFloat(a.amount):new Date(b.date)-new Date(a.date));
@@ -305,7 +305,7 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
   const msg = (m,t='ok')=>{ setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
 
   const fetchEvents = useCallback(async()=>{
-    const users=[user.username,...activePartners.map(p=>p.username)];
+    const users=[user.username,...(activePartners||[]).map(p=>p.username)];
     try {
       const [calAll, periodAll] = await Promise.all([
         Promise.all(users.map(u=>axios.get(`${API}/calendar`,{params:{user:u}}).then(r=>r.data.map(e=>({...e,user:e.user||u}))).catch(()=>[]))).then(r=>r.flat()),
@@ -313,21 +313,19 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
       ]);
       // Convert period cycles into calendar dot events
       const cycleEvents = [];
-      periodAll.forEach(c=>{
-        if(!c.startDate) return;
-        const start = new Date(c.startDate);
-        const end = c.endDate ? new Date(c.endDate) : new Date(start.getTime()+4*86400000);
-        const len = parseInt(c.cycleLength)||28;
-        // Mark each day of bleeding as a cycle dot
+      periodAll.forEach(cyc=>{
+        if(!cyc.startDate) return;
+        const start = new Date(cyc.startDate);
+        const end = cyc.endDate ? new Date(cyc.endDate) : new Date(start.getTime()+4*86400000);
+        const len = parseInt(cyc.cycleLength)||28;
         for(let d=new Date(start); d<=end; d.setDate(d.getDate()+1)){
-          cycleEvents.push({id:`cycle-${c.id}-${d.toISOString().slice(0,10)}`,title:'Period',date:d.toISOString().slice(0,10)+'T00:00:00',isCycle:true,user:c.user});
+          cycleEvents.push({id:`cycle-${cyc.id}-${d.toISOString().slice(0,10)}`,title:'Period',date:d.toISOString().slice(0,10)+'T00:00:00',isCycle:true,user:cyc.user});
         }
-        // Mark fertile window: ovulation ~14 days before next period, fertile 5 days around it
         const nextStart = new Date(start.getTime()+len*86400000);
         const ovulation = new Date(nextStart.getTime()-14*86400000);
         for(let i=-2; i<=3; i++){
           const fd = new Date(ovulation.getTime()+i*86400000);
-          cycleEvents.push({id:`fertile-${c.id}-${fd.toISOString().slice(0,10)}`,title:'Fertile',date:fd.toISOString().slice(0,10)+'T00:00:00',isFertile:true,user:c.user});
+          cycleEvents.push({id:`fertile-${cyc.id}-${fd.toISOString().slice(0,10)}`,title:'Fertile',date:fd.toISOString().slice(0,10)+'T00:00:00',isFertile:true,user:cyc.user});
         }
       });
       setEvents([...calAll, ...cycleEvents]);
@@ -559,7 +557,7 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
   const msg=(m,t='ok')=>{ setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
 
   const fetchAll = useCallback(async()=>{
-    const users=[user.username,...activePartners.map(p=>p.username)];
+    const users=[user.username,...(activePartners||[]).map(p=>p.username)];
     try {
       const [buds,fins]=await Promise.all([
         Promise.all(users.map(u=>axios.get(`${API}/budget`,{params:{user:u}}).then(r=>{const rows=r.data.data||r.data||[];return rows.map(b=>({...b,expenses:Array.isArray(b.expenses)?b.expenses:(typeof b.expenses==='string'?JSON.parse(b.expenses||'[]'):(b.expenses||[])),user:b.user||u}));}).catch(()=>[]))).then(r=>r.flat()),
@@ -580,12 +578,12 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
 
   const totalPlanned = filteredBudgets.reduce((s,b)=>s+b.expenses.reduce((ss,e)=>ss+parseFloat(e.amount||0),0),0);
   const totalActual = useMemo(()=>{
-    const users=[user.username,...activePartners.map(p=>p.username)];
+    const users=[user.username,...(activePartners||[]).map(p=>p.username)];
     return items.filter(i=>users.includes(i.user||i.username)&&(i.date||'').slice(5,7)===selectedMonth&&i.type==='expense').reduce((s,i)=>s+parseFloat(i.amount||0),0);
   },[items,selectedMonth,user.username,partner,isShared]);
 
   const getBudgetActual = (b) => {
-    const users=[user.username,...activePartners.map(p=>p.username)];
+    const users=[user.username,...(activePartners||[]).map(p=>p.username)];
     return items.filter(i=>users.includes(i.user||i.username)&&(i.date||'').slice(5,7)===selectedMonth&&i.type==='expense').reduce((s,i)=>s+parseFloat(i.amount||0),0);
   };
 
@@ -820,7 +818,7 @@ const GymPage = ({user, partner, partners=[], activePartners=[], permittedPartne
   const msg=(m,t='ok')=>{ setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
 
   const fetchAll = useCallback(async()=>{
-    const users=[user.username,...activePartners.map(p=>p.username)];
+    const users=[user.username,...(activePartners||[]).map(p=>p.username)];
     try {
       const all=await Promise.all(users.map(u=>axios.get(`${API}/gymworkout`,{params:{user:u}}).then(r=>r.data.map(w=>({...w,userKey:String(u)}))).catch(()=>[])));
       setWorkouts(all.flat());
@@ -1074,7 +1072,7 @@ const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPart
   },[]);
 
   const fetchMeals = useCallback(async()=>{
-    const users=[user.username,...activePartners.map(p=>p.username)];
+    const users=[user.username,...(activePartners||[]).map(p=>p.username)];
     try {
       const all=await Promise.all(users.map(u=>axios.get(`${API}/mealplan`,{params:{user:u}}).then(r=>r.data.map(m=>({...m,userKey:String(u)}))).catch(()=>[])));
       setMeals(all.flat());
@@ -1084,7 +1082,7 @@ const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPart
   useEffect(()=>{ fetchMeals(); },[fetchMeals]);
 
   const filtered = useMemo(()=>{
-    const users=[user.username,...activePartners.map(p=>p.username)];
+    const users=[user.username,...(activePartners||[]).map(p=>p.username)];
     let list = meals.filter(m=>users.map(String).includes(String(m.userKey))&&(m.date||'').slice(5,7)===selectedMonth);
     if(typeFilter!=='All') list=list.filter(m=>(m.mealType||'').toLowerCase()===typeFilter.toLowerCase());
     return list;
@@ -1938,7 +1936,14 @@ const App = () => {
   const [partners, setPartners] = useState([]);
   const [activeTab, setActiveTab] = useState('budget');
   const [sharingConfig, setSharingConfig] = useState(()=>{
-    try { const s=localStorage.getItem('legacySharingConfig'); return s?JSON.parse(s):{};} catch{return {};}
+    try {
+      const s = localStorage.getItem('legacySharingConfig');
+      if(!s) return {};
+      const parsed = JSON.parse(s);
+      // Validate it's a plain object
+      if(typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+      return parsed;
+    } catch { return {}; }
   }); // { partnerUsername: { Finances:bool, ... } } — managed in Profile only
   const [viewConfig, setViewConfig] = useState({finances:true,calendar:true,budget:true,gym:true,meals:true,cycle:true}); // display toggle per tab
   const [error, setError] = useState('');
