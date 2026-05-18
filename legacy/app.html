@@ -1875,18 +1875,85 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
                   onChange={e=>setForm(p=>({...p,height:e.target.value}))}/>
               </div>
             </div>
-            {form.weight&&form.height&&(
-              <div className="profile-field" style={{background:'var(--bg3)'}}>
-                <div className="profile-field-label">BMI</div>
-                <div style={{fontFamily:"'DM Mono',monospace",fontSize:13,color:'var(--text)',paddingTop:4}}>
-                  {(parseFloat(form.weight)/Math.pow(parseFloat(form.height)/100,2)).toFixed(1)}
-                  <span style={{fontSize:9,color:'var(--text3)',marginLeft:8}}>
-                    {(()=>{const bmi=parseFloat(form.weight)/Math.pow(parseFloat(form.height)/100,2);
-                      return bmi<18.5?'UNDERWEIGHT':bmi<25?'HEALTHY':bmi<30?'OVERWEIGHT':'OBESE';})()}
-                  </span>
+            {form.weight&&form.height&&(()=>{
+              const bmi = parseFloat(form.weight)/Math.pow(parseFloat(form.height)/100,2);
+              const w   = parseFloat(form.weight);
+              const h   = parseFloat(form.height)/100;
+              // Healthy weight range for this height (BMI 18.5–24.9)
+              const minW = (18.5 * h * h).toFixed(1);
+              const maxW = (24.9 * h * h).toFixed(1);
+              // Daily calorie estimates (Mifflin-St Jeor, sedentary baseline)
+              const age  = form.dob ? Math.floor((new Date()-new Date(form.dob))/31557600000) : 30;
+              const isFemale = (form.gender||'').toLowerCase()==='female';
+              const bmr  = isFemale
+                ? 10*w + 6.25*(parseFloat(form.height)) - 5*age - 161
+                : 10*w + 6.25*(parseFloat(form.height)) - 5*age + 5;
+              const tdee = Math.round(bmr * 1.4); // light activity
+              // Advice per category
+              const cfg = bmi<16   ? {cat:'SEVERELY UNDERWEIGHT', color:'#ff3b3b', icon:'⚠️',
+                  advice:'Critical: you need significantly more calories. Consult a doctor immediately.',
+                  detail:`Eat ${tdee+700}–${tdee+1000} kcal/day. Focus on calorie-dense foods: nuts, avocado, whole grains, lean protein. Aim to gain 0.5 kg/week.`}
+                : bmi<18.5 ? {cat:'UNDERWEIGHT', color:'#ff9800', icon:'⚡',
+                  advice:'You need to eat more to reach a healthy weight.',
+                  detail:`Target ${tdee+400}–${tdee+600} kcal/day. Add healthy calorie-dense snacks and increase portion sizes. Your healthy range is ${minW}–${maxW} kg.`}
+                : bmi<25   ? {cat:'HEALTHY', color:'#00e676', icon:'✓',
+                  advice:'Your weight is in the healthy range. Maintain your current habits.',
+                  detail:`Maintain ${tdee-100}–${tdee+100} kcal/day. Keep balanced meals with protein, complex carbs and healthy fats.`}
+                : bmi<30   ? {cat:'OVERWEIGHT', color:'#ffd600', icon:'⚠',
+                  advice:'A moderate calorie reduction will help reach a healthy weight.',
+                  detail:`Target ${tdee-400}–${tdee-500} kcal/day. Reduce processed foods and added sugars. Aim to lose 0.25–0.5 kg/week. Healthy range is ${minW}–${maxW} kg.`}
+                : bmi<35   ? {cat:'OBESE', color:'#ff3b3b', icon:'⚠️',
+                  advice:'A meaningful calorie deficit with medical guidance is recommended.',
+                  detail:`Target ${tdee-500}–${tdee-600} kcal/day. Prioritise whole foods, reduce refined carbs and saturated fats. Consider consulting a dietitian.`}
+                :            {cat:'SEVERELY OBESE', color:'#ff3b3b', icon:'🚨',
+                  advice:'Please consult a doctor or dietitian for a structured plan.',
+                  detail:`Medical supervision is recommended. A very low calorie diet should not be started without professional guidance.`};
+              return (
+                <div style={{marginTop:2}}>
+                  {/* BMI value row */}
+                  <div className="profile-field" style={{background:'var(--bg3)',borderBottom:'none'}}>
+                    <div className="profile-field-label">BMI</div>
+                    <div style={{display:'flex',alignItems:'baseline',gap:10,paddingTop:4}}>
+                      <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:22,color:cfg.color}}>
+                        {bmi.toFixed(1)}
+                      </span>
+                      <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:600,
+                        letterSpacing:'0.12em',padding:'2px 8px',borderRadius:3,
+                        background:`${cfg.color}20`,color:cfg.color,border:`1px solid ${cfg.color}55`}}>
+                        {cfg.cat}
+                      </span>
+                    </div>
+                  </div>
+                  {/* Warning / advice card */}
+                  <div style={{margin:'0 0 0 0',padding:'12px 14px',
+                    background:`${cfg.color}10`,
+                    borderLeft:`3px solid ${cfg.color}`,
+                    borderRadius:'0 0 6px 6px'}}>
+                    <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
+                      <span style={{fontSize:14}}>{cfg.icon}</span>
+                      <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,
+                        fontSize:13,letterSpacing:'0.04em',color:cfg.color,textTransform:'uppercase'}}>
+                        {cfg.advice}
+                      </span>
+                    </div>
+                    <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)',
+                      lineHeight:1.7,letterSpacing:'0.04em'}}>
+                      {cfg.detail}
+                    </div>
+                    <div style={{marginTop:8,display:'flex',gap:12,flexWrap:'wrap'}}>
+                      <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)'}}>
+                        <span style={{color:'var(--text2)'}}>Est. daily needs: </span>
+                        <span style={{color:cfg.color,fontWeight:600}}>{tdee} kcal</span>
+                      </div>
+                      <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)'}}>
+                        <span style={{color:'var(--text2)'}}>Healthy range: </span>
+                        <span style={{color:'var(--green)',fontWeight:600}}>{minW}–{maxW} kg</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
           </div>
 
           {/* ── Event Color ── */}
