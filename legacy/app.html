@@ -66,7 +66,7 @@ const UserRow = ({user, partner, partners=[], activePartners=[], permittedPartne
             onClick={onToggleShared}
             title={isShared ? 'Click to view solo' : 'Click to show shared data'}
             style={!isShared ? {background:'transparent',border:'1px solid rgba(255,255,255,0.12)',color:'var(--text3)'} : {}}>
-            {isShared ? '● SHARED' : '○ SOLO'}
+            {isShared ? '● HIDE' : '○ UNHIDE'}
           </button>
         : <span className="badge-solo">SOLO</span>
       }
