@@ -782,8 +782,17 @@ app.get(BASE + '/users', isAuth, async (req, res) => {
       </td>
       <td style="font-size:10px;color:var(--dim)">${u.last_active?new Date(u.last_active).toLocaleString('en-ZA'):'—'}</td>
       <td style="white-space:nowrap;">
-        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
           <button class="btn" onclick="toggleEdit('leg_${esc(u.username)}')" type="button">Edit</button>
+          ${u.is_admin
+            ? `<form method="POST" action="${BASE}/users/legacy/set-admin/${encodeURIComponent(u.username)}" style="display:inline;">
+                <input type="hidden" name="isAdmin" value="0"/>
+                <button class="btn warn" type="submit" onclick="return confirm('Remove admin from ${esc(u.username)}?')" style="font-size:9px;padding:4px 10px;">− Admin</button>
+               </form>`
+            : `<form method="POST" action="${BASE}/users/legacy/set-admin/${encodeURIComponent(u.username)}" style="display:inline;">
+                <input type="hidden" name="isAdmin" value="1"/>
+                <button class="btn" type="submit" style="font-size:9px;padding:4px 10px;border-color:var(--warn);color:var(--warn);">+ Admin</button>
+               </form>`}
           <form method="POST" action="${BASE}/users/legacy/delete/${encodeURIComponent(u.username)}" style="display:inline;">
             <button class="btn danger" type="submit" onclick="return confirm('Permanently delete Legacy user ${esc(u.username)} and ALL their data?')">Delete</button>
           </form>
@@ -801,8 +810,8 @@ app.get(BASE + '/users', isAuth, async (req, res) => {
                 <input class="form-input" name="password" type="password" placeholder="leave blank to keep"/></div>
               <div><div class="form-label" style="margin-bottom:4px;">Role</div>
                 <select class="form-select" name="isAdmin">
-                  <option value="0" ${!u.is_admin?'selected':''}>User</option>
-                  <option value="1" ${u.is_admin?'selected':''}>Admin</option>
+                  <option value="0" ${(!u.is_admin||u.is_admin===0||u.is_admin==='0')?'selected':''}>User</option>
+                  <option value="1" ${(u.is_admin&&u.is_admin!==0&&u.is_admin!=='0')?'selected':''}>Admin</option>
                 </select></div>
             </div>
             <div style="display:flex;gap:8px;">
@@ -1015,6 +1024,22 @@ app.post(BASE + '/users/delete/:id', isAuth, async (req, res) => {
 
 // ── LEGACY USER MANAGEMENT ROUTES ────────────────────────────────────────────
 
+// POST: Set/unset admin for a Legacy user (quick toggle)
+app.post(BASE + '/users/legacy/set-admin/:username', isAuth, async (req, res) => {
+  const { username } = req.params;
+  const adminFlag = (req.body.isAdmin === '1' || req.body.isAdmin === 1) ? 1 : 0;
+  try {
+    await legacyPool.query('UPDATE vectraarchlegacy_users SET is_admin=$1 WHERE username=$2', [adminFlag, username]);
+    await pool.query('INSERT INTO conduit_log (event,payload,status) VALUES ($1,$2,$3)',
+      ['legacy_set_admin', `username:${username} admin:${adminFlag}`, 'ok']);
+    req.session.flash = { type:'ok', msg:`✓ Admin ${adminFlag?'granted to':'revoked from'} "${username}"` };
+  } catch(e) {
+    req.session.flash = { type:'err', msg:`Error: ${e.message}` };
+  }
+  res.redirect(BASE + '/users');
+});
+
+
 // POST: Add a new Legacy user
 app.post(BASE + '/users/legacy/add', isAuth, async (req, res) => {
   const { username, firstName, lastName, email, password, isAdmin } = req.body;
@@ -1045,9 +1070,11 @@ app.post(BASE + '/users/legacy/edit/:username', isAuth, async (req, res) => {
   const { firstName, lastName, email, newUsername, isAdmin, password } = req.body;
   try {
     const displayName = (firstName&&lastName)?`${firstName} ${lastName}`:username;
+    // isAdmin arrives as string "0" or "1" from form — coerce to integer
+    const adminFlag = (isAdmin==='1'||isAdmin===true||isAdmin===1) ? 1 : 0;
     await legacyPool.query(
       `UPDATE vectraarchlegacy_users SET first_name=$1, last_name=$2, display_name=$3, email=$4, is_admin=$5 WHERE username=$6`,
-      [firstName||null, lastName||null, displayName, email||null, isAdmin?1:0, username]
+      [firstName||null, lastName||null, displayName, email||null, adminFlag, username]
     );
     if (password && password.trim()) {
       const bcrypt = require('bcrypt');

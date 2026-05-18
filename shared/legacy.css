@@ -569,13 +569,13 @@ body::before { content: ''; position: fixed; top: 0; left: 0; right: 0; height: 
 .form-field   { margin-bottom: 14px; }
 .form-label   { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--text3); margin-bottom: 6px; display: block; }
 .form-input   { width: 100%; background: var(--bg3); border: 1px solid var(--border2); border-radius: 4px; padding: 11px 14px; font-family: 'Space Grotesk', sans-serif; font-size: 14px; color: var(--text); outline: none; transition: border-color 0.2s; }
-.form-input:focus { border-color: var(--pink); }
+.form-input:focus { border-color: var(--page-color, var(--pink)); }
 .form-input::placeholder { color: var(--text3); }
 .form-select  { width: 100%; background: var(--bg3); border: 1px solid var(--border2); border-radius: 4px; padding: 11px 14px; font-family: 'Space Grotesk', sans-serif; font-size: 14px; color: var(--text); outline: none; -webkit-appearance: none; cursor: pointer; }
 .form-select option { background: var(--bg3); }
 .type-toggle     { display: flex; gap: 6px; flex-wrap: wrap; }
 .type-toggle-btn { padding: 7px 14px; border-radius: 4px; font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; border: 1px solid var(--border2); color: var(--text3); background: var(--bg3); transition: all 0.2s; }
-.type-toggle-btn.active { border-color: var(--pink); color: var(--pink); background: rgba(233,30,140,0.1); }
+.type-toggle-btn.active { border-color: var(--page-color, var(--pink)); color: var(--page-color, var(--pink)); background: color-mix(in srgb, var(--page-color, var(--pink)) 12%, transparent); }
 .form-submit        { width: 100%; padding: 14px; background: var(--pink); color: #fff; border-radius: 6px; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 16px; letter-spacing: 0.1em; text-transform: uppercase; margin-top: 8px; transition: background 0.2s; }
 .form-submit:active { background: var(--pink2); }
 .form-cancel { width: 100%; padding: 12px; color: var(--text3); font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; margin-top: 6px; }
