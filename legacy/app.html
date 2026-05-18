@@ -322,13 +322,24 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
 
   const msg = (m,t='ok')=>{ setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
 
+  const calUserIsMale = (user.gender||'').toLowerCase()==='male';
+  // Males only see cycle/fertile events from female partners who share cycle
+  const calFemalePartners = activePartners.filter(p=>(p.gender||'').toLowerCase()==='female');
+  const canSeeCycle = !calUserIsMale || calFemalePartners.length > 0;
+
   const fetchEvents = useCallback(async()=>{
     const users=[...(selfVisible?[user.username]:[]),...(activePartners||[]).map(p=>p.username)];
     if(users.length===0){setEvents([]);return;}
     try {
+      // Period data: males only fetch for female partners, not themselves
+      const periodUsers = calUserIsMale
+        ? calFemalePartners.map(p=>p.username)
+        : users;
       const [calAll, periodAll] = await Promise.all([
         Promise.all(users.map(u=>axios.get(`${API}/calendar`,{params:{user:u}}).then(r=>r.data.map(e=>({...e,user:e.user||u}))).catch(()=>[]))).then(r=>r.flat()),
-        Promise.all(users.map(u=>axios.get(`${API}/period`,{params:{user:u}}).then(r=>r.data).catch(()=>[]))).then(r=>r.flat())
+        periodUsers.length>0
+          ? Promise.all(periodUsers.map(u=>axios.get(`${API}/period`,{params:{user:u}}).then(r=>r.data).catch(()=>[]))).then(r=>r.flat())
+          : Promise.resolve([])
       ]);
       // Convert period cycles into calendar dot events
       const cycleEvents = [];
@@ -428,8 +439,8 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
               const isToday=item.date.toDateString()===new Date().toDateString();
               const isSelected=item.date.toDateString()===selectedDay.toDateString();
               const dayEvts=getEventsForDay(item.date);
-              const hasCycle   = dayEvts.some(e=>e.isCycle);
-              const hasFertile = dayEvts.some(e=>e.isFertile);
+              const hasCycle   = canSeeCycle && dayEvts.some(e=>e.isCycle);
+              const hasFertile = canSeeCycle && dayEvts.some(e=>e.isFertile);
               const realEvts   = dayEvts.filter(e=>!e.isCycle&&!e.isFertile);
               return (
                 <div key={i}
@@ -461,13 +472,13 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
 
           {/* Events for selected day */}
           <div className="section-label">§ EVENTS · {selLabel}</div>
-          {selectedEvents.some(e=>e.isCycle)&&(
+          {canSeeCycle&&selectedEvents.some(e=>e.isCycle)&&(
             <div style={{background:'rgba(233,30,140,0.12)',border:'1px solid rgba(233,30,140,0.3)',borderRadius:6,padding:'10px 14px',marginBottom:6,display:'flex',alignItems:'center',gap:10}}>
               <span style={{fontSize:'16px'}}>🩸</span>
               <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,color:'var(--pink)'}}>PERIOD DAY</div>
             </div>
           )}
-          {selectedEvents.some(e=>e.isFertile)&&(
+          {canSeeCycle&&selectedEvents.some(e=>e.isFertile)&&(
             <div style={{background:'rgba(29,233,182,0.1)',border:'1px solid rgba(29,233,182,0.3)',borderRadius:6,padding:'10px 14px',marginBottom:6,display:'flex',alignItems:'center',gap:10}}>
               <span style={{fontSize:'16px'}}>🌿</span>
               <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,color:'var(--teal)'}}>FERTILE WINDOW</div>
@@ -1312,10 +1323,10 @@ const cycleStats = (cycles) => {
 const PhaseWheel = ({dayOfCycle=1, cycleLength=28, accentColor='#e91e8c'}) => {
   const S=260,cx=130,cy=130,outerR=100,innerR=62,numR=outerR+16;
   const phases=[
-    {name:'Menstrual', days:5,  color:'#e91e8c'},
-    {name:'Follicular',days:7,  color:'#1de9b6'},
-    {name:'Ovulation', days:3,  color:'#ffd600'},
-    {name:'Luteal',    days:Math.max(cycleLength-15,1), color:'#ff6d00'}
+    {name:'Menstrual', days:5,  color:'#e91e8c'},            // pink  — period
+    {name:'Follicular',days:7,  color:'#1de9b6'},            // teal  — fertile window
+    {name:'Ovulation', days:3,  color:'#00e676'},            // green — peak fertility
+    {name:'Luteal',    days:Math.max(cycleLength-15,1), color:'#3a3d42'} // gray — luteal
   ];
   const total=phases.reduce((s,p)=>s+p.days,0);
   const segs=[];let angle=-Math.PI/2;
@@ -1364,11 +1375,14 @@ const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPart
   const SYMPTOMS = ['Nausea','Pain','Cramps','Headache','Bloating','Mood swings','Fatigue'];
   const msg = (m,t='ok')=>{ setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
 
-  // All users whose cycles to display: self + active female partners
+  const isMale = (user.gender||'').toLowerCase()==='male';
+  // Males see only female partners' cycles (not their own — they have none)
+  // Females see their own + shared female partners
   const allUsers = useMemo(()=>{
     const femalePartners = activePartners.filter(p=>(p.gender||'').toLowerCase()==='female');
+    if(isMale) return femalePartners; // males never have own cycle
     return [user, ...femalePartners];
-  },[user, activePartners]);
+  },[user, activePartners, isMale]);
 
   const fetchCycles = useCallback(async()=>{
     const results = await Promise.all(allUsers.map(async u=>{
@@ -1516,7 +1530,7 @@ const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPart
                           ))}
                         </div>
                       )}
-                      {isOwn&&(
+                      {isOwn&&!isMale&&(
                         <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
                           <button onClick={()=>startEditCycle(cyc)} style={{fontFamily:"'DM Mono',monospace",fontSize:'9px',color:'var(--blue)',border:'1px solid rgba(68,138,255,0.3)',borderRadius:3,padding:'5px 12px',background:'transparent',cursor:'pointer',letterSpacing:'0.1em',textTransform:'uppercase'}}>EDIT</button>
                           <button onClick={()=>handleCycleDelete(cyc.id)} style={{fontFamily:"'DM Mono',monospace",fontSize:'9px',color:'var(--red)',border:'1px solid rgba(255,61,61,0.3)',borderRadius:3,padding:'5px 12px',background:'transparent',cursor:'pointer',letterSpacing:'0.1em',textTransform:'uppercase'}}>DELETE</button>
@@ -1533,7 +1547,7 @@ const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPart
           <div style={{height:'80px'}}/>
         </div>
       </div>
-      <button className="fab" style={{background:'var(--pink)'}} onClick={()=>setShowForm(true)}>+ ADD CYCLE</button>
+      {!isMale&&<button className="fab" style={{background:'var(--pink)'}} onClick={()=>setShowForm(true)}>+ ADD CYCLE</button>}
 
       {showForm&&(
         <div className="modal-overlay" onClick={()=>setShowForm(false)}>
@@ -2125,6 +2139,7 @@ const App = () => {
   const anyCycleFemale = allPartners.some(p=>
     (p.gender||'').toLowerCase()==='female' && sharingConfig[p.username]?.Cycle
   );
+  // Male users only see Cycle tab if a female partner has explicitly shared Cycle
   const showCycle = userIsFemale || anyCycleFemale;
   const isAdmin = !!(user.isAdmin || user.is_admin); // handle int (1/0) or bool
   const visibleTabs = ALL_TABS.filter(t=>{
