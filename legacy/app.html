@@ -222,7 +222,7 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
           <Alert {...alert}/>
 
           {/* Summary */}
-          <div className="section-label">§ SUMMARY · {monthLabel.toUpperCase()} 2026</div>
+          <div className="section-label">SUMMARY <span style={{color:"var(--accent)",fontSize:14}}>·</span> {monthLabel.toUpperCase()} 2026</div>
           <div className="summary-card">
             <div className="summary-grid">
               <div>
@@ -241,7 +241,7 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
           </div>
 
           {/* Items */}
-          <div className="section-label">§ ITEMS · {filtered.length} RECORDS</div>
+          <div className="section-label">ITEMS <span style={{color:tabColor}}>{filtered.length}</span> RECORDS</div>
           <div className="item-list">
             {filtered.map(item=>{
               const finOwner=getOwner(item.user||item.username, user, partner, partners);
@@ -811,12 +811,12 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
           <Alert {...alert}/>
 
           {/* Summary */}
-          <div className="section-label">§ SUMMARY · {monthLabel.toUpperCase()} 2026</div>
+          <div className="section-label">SUMMARY <span style={{color:"var(--accent)",fontSize:14}}>·</span> {monthLabel.toUpperCase()} 2026</div>
           <div className="summary-card">
             <div className="summary-grid">
               <div>
                 <div className="summary-item-label">Planned</div>
-                <div className="summary-item-value" style={{color:'var(--green)'}}>{fmtR(totalPlanned)}</div>
+                <div className="summary-item-value" style={{color:tabColor}}>{fmtR(totalPlanned)}</div>
               </div>
               <div>
                 <div className="summary-item-label">Actual</div>
@@ -829,7 +829,7 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
             </div>
           </div>
 
-          <div className="section-label">§ BUDGETS · {filteredBudgets.length} RECORDS</div>
+          <div className="section-label">BUDGETS <span style={{color:tabColor}}>{filteredBudgets.length}</span> RECORDS</div>
           {filteredBudgets.map(b=>{
             const planned  = b.expenses.reduce((s,e)=>s+parseFloat(e.amount||0),0);
             const actual   = getBudgetActual(b);
@@ -1041,7 +1041,7 @@ const GymPage = ({user, partner, partners=[], activePartners=[], permittedPartne
           <div className="toolbar-row">
             <div className="tb-chip">
               <span style={{fontSize:'9px',fontFamily:"'DM Mono',monospace",letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--text3)'}}>MONTH</span>
-              <select value={selectedMonth} onChange={e=>setSelectedMonth(e.target.value)} style={{color:'var(--pink)'}}>
+              <select value={selectedMonth} onChange={e=>setSelectedMonth(e.target.value)} style={{color:tabColor}}>
                 {MONTHS.map(m=><option key={m.v} value={m.v}>{m.l}</option>)}
               </select>
             </div>
@@ -1332,7 +1332,7 @@ const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPart
           <div className="toolbar-row">
             <div className="tb-chip">
               <span style={{fontSize:'9px',fontFamily:"'DM Mono',monospace",letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--text3)'}}>MONTH</span>
-              <select value={selectedMonth} onChange={e=>setSelectedMonth(e.target.value)} style={{color:'var(--pink)'}}>
+              <select value={selectedMonth} onChange={e=>setSelectedMonth(e.target.value)} style={{color:tabColor}}>
                 {MONTHS.map(m=><option key={m.v} value={m.v}>{m.l}</option>)}
               </select>
             </div>
@@ -1340,7 +1340,7 @@ const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPart
           </div>
           <Alert {...alert}/>
 
-          <div className="section-label">§ TODAY'S MACROS</div>
+          <div className="section-label">TODAY'S MACROS</div>
           <div className="macro-grid">
             <div className="macro-card kcal"><div className="macro-value">{totals.cal}</div><div className="macro-unit">kcal · CAL</div></div>
             <div className="macro-card prot"><div className="macro-value">{totals.prot}</div><div className="macro-unit">g · PROT</div></div>
@@ -1731,7 +1731,7 @@ const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPart
                 )}
 
                 {/* Phase wheel */}
-                <div className="section-label" style={{color:accentColor}}>§ PHASE WHEEL · DAY {dayOfCycle} OF {avgLen}</div>
+                <div className="section-label" style={{color:accentColor}}>PHASE WHEEL <span style={{color:"var(--text3)",fontSize:13,fontWeight:400}}>DAY {dayOfCycle} OF {avgLen}</span></div>
                 <div className="phase-wheel-wrap">
                   <PhaseWheel dayOfCycle={dayOfCycle} cycleLength={avgLen} accentColor={accentColor}/>
                   <div className="phase-legend">
@@ -1744,7 +1744,7 @@ const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPart
                 </div>
 
                 {/* Cycle records */}
-                <div className="section-label" style={{color:accentColor}}>§ CYCLES · {uCycles.length} RECORD{uCycles.length!==1?'S':''}</div>
+                <div className="section-label" style={{color:accentColor}}>CYCLES <span style={{color:accentColor}}>{uCycles.length}</span> RECORD{uCycles.length!==1?'S':''}</div>
                 {uCycles.map(cyc=>{
                   const dur = cyc.endDate ? Math.floor((new Date(cyc.endDate)-new Date(cyc.startDate))/86400000)+'d' : '—';
                   return (

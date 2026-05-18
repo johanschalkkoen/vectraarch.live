@@ -39,7 +39,7 @@
 .mf-select option, .mf-select optgroup { background: var(--bg2); color: var(--text); }
 
 /* ── SECTION LABEL ── */
-.section-label { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.25em; text-transform: uppercase; color: var(--accent); margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+/* section-label defined below */
 
 /* ── FORM ── */
 .va-form { background: var(--bg2); border: 1px solid var(--border2); padding: 28px; margin-bottom: 24px; }
@@ -327,8 +327,8 @@ body::before { display: none; }
 .partner-chip-name { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text2); }
 
 /* ── TOOLBAR ROW (app version) ── */
-.toolbar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
-.tb-chip { display: flex; align-items: center; gap: 6px; background: var(--bg3); border: 1px solid var(--border2); border-radius: 4px; padding: 5px 10px; font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text2); }
+.toolbar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; padding: 0 2px; }
+.tb-chip { display: flex; align-items: center; gap: 6px; background: var(--bg3); border: 1px solid var(--border2); border-radius: 16px; padding: 5px 12px; font-family: 'DM Mono', monospace; font-size: 9px; color: var(--text2); letter-spacing: 0.08em; }
 .tb-chip select { background: transparent; border: none; outline: none; font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text); -webkit-appearance: none; cursor: pointer; padding-right: 4px; }
 .tb-chip select option { background: var(--bg3); }
 .sort-active { background: rgba(233,30,140,0.12); border-color: rgba(233,30,140,0.3); color: var(--pink); }
@@ -339,7 +339,16 @@ body::before { display: none; }
 .search-bar input::placeholder { color: var(--text3); }
 
 /* ── SECTION LABEL (app version) ── */
-.section-label { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--pink); margin-bottom: 10px; }
+.section-label {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 800;
+  font-size: 16px;
+  letter-spacing: 0.02em;
+  color: var(--text);
+  margin-bottom: 10px;
+  padding: 4px 0;
+}
+.section-label span { color: var(--accent); }
 
 /* ── SUMMARY CARD (app version) ── */
 .summary-card { background: var(--bg2); border: 1px solid var(--border2); border-radius: 6px; padding: 16px; margin-bottom: 16px; }
