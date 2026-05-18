@@ -1968,9 +1968,9 @@ const AdminPage = ({user, onLogout}) => {
 };
 
 const ALL_TABS = [
+  {id:'calendar', label:'CALENDAR', color:'#448aff'},
   {id:'budget',   label:'BUDGET',   color:'#ffd600'},
   {id:'finances', label:'FINANCES', color:'#00e676'},
-  {id:'calendar', label:'CALENDAR', color:'#448aff'},
   {id:'gym',      label:'GYM',      color:'#ff3b3b'},
   {id:'meals',    label:'MEALS',    color:'#d67bff'},
   {id:'cycle',    label:'CYCLE',    color:'#e91e8c', cycleOnly:true},
@@ -1982,7 +1982,7 @@ const App = () => {
   const [user, setUser]       = useState(null);
   const [partner, setPartner] = useState(null);
   const [partners, setPartners] = useState([]);
-  const [activeTab, setActiveTab] = useState('budget');
+  const [activeTab, setActiveTab] = useState('calendar');
   const [sharingConfig, setSharingConfig] = useState(()=>{
     try {
       const s = localStorage.getItem('legacySharingConfig');
