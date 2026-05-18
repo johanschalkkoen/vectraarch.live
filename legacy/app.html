@@ -88,7 +88,7 @@ const UserRow = ({user, partner, partners=[], activePartners=[], permittedPartne
 const Alert = ({msg,type}) => msg ? <div className={`alert ${type||'ok'}`}>{msg}</div> : null;
 
 // ── Avatar helpers — resolves pic/color for any username across user+partner ──
-// Usage: <ItemAvatar username={item.user} user={user} partner={partner} size={36}/>
+// Usage: <ItemAvatar username={item.user} user={user} partner={partner} partners={partners} size={36}/>
 // getOwner: resolve user object from username — checks user, partner, and partners array
 const getOwner = (username, user, partner, partners=[]) => {
   const uname = String(username||'');
@@ -226,12 +226,12 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
           <div className="section-label">§ ITEMS · {filtered.length} RECORDS</div>
           <div className="item-list">
             {filtered.map(item=>{
-              const finOwner=getOwner(item.user||item.username,user,partner);
+              const finOwner=getOwner(item.user||item.username, user, partner, partners);
               const isIncome=item.type==='income';
               return (
                 <div key={item.id} className="meal-card" style={{marginBottom:8}}>
                   <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
-                    <ItemAvatar username={item.user||item.username} user={user} partner={partner} size={36}/>
+                    <ItemAvatar username={item.user||item.username} user={user} partner={partner} partners={partners} size={36}/>
                     <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:600,letterSpacing:'0.12em',padding:'3px 8px',borderRadius:3,textTransform:'uppercase',flexShrink:0,background:isIncome?'rgba(0,230,118,0.15)':'rgba(255,61,61,0.15)',color:isIncome?'var(--green)':'var(--red)',border:`1px solid ${isIncome?'rgba(0,230,118,0.3)':'rgba(255,61,61,0.3)'}`}}>{(item.type||'expense').toUpperCase()}</span>
                     {finOwner&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:finOwner.eventColor||'var(--text3)',letterSpacing:'0.08em'}}>{(finOwner.displayName||finOwner.username||'').toUpperCase()}</span>}
                   </div>
@@ -460,11 +460,11 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
           )}
           {selectedEvents.filter(e=>!e.isCycle&&!e.isFertile).map(e=>{
             const dotColor=e.eventColor||e.event_color||(e.financial?'var(--green)':'var(--yellow)');
-            const calOwner=getOwner(e.user||e.username,user,partner);
+            const calOwner=getOwner(e.user||e.username, user, partner, partners);
             return (
               <div key={e.id} className="meal-card" style={{marginBottom:8,borderLeft:`3px solid ${dotColor}`,cursor:'pointer'}} onClick={()=>setSelectedEvent(e)}>
                 <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
-                  <ItemAvatar username={e.user||e.username} user={user} partner={partner} size={36}/>
+                  <ItemAvatar username={e.user||e.username} user={user} partner={partner} partners={partners} size={36}/>
                   <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:600,letterSpacing:'0.12em',padding:'3px 8px',borderRadius:3,textTransform:'uppercase',flexShrink:0,background:`${dotColor}22`,color:dotColor,border:`1px solid ${dotColor}55`}}>{(e.type||'personal').toUpperCase()}</span>
                   {calOwner&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:calOwner.eventColor||'var(--text3)',letterSpacing:'0.08em'}}>{(calOwner.displayName||calOwner.username||'').toUpperCase()}</span>}
                 </div>
@@ -524,7 +524,7 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
           <div className="modal-sheet" onClick={e=>e.stopPropagation()}>
             <div className="modal-handle"/>
             <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:16}}>
-              <ItemAvatar username={selectedEvent.user||selectedEvent.username} user={user} partner={partner} size={36}/>
+              <ItemAvatar username={selectedEvent.user||selectedEvent.username} user={user} partner={partner} partners={partners} size={36}/>
               <div style={{width:12,height:12,borderRadius:'50%',background:selectedEvent.eventColor||selectedEvent.event_color||'var(--blue)',flexShrink:0,border:'2px solid rgba(255,255,255,0.2)'}}/>
               <div className="modal-title" style={{margin:0}}>{(selectedEvent.title||'').toUpperCase()}</div>
             </div>
@@ -663,13 +663,13 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
             const pct      = planned>0?Math.min(actual/planned,1):0;
             const status   = getBudgetStatus(planned, actual);
             const leftVal  = planned - actual;
-            const budOwner = getOwner(b.user||user.username, user, partner);
+            const budOwner = getOwner(b.user||user.username, user, partner, partners);
             return (
               <div key={b.id} className="meal-card" style={{marginBottom:8,position:'relative'}}>
                 <span className={`budget-status-badge ${status}`}>{status.toUpperCase()}</span>
                 {/* Top row: avatar + BUDGET badge + owner name */}
                 <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
-                  <ItemAvatar username={b.user||user.username} user={user} partner={partner} size={36}/>
+                  <ItemAvatar username={b.user||user.username} user={user} partner={partner} partners={partners} size={36}/>
                   <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:600,letterSpacing:'0.12em',padding:'3px 8px',borderRadius:3,textTransform:'uppercase',flexShrink:0,background:'rgba(255,214,0,0.15)',color:'var(--yellow)',border:'1px solid rgba(255,214,0,0.3)'}}>BUDGET</span>
                   {budOwner&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:budOwner.eventColor||'var(--text3)',letterSpacing:'0.08em'}}>{(budOwner.displayName||budOwner.username||'').toUpperCase()}</span>}
                 </div>
@@ -891,11 +891,11 @@ const GymPage = ({user, partner, partners=[], activePartners=[], permittedPartne
                   : dayWorkouts.map(w=>{
                       const wt  = gymGetType(w.exercise);
                       const own = String(w.userKey)===user.username;
-                      const owner = getOwner(String(w.userKey), user, partner);
+                      const owner = getOwner(String(w.userKey), user, partner, partners);
                       return (
                         <div key={w.id} className={`workout-card ${wt}`}>
                           <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
-                            <ItemAvatar username={String(w.userKey)} user={user} partner={partner} size={22}/>
+                            <ItemAvatar username={String(w.userKey)} user={user} partner={partner} partners={partners} size={22}/>
                             <span className={`workout-type-badge ${wt}`} style={{margin:0}}>{wt.toUpperCase()}</span>
                             {owner&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:owner.eventColor||'var(--text3)',letterSpacing:'0.08em'}}>{(owner.displayName||owner.username||'').toUpperCase()}</span>}
                           </div>
@@ -1155,13 +1155,13 @@ const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPart
             const cal   = parseFloat(m.calories)||0;
             const desc  = m.description||m.name||'Unknown';
             const own   = String(m.userKey)===user.username;
-            const owner = getOwner(String(m.userKey), user, partner);
+            const owner = getOwner(String(m.userKey), user, partner, partners);
             const mt    = m.mealType||'breakfast';
             return (
               <div key={m.id} className="meal-card">
                 {/* Top row: avatar + type badge + owner name — same as gym */}
                 <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
-                  <ItemAvatar username={String(m.userKey)} user={user} partner={partner} size={36}/>
+                  <ItemAvatar username={String(m.userKey)} user={user} partner={partner} partners={partners} size={36}/>
                   <span className={`meal-type-badge ${mt}`} style={{flexShrink:0}}>{mt.toUpperCase()}</span>
                   {owner&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:owner.eventColor||'var(--text3)',letterSpacing:'0.08em'}}>{(owner.displayName||owner.username||'').toUpperCase()}</span>}
                 </div>
@@ -1389,14 +1389,14 @@ const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPart
             const stats    = cycleStats(uCycles);
             const {latest, avgLen, dayOfCycle, nextPeriod, fertileStart, fertileEnd} = stats;
             const isOwn    = u.username === user.username;
-            const owner    = getOwner(u.username, user, partner) || u;
+            const owner    = getOwner(u.username, user, partner, partners) || u;
             const accentColor = owner.eventColor || '#e91e8c';
 
             return (
               <div key={u.username} style={ui>0?{marginTop:24,paddingTop:24,borderTop:'2px solid var(--border)'}:{}}>
                 {/* User header for each section */}
                 <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14}}>
-                  <ItemAvatar username={u.username} user={user} partner={partner} size={32}/>
+                  <ItemAvatar username={u.username} user={user} partner={partner} partners={partners} size={32}/>
                   <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:18,letterSpacing:'0.04em',color:accentColor}}>
                     {(owner.displayName||(owner.firstName&&owner.lastName?`${owner.firstName} ${owner.lastName}`:null)||owner.username||'').toUpperCase()}
                   </div>
@@ -1438,7 +1438,7 @@ const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPart
                   return (
                     <div key={cyc.id} className="meal-card" style={{marginBottom:8,borderLeft:`3px solid ${accentColor}`}}>
                       <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
-                        <ItemAvatar username={u.username} user={user} partner={partner} size={36}/>
+                        <ItemAvatar username={u.username} user={user} partner={partner} partners={partners} size={36}/>
                         <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:600,letterSpacing:'0.12em',padding:'3px 8px',borderRadius:3,textTransform:'uppercase',flexShrink:0,background:'rgba(233,30,140,0.15)',color:'var(--pink)',border:'1px solid rgba(233,30,140,0.3)'}}>🩸 CYCLE</span>
                         <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:accentColor,letterSpacing:'0.08em'}}>{(owner.displayName||(owner.firstName&&owner.lastName?`${owner.firstName} ${owner.lastName}`:null)||owner.username||'').toUpperCase()}</span>
                       </div>
