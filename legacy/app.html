@@ -306,7 +306,7 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
           {filtered.length===0&&<div className="no-events"><div className="no-events-text">No transactions for {monthLabel}</div></div>}
         </div>
       </div>
-      <button className="fab" style={{'--tab-color':tabColor,boxShadow:`0 4px 20px ${tabColor}55`}} onClick={()=>setShowForm(true)}>+ ADD ITEM</button>
+      <button className="fab" style={{background:tabColor,boxShadow:`0 4px 20px ${tabColor}55`}} onClick={()=>setShowForm(true)}>+ ADD ITEM</button>
 
       {showForm&&(
         <div className="modal-overlay" onClick={()=>setShowForm(false)}>
@@ -644,7 +644,7 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
       </div>
 
 
-      <button className="fab" style={{'--tab-color':tabColor,boxShadow:`0 4px 20px ${tabColor}55`}}
+      <button className="fab" style={{background:tabColor,boxShadow:`0 4px 20px ${tabColor}55`}}
         onClick={()=>{ setForm(p=>({...p,date:dayKey(selectedDay)+'T09:00:00'})); setShowForm(true); }}>
         + ADD EVENT
       </button>
@@ -889,7 +889,7 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
           <div style={{height:'80px'}}/>
         </div>
       </div>
-      <button className="fab" style={{'--tab-color':tabColor,boxShadow:`0 4px 20px ${tabColor}55`}} onClick={()=>setShowForm(true)}>+ ADD BUDGET</button>
+      <button className="fab" style={{background:tabColor,boxShadow:`0 4px 20px ${tabColor}55`}} onClick={()=>setShowForm(true)}>+ ADD BUDGET</button>
 
       {showForm&&(
         <div className="modal-overlay" onClick={()=>setShowForm(false)}>
@@ -1109,7 +1109,7 @@ const GymPage = ({user, partner, partners=[], activePartners=[], permittedPartne
           <div style={{height:'80px'}}/>
         </div>
       </div>
-      <button className="fab" style={{'--tab-color':tabColor,boxShadow:`0 4px 20px ${tabColor}55`}} onClick={()=>setShowForm(true)}>+ ADD EXERCISE</button>
+      <button className="fab" style={{background:tabColor,boxShadow:`0 4px 20px ${tabColor}55`}} onClick={()=>setShowForm(true)}>+ ADD EXERCISE</button>
 
       {showForm&&(
         <div className="modal-overlay" onClick={()=>setShowForm(false)}>
@@ -1479,7 +1479,7 @@ const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPart
           <div style={{height:'80px'}}/>
         </div>
       </div>
-      <button className="fab" style={{'--tab-color':tabColor,boxShadow:`0 4px 20px ${tabColor}55`}} onClick={()=>setShowForm(true)}>+ ADD MEAL</button>
+      <button className="fab" style={{background:tabColor,boxShadow:`0 4px 20px ${tabColor}55`}} onClick={()=>setShowForm(true)}>+ ADD MEAL</button>
 
       {showForm&&(
         <div className="modal-overlay" onClick={()=>setShowForm(false)}>
@@ -1805,7 +1805,7 @@ const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPart
           <div style={{height:'80px'}}/>
         </div>
       </div>
-      {!isMale&&<button className="fab" style={{'--tab-color':tabColor,boxShadow:`0 4px 20px ${tabColor}55`}} onClick={()=>setShowForm(true)}>+ ADD CYCLE</button>}
+      {!isMale&&<button className="fab" style={{background:tabColor,boxShadow:`0 4px 20px ${tabColor}55`}} onClick={()=>setShowForm(true)}>+ ADD CYCLE</button>}
 
       {showForm&&(
         <div className="modal-overlay" onClick={()=>setShowForm(false)}>
