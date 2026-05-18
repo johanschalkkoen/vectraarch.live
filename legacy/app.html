@@ -663,6 +663,9 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
 
           {/* ── Events list ── */}
           <div style={{padding:'0 16px'}}>
+            <div className="section-label" style={{padding:'4px 0 10px',borderBottom:'none'}}>
+              EVENTS <span style={{color:tabColor}}>{selectedEvents.filter(e=>!e.isCycle&&!e.isFertile&&(!search||(e.title||'').toLowerCase().includes(search.toLowerCase()))).length}</span> RECORDS
+            </div>
             {canSeeCycle&&selectedEvents.some(e=>e.isCycle)&&(
               <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',background:'rgba(233,30,140,0.1)',border:'1px solid rgba(233,30,140,0.25)',borderRadius:8,marginBottom:8}}>
                 <span style={{fontSize:16}}>🩸</span>
@@ -1151,8 +1154,10 @@ const GymPage = ({user, partner, partners=[], activePartners=[], permittedPartne
   const handleSave = async()=>{
     if(!form.exercise){msg('Exercise required.','err');return;}
     try {
+      if(editWorkoutId) await axios.delete(`${API}/gymworkout/${editWorkoutId}`);
       await axios.post(`${API}/gymworkout`,{user:user.username,day:form.day,exercise:form.exercise,sets:parseInt(form.sets)||1,reps:form.reps,weight:form.weight,date:form.date});
-      msg('Workout saved.');setShowForm(false);
+      msg(editWorkoutId?'Exercise updated.':'Workout saved.');
+      setShowForm(false);setEditWorkoutId(null);
       setForm({day:'Monday',exercise:'',sets:'3',reps:'10',weight:'60',date:now(),type:'strength'});
       setIsCustomEx(false); fetchAll();
     } catch { msg('Error saving.','err'); }
@@ -1160,6 +1165,21 @@ const GymPage = ({user, partner, partners=[], activePartners=[], permittedPartne
 
   const handleDelete = async(id)=>{
     try { await axios.delete(`${API}/gymworkout/${id}`); fetchAll(); } catch {}
+  };
+
+  const startEditWorkout = (w) => {
+    setForm({
+      day:      w.day||'Monday',
+      exercise: w.exercise||'',
+      sets:     String(w.sets||3),
+      reps:     String(w.reps||10),
+      weight:   String(w.weight||0),
+      date:     (w.date||now()).slice(0,19),
+      type:     gymGetType(w.exercise||''),
+    });
+    setIsCustomEx(true);
+    setEditWorkoutId(w.id);
+    setShowForm(true);
   };
 
   const users = [user, ...activePartners];
@@ -1178,6 +1198,7 @@ const GymPage = ({user, partner, partners=[], activePartners=[], permittedPartne
           <MonthNav selectedMonth={selectedMonth} setSelectedMonth={setSelectedMonth} tabColor={tabColor}/>
           <Alert {...alert}/>
           <SearchBar value={search} onChange={setSearch} placeholder="Search exercises..." tabColor={tabColor}/>
+          <div className="section-label">EXERCISES <span style={{color:tabColor}}>{workouts.filter(w=>(w.date||'').slice(5,7)===selectedMonth).length}</span> THIS MONTH</div>
           {/* Days first — all users' workouts together under each day */}
           {DAYS.map(day=>{
             const visUsers=[...(selfVisible?[user.username]:[]),...(activePartners||[]).map(p=>p.username)];
@@ -1188,7 +1209,9 @@ const GymPage = ({user, partner, partners=[], activePartners=[], permittedPartne
                 <div className="day-header">
                   <div className="day-name">{day}</div>
                   <div style={{display:'flex',alignItems:'center',gap:12}}>
-                    <div className="day-count">{totalEx} ex</div>
+                    <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,color:'var(--text3)'}}>
+                      <span style={{color:tabColor}}>{totalEx}</span> EX
+                    </div>
                     <button className="day-add-btn" onClick={()=>{setForm(p=>({...p,day}));setShowForm(true);}}>+ add</button>
                   </div>
                 </div>
@@ -1300,7 +1323,7 @@ const GymPage = ({user, partner, partners=[], activePartners=[], permittedPartne
               <label className="form-label">Date & Time</label>
               <input className="form-input" type="datetime-local" value={form.date} onChange={e=>setForm(p=>({...p,date:e.target.value}))} step="1"/>
             </div>
-            <button className="form-submit" style={{background:tabColor}} onClick={handleSave}>SAVE EXERCISE</button>
+            <button className="form-submit" style={{background:tabColor}} onClick={handleSave}>{editWorkoutId?'UPDATE':'SAVE'} EXERCISE</button>
             <button className="form-cancel" onClick={()=>{setShowForm(false);setIsCustomEx(false);}}>Cancel</button>
           </div>
         </div>
@@ -1442,6 +1465,7 @@ const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPart
   const handleSave = async()=>{
     if(!form.name||!form.calories){msg('Name and calories required.','err');return;}
     try {
+      if(editMealId) await axios.delete(`${API}/mealplan/${editMealId}`);
       await axios.post(`${API}/mealplan`,{
         user:user.username,
         day:new Date(form.date).toLocaleString('en-US',{weekday:'long'}),
@@ -1450,7 +1474,8 @@ const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPart
         calories:parseFloat(form.calories)||0,
         date:form.date
       });
-      msg('Meal saved.');setShowForm(false);
+      msg(editMealId?'Meal updated.':'Meal saved.');
+      setShowForm(false);setEditMealId(null);
       setForm({name:'',mealType:'breakfast',calories:'',note:'',date:now()});
       setIsCustomMeal(false); fetchMeals();
     } catch { msg('Error saving.','err'); }
@@ -1458,6 +1483,19 @@ const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPart
 
   const handleDelete = async(id)=>{
     try { await axios.delete(`${API}/mealplan/${id}`); fetchMeals(); } catch {}
+  };
+
+  const startEditMeal = (m) => {
+    setForm({
+      name:     m.description||m.name||'',
+      mealType: m.mealType||'breakfast',
+      calories: String(m.calories||''),
+      note:     m.description||'',
+      date:     (m.date||now()).slice(0,19),
+    });
+    setEditMealId(m.id);
+    setIsCustomMeal(true);
+    setShowForm(true);
   };
 
   return (
@@ -1474,7 +1512,8 @@ const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPart
           <SearchBar value={search} onChange={setSearch} placeholder="Search meals..." tabColor={tabColor}/>
           <Alert {...alert}/>
 
-          <div className="section-label">TODAY'S MACROS</div>
+          <div className="section-label">MEALS <span style={{color:tabColor}}>{filtered.length}</span> RECORDS</div>
+          <div className="section-label" style={{fontSize:13,fontWeight:600,marginTop:-4}}>TODAY'S MACROS</div>
           <div className="macro-grid">
             <div className="macro-card kcal"><div className="macro-value">{totals.cal}</div><div className="macro-unit">kcal · CAL</div></div>
             <div className="macro-card prot"><div className="macro-value">{totals.prot}</div><div className="macro-unit">g · PROT</div></div>
@@ -1549,7 +1588,10 @@ const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPart
                 <div className="day-header">
                   <div className="day-name">{day}</div>
                   <div style={{display:'flex',alignItems:'center',gap:12}}>
-                    <div className="day-count">{totalMeals} meal{totalMeals!==1?'s':''}{dayCal>0?` · ${Math.round(dayCal)} kcal`:''}</div>
+                    <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,color:'var(--text3)'}}>
+                      <span style={{color:tabColor}}>{totalMeals}</span> MEAL{totalMeals!==1?'S':''}
+                      {dayCal>0&&<span style={{color:'var(--text3)',fontWeight:400,fontSize:12}}> · {Math.round(dayCal)} kcal</span>}
+                    </div>
                     <button className="day-add-btn" style={{borderColor:'var(--meals-color,#d67bff)',color:'var(--meals-color,#d67bff)'}}
                       onClick={()=>{
                         // Pre-set the date to the nearest occurrence of this day
@@ -1647,7 +1689,7 @@ const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPart
               <label className="form-label">Date & Time</label>
               <input className="form-input" type="datetime-local" value={form.date} onChange={e=>setForm(p=>({...p,date:e.target.value}))} step="1"/>
             </div>
-            <button className="form-submit" style={{background:tabColor}} onClick={handleSave}>SAVE MEAL</button>
+            <button className="form-submit" style={{background:tabColor}} onClick={handleSave}>{editMealId?'UPDATE':'SAVE'} MEAL</button>
             <button className="form-cancel" onClick={()=>{setShowForm(false);setIsCustomMeal(false);}}>Cancel</button>
           </div>
         </div>
