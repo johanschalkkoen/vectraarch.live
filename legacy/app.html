@@ -1219,138 +1219,141 @@ const MealsPage = ({user, partner, partners=[], activePartners=[], isShared, onT
 };
 
 /* ── CYCLE PAGE ── */
+// Helper: compute cycle stats for a list of cycles
+const cycleStats = (cycles) => {
+  const sorted  = [...cycles].sort((a,b)=>new Date(b.startDate)-new Date(a.startDate));
+  const latest  = sorted[0] || null;
+  const avgLen  = cycles.length ? Math.round(cycles.reduce((s,c)=>s+(parseInt(c.cycleLength)||28),0)/cycles.length) : 28;
+  const dayOfCycle = latest ? Math.max(1, Math.min(Math.floor((new Date()-new Date(latest.startDate))/86400000)+1, avgLen)) : 1;
+  const nextPeriod = latest ? new Date(new Date(latest.startDate).getTime() + avgLen*86400000) : null;
+  const fertileStart = nextPeriod ? new Date(nextPeriod.getTime() - ((avgLen-14)+3)*86400000) : null;
+  const fertileEnd   = fertileStart ? new Date(fertileStart.getTime() + 5*86400000) : null;
+  return {sorted, latest, avgLen, dayOfCycle, nextPeriod, fertileStart, fertileEnd};
+};
+
+// Phase wheel SVG — proper donut
+const PhaseWheel = ({dayOfCycle=1, cycleLength=28, accentColor='#e91e8c'}) => {
+  const S=260,cx=130,cy=130,outerR=100,innerR=62,numR=outerR+16;
+  const phases=[
+    {name:'Menstrual', days:5,  color:'#e91e8c'},
+    {name:'Follicular',days:7,  color:'#1de9b6'},
+    {name:'Ovulation', days:3,  color:'#ffd600'},
+    {name:'Luteal',    days:Math.max(cycleLength-15,1), color:'#ff6d00'}
+  ];
+  const total=phases.reduce((s,p)=>s+p.days,0);
+  const segs=[];let angle=-Math.PI/2;
+  phases.forEach(p=>{const span=(p.days/total)*2*Math.PI;segs.push({...p,sa:angle,ea:angle+span});angle+=span;});
+  const arc=(sa,ea)=>{
+    const g=0.02,s=sa+g,e=ea-g;
+    const x1=cx+outerR*Math.cos(s),y1=cy+outerR*Math.sin(s);
+    const x2=cx+outerR*Math.cos(e),y2=cy+outerR*Math.sin(e);
+    const ix1=cx+innerR*Math.cos(e),iy1=cy+innerR*Math.sin(e);
+    const ix2=cx+innerR*Math.cos(s),iy2=cy+innerR*Math.sin(s);
+    const lg=(e-s)>Math.PI?1:0;
+    return `M${x1},${y1} A${outerR},${outerR},0,${lg},1,${x2},${y2} L${ix1},${iy1} A${innerR},${innerR},0,${lg},0,${ix2},${iy2} Z`;
+  };
+  const dayNums=[];
+  for(let d=1;d<=total;d++){
+    const a=-Math.PI/2+(((d-0.5)/total)*2*Math.PI);
+    dayNums.push({d,x:cx+numR*Math.cos(a),y:cy+numR*Math.sin(a)});
+  }
+  const curA=-Math.PI/2+((dayOfCycle-0.5)/total)*2*Math.PI;
+  const phase=dayOfCycle<=5?'MENSTRUAL':dayOfCycle<=12?'FOLLICULAR':dayOfCycle<=15?'OVULATION':'LUTEAL';
+  return (
+    <svg width={S} height={S} viewBox={`0 0 ${S} ${S}`}>
+      {segs.map((seg,i)=><path key={i} d={arc(seg.sa,seg.ea)} fill={seg.color} opacity="0.9"/>)}
+      {dayNums.map(({d,x,y})=>d!==dayOfCycle&&(
+        <text key={d} x={x} y={y} textAnchor="middle" dominantBaseline="middle"
+          fill="rgba(255,255,255,0.45)" fontFamily="'DM Mono',monospace" fontSize="8">{d}</text>
+      ))}
+      <circle cx={cx} cy={cy} r={innerR-1} fill="#0d0e10"/>
+      <text x={cx} y={cy-10} textAnchor="middle" fill="#f0f0f0" fontFamily="'Barlow Condensed',sans-serif" fontWeight="800" fontSize="22">DAY {dayOfCycle}</text>
+      <text x={cx} y={cy+10} textAnchor="middle" fill="#5a5f65" fontFamily="'DM Mono',monospace" fontSize="8" letterSpacing="0.1em">{phase} PHASE</text>
+      <circle cx={cx+numR*Math.cos(curA)} cy={cy+numR*Math.sin(curA)} r="12" fill="white"/>
+      <text x={cx+numR*Math.cos(curA)} y={cy+numR*Math.sin(curA)} textAnchor="middle" dominantBaseline="middle"
+        fill="#0d0e10" fontFamily="'DM Mono',monospace" fontWeight="700" fontSize="9">{dayOfCycle}</text>
+    </svg>
+  );
+};
+
 const CyclePage = ({user, partner, partners=[], activePartners=[], isShared, onToggleShared, tabColor='#e91e8c'}) => {
-  const [cycles, setCycles] = useState([]);
-  const [viewDate, setViewDate] = useState(new Date());
-  const [showForm, setShowForm] = useState(false);
+  // allCycles stored per username: { username: [cycles] }
+  const [allCycles, setAllCycles] = useState({});
+  const [showForm, setShowForm]   = useState(false);
   const [editCycleId, setEditCycleId] = useState(null);
   const [form, setForm] = useState({startDate:todayISO(),endDate:'',cycleLength:'28',symptoms:[],date:now()});
   const [alert, setAlert] = useState({msg:'',type:''});
 
-  const SYMPTOMS=['Nausea','Pain','Cramps','Headache','Bloating','Mood swings','Fatigue'];
-  const msg=(m,t='ok')=>{ setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
+  const SYMPTOMS = ['Nausea','Pain','Cramps','Headache','Bloating','Mood swings','Fatigue'];
+  const msg = (m,t='ok')=>{ setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
+
+  // All users whose cycles to display: self + active female partners
+  const allUsers = useMemo(()=>{
+    const femalePartners = activePartners.filter(p=>(p.gender||'').toLowerCase()==='female');
+    return [user, ...femalePartners];
+  },[user, activePartners]);
 
   const fetchCycles = useCallback(async()=>{
-    try {
-      const {data}=await axios.get(`${API}/period`,{params:{user:user.username}});
-      setCycles(Array.isArray(data)?data:[]);
-    } catch {}
-  },[user.username]);
+    const results = await Promise.all(allUsers.map(async u=>{
+      try {
+        const {data} = await axios.get(`${API}/period`,{params:{user:u.username}});
+        // One cycle per month: keep only the most recent per YYYY-MM
+        const raw = Array.isArray(data) ? data : [];
+        const byMonth = {};
+        raw.forEach(c=>{
+          const month = (c.startDate||'').slice(0,7); // YYYY-MM
+          if(!byMonth[month] || new Date(c.startDate) > new Date(byMonth[month].startDate))
+            byMonth[month] = c;
+        });
+        return {username:u.username, cycles:Object.values(byMonth)
+          .sort((a,b)=>new Date(b.startDate)-new Date(a.startDate))};
+      } catch { return {username:u.username, cycles:[]}; }
+    }));
+    const map = {};
+    results.forEach(r=>{ map[r.username]=r.cycles; });
+    setAllCycles(map);
+  },[allUsers.map(u=>u.username).join(',')]);
 
   useEffect(()=>{ fetchCycles(); },[fetchCycles]);
 
-  // Stats from most recent cycle
-  const latestCycle = useMemo(()=>[...cycles].sort((a,b)=>new Date(b.startDate)-new Date(a.startDate))[0],[cycles]);
-  const avgLen = useMemo(()=>cycles.length?Math.round(cycles.reduce((s,c)=>s+(parseInt(c.cycleLength)||28),0)/cycles.length):28,[cycles]);
-
-  const nextPeriod = useMemo(()=>{
-    if(!latestCycle) return null;
-    const d=new Date(latestCycle.startDate);
-    d.setDate(d.getDate()+avgLen);
-    return d;
-  },[latestCycle,avgLen]);
-
-  const fertileStart = useMemo(()=>{
-    if(!nextPeriod) return null;
-    const d=new Date(nextPeriod);
-    d.setDate(d.getDate()-(avgLen-14)-3);
-    return d;
-  },[nextPeriod,avgLen]);
-
-  const fertileEnd = useMemo(()=>{
-    if(!fertileStart) return null;
-    const d=new Date(fertileStart);
-    d.setDate(d.getDate()+5);
-    return d;
-  },[fertileStart]);
-
-  // Phase wheel SVG
-  const PhaseWheel = ({dayOfCycle=4, cycleLength=28}) => {
-    const cx=120,cy=120,r=90,innerR=50;
-    const phases=[
-      {name:'Menstrual',days:5,color:'#e91e8c'},
-      {name:'Follicular',days:7,color:'#1de9b6'},
-      {name:'Ovulation',days:3,color:'#ffd600'},
-      {name:'Luteal',days:cycleLength-15,color:'#ff6d00'}
-    ];
-    let total=phases.reduce((s,p)=>s+p.days,0);
-    let segments=[];
-    let angle=-Math.PI/2;
-    phases.forEach(p=>{
-      const span=(p.days/total)*2*Math.PI;
-      segments.push({...p,startAngle:angle,endAngle:angle+span});
-      angle+=span;
-    });
-
-    const arc=(cx,cy,r,start,end,inner=0)=>{
-      const x1=cx+r*Math.cos(start),y1=cy+r*Math.sin(start);
-      const x2=cx+r*Math.cos(end),y2=cy+r*Math.sin(end);
-      const large=end-start>Math.PI?1:0;
-      if(inner>0){
-        const ix1=cx+inner*Math.cos(end),iy1=cy+inner*Math.sin(end);
-        const ix2=cx+inner*Math.cos(start),iy2=cy+inner*Math.sin(start);
-        return `M${x1},${y1} A${r},${r},0,${large},1,${x2},${y2} L${ix1},${iy1} A${inner},${inner},0,${large},0,${ix2},${iy2} Z`;
-      }
-      return `M${cx},${cy} L${x1},${y1} A${r},${r},0,${large},1,${x2},${y2} Z`;
-    };
-
-    // Day numbers ring
-    const dayNums=[];
-    for(let d=1;d<=total;d++){
-      const a=-Math.PI/2+(((d-0.5)/total)*2*Math.PI);
-      const nr=r+14;
-      dayNums.push({d,x:cx+nr*Math.cos(a),y:cy+nr*Math.sin(a)});
-    }
-
-    // Current day indicator
-    const dayAngle=-Math.PI/2+((dayOfCycle-0.5)/total)*2*Math.PI;
-    const indR=r+14;
-
-    return (
-      <svg width="260" height="260" viewBox="0 0 260 260">
-        {segments.map((seg,i)=>(
-          <path key={i} d={arc(cx,cy,r,seg.startAngle,seg.endAngle,innerR)} fill={seg.color} opacity="0.85"/>
-        ))}
-        {/* center */}
-        <circle cx={cx} cy={cy} r={innerR} fill="var(--bg)"/>
-        <text x={cx} y={cy-8} textAnchor="middle" fill="var(--text)" fontFamily="'Barlow Condensed',sans-serif" fontWeight="700" fontSize="18">DAY {dayOfCycle}</text>
-        <text x={cx} y={cy+10} textAnchor="middle" fill="var(--text3)" fontFamily="'DM Mono',monospace" fontSize="7" letterSpacing="0.08em">
-          {dayOfCycle<=5?'MENSTRUAL':dayOfCycle<=12?'FOLLICULAR':dayOfCycle<=15?'OVULATION':'LUTEAL'} PHASE
-        </text>
-        {/* day indicator dot */}
-        <circle cx={cx+indR*Math.cos(dayAngle)} cy={cy+indR*Math.sin(dayAngle)} r="10" fill="white"/>
-        <text x={cx+indR*Math.cos(dayAngle)} y={cy+indR*Math.sin(dayAngle)+4} textAnchor="middle" fill="var(--bg)" fontFamily="'DM Mono',monospace" fontWeight="700" fontSize="9">{dayOfCycle}</text>
-      </svg>
-    );
-  };
-
-  const dayOfCycle = useMemo(()=>{
-    if(!latestCycle) return 1;
-    const diff=Math.floor((new Date()-new Date(latestCycle.startDate))/86400000)+1;
-    return Math.max(1,Math.min(diff,avgLen));
-  },[latestCycle,avgLen]);
-
   const handleSave = async()=>{
+    // Check: one cycle per month for this user
+    const month = form.startDate.slice(0,7);
+    const existing = (allCycles[user.username]||[]).find(c=>
+      (c.startDate||'').slice(0,7)===month && c.id !== editCycleId
+    );
+    if(existing && !editCycleId){
+      msg(`Already have a cycle for ${month}. Edit that one instead.`,'err');
+      return;
+    }
     try {
       if(editCycleId) await axios.delete(`${API}/period/${editCycleId}`);
-      await axios.post(`${API}/period`,{user:user.username,startDate:form.startDate,endDate:form.endDate||null,cycleLength:parseInt(form.cycleLength)||28,symptoms:form.symptoms.join(','),date:form.date});
-      msg(editCycleId?'Cycle updated.':'Cycle logged.');setShowForm(false);setEditCycleId(null);fetchCycles();
-    } catch { msg('Error.','err'); }
+      await axios.post(`${API}/period`,{
+        user:user.username, startDate:form.startDate, endDate:form.endDate||null,
+        cycleLength:parseInt(form.cycleLength)||28, symptoms:form.symptoms.join(','), date:form.date
+      });
+      msg(editCycleId?'Cycle updated.':'Cycle logged.');
+      setShowForm(false); setEditCycleId(null);
+      fetchCycles();
+    } catch { msg('Error saving cycle.','err'); }
   };
+
   const handleCycleDelete = async(id)=>{
     if(!window.confirm('Delete this cycle?')) return;
     try { await axios.delete(`${API}/period/${id}`); msg('Deleted.'); fetchCycles(); } catch { msg('Error.','err'); }
   };
+
   const startEditCycle = (cyc)=>{
-    const initDate = now();
-    setForm({startDate:(cyc.startDate||'').slice(0,10),endDate:(cyc.endDate||'').slice(0,10),cycleLength:String(cyc.cycleLength||28),symptoms:cyc.symptoms?cyc.symptoms.split(',').filter(Boolean):[],date:initDate});
-    setEditCycleId(cyc.id);setShowForm(true);
+    setForm({startDate:(cyc.startDate||'').slice(0,10),endDate:(cyc.endDate||'').slice(0,10),
+      cycleLength:String(cyc.cycleLength||28),
+      symptoms:cyc.symptoms?cyc.symptoms.split(',').filter(Boolean):[], date:now()});
+    setEditCycleId(cyc.id); setShowForm(true);
   };
 
-  const prevDay=()=>setViewDate(d=>{const n=new Date(d);n.setDate(n.getDate()-1);return n;});
-  const nextDay=()=>setViewDate(d=>{const n=new Date(d);n.setDate(n.getDate()+1);return n;});
-  const goToday=()=>setViewDate(new Date());
-  const viewLabel=viewDate.toLocaleDateString('en-ZA',{weekday:'short',day:'2-digit',month:'long',year:'numeric'}).toUpperCase();
+  const phaseLegend = [
+    ['#e91e8c','MENSTRUAL · 1-5'],['#1de9b6','FOLLICULAR · 6-12'],
+    ['#ffd600','OVULATION · 13-15'],['#ff6d00','LUTEAL · 16-28']
+  ];
 
   return (
     <div className="page-outer">
@@ -1364,84 +1367,92 @@ const CyclePage = ({user, partner, partners=[], activePartners=[], isShared, onT
           <UserRow user={user} partner={partner} partners={partners} activePartners={activePartners} isShared={isShared} onToggleShared={onToggleShared}/>
           <Alert {...alert}/>
 
-          {/* Stats */}
-          {latestCycle&&(
-            <div className="cycle-stats-card">
-              <div className="cycle-stats-grid">
-                <div>
-                  <div className="cycle-stat-label">Last Start</div>
-                  <div className="cycle-stat-value start">{fmtDate(latestCycle.startDate)}</div>
-                </div>
-                <div>
-                  <div className="cycle-stat-label">Next Period</div>
-                  <div className="cycle-stat-value next">{nextPeriod?fmtDate(nextPeriod.toISOString()):'—'}</div>
-                </div>
-                <div>
-                  <div className="cycle-stat-label">Fertile</div>
-                  <div className="cycle-stat-value fertile">{fertileStart&&fertileEnd?`${fertileStart.toLocaleDateString('en-ZA',{month:'short',day:'numeric'})} - ${fertileEnd.toLocaleDateString('en-ZA',{month:'short',day:'numeric'})}`:'—'}</div>
-                </div>
-              </div>
-            </div>
-          )}
+          {/* One section per user */}
+          {allUsers.map((u,ui)=>{
+            const uCycles  = allCycles[u.username] || [];
+            const stats    = cycleStats(uCycles);
+            const {latest, avgLen, dayOfCycle, nextPeriod, fertileStart, fertileEnd} = stats;
+            const isOwn    = u.username === user.username;
+            const owner    = getOwner(u.username, user, partner) || u;
+            const accentColor = owner.eventColor || '#e91e8c';
 
-          {/* Date nav */}
-          <div className="cycle-date-nav">
-            <button className="cal-nav-btn" onClick={prevDay}>‹</button>
-            <div className="cycle-date-label">
-              <span>📅</span>
-              <span>{viewLabel}</span>
-            </div>
-            <button className="cal-nav-btn" onClick={nextDay}>›</button>
-            <button className="cycle-today-btn" onClick={goToday}>TODAY</button>
-          </div>
-
-          {/* Phase wheel */}
-          <div className="section-label">§ PHASE WHEEL · DAY {dayOfCycle} OF {avgLen}</div>
-          <div className="phase-wheel-wrap">
-            <PhaseWheel dayOfCycle={dayOfCycle} cycleLength={avgLen}/>
-            <div className="phase-legend">
-              {[['#e91e8c','MENSTRUAL · 1-5'],['#1de9b6','FOLLICULAR · 6-12'],['#ffd600','OVULATION · 13-15'],['#ff6d00',`LUTEAL · 16-${avgLen}`]].map(([c,l])=>(
-                <div key={l} className="phase-legend-item"><div className="phase-legend-dot" style={{background:c}}/>{l}</div>
-              ))}
-            </div>
-          </div>
-
-          {/* Cycles */}
-          <div className="section-label">§ CYCLES · {cycles.length} RECORD{cycles.length!==1?'S':''}</div>
-          {cycles.map(c=>{
-            const cycOwner=getOwner(user.username,user,partner);
-            const dur=c.endDate?Math.floor((new Date(c.endDate)-new Date(c.startDate))/86400000)+'d':'—';
             return (
-              <div key={c.id} className="meal-card" style={{marginBottom:8,borderLeft:'3px solid var(--pink)'}}>
-                {/* Top row: avatar + CYCLE badge + owner name */}
-                <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
-                  <ItemAvatar username={user.username} user={user} partner={partner} size={36}/>
-                  <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:600,letterSpacing:'0.12em',padding:'3px 8px',borderRadius:3,textTransform:'uppercase',flexShrink:0,background:'rgba(233,30,140,0.15)',color:'var(--pink)',border:'1px solid rgba(233,30,140,0.3)'}}>🩸 CYCLE</span>
-                  {cycOwner&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:cycOwner.eventColor||'var(--pink)',letterSpacing:'0.08em'}}>{(cycOwner.displayName||cycOwner.username||'').toUpperCase()}</span>}
+              <div key={u.username} style={ui>0?{marginTop:24,paddingTop:24,borderTop:'2px solid var(--border)'}:{}}>
+                {/* User header for each section */}
+                <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14}}>
+                  <ItemAvatar username={u.username} user={user} partner={partner} size={32}/>
+                  <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:18,letterSpacing:'0.04em',color:accentColor}}>
+                    {(owner.displayName||(owner.firstName&&owner.lastName?`${owner.firstName} ${owner.lastName}`:null)||owner.username||'').toUpperCase()}
+                  </div>
+                  {!isOwn&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.1em',color:'var(--text3)'}}>SHARED</span>}
                 </div>
-                {/* Start date as title */}
-                <div className="meal-name" style={{marginBottom:8}}>START: {fmtDate(c.startDate).toUpperCase()}</div>
-                {/* Dates grid */}
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginBottom:8}}>
-                  <div><div className="cycle-record-label">End</div><div className="cycle-record-value">{fmtDate(c.endDate)||'—'}</div></div>
-                  <div><div className="cycle-record-label">Length</div><div className="cycle-record-value">{c.cycleLength}d</div></div>
-                  <div><div className="cycle-record-label">Duration</div><div className="cycle-record-value">{dur}</div></div>
-                </div>
-                {c.symptoms&&c.symptoms.length>0&&(
-                  <div className="symptom-tags" style={{marginBottom:8}}>
-                    {c.symptoms.split(',').filter(Boolean).map(s=>(
-                      <span key={s} className="symptom-tag">§ {s.trim()}</span>
-                    ))}
+
+                {/* Stats row */}
+                {latest&&(
+                  <div className="cycle-stats-card" style={{marginBottom:12}}>
+                    <div className="cycle-stats-grid">
+                      <div><div className="cycle-stat-label">Last Start</div><div className="cycle-stat-value start">{fmtDate(latest.startDate)}</div></div>
+                      <div><div className="cycle-stat-label">Next Period</div><div className="cycle-stat-value next">{nextPeriod?fmtDate(nextPeriod.toISOString()):'—'}</div></div>
+                      <div><div className="cycle-stat-label">Fertile</div>
+                        <div className="cycle-stat-value fertile" style={{fontSize:13}}>
+                          {fertileStart&&fertileEnd?`${fertileStart.toLocaleDateString('en-ZA',{month:'short',day:'numeric'})} - ${fertileEnd.toLocaleDateString('en-ZA',{month:'short',day:'numeric'})}`:'—'}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
-                <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
-                  <button onClick={()=>startEditCycle(c)} style={{fontFamily:"'DM Mono',monospace",fontSize:'9px',color:'var(--blue)',border:'1px solid rgba(68,138,255,0.3)',borderRadius:3,padding:'5px 12px',background:'transparent',cursor:'pointer',letterSpacing:'0.1em',textTransform:'uppercase'}}>EDIT</button>
-                  <button onClick={()=>handleCycleDelete(c.id)} style={{fontFamily:"'DM Mono',monospace",fontSize:'9px',color:'var(--red)',border:'1px solid rgba(255,61,61,0.3)',borderRadius:3,padding:'5px 12px',background:'transparent',cursor:'pointer',letterSpacing:'0.1em',textTransform:'uppercase'}}>DELETE</button>
+
+                {/* Phase wheel */}
+                <div className="section-label" style={{color:accentColor}}>§ PHASE WHEEL · DAY {dayOfCycle} OF {avgLen}</div>
+                <div className="phase-wheel-wrap">
+                  <PhaseWheel dayOfCycle={dayOfCycle} cycleLength={avgLen} accentColor={accentColor}/>
+                  <div className="phase-legend">
+                    {phaseLegend.map(([color,label])=>(
+                      <div key={label} className="phase-legend-item">
+                        <div className="phase-legend-dot" style={{background:color}}/>{label}
+                      </div>
+                    ))}
+                  </div>
                 </div>
+
+                {/* Cycle records */}
+                <div className="section-label" style={{color:accentColor}}>§ CYCLES · {uCycles.length} RECORD{uCycles.length!==1?'S':''}</div>
+                {uCycles.map(cyc=>{
+                  const dur = cyc.endDate ? Math.floor((new Date(cyc.endDate)-new Date(cyc.startDate))/86400000)+'d' : '—';
+                  return (
+                    <div key={cyc.id} className="meal-card" style={{marginBottom:8,borderLeft:`3px solid ${accentColor}`}}>
+                      <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
+                        <ItemAvatar username={u.username} user={user} partner={partner} size={36}/>
+                        <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:600,letterSpacing:'0.12em',padding:'3px 8px',borderRadius:3,textTransform:'uppercase',flexShrink:0,background:'rgba(233,30,140,0.15)',color:'var(--pink)',border:'1px solid rgba(233,30,140,0.3)'}}>🩸 CYCLE</span>
+                        <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:accentColor,letterSpacing:'0.08em'}}>{(owner.displayName||(owner.firstName&&owner.lastName?`${owner.firstName} ${owner.lastName}`:null)||owner.username||'').toUpperCase()}</span>
+                      </div>
+                      <div className="meal-name" style={{marginBottom:8}}>START: {fmtDate(cyc.startDate).toUpperCase()}</div>
+                      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginBottom:8}}>
+                        <div><div className="cycle-record-label">End</div><div className="cycle-record-value">{fmtDate(cyc.endDate)||'—'}</div></div>
+                        <div><div className="cycle-record-label">Length</div><div className="cycle-record-value">{cyc.cycleLength}d</div></div>
+                        <div><div className="cycle-record-label">Duration</div><div className="cycle-record-value">{dur}</div></div>
+                      </div>
+                      {cyc.symptoms&&cyc.symptoms.length>0&&(
+                        <div className="symptom-tags" style={{marginBottom:8}}>
+                          {cyc.symptoms.split(',').filter(Boolean).map(s=>(
+                            <span key={s} className="symptom-tag">§ {s.trim()}</span>
+                          ))}
+                        </div>
+                      )}
+                      {isOwn&&(
+                        <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
+                          <button onClick={()=>startEditCycle(cyc)} style={{fontFamily:"'DM Mono',monospace",fontSize:'9px',color:'var(--blue)',border:'1px solid rgba(68,138,255,0.3)',borderRadius:3,padding:'5px 12px',background:'transparent',cursor:'pointer',letterSpacing:'0.1em',textTransform:'uppercase'}}>EDIT</button>
+                          <button onClick={()=>handleCycleDelete(cyc.id)} style={{fontFamily:"'DM Mono',monospace",fontSize:'9px',color:'var(--red)',border:'1px solid rgba(255,61,61,0.3)',borderRadius:3,padding:'5px 12px',background:'transparent',cursor:'pointer',letterSpacing:'0.1em',textTransform:'uppercase'}}>DELETE</button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+                {uCycles.length===0&&<div className="no-events" style={{padding:'20px 0'}}><div className="no-events-text">No cycles logged</div></div>}
               </div>
             );
           })}
-          {cycles.length===0&&<div className="no-events"><div className="no-events-text">No cycles logged</div></div>}
+
           <div style={{height:'80px'}}/>
         </div>
       </div>
