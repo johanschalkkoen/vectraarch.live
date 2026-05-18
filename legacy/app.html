@@ -1322,14 +1322,19 @@ const cycleStats = (cycles) => {
 // Phase wheel SVG — proper donut
 const PhaseWheel = ({dayOfCycle=1, cycleLength=28, accentColor='#e91e8c'}) => {
   const S=260,cx=130,cy=130,outerR=100,innerR=62,numR=outerR+16;
-  // Match reference: Menstruation=pink, pre-ovulation gray, Ovulation=teal, post-ovulation gray
-  const mensDays  = 7;
-  const preOvDays = 4;   // days 8-11 gray
-  const ovDays    = 6;   // days 12-17 teal
-  const lutDays   = Math.max(cycleLength - mensDays - preOvDays - ovDays, 1);
+  // Dynamic phases based on actual cycle length:
+  // Menstruation: days 1-5
+  // Follicular (gray): days 6 to ovulation-3
+  // Fertile/Ovulation (teal): 5 days centered on ovulation (day cycleLength-14)
+  const mensDays  = 5;                           // menstruation always ~5 days
+  const ovDay     = Math.max(cycleLength-14, 1); // ovulation day within cycle
+  const fertStart = Math.max(ovDay-4, mensDays+1); // fertile window start
+  const ovDays    = Math.min(6, cycleLength - fertStart - 1); // fertile window span
+  const preOvDays = Math.max(fertStart - mensDays, 0);        // gray before fertile
+  const lutDays   = Math.max(cycleLength - mensDays - preOvDays - ovDays, 1); // gray after
   const phases=[
     {name:'Menstruation', days:mensDays,  color:'#e91e8c'},  // pink
-    {name:'Pre-Ovulation',days:preOvDays, color:'#2a2d32'},  // dark gray
+    {name:'Follicular',   days:preOvDays, color:'#2a2d32'},  // dark gray
     {name:'Ovulation',    days:ovDays,    color:'#1de9b6'},  // teal
     {name:'Luteal',       days:lutDays,   color:'#2a2d32'},  // dark gray
   ];
@@ -1351,9 +1356,9 @@ const PhaseWheel = ({dayOfCycle=1, cycleLength=28, accentColor='#e91e8c'}) => {
     dayNums.push({d,x:cx+numR*Math.cos(a),y:cy+numR*Math.sin(a)});
   }
   const curA=-Math.PI/2+((dayOfCycle-0.5)/total)*2*Math.PI;
-  const phase = dayOfCycle<=mensDays?'MENSTRUATION'
-    : dayOfCycle<=(mensDays+preOvDays)?'PRE-OVULATION'
-    : dayOfCycle<=(mensDays+preOvDays+ovDays)?'OVULATION'
+  const phase = dayOfCycle<=mensDays ? 'MENSTRUATION'
+    : dayOfCycle<fertStart           ? 'FOLLICULAR'
+    : dayOfCycle<=(fertStart+ovDays) ? 'OVULATION'
     : 'LUTEAL';
   return (
     <svg width={S} height={S} viewBox={`0 0 ${S} ${S}`}>
@@ -1449,9 +1454,12 @@ const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPart
     setEditCycleId(cyc.id); setShowForm(true);
   };
 
+  // Dynamic legend based on avgLen
+  const ovStartLegend = Math.max(avgLen-14-4, 6);
+  const ovEndLegend   = Math.min(avgLen-14+1, avgLen-1);
   const phaseLegend = [
-    ['#e91e8c','MENSTRUATION · 1-7'],
-    ['#1de9b6','OVULATION · 12-17'],
+    ['#e91e8c', `MENSTRUATION · 1-5`],
+    ['#1de9b6', `OVULATION · ${ovStartLegend}-${ovEndLegend}`],
   ];
 
   return (
@@ -1604,6 +1612,9 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
     email:       user.email||'',
     phone:       user.phone||'',
     gender:      user.gender||'',
+    dob:         user.dob||'',         // date of birth → age
+    weight:      user.weight||'',      // kg
+    height:      user.height||'',      // cm
   });
   const [selectedColor, setSelectedColor]   = useState(user.eventColor||'#00e676');
   const [picPreview, setPicPreview]         = useState(user.profilePicUrl||DP);
@@ -1624,6 +1635,9 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
       email:     user.email||'',
       phone:     user.phone||'',
       gender:    user.gender||'',
+      dob:       user.dob||'',
+      weight:    user.weight||'',
+      height:    user.height||'',
     });
     setSelectedColor(user.eventColor||'#00e676');
     setPicPreview(user.profilePicUrl||DP);
@@ -1679,10 +1693,13 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
         email:       form.email,
         phone:       form.phone,
         gender:      form.gender,
+        dob:         form.dob||undefined,
+        weight:      form.weight||undefined,
+        height:      form.height||undefined,
         eventColor:  selectedColor,
         profilePicUrl: profilePicUrl !== DP ? profilePicUrl : undefined,
       });
-      const updated = {...user,...form,displayName,eventColor:selectedColor,profilePicUrl:profilePicUrl!==DP?profilePicUrl:user.profilePicUrl,gender:form.gender};
+      const updated = {...user,...form,displayName,eventColor:selectedColor,profilePicUrl:profilePicUrl!==DP?profilePicUrl:user.profilePicUrl,gender:form.gender,dob:form.dob,weight:form.weight,height:form.height};
       setUser(updated);
       localStorage.setItem('user',JSON.stringify(updated));
       setPicFile(null);
@@ -1832,6 +1849,40 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
                 ))}
               </div>
             </div>
+            <div className="profile-field">
+              <div className="profile-field-label">Date of Birth</div>
+              <input className="profile-field-input" type="date" value={form.dob}
+                onChange={e=>setForm(p=>({...p,dob:e.target.value}))}/>
+              {form.dob&&<div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)',marginTop:4}}>
+                Age: {Math.floor((new Date()-new Date(form.dob))/31557600000)} years
+              </div>}
+            </div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:0}}>
+              <div className="profile-field" style={{borderRight:'1px solid var(--border)'}}>
+                <div className="profile-field-label">Weight (kg)</div>
+                <input className="profile-field-input" type="number" min="30" max="300" step="0.1"
+                  placeholder="e.g. 65" value={form.weight}
+                  onChange={e=>setForm(p=>({...p,weight:e.target.value}))}/>
+              </div>
+              <div className="profile-field">
+                <div className="profile-field-label">Height (cm)</div>
+                <input className="profile-field-input" type="number" min="100" max="250" step="1"
+                  placeholder="e.g. 168" value={form.height}
+                  onChange={e=>setForm(p=>({...p,height:e.target.value}))}/>
+              </div>
+            </div>
+            {form.weight&&form.height&&(
+              <div className="profile-field" style={{background:'var(--bg3)'}}>
+                <div className="profile-field-label">BMI</div>
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:13,color:'var(--text)',paddingTop:4}}>
+                  {(parseFloat(form.weight)/Math.pow(parseFloat(form.height)/100,2)).toFixed(1)}
+                  <span style={{fontSize:9,color:'var(--text3)',marginLeft:8}}>
+                    {(()=>{const bmi=parseFloat(form.weight)/Math.pow(parseFloat(form.height)/100,2);
+                      return bmi<18.5?'UNDERWEIGHT':bmi<25?'HEALTHY':bmi<30?'OVERWEIGHT':'OBESE';})()}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* ── Event Color ── */}
