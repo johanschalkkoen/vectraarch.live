@@ -156,10 +156,11 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
 
   const filtered = useMemo(()=>{
     const users = [...(selfVisible?[user.username]:[]), ...(activePartners||[]).map(p=>p.username)];
+    if(users.length===0) return [];
     let list = items.filter(i=>users.includes(i.user||i.username)&&(i.date||'').slice(5,7)===selectedMonth);
     if(search) list = list.filter(i=>(i.category||'').toLowerCase().includes(search.toLowerCase()));
     return [...list].sort((a,b)=>sortField==='amount'?parseFloat(b.amount)-parseFloat(a.amount):new Date(b.date)-new Date(a.date));
-  },[items,selectedMonth,search,sortField,user.username,partner,isShared]);
+  },[items,selectedMonth,search,sortField,user.username,selfVisible,JSON.stringify((activePartners||[]).map(p=>p.username))]);
 
   const totals = useMemo(()=>{
     const inc = filtered.filter(i=>i.type==='income').reduce((s,i)=>s+parseFloat(i.amount||0),0);
@@ -587,18 +588,21 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
 
   useEffect(()=>{ fetchAll(); },[fetchAll]);
 
-  const filteredBudgets = useMemo(()=>budgets.filter(b=>{
-    const d = b.date||'';
-    // Handle both ISO (2026-05-01T00:00:00) and date-only (2026-05-01) formats
-    const month = d.slice(5,7);
-    return month===selectedMonth;
-  }),[budgets,selectedMonth]);
+  const filteredBudgets = useMemo(()=>{
+    const users=[...(selfVisible?[user.username]:[]),...(activePartners||[]).map(p=>p.username)];
+    if(users.length===0) return [];
+    return budgets.filter(b=>{
+      const d = b.date||'';
+      const month = d.slice(5,7);
+      return month===selectedMonth && users.includes(b.user||b.username||user.username);
+    });
+  },[budgets,selectedMonth,user.username,selfVisible,JSON.stringify((activePartners||[]).map(p=>p.username))]);
 
   const totalPlanned = filteredBudgets.reduce((s,b)=>s+b.expenses.reduce((ss,e)=>ss+parseFloat(e.amount||0),0),0);
   const totalActual = useMemo(()=>{
     const users=[...(selfVisible?[user.username]:[]),...(activePartners||[]).map(p=>p.username)];
     return items.filter(i=>users.includes(i.user||i.username)&&(i.date||'').slice(5,7)===selectedMonth&&i.type==='expense').reduce((s,i)=>s+parseFloat(i.amount||0),0);
-  },[items,selectedMonth,user.username,partner,isShared]);
+  },[items,selectedMonth,user.username,selfVisible,JSON.stringify((activePartners||[]).map(p=>p.username))]);
 
   const getBudgetActual = (b) => {
     const users=[...(selfVisible?[user.username]:[]),...(activePartners||[]).map(p=>p.username)];
