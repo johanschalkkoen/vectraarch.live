@@ -448,8 +448,11 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
       </div>
       <div className="page-scroll">
         <div className="page-inner" style={{padding:0}}>
-          <UserRow user={user} partner={partner} partners={partners} activePartners={activePartners} permittedPartners={permittedPartners} selfVisible={selfVisible} tabSelected={tabSelected} isShared={isShared} onToggleUser={onToggleUser}
-            style={{padding:'8px 16px'}}/>
+          <div className="page-head">
+            <div className="page-title">CALENDAR</div>
+            <div className="page-sub">EVENTS · CYCLE · SCHEDULE</div>
+          </div>
+          <UserRow user={user} partner={partner} partners={partners} activePartners={activePartners} permittedPartners={permittedPartners} selfVisible={selfVisible} tabSelected={tabSelected} isShared={isShared} onToggleUser={onToggleUser}/>
           <Alert {...alert}/>
 
           {/* ── iPhone-style month header ── */}
@@ -515,6 +518,17 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
             })}
           </div>
 
+          {/* ── Legend inline ── */}
+          <div style={{display:'flex',flexWrap:'wrap',gap:8,padding:'8px 12px 4px',borderTop:'1px solid var(--border)',marginTop:4}}>
+            {canSeeCycle&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.08em',color:'var(--text3)'}}>🩸 MENSTRUATION</span>}
+            {canSeeCycle&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.08em',color:'var(--text3)'}}>🌿 OVULATION</span>}
+            <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.08em',color:'var(--text3)'}}>🌟 PERSONAL</span>
+            <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.08em',color:'var(--text3)'}}>💼 WORK</span>
+            <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.08em',color:'var(--text3)'}}>🏃 HEALTH</span>
+            <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.08em',color:'var(--text3)'}}>💰 INCOME</span>
+            <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.08em',color:'var(--text3)'}}>💸 EXPENSE</span>
+          </div>
+
           {/* ── Selected day header — iPhone style ── */}
           <div style={{padding:'14px 16px 6px',borderTop:'1px solid var(--border)',marginTop:8,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
             <div>
@@ -558,9 +572,7 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
               const icon     = getEventIcon(e);
               const isFin    = e.financial||e.is_financial||e.financial==='1'||e.is_financial===1;
               const badgeColor = isFin ? (e.type==='expense'?'var(--red)':'var(--green)') : coc;
-              const timeStr  = e.date&&e.date.length>10
-                ? new Date(e.date).toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit',hour12:false})
-                : 'ALL DAY';
+              const timeStr = fmtDate(e.date);
               return (
                 <div key={e.id} className="meal-card" style={{marginBottom:8,borderLeft:`3px solid ${coc}`}}>
                   {/* Top row: avatar + icon badge + owner name — same as gym/budget */}
@@ -568,8 +580,10 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
                     <ItemAvatar username={e.user||e.username} user={user} partner={partner} partners={partners} size={36}/>
                     <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:600,letterSpacing:'0.12em',
                       padding:'3px 8px',borderRadius:3,textTransform:'uppercase',flexShrink:0,
-                      background:`${badgeColor}20`,color:badgeColor,border:`1px solid ${badgeColor}55`}}>
-                      {icon} {(e.type||'personal').toUpperCase()}
+                      background: isFin?(e.type==='expense'?'rgba(255,61,61,0.15)':'rgba(0,230,118,0.15)'):`${coc}20`,
+                      color:      isFin?(e.type==='expense'?'var(--red)':'var(--green)'):coc,
+                      border:     isFin?(e.type==='expense'?'1px solid rgba(255,61,61,0.4)':'1px solid rgba(0,230,118,0.4)'):`1px solid ${coc}55`}}>
+                      {icon} {isFin?(e.type==='expense'?'EXPENSE':'INCOME'):(e.type||'personal').toUpperCase()}
                     </span>
                     {calOwner&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:coc,letterSpacing:'0.08em'}}>
                       {(calOwner.displayName||(calOwner.firstName&&calOwner.lastName?`${calOwner.firstName} ${calOwner.lastName}`:null)||calOwner.username||'').toUpperCase()}
@@ -599,16 +613,7 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
         </div>
       </div>
 
-      {/* ── Legend fixed above FAB ── */}
-      <div style={{position:'fixed',bottom:64,left:0,right:0,display:'flex',flexWrap:'wrap',justifyContent:'center',gap:12,padding:'7px 16px',background:'var(--bg)',borderTop:'1px solid var(--border)',zIndex:10}}>
-        {canSeeCycle&&<div style={{display:'flex',alignItems:'center',gap:4,fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.08em',color:'var(--text3)'}}>🩸 MENSTRUATION</div>}
-        {canSeeCycle&&<div style={{display:'flex',alignItems:'center',gap:4,fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.08em',color:'var(--text3)'}}>🌿 OVULATION</div>}
-        <div style={{display:'flex',alignItems:'center',gap:4,fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.08em',color:'var(--text3)'}}>🌟 PERSONAL</div>
-        <div style={{display:'flex',alignItems:'center',gap:4,fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.08em',color:'var(--text3)'}}>💼 WORK</div>
-        <div style={{display:'flex',alignItems:'center',gap:4,fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.08em',color:'var(--text3)'}}>🏃 HEALTH</div>
-        <div style={{display:'flex',alignItems:'center',gap:4,fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.08em',color:'var(--text3)'}}>💰 INCOME</div>
-        <div style={{display:'flex',alignItems:'center',gap:4,fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.08em',color:'var(--text3)'}}>💸 EXPENSE</div>
-      </div>
+
       <button className="fab" style={{background:tabColor,boxShadow:`0 4px 20px ${tabColor}66`}}
         onClick={()=>{ setForm(p=>({...p,date:dayKey(selectedDay)+'T09:00:00'})); setShowForm(true); }}>
         + ADD EVENT
@@ -624,7 +629,7 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
               <div>
                 <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:20,color:'var(--text)'}}>{(selectedEvent.title||'').toUpperCase()}</div>
                 <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)',marginTop:2}}>
-                  {fmtDateTime(selectedEvent.date)} · {(selectedEvent.type||'personal').toUpperCase()}
+                  {fmtDate(selectedEvent.date)} · {(selectedEvent.type||'personal').toUpperCase()}
                 </div>
               </div>
             </div>
@@ -1072,7 +1077,7 @@ const GymPage = ({user, partner, partners=[], activePartners=[], permittedPartne
                           </div>
                           <div className="workout-name">{(w.exercise||'').toUpperCase()}</div>
                           <div className="workout-detail">{gymFormatDetail(w)}</div>
-                          <div className="workout-time">{(w.date||'').slice(11,16)}</div>
+                          <div className="workout-time">{fmtDate(w.date)}</div>
                           {own&&(
                             <button style={{marginTop:'6px',fontFamily:"'DM Mono',monospace",fontSize:'9px',color:'var(--red)',background:'transparent',border:'none',cursor:'pointer',textTransform:'uppercase',letterSpacing:'0.1em'}} onClick={()=>handleDelete(w.id)}>✕ Remove</button>
                           )}
