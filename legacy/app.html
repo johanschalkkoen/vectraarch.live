@@ -46,6 +46,15 @@ const Icons = {
   profile:  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="20" height="20"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
   search:   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="14" height="14"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>,
   admin:    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="20" height="20"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
+  // Calendar event type icons
+  personal: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="14" height="14"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>,
+  work:     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="14" height="14"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>,
+  health:   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="14" height="14"><path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8zM6 1v3M10 1v3M14 1v3"/></svg>,
+  social:   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="14" height="14"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
+  income:   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="14" height="14"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>,
+  expense:  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>,
+  menstrual:<svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M12 2C12 2 5 10.5 5 15a7 7 0 0 0 14 0C19 10.5 12 2 12 2z"/></svg>,
+  ovulation:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="14" height="14"><circle cx="12" cy="12" r="5"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.93" y1="4.93" x2="6.34" y2="6.34"/><line x1="17.66" y1="17.66" x2="19.07" y2="19.07"/><line x1="4.93" y1="19.07" x2="6.34" y2="17.66"/><line x1="17.66" y1="6.34" x2="19.07" y2="4.93"/></svg>,
 };
 
 /* ── SHARED COMPONENTS ── */
@@ -148,6 +157,53 @@ const SearchBar = ({value, onChange, placeholder='Search...', tabColor='#00e676'
   </div>
 );
 
+// ── Styled confirm modal — replaces window.confirm everywhere ──
+const ConfirmModal = ({open, message, detail, confirmLabel='DELETE', confirmColor='var(--red)', onConfirm, onCancel}) => {
+  if(!open) return null;
+  return (
+    <div className="modal-overlay" onClick={onCancel} style={{zIndex:200}}>
+      <div className="modal-sheet" onClick={e=>e.stopPropagation()} style={{borderRadius:'16px 16px 0 0',paddingBottom:32}}>
+        <div className="modal-handle"/>
+        <div style={{textAlign:'center',padding:'8px 0 20px'}}>
+          <div style={{fontSize:32,marginBottom:12}}>⚠️</div>
+          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:20,color:'var(--text)',marginBottom:8}}>{message}</div>
+          {detail&&<div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)',letterSpacing:'0.08em',lineHeight:1.6}}>{detail}</div>}
+        </div>
+        <div style={{display:'flex',gap:10}}>
+          <button onClick={onCancel} style={{flex:1,padding:'14px',background:'var(--bg3)',border:'1px solid var(--border2)',borderRadius:8,fontFamily:"'DM Mono',monospace",fontSize:11,fontWeight:600,letterSpacing:'0.1em',color:'var(--text3)',cursor:'pointer',textTransform:'uppercase'}}>CANCEL</button>
+          <button onClick={onConfirm} style={{flex:1,padding:'14px',background:confirmColor,border:'none',borderRadius:8,fontFamily:"'DM Mono',monospace",fontSize:11,fontWeight:600,letterSpacing:'0.1em',color:'#fff',cursor:'pointer',textTransform:'uppercase'}}>{confirmLabel}</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ── Item action sheet — tap a card to get edit/delete options ──
+const ActionSheet = ({open, title, tabColor='#00e676', onEdit, onDelete, onClose, canEdit=true}) => {
+  if(!open) return null;
+  return (
+    <div className="modal-overlay" onClick={onClose} style={{zIndex:150}}>
+      <div className="modal-sheet" onClick={e=>e.stopPropagation()} style={{borderRadius:'16px 16px 0 0',paddingBottom:32}}>
+        <div className="modal-handle"/>
+        {title&&<div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:18,color:'var(--text)',marginBottom:20,paddingTop:4}}>{title.toUpperCase()}</div>}
+        <div style={{display:'flex',flexDirection:'column',gap:10}}>
+          {canEdit&&onEdit&&(
+            <button onClick={()=>{onEdit();onClose();}} style={{padding:'14px',background:`${tabColor}18`,border:`1px solid ${tabColor}55`,borderRadius:8,fontFamily:"'DM Mono',monospace",fontSize:11,fontWeight:600,letterSpacing:'0.1em',color:tabColor,cursor:'pointer',textTransform:'uppercase'}}>
+              ✏️ EDIT
+            </button>
+          )}
+          {onDelete&&(
+            <button onClick={()=>{onDelete();onClose();}} style={{padding:'14px',background:'rgba(255,61,61,0.12)',border:'1px solid rgba(255,61,61,0.35)',borderRadius:8,fontFamily:"'DM Mono',monospace",fontSize:11,fontWeight:600,letterSpacing:'0.1em',color:'var(--red)',cursor:'pointer',textTransform:'uppercase'}}>
+              🗑️ DELETE
+            </button>
+          )}
+          <button onClick={onClose} style={{padding:'14px',background:'transparent',border:'1px solid var(--border2)',borderRadius:8,fontFamily:"'DM Mono',monospace",fontSize:11,fontWeight:600,letterSpacing:'0.1em',color:'var(--text3)',cursor:'pointer',textTransform:'uppercase'}}>CANCEL</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ── Avatar helpers — resolves pic/color for any username across user+partner ──
 // Usage: <ItemAvatar username={item.user} user={user} partner={partner} partners={partners} size={36}/>
 // getOwner: resolve user object from username — checks user, partner, and partners array
@@ -180,7 +236,9 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({category:'',amount:'',type:'expense',date:now()});
-  const [editId, setEditId] = useState(null);
+  const [editId, setEditId]           = useState(null);
+  const [actionItem, setActionItem]   = useState(null);
+  const [confirmDel, setConfirmDel]   = useState(null);
   const [alert, setAlert] = useState({msg:'',type:''});
 
   const msg = (m,t='ok') => { setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
@@ -226,7 +284,6 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
     } catch { msg('Error.','err'); }
   };
   const handleFinDelete = async(id)=>{
-    if(!window.confirm('Delete this transaction?')) return;
     try { await axios.delete(`${API}/financial/${id}`); msg('Deleted.'); fetchAll(); } catch { msg('Error.','err'); }
   };
   const startFinEdit = (item) => {
@@ -278,7 +335,8 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
               const oc = finOwner?.eventColor||'#00e676';
               const isIncome=item.type==='income';
               return (
-                <div key={item.id} className="meal-card" style={{marginBottom:8,borderLeft:`3px solid ${oc}`}}>
+                <div key={item.id} className="meal-card" style={{marginBottom:8,borderLeft:`3px solid ${oc}`,cursor:(item.user||item.username)===user.username?'pointer':'default'}}
+                  onClick={()=>(item.user||item.username)===user.username&&setActionItem(item)}>
                   <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
                     <ItemAvatar username={item.user||item.username} user={user} partner={partner} partners={partners} size={36}/>
                     <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:600,letterSpacing:'0.12em',padding:'3px 8px',borderRadius:3,textTransform:'uppercase',flexShrink:0,background:isIncome?'rgba(0,230,118,0.15)':'rgba(255,61,61,0.15)',color:isIncome?'var(--green)':'var(--red)',border:`1px solid ${isIncome?'rgba(0,230,118,0.3)':'rgba(255,61,61,0.3)'}`}}>{(item.type||'expense').toUpperCase()}</span>
@@ -307,6 +365,13 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
         </div>
       </div>
       <button className="fab" style={{background:tabColor,boxShadow:`0 4px 20px ${tabColor}55`}} onClick={()=>setShowForm(true)}>+ ADD ITEM</button>
+      <ActionSheet open={!!actionItem} title={actionItem?.category} tabColor={tabColor}
+        onEdit={()=>startFinEdit(actionItem)}
+        onDelete={()=>setConfirmDel(actionItem?.id)}
+        onClose={()=>setActionItem(null)}/>
+      <ConfirmModal open={!!confirmDel} message="Delete transaction?" detail={actionItem?.category}
+        onConfirm={async()=>{await handleFinDelete(confirmDel);setConfirmDel(null);setActionItem(null);}}
+        onCancel={()=>setConfirmDel(null)}/>
 
       {showForm&&(
         <div className="modal-overlay" onClick={()=>setShowForm(false)}>
@@ -349,6 +414,8 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
   const [form, setForm]               = useState({title:'',date:now(),type:'personal',color:user?.eventColor||'#448aff',amount:'',finType:'income',financial:false});
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [alert, setAlert]             = useState({msg:'',type:''});
+  const [search, setSearch]             = useState('');
+  const [confirmDelCal, setConfirmDelCal] = useState(null);
   const msg = (m,t='ok')=>{ setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
 
   const calUserIsMale    = (user.gender||'').toLowerCase()==='male';
@@ -440,7 +507,6 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
     } catch { msg('Error.','err'); }
   };
   const handleDeleteEvent = async(id)=>{
-    if(!window.confirm('Delete this event?')) return;
     try { await axios.delete(`${API}/calendar/${id}`); msg('Deleted.'); setSelectedEvent(null); fetchEvents(); } catch { msg('Error.','err'); }
   };
 
@@ -452,22 +518,19 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
   const DAYS_FULL   =['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 
   const EVENT_TYPES = ['personal','work','health','social','financial'];
-  const EVENT_ICONS = {
-    personal:   '🌟',
-    work:       '💼',
-    health:     '🏃',
-    social:     '🎉',
-    financial:  '💰',
-    income:     '💰',
-    expense:    '💸',
-    cycle:      '🩸',
-    fertile:    '🌿',
-  };
-  const getEventIcon = (e) => {
-    if(e.isCycle)   return '🩸';
-    if(e.isFertile) return '🌿';
-    if(e.financial||e.is_financial) return e.type==='expense'?'💸':'💰';
-    return EVENT_ICONS[e.type||'personal']||'🌟';
+  // EVENT_ICONS removed — using getEventIcon SVG function
+  const getEventIcon = (e, sz=14) => {
+    const s = {width:sz,height:sz};
+    if(e.isCycle)   return <svg viewBox="0 0 24 24" fill="currentColor" style={s}><path d="M12 2C12 2 5 10.5 5 15a7 7 0 0 0 14 0C19 10.5 12 2 12 2z"/></svg>;
+    if(e.isFertile) return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" style={s}><circle cx="12" cy="12" r="5"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/></svg>;
+    if(e.financial||e.is_financial) return e.type==='expense'
+      ? <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" style={s}><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+      : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" style={s}><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>;
+    const t = e.type||'personal';
+    if(t==='work')   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" style={s}><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>;
+    if(t==='health') return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" style={s}><path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/></svg>;
+    if(t==='social') return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" style={s}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>;
+    return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" style={s}><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>;
   };
   const TYPE_COLORS = {personal:'var(--yellow)',work:'var(--blue)',health:'var(--green)',social:'var(--pink)',financial:'var(--green)'};
 
@@ -484,6 +547,7 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
           </div>
           <UserRow user={user} partner={partner} partners={partners} activePartners={activePartners} permittedPartners={permittedPartners} selfVisible={selfVisible} tabSelected={tabSelected} isShared={isShared} onToggleUser={onToggleUser}/>
           <Alert {...alert}/>
+          <SearchBar value={search} onChange={setSearch} placeholder="Search events..." tabColor={tabColor}/>
 
           {/* ── iPhone-style month header ── */}
           <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 16px 4px'}}>
@@ -534,13 +598,15 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
                     fontFamily:"'Barlow Condensed',sans-serif",fontWeight:isSel||isToday?800:500,
                     fontSize:15,color:numColor,
                   }}>{item.date.getDate()}</div>
-                  {/* Event icons */}
-                  <div style={{display:'flex',gap:1,marginTop:2,height:10,alignItems:'center',justifyContent:'center',flexWrap:'nowrap'}}>
-                    {hasCycle&&<span style={{fontSize:7,lineHeight:1}}>🩸</span>}
-                    {hasFertile&&!hasCycle&&<span style={{fontSize:7,lineHeight:1}}>🌿</span>}
-                    {realEvts.slice(0,2).map((e,j)=>(
-                      <span key={j} style={{fontSize:7,lineHeight:1}}>{getEventIcon(e)}</span>
-                    ))}
+                  {/* Event icons — SVG */}
+                  <div style={{display:'flex',gap:1,marginTop:2,height:10,alignItems:'center',justifyContent:'center',color:'var(--text3)'}}>
+                    {hasCycle&&<svg viewBox="0 0 24 24" fill="#e91e8c" width="7" height="7"><path d="M12 2C12 2 5 10.5 5 15a7 7 0 0 0 14 0C19 10.5 12 2 12 2z"/></svg>}
+                    {hasFertile&&!hasCycle&&<svg viewBox="0 0 24 24" fill="none" stroke="#1de9b6" strokeWidth="2" width="7" height="7"><circle cx="12" cy="12" r="5"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/></svg>}
+                    {realEvts.slice(0,2).map((e,j)=>{
+                      const owner=getOwner(e.user||e.username,user,partner,partners);
+                      const dc=owner?.eventColor||e.eventColor||'var(--yellow)';
+                      return <div key={j} style={{color:dc}}>{getEventIcon(e,7)}</div>;
+                    })}
                     {realEvts.length>2&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:6,color:'var(--text3)'}}>+{realEvts.length-2}</span>}
                   </div>
                 </div>
@@ -548,16 +614,26 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
             })}
           </div>
 
-          {/* ── Legend inline ── */}
-          <div style={{display:'flex',flexWrap:'wrap',gap:8,padding:'8px 12px 4px',borderTop:'1px solid var(--border)',marginTop:4}}>
-            {canSeeCycle&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.08em',color:'var(--text3)'}}>🩸 MENSTRUATION</span>}
-            {canSeeCycle&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.08em',color:'var(--text3)'}}>🌿 OVULATION</span>}
-            <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.08em',color:'var(--text3)'}}>🌟 PERSONAL</span>
-            <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.08em',color:'var(--text3)'}}>💼 WORK</span>
-            <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.08em',color:'var(--text3)'}}>🏃 HEALTH</span>
-            <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.08em',color:'var(--text3)'}}>💰 INCOME</span>
-            <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.08em',color:'var(--text3)'}}>💸 EXPENSE</span>
-          </div>
+          {/* ── Legend inline — SVG icons matching tab icons ── */}
+          {(()=>{
+            const Li = ({icon, label, color}) => (
+              <div style={{display:'flex',alignItems:'center',gap:3,color:color||'var(--text3)'}}>
+                <span style={{display:'flex',alignItems:'center'}}>{icon}</span>
+                <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.08em'}}>{label}</span>
+              </div>
+            );
+            return (
+              <div style={{display:'flex',flexWrap:'wrap',gap:8,padding:'8px 12px 4px',borderTop:'1px solid var(--border)',marginTop:4}}>
+                {canSeeCycle&&<Li color="#e91e8c" label="MENSTRUATION" icon={<svg viewBox="0 0 24 24" fill="#e91e8c" width="10" height="10"><path d="M12 2C12 2 5 10.5 5 15a7 7 0 0 0 14 0C19 10.5 12 2 12 2z"/></svg>}/>}
+                {canSeeCycle&&<Li color="#1de9b6" label="OVULATION" icon={<svg viewBox="0 0 24 24" fill="none" stroke="#1de9b6" strokeWidth="2" width="10" height="10"><circle cx="12" cy="12" r="5"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/></svg>}/>}
+                <Li label="PERSONAL" icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="10" height="10"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>}/>
+                <Li label="WORK" icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="10" height="10"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>}/>
+                <Li label="HEALTH" icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="10" height="10"><path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/></svg>}/>
+                <Li color="var(--green)" label="INCOME" icon={<svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="2.5" width="10" height="10"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>}/>
+                <Li color="var(--red)" label="EXPENSE" icon={<svg viewBox="0 0 24 24" fill="none" stroke="var(--red)" strokeWidth="2.5" width="10" height="10"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>}/>
+              </div>
+            );
+          })()}
 
           {/* ── Selected day header — iPhone style ── */}
           <div style={{padding:'14px 16px 6px',borderTop:'1px solid var(--border)',marginTop:8,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
@@ -613,7 +689,10 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
                       background: isFin?(e.type==='expense'?'rgba(255,61,61,0.15)':'rgba(0,230,118,0.15)'):`${coc}20`,
                       color:      isFin?(e.type==='expense'?'var(--red)':'var(--green)'):coc,
                       border:     isFin?(e.type==='expense'?'1px solid rgba(255,61,61,0.4)':'1px solid rgba(0,230,118,0.4)'):`1px solid ${coc}55`}}>
-                      {icon} {isFin?(e.type==='expense'?'EXPENSE':'INCOME'):(e.type||'personal').toUpperCase()}
+                      <span style={{display:'inline-flex',alignItems:'center',gap:4,verticalAlign:'middle'}}>
+                        {icon}
+                        {isFin?(e.type==='expense'?'EXPENSE':'INCOME'):(e.type||'personal').toUpperCase()}
+                      </span>
                     </span>
                     {calOwner&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:coc,letterSpacing:'0.08em'}}>
                       {(calOwner.displayName||(calOwner.firstName&&calOwner.lastName?`${calOwner.firstName} ${calOwner.lastName}`:null)||calOwner.username||'').toUpperCase()}
@@ -627,13 +706,7 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
                     {e.amount&&<div style={{fontFamily:"'DM Mono',monospace",fontSize:13,fontWeight:600,
                       color:e.type==='expense'?'var(--red)':'var(--green)'}}>{fmtR(e.amount)}</div>}
                   </div>
-                  {isOwn&&(
-                    <button onClick={()=>handleDeleteEvent(e.id)}
-                      style={{marginTop:8,fontFamily:"'DM Mono',monospace",fontSize:'9px',color:'var(--red)',
-                        background:'transparent',border:'none',cursor:'pointer',textTransform:'uppercase',letterSpacing:'0.1em'}}>
-                      ✕ Remove
-                    </button>
-                  )}
+                  {isOwn&&<div style={{color:'var(--text3)',fontSize:10,textAlign:'right',marginTop:4}}>tap to manage ›</div>}
                 </div>
               );
             })}
@@ -648,6 +721,10 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
         onClick={()=>{ setForm(p=>({...p,date:dayKey(selectedDay)+'T09:00:00'})); setShowForm(true); }}>
         + ADD EVENT
       </button>
+
+      <ConfirmModal open={!!confirmDelCal} message="Delete event?" detail={selectedEvent?.title}
+        onConfirm={async()=>{await handleDeleteEvent(confirmDelCal);setConfirmDelCal(null);setSelectedEvent(null);}}
+        onCancel={()=>setConfirmDelCal(null)}/>
 
       {/* ── Event detail modal ── */}
       {selectedEvent&&(
@@ -665,9 +742,9 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
             </div>
             {selectedEvent.amount&&<div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:18,color:'var(--green)',marginBottom:12}}>{fmtR(selectedEvent.amount)}</div>}
             {(selectedEvent.user||selectedEvent.username)===user.username&&(
-              <button onClick={()=>handleDeleteEvent(selectedEvent.id)}
+              <button onClick={()=>setConfirmDelCal(selectedEvent.id)}
                 style={{width:'100%',padding:'12px',background:'rgba(255,61,61,0.12)',border:'1px solid rgba(255,61,61,0.3)',borderRadius:8,color:'var(--red)',fontFamily:"'DM Mono',monospace",fontSize:11,letterSpacing:'0.12em',cursor:'pointer',textTransform:'uppercase'}}>
-                DELETE EVENT
+                🗑️ DELETE EVENT
               </button>
             )}
           </div>
@@ -748,6 +825,8 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
 /* ── BUDGET PAGE ── */
 const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPartners=[], selfVisible=true, isShared, tabSelected, onToggleUser, tabColor='#ffd600'}) => {
   const [search, setSearch] = useState('');
+  const [actionBudget, setActionBudget] = useState(null);
+  const [confirmDelBud, setConfirmDelBud] = useState(null);
   const [budgets, setBudgets] = useState([]);
   const [items, setItems] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()+1).padStart(2,'0'));
@@ -811,7 +890,6 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
     } catch(e) { msg(e.response?.data?.message||'Error saving budget.','err'); }
   };
   const handleBudgetDelete = async(id)=>{
-    if(!window.confirm('Delete this budget?')) return;
     try { await axios.delete(`${API}/budget/${id}`); msg('Deleted.'); fetchAll(); } catch { msg('Error.','err'); }
   };
 
@@ -862,7 +940,8 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
             const budOwner = getOwner(b.user||user.username, user, partner, partners);
             const boc = budOwner?.eventColor||'#ffd600';
             return (
-              <div key={b.id} className="meal-card" style={{marginBottom:8,position:'relative',borderLeft:`3px solid ${boc}`}}>
+              <div key={b.id} className="meal-card" style={{marginBottom:8,position:'relative',borderLeft:`3px solid ${boc}`,cursor:(b.user===user.username||!b.user)?'pointer':'default'}}
+                onClick={()=>(b.user===user.username||!b.user)&&setActionBudget(b)}>
                 <span className={`budget-status-badge ${status}`}>{status.toUpperCase()}</span>
                 {/* Top row: avatar + BUDGET badge + owner name */}
                 <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
@@ -880,7 +959,7 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
                 <div className="progress-bar"><div className={`progress-fill ${status}`} style={{width:`${pct*100}%`}}/></div>
                 <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
                   <div className="progress-label">{Math.round(pct*100)}% USED</div>
-                  {(b.user===user.username||!b.user)&&<button onClick={()=>handleBudgetDelete(b.id)} style={{fontFamily:"'DM Mono',monospace",fontSize:'8px',color:'var(--red)',border:'1px solid rgba(255,61,61,0.3)',borderRadius:3,padding:'2px 8px',background:'transparent',cursor:'pointer',letterSpacing:'0.1em'}}>DELETE</button>}
+{(b.user===user.username||!b.user)&&<div style={{color:'var(--text3)',fontSize:12}}>›</div>}
                 </div>
               </div>
             );
@@ -890,6 +969,13 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
         </div>
       </div>
       <button className="fab" style={{background:tabColor,boxShadow:`0 4px 20px ${tabColor}55`}} onClick={()=>setShowForm(true)}>+ ADD BUDGET</button>
+      <ActionSheet open={!!actionBudget} title={actionBudget?.expenses?.[0]?.category||'Budget'} tabColor={tabColor}
+        canEdit={false}
+        onDelete={()=>setConfirmDelBud(actionBudget?.id)}
+        onClose={()=>setActionBudget(null)}/>
+      <ConfirmModal open={!!confirmDelBud} message="Delete budget?" detail="This cannot be undone."
+        onConfirm={async()=>{await handleBudgetDelete(confirmDelBud);setConfirmDelBud(null);setActionBudget(null);}}
+        onCancel={()=>setConfirmDelBud(null)}/>
 
       {showForm&&(
         <div className="modal-overlay" onClick={()=>setShowForm(false)}>
@@ -1006,6 +1092,8 @@ const gymFormatDetail = w => {
 
 const GymPage = ({user, partner, partners=[], activePartners=[], permittedPartners=[], selfVisible=true, isShared, tabSelected, onToggleUser, tabColor='#ff3b3b'}) => {
   const [search, setSearch] = useState('');
+  const [actionWorkout, setActionWorkout] = useState(null);
+  const [confirmDelGym, setConfirmDelGym] = useState(null);
   const [workouts, setWorkouts] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()+1).padStart(2,'0'));
   const [showForm, setShowForm] = useState(false);
@@ -1087,7 +1175,8 @@ const GymPage = ({user, partner, partners=[], activePartners=[], permittedPartne
                       const owner = getOwner(String(w.userKey), user, partner, partners);
                       const goc = owner?.eventColor||'#1de9b6';
                       return (
-                        <div key={w.id} className={`workout-card ${wt}`} style={{borderLeftColor:goc}}>
+                        <div key={w.id} className={`workout-card ${wt}`} style={{borderLeftColor:goc,cursor:own?'pointer':'default'}}
+                          onClick={()=>own&&setActionWorkout(w)}>
                           <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
                             <ItemAvatar username={String(w.userKey)} user={user} partner={partner} partners={partners} size={22}/>
                             <span className={`workout-type-badge ${wt}`} style={{margin:0,background:`${goc}22`,color:goc,border:`1px solid ${goc}55`}}>{wt.toUpperCase()}</span>
@@ -1110,6 +1199,13 @@ const GymPage = ({user, partner, partners=[], activePartners=[], permittedPartne
         </div>
       </div>
       <button className="fab" style={{background:tabColor,boxShadow:`0 4px 20px ${tabColor}55`}} onClick={()=>setShowForm(true)}>+ ADD EXERCISE</button>
+      <ActionSheet open={!!actionWorkout} title={actionWorkout?.exercise} tabColor={tabColor}
+        canEdit={false}
+        onDelete={()=>setConfirmDelGym(actionWorkout?.id)}
+        onClose={()=>setActionWorkout(null)}/>
+      <ConfirmModal open={!!confirmDelGym} message="Remove exercise?" detail={actionWorkout?.exercise}
+        onConfirm={async()=>{await handleDelete(confirmDelGym);setConfirmDelGym(null);setActionWorkout(null);}}
+        onCancel={()=>setConfirmDelGym(null)}/>
 
       {showForm&&(
         <div className="modal-overlay" onClick={()=>setShowForm(false)}>
@@ -1246,6 +1342,8 @@ const MEAL_OPTIONS = [
 
 const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPartners=[], selfVisible=true, isShared, tabSelected, onToggleUser, tabColor='#d67bff'}) => {
   const [search, setSearch] = useState('');
+  const [actionMeal, setActionMeal] = useState(null);
+  const [confirmDelMeal, setConfirmDelMeal] = useState(null);
   const [meals, setMeals] = useState([]);
   const [mealTemplates, setMealTemplates] = useState(MEAL_OPTIONS); // start with static, replace with DB
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()+1).padStart(2,'0'));
@@ -1451,7 +1549,8 @@ const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPart
                       const moc   = owner?.eventColor||'#d67bff';
                       const mt    = m.mealType||'breakfast';
                       return (
-                        <div key={m.id} className="meal-card" style={{marginBottom:6,borderLeft:`3px solid ${moc}`}}>
+                        <div key={m.id} className="meal-card" style={{marginBottom:6,borderLeft:`3px solid ${moc}`,cursor:own?'pointer':'default'}}
+                          onClick={()=>own&&setActionMeal(m)}>
                           <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
                             <ItemAvatar username={String(m.userKey)} user={user} partner={partner} partners={partners} size={36}/>
                             <span className={`meal-type-badge ${mt}`} style={{flexShrink:0}}>{mt.toUpperCase()}</span>
@@ -1465,9 +1564,7 @@ const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPart
                             {m.fat!=null&&<span className="macro-badge fat">F {Math.round(m.fat)}g</span>}
                           </div>
                           {m.description&&<div className="meal-note" style={{marginTop:6}}>· {m.description}</div>}
-                          {own&&(
-                            <button style={{marginTop:'8px',fontFamily:"'DM Mono',monospace",fontSize:'9px',color:'var(--red)',background:'transparent',border:'none',cursor:'pointer',textTransform:'uppercase',letterSpacing:'0.1em'}} onClick={()=>handleDelete(m.id)}>✕ Remove</button>
-                          )}
+{own&&<div style={{color:'var(--text3)',fontSize:10,textAlign:'right',marginTop:4}}>tap to manage ›</div>}
                         </div>
                       );
                     })
@@ -1480,6 +1577,13 @@ const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPart
         </div>
       </div>
       <button className="fab" style={{background:tabColor,boxShadow:`0 4px 20px ${tabColor}55`}} onClick={()=>setShowForm(true)}>+ ADD MEAL</button>
+      <ActionSheet open={!!actionMeal} title={actionMeal?.description||actionMeal?.name} tabColor={tabColor}
+        canEdit={false}
+        onDelete={()=>setConfirmDelMeal(actionMeal?.id)}
+        onClose={()=>setActionMeal(null)}/>
+      <ConfirmModal open={!!confirmDelMeal} message="Remove meal?" detail={actionMeal?.description||actionMeal?.name}
+        onConfirm={async()=>{await handleDelete(confirmDelMeal);setConfirmDelMeal(null);setActionMeal(null);}}
+        onCancel={()=>setConfirmDelMeal(null)}/>
 
       {showForm&&(
         <div className="modal-overlay" onClick={()=>setShowForm(false)}>
@@ -1673,7 +1777,6 @@ const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPart
   };
 
   const handleCycleDelete = async(id)=>{
-    if(!window.confirm('Delete this cycle?')) return;
     try { await axios.delete(`${API}/period/${id}`); msg('Deleted.'); fetchCycles(); } catch { msg('Error.','err'); }
   };
 
@@ -1769,7 +1872,8 @@ const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPart
                 {uCycles.map(cyc=>{
                   const dur = cyc.endDate ? Math.floor((new Date(cyc.endDate)-new Date(cyc.startDate))/86400000)+'d' : '—';
                   return (
-                    <div key={cyc.id} className="meal-card" style={{marginBottom:8,borderLeft:`3px solid ${accentColor}`}}>
+                    <div key={cyc.id} className="meal-card" style={{marginBottom:8,borderLeft:`3px solid ${accentColor}`,cursor:isOwn&&!isMale?'pointer':'default'}}
+                      onClick={()=>isOwn&&!isMale&&setActionCycle(cyc)}>
                       <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
                         <ItemAvatar username={u.username} user={user} partner={partner} partners={partners} size={36}/>
                         <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:600,letterSpacing:'0.12em',padding:'3px 8px',borderRadius:3,textTransform:'uppercase',flexShrink:0,background:`${accentColor}22`,color:accentColor,border:`1px solid ${accentColor}55`}}>🩸 CYCLE</span>
@@ -1788,12 +1892,7 @@ const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPart
                           ))}
                         </div>
                       )}
-                      {isOwn&&!isMale&&(
-                        <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
-                          <button onClick={()=>startEditCycle(cyc)} style={{fontFamily:"'DM Mono',monospace",fontSize:'9px',color:'var(--blue)',border:'1px solid rgba(68,138,255,0.3)',borderRadius:3,padding:'5px 12px',background:'transparent',cursor:'pointer',letterSpacing:'0.1em',textTransform:'uppercase'}}>EDIT</button>
-                          <button onClick={()=>handleCycleDelete(cyc.id)} style={{fontFamily:"'DM Mono',monospace",fontSize:'9px',color:'var(--red)',border:'1px solid rgba(255,61,61,0.3)',borderRadius:3,padding:'5px 12px',background:'transparent',cursor:'pointer',letterSpacing:'0.1em',textTransform:'uppercase'}}>DELETE</button>
-                        </div>
-                      )}
+{isOwn&&!isMale&&<div style={{color:'var(--text3)',fontSize:10,textAlign:'right',marginTop:4}}>tap to manage ›</div>}
                     </div>
                   );
                 })}
@@ -1806,6 +1905,13 @@ const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPart
         </div>
       </div>
       {!isMale&&<button className="fab" style={{background:tabColor,boxShadow:`0 4px 20px ${tabColor}55`}} onClick={()=>setShowForm(true)}>+ ADD CYCLE</button>}
+      <ActionSheet open={!!actionCycle} title={actionCycle?`Cycle · ${fmtDate(actionCycle.startDate)}`:''} tabColor={tabColor}
+        onEdit={()=>startEditCycle(actionCycle)}
+        onDelete={()=>setConfirmDelCyc(actionCycle?.id)}
+        onClose={()=>setActionCycle(null)}/>
+      <ConfirmModal open={!!confirmDelCyc} message="Delete cycle record?" detail={actionCycle?`Started ${fmtDate(actionCycle.startDate)}`:''}
+        onConfirm={async()=>{await handleCycleDelete(confirmDelCyc);setConfirmDelCyc(null);setActionCycle(null);}}
+        onCancel={()=>setConfirmDelCyc(null)}/>
 
       {showForm&&(
         <div className="modal-overlay" onClick={()=>setShowForm(false)}>
@@ -2321,7 +2427,7 @@ const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
               <select style={selectStyle} value={delUser} onChange={e=>setDelUser(e.target.value)}>
                 {userOpts.map(u=><option key={u} value={u}>{u||'— Select user —'}</option>)}
               </select>
-              <button style={btnStyle('var(--red)')} onClick={()=>{if(window.confirm(`Delete ${delUser}?`))act(()=>axios.delete(`${API}/delete-user/${delUser}`,{params:{adminUsername:user.username}}));}}>Delete User</button>
+              <button style={btnStyle('var(--red)')} onClick={()=>{if(true)act(()=>axios.delete(`${API}/delete-user/${delUser}`,{params:{adminUsername:user.username}}));}}>Delete User</button>
             </div>
 
             {/* Access List */}
