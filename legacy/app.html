@@ -1125,23 +1125,30 @@ const MealsPage = ({user, partner, isShared, onToggleShared, tabColor='#d67bff'}
 
           <div className="section-label">§ MEALS · {filtered.length} RECORDS</div>
           {filtered.map(m=>{
-            const cal=parseFloat(m.calories)||0;
-            const desc=m.description||m.name||'Unknown';
+            const cal   = parseFloat(m.calories)||0;
+            const desc  = m.description||m.name||'Unknown';
+            const own   = String(m.userKey)===user.username;
+            const owner = getOwner(String(m.userKey), user, partner);
+            const mt    = m.mealType||'breakfast';
             return (
               <div key={m.id} className="meal-card">
-                <div className="meal-top">
-                  <img className="meal-avatar" src={String(m.userKey)===user.username?(user.profilePicUrl||DP):(partner?.profilePicUrl||DP)} alt="" style={{border:`2px solid ${String(m.userKey)===user.username?(user.eventColor||'#e91e8c'):(partner?.eventColor||'#448aff')}`}}/>
-                  <span className={`meal-type-badge ${m.mealType||'breakfast'}`}>{(m.mealType||'breakfast').toUpperCase()}</span>
-                  <div className="meal-name">{desc.toUpperCase()}</div>
+                {/* Top row: avatar + type badge + owner name — same as gym */}
+                <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
+                  <ItemAvatar username={String(m.userKey)} user={user} partner={partner} size={36}/>
+                  <span className={`meal-type-badge ${mt}`} style={{flexShrink:0}}>{mt.toUpperCase()}</span>
+                  {owner&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:owner.eventColor||'var(--text3)',letterSpacing:'0.08em'}}>{(owner.displayName||owner.username||'').toUpperCase().slice(0,14)}</span>}
                 </div>
+                {/* Meal name */}
+                <div className="meal-name" style={{marginBottom:8}}>{desc.toUpperCase()}</div>
+                {/* Macro badges */}
                 <div className="meal-macros">
                   <span className="macro-badge kcal">{Math.round(cal)} kcal</span>
-                  <span className="macro-badge prot">P {Math.round(cal*0.08)}g</span>
-                  <span className="macro-badge carb">C {Math.round(cal*0.05)}g</span>
-                  <span className="macro-badge fat">F {Math.round(cal*0.028)}g</span>
+                  {m.protein!=null&&<span className="macro-badge prot">P {Math.round(m.protein)}g</span>}
+                  {m.carbs!=null&&<span className="macro-badge carb">C {Math.round(m.carbs)}g</span>}
+                  {m.fat!=null&&<span className="macro-badge fat">F {Math.round(m.fat)}g</span>}
                 </div>
-                {m.description&&<div className="meal-note">· {m.description}</div>}
-                {String(m.userKey)===user.username&&(
+                {m.description&&<div className="meal-note" style={{marginTop:6}}>· {m.description}</div>}
+                {own&&(
                   <button style={{marginTop:'8px',fontFamily:"'DM Mono',monospace",fontSize:'9px',color:'var(--red)',background:'transparent',border:'none',cursor:'pointer',textTransform:'uppercase',letterSpacing:'0.1em'}} onClick={()=>handleDelete(m.id)}>✕ Remove</button>
                 )}
               </div>
@@ -1151,7 +1158,7 @@ const MealsPage = ({user, partner, isShared, onToggleShared, tabColor='#d67bff'}
           <div style={{height:'80px'}}/>
         </div>
       </div>
-      <button className="fab green" onClick={()=>setShowForm(true)}>+ ADD MEAL</button>
+      <button className="fab" style={{background:tabColor,boxShadow:`0 4px 20px ${tabColor}66`}} onClick={()=>setShowForm(true)}>+ ADD MEAL</button>
 
       {showForm&&(
         <div className="modal-overlay" onClick={()=>setShowForm(false)}>
@@ -1162,7 +1169,7 @@ const MealsPage = ({user, partner, isShared, onToggleShared, tabColor='#d67bff'}
               <label className="form-label">Select Meal Template</label>
               <select className="form-select" value={isCustomMeal?'__custom__':form.name} onChange={e=>handleMealSelect(e.target.value)}>
                 <option value="">— Choose a meal —</option>
-                {MEAL_OPTIONS.map(group=>(
+                {mealTemplates.map(group=>(
                   <optgroup key={group.label} label={group.label}>
                     {group.options.map(opt=><option key={opt.value} value={opt.value}>{opt.label}</option>)}
                   </optgroup>
