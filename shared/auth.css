@@ -157,10 +157,10 @@
 }
 
 /* ── FIELDS ── */
-.auth-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px; }
+.auth-field { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
 .auth-label {
-  font-family: 'DM Mono', monospace; font-size: 9px;
-  letter-spacing: 0.22em; text-transform: uppercase; color: var(--text-dim);
+  font-family: 'DM Mono', monospace; font-size: 10px;
+  letter-spacing: 0.30em; text-transform: uppercase; color: var(--text-dim);
 }
 .auth-input {
   background: transparent; border: none;
