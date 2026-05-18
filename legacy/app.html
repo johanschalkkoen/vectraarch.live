@@ -437,7 +437,7 @@ const CalendarPage = ({user, partner, isShared, onToggleShared, tabColor='#448af
             const dotColor=e.eventColor||e.event_color||(e.financial?'var(--green)':'var(--yellow)');
             return (
               <div key={e.id} className="item-card" style={{borderRadius:'6px',marginBottom:'6px',borderLeft:`3px solid ${dotColor}`,cursor:'pointer'}} onClick={()=>setSelectedEvent(e)}>
-                <div style={{width:8,height:8,borderRadius:'50%',background:dotColor,flexShrink:0,marginTop:2}}/>
+                <ItemAvatar username={e.user||e.username} user={user} partner={partner} size={36}/>
                 <div className="item-body">
                   <div className="item-title">{(e.title||'').toUpperCase()}</div>
                   <div className="item-sub">{fmtDateTime(e.date)} · {e.type||'personal'}</div>
@@ -846,45 +846,42 @@ const GymPage = ({user, partner, isShared, onToggleShared, tabColor='#ff3b3b'}) 
             </div>
           </div>
           <Alert {...alert}/>
-          {users.map(u=>{
-            const uWorkouts = workouts.filter(w=>String(w.userKey)===u.username&&(w.date||'').slice(5,7)===selectedMonth);
+          {/* Days first — all users' workouts together under each day */}
+          {DAYS.map(day=>{
+            const dayWorkouts = workouts.filter(w=>(w.day===day)&&(w.date||'').slice(5,7)===selectedMonth);
+            const totalEx = dayWorkouts.length;
             return (
-              <div key={u.username}>
-                <div className="user-section-header">
-                  <img className="user-section-avatar" src={u.profilePicUrl||DP} alt={u.username} style={{border:`2px solid ${u.eventColor||'#e91e8c'}`}}/>
-                  <div className="user-section-label"><span>§ {(u.displayName||u.username).toUpperCase()}</span> · WEEKLY PLAN</div>
+              <div key={day} className="day-block">
+                <div className="day-header">
+                  <div className="day-name">{day}</div>
+                  <div style={{display:'flex',alignItems:'center',gap:12}}>
+                    <div className="day-count">{totalEx} ex</div>
+                    <button className="day-add-btn" onClick={()=>{setForm(p=>({...p,day}));setShowForm(true);}}>+ add</button>
+                  </div>
                 </div>
-                {DAYS.map(day=>{
-                  const dw = uWorkouts.filter(w=>w.day===day);
-                  return (
-                    <div key={day} className="day-block">
-                      <div className="day-header">
-                        <div className="day-name">{day}</div>
-                        <div style={{display:'flex',alignItems:'center',gap:12}}>
-                          <div className="day-count">{dw.length} ex</div>
-                          {u.username===user.username&&<button className="day-add-btn" onClick={()=>{setForm(p=>({...p,day}));setShowForm(true);}}>+ add</button>}
+                {totalEx===0
+                  ? <div className="rest-day">· Rest day</div>
+                  : dayWorkouts.map(w=>{
+                      const wt  = gymGetType(w.exercise);
+                      const own = String(w.userKey)===user.username;
+                      const owner = getOwner(String(w.userKey), user, partner);
+                      return (
+                        <div key={w.id} className={`workout-card ${wt}`}>
+                          <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
+                            <ItemAvatar username={String(w.userKey)} user={user} partner={partner} size={22}/>
+                            <span className={`workout-type-badge ${wt}`} style={{margin:0}}>{wt.toUpperCase()}</span>
+                            {owner&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:owner.eventColor||'var(--text3)',letterSpacing:'0.08em'}}>{(owner.displayName||owner.username||'').toUpperCase().slice(0,12)}</span>}
+                          </div>
+                          <div className="workout-name">{(w.exercise||'').toUpperCase()}</div>
+                          <div className="workout-detail">{gymFormatDetail(w)}</div>
+                          <div className="workout-time">{(w.date||'').slice(11,16)}</div>
+                          {own&&(
+                            <button style={{marginTop:'6px',fontFamily:"'DM Mono',monospace",fontSize:'9px',color:'var(--red)',background:'transparent',border:'none',cursor:'pointer',textTransform:'uppercase',letterSpacing:'0.1em'}} onClick={()=>handleDelete(w.id)}>✕ Remove</button>
+                          )}
                         </div>
-                      </div>
-                      {dw.length===0
-                        ? <div className="rest-day">· Rest day</div>
-                        : dw.map(w=>{
-                            const wt=gymGetType(w.exercise);
-                            return (
-                              <div key={w.id} className={`workout-card ${wt}`}>
-                                <span className={`workout-type-badge ${wt}`}>{wt.toUpperCase()}</span>
-                                <div className="workout-name">{(w.exercise||'').toUpperCase()}</div>
-                                <div className="workout-detail">{gymFormatDetail(w)}</div>
-                                <div className="workout-time">{(w.date||'').slice(11,16)}</div>
-                                {u.username===user.username&&(
-                                  <button style={{marginTop:'6px',fontFamily:"'DM Mono',monospace",fontSize:'9px',color:'var(--red)',background:'transparent',border:'none',cursor:'pointer',textTransform:'uppercase',letterSpacing:'0.1em'}} onClick={()=>handleDelete(w.id)}>✕ Remove</button>
-                                )}
-                              </div>
-                            );
-                          })
-                      }
-                    </div>
-                  );
-                })}
+                      );
+                    })
+                }
               </div>
             );
           })}
@@ -1618,30 +1615,37 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
           {partner&&(
             <div className="partner-sharing-card">
               <div className="profile-section-title">§ PARTNER SHARING</div>
-              {/* Show all linked partners */}
-              {(partners.length>0?partners:[partner]).map((p,pi)=>(
-                <div key={p.username} className="partner-row" style={pi>0?{marginTop:8,paddingTop:8,borderTop:'1px solid var(--border)'}:{}}>
-                  <img className="partner-avatar" src={p.profilePicUrl||DP} alt="" style={{border:`2px solid ${p.eventColor||'#448aff'}`}}/>
-                  <div style={{flex:1}}>
-                    <div className="partner-info-name">{p.displayName||(p.firstName&&p.lastName?`${p.firstName} ${p.lastName}`:null)||p.username}</div>
-                    <div className="partner-info-status">{pi===0?'Primary partner':'Viewer'} · linked</div>
+              <div className="partner-hint" style={{marginBottom:12}}>Enable shared view per section. When on, totals combine both partners' data on that page.</div>
+
+              {/* Each linked partner gets their own share-all + grid */}
+              {(partners.length>0?partners:[partner]).map((p,pi)=>{
+                const pKey = p.username;
+                const pSharing = Object.values(sharingConfig).some(v=>v);
+                return (
+                  <div key={pKey} style={pi>0?{marginTop:16,paddingTop:16,borderTop:'1px solid var(--border)'}:{}}>
+                    <div className="partner-row" style={{marginBottom:10}}>
+                      <img className="partner-avatar" src={p.profilePicUrl||DP} alt=""
+                        style={{border:`2px solid ${p.eventColor||'#448aff'}`}}/>
+                      <div style={{flex:1}}>
+                        <div className="partner-info-name">{p.displayName||(p.firstName&&p.lastName?`${p.firstName} ${p.lastName}`:null)||p.username}</div>
+                        <div className="partner-info-status">Partner · linked</div>
+                      </div>
+                      <button className={`share-all-btn ${pSharing?'sharing':'not-sharing'}`} onClick={handleShareAll}>
+                        {pSharing?'✓ SHARING ALL':'SHARE ALL'}
+                      </button>
+                    </div>
+                    <div className="sharing-grid">
+                      {sharingItems.map(item=>(
+                        <div key={item} className={`sharing-item ${sharingConfig[item]?'on':''}`}
+                          onClick={()=>toggleSharingItem(item)}>
+                          <span className="sharing-item-label">{item.toUpperCase()}</span>
+                          <div className={`sharing-check ${sharingConfig[item]?'on':'off'}`}>{sharingConfig[item]?'✓':''}</div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  {pi===0&&(
-                    <button className={`share-all-btn ${isSharing?'sharing':'not-sharing'}`} onClick={handleShareAll}>
-                      {isSharing?'✓ SHARING ALL':'SHARE ALL'}
-                    </button>
-                  )}
-                </div>
-              ))}
-              <div className="partner-hint">Tap a section below to enable shared view. Totals combine both partners' data on that page.</div>
-              <div className="sharing-grid">
-                {sharingItems.map(item=>(
-                  <div key={item} className={`sharing-item ${sharingConfig[item]?'on':''}`} onClick={()=>toggleSharingItem(item)}>
-                    <span className="sharing-item-label">{item.toUpperCase()}</span>
-                    <div className={`sharing-check ${sharingConfig[item]?'on':'off'}`}>{sharingConfig[item]?'✓':''}</div>
-                  </div>
-                ))}
-              </div>
+                );
+              })}
             </div>
           )}
 
