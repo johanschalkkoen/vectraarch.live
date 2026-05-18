@@ -1389,13 +1389,19 @@ const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPart
   const msg = (m,t='ok')=>{ setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
 
   const isMale = (user.gender||'').toLowerCase()==='male';
-  // Males see only female partners' cycles (not their own — they have none)
-  // Females see their own + shared female partners
+  // Build visible users list respecting the chip selection (tabSelected + selfVisible)
   const allUsers = useMemo(()=>{
     const femalePartners = activePartners.filter(p=>(p.gender||'').toLowerCase()==='female');
-    if(isMale) return femalePartners; // males never have own cycle
-    return [user, ...femalePartners];
-  },[user, activePartners, isMale]);
+    if(isMale) {
+      // Male: only show female partners who are selected
+      return femalePartners.filter(p=> !tabSelected || tabSelected.has(p.username));
+    }
+    // Female: include self only if selfVisible (own chip is active)
+    const self = selfVisible ? [user] : [];
+    // Include female partners whose chip is selected
+    const selectedPartners = femalePartners.filter(p=> !tabSelected || tabSelected.has(p.username));
+    return [...self, ...selectedPartners];
+  },[user, activePartners, isMale, selfVisible, tabSelected]);
 
   const fetchCycles = useCallback(async()=>{
     const results = await Promise.all(allUsers.map(async u=>{
@@ -1416,7 +1422,7 @@ const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPart
     const map = {};
     results.forEach(r=>{ map[r.username]=r.cycles; });
     setAllCycles(map);
-  },[allUsers.map(u=>u.username).join(',')]);
+  },[allUsers.map(u=>u.username).join(','), selfVisible, JSON.stringify(tabSelected ? [...tabSelected].sort() : [])]);
 
   useEffect(()=>{ fetchCycles(); },[fetchCycles]);
 
