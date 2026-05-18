@@ -549,20 +549,41 @@ app.get('/api/budget', async (req, res) => {
     const { user } = req.query;
     if (!user) return res.status(400).json({ success: false, message: 'User required.' });
     try {
-        const rows = await dbAll('SELECT id, username AS user, income, expenses, date FROM vectraarchlegacy_budget WHERE username = $1', [user]);
-        res.json(rows);
+        const rows = await dbAll(
+            'SELECT id, username AS "user", income, expenses, date, budget_type FROM vectraarchlegacy_budget WHERE username = $1',
+            [user]
+        );
+        // Parse expenses JSON safely, attach budget_type
+        const parsed = rows.map(r => ({
+            ...r,
+            expenses: (() => {
+                try { return JSON.parse(r.expenses || '[]'); } catch { return []; }
+            })(),
+        }));
+        res.json({ success: true, data: parsed });
     } catch (e) {
         res.status(500).json({ success: false, message: 'Database error fetching budget.', error: e.message });
     }
 });
 
 app.post('/api/budget', async (req, res) => {
-    const { user, income, expenses, date } = req.body;
-    if (!user || !income || !expenses || !date) return res.status(400).json({ success: false, message: 'All fields required.' });
-    if (isNaN(income) || income < 0) return res.status(400).json({ success: false, message: 'Income must be a non-negative number.' });
-    try { JSON.parse(expenses); } catch { return res.status(400).json({ success: false, message: 'Invalid expenses JSON format.' }); }
+    const { user, income, expenses, date, budget_type } = req.body;
+    if (!user || income === undefined || !expenses || !date) {
+        return res.status(400).json({ success: false, message: 'All fields required.' });
+    }
+    if (isNaN(income) || income < 0) {
+        return res.status(400).json({ success: false, message: 'Income must be a non-negative number.' });
+    }
+    let parsedExpenses;
+    try { parsedExpenses = typeof expenses === 'string' ? JSON.parse(expenses) : expenses; }
+    catch { return res.status(400).json({ success: false, message: 'Invalid expenses JSON format.' }); }
+    const expensesStr = JSON.stringify(parsedExpenses);
+    const btype = budget_type || 'need';
     try {
-        const r = await dbRun('INSERT INTO vectraarchlegacy_budget (username,income,expenses,date) VALUES ($1,$2,$3,$4) RETURNING id', [user, income, expenses, date]);
+        const r = await dbRun(
+            'INSERT INTO vectraarchlegacy_budget (username, income, expenses, date, budget_type) VALUES ($1,$2,$3,$4,$5) RETURNING id',
+            [user, income, expensesStr, date, btype]
+        );
         await logTransaction(user, 'CREATE', 'budget', r.rows[0].id, user);
         res.json({ success: true, message: 'Budget item added successfully!' });
     } catch (e) {
@@ -572,16 +593,30 @@ app.post('/api/budget', async (req, res) => {
 
 app.put('/api/budget/:id', async (req, res) => {
     const { id } = req.params;
-    const { user, income, expenses, date } = req.body;
-    if (!user || !income || !expenses || !date) return res.status(400).json({ success: false, message: 'All fields required.' });
-    if (isNaN(income) || income < 0) return res.status(400).json({ success: false, message: 'Income must be a non-negative number.' });
-    try { JSON.parse(expenses); } catch { return res.status(400).json({ success: false, message: 'Invalid expenses JSON format.' }); }
+    const { user, income, expenses, date, budget_type } = req.body;
+    if (!user || income === undefined || !expenses || !date) {
+        return res.status(400).json({ success: false, message: 'All fields required.' });
+    }
+    if (isNaN(income) || income < 0) {
+        return res.status(400).json({ success: false, message: 'Income must be a non-negative number.' });
+    }
+    let parsedExpenses;
+    try { parsedExpenses = typeof expenses === 'string' ? JSON.parse(expenses) : expenses; }
+    catch { return res.status(400).json({ success: false, message: 'Invalid expenses JSON format.' }); }
+    const expensesStr = JSON.stringify(parsedExpenses);
+    const btype = budget_type || 'need';
     try {
         const row = await dbQuery('SELECT id FROM vectraarchlegacy_budget WHERE id=$1 AND username=$2', [id, user]);
         if (!row) return res.status(404).json({ success: false, message: 'Budget not found.' });
         await dbTransaction([
-            { sql: 'UPDATE vectraarchlegacy_budget SET income=$1,expenses=$2,date=$3 WHERE id=$4', params: [income,expenses,date,id] },
-            { sql: 'INSERT INTO vectraarchlegacy_transaction_history (username,action,table_name,record_id,modified_by,modified_at) VALUES ($1,$2,$3,$4,$5,$6)', params: [user,'UPDATE','budget',id,user,new Date().toISOString()] }
+            {
+                sql: 'UPDATE vectraarchlegacy_budget SET income=$1, expenses=$2, date=$3, budget_type=$4 WHERE id=$5',
+                params: [income, expensesStr, date, btype, id]
+            },
+            {
+                sql: 'INSERT INTO vectraarchlegacy_transaction_history (username,action,table_name,record_id,modified_by,modified_at) VALUES ($1,$2,$3,$4,$5,$6)',
+                params: [user, 'UPDATE', 'budget', id, user, new Date().toISOString()]
+            }
         ]);
         res.json({ success: true, message: 'Budget item updated successfully!' });
     } catch (e) {
@@ -596,7 +631,10 @@ app.delete('/api/budget/:id', async (req, res) => {
         if (!row) return res.status(404).json({ success: false, message: 'Budget not found.' });
         await dbTransaction([
             { sql: 'DELETE FROM vectraarchlegacy_budget WHERE id=$1', params: [id] },
-            { sql: 'INSERT INTO vectraarchlegacy_transaction_history (username,action,table_name,record_id,modified_by,modified_at) VALUES ($1,$2,$3,$4,$5,$6)', params: [row.username,'DELETE','budget',id,row.username,new Date().toISOString()] }
+            {
+                sql: 'INSERT INTO vectraarchlegacy_transaction_history (username,action,table_name,record_id,modified_by,modified_at) VALUES ($1,$2,$3,$4,$5,$6)',
+                params: [row.username, 'DELETE', 'budget', id, row.username, new Date().toISOString()]
+            }
         ]);
         res.json({ success: true, message: 'Budget item deleted successfully!' });
     } catch (e) {
