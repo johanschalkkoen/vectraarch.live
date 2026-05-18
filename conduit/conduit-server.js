@@ -681,34 +681,34 @@ app.get(BASE + '/sites', isAuth, async (req, res) => {
 
 // ── USERS ─────────────────────────────────────────────────────────────────────
 app.get(BASE + '/users', isAuth, async (req, res) => {
-  const flash  = req.session.flash; delete req.session.flash;
+  const flash = req.session.flash; delete req.session.flash;
 
-  // Query bookforge users table — same DB as VectraArchForge
+  // ── Forge users ──
   const result = await pool.query(`
     SELECT id, name, type, role, status, logins, last_login,
            (twofa_secret IS NOT NULL) AS twofa_enabled,
            CASE WHEN type='Manual' THEN COALESCE(email,'[No email set]') ELSE email END AS display_email
-    FROM users
-    ORDER BY last_login DESC NULLS LAST
+    FROM users ORDER BY last_login DESC NULLS LAST
   `);
   const users = result.rows;
 
-  // Query VectraArchLegacy users — read-only, separate DB
-  let legacyUsers = [];
+  // ── Legacy users + access list ──
+  let legacyUsers = [], accessList = [];
   try {
     const lr = await legacyPool.query(`
-      SELECT username, first_name, last_name, display_name,
-             email, is_admin, activity_status, last_active,
-             (twofa_secret IS NOT NULL) AS twofa_enabled
-      FROM vectraarchlegacy_users
-      ORDER BY last_active DESC NULLS LAST
+      SELECT username, first_name, last_name, display_name, email, is_admin,
+             activity_status, last_active, (twofa_secret IS NOT NULL) AS twofa_enabled
+      FROM vectraarchlegacy_users ORDER BY last_active DESC NULLS LAST
     `);
     legacyUsers = lr.rows;
-  } catch (e) {
-    console.error('[conduit] Legacy DB read error:', e.message);
-  }
+    const ar = await legacyPool.query('SELECT viewer, target FROM vectraarchlegacy_access ORDER BY viewer');
+    accessList = ar.rows;
+  } catch(e) { console.error('[conduit] Legacy DB error:', e.message); }
 
-  const rows = users.map(u => `
+  const usernames = legacyUsers.map(u => u.username);
+
+  // ── Forge rows ──
+  const forgeRows = users.map(u => `
     <tr>
       <td>
         <div style="color:var(--text);font-size:12px;">${esc(u.name)}</div>
@@ -723,58 +723,117 @@ app.get(BASE + '/users', isAuth, async (req, res) => {
       <td><span class="badge ${u.twofa_enabled?'ok':'info'}">${u.twofa_enabled?'On':'Off'}</span></td>
       <td style="white-space:nowrap;">
         <div style="display:flex;gap:6px;flex-wrap:wrap;">
-          <button class="btn" onclick="toggleEdit('${esc(u.id)}')" type="button">Edit</button>
-          ${u.twofa_enabled?`
-            <form method="POST" action="${BASE}/users/reset-2fa/${encodeURIComponent(u.id)}" style="display:inline;">
-              <button class="btn" type="submit" onclick="return confirm('Reset 2FA for ${esc(u.name)}?')">2FA ✕</button>
-            </form>`:''}
+          <button class="btn" onclick="toggleEdit('forge_${esc(u.id)}')" type="button">Edit</button>
+          ${u.twofa_enabled?`<form method="POST" action="${BASE}/users/reset-2fa/${encodeURIComponent(u.id)}" style="display:inline;">
+            <button class="btn" type="submit" onclick="return confirm('Reset 2FA?')">2FA ✕</button></form>`:''}
           <form method="POST" action="${BASE}/users/toggle/${encodeURIComponent(u.id)}" style="display:inline;">
             <input type="hidden" name="status" value="${u.status==='enabled'?'disabled':'enabled'}"/>
-            <button class="btn ${u.status==='enabled'?'danger':''}" type="submit">
-              ${u.status==='enabled'?'Disable':'Enable'}
-            </button>
+            <button class="btn ${u.status==='enabled'?'danger':''}" type="submit">${u.status==='enabled'?'Disable':'Enable'}</button>
           </form>
-          ${u.id!==req.session.conduitUser.id?`
-            <form method="POST" action="${BASE}/users/delete/${encodeURIComponent(u.id)}" style="display:inline;">
-              <button class="btn danger" type="submit" onclick="return confirm('Delete ${esc(u.name)}?')">Delete</button>
-            </form>`:'<span style="font-size:9px;color:var(--dim);padding:8px 0;">(you)</span>'}
+          ${u.id!==req.session.conduitUser.id?`<form method="POST" action="${BASE}/users/delete/${encodeURIComponent(u.id)}" style="display:inline;">
+            <button class="btn danger" type="submit" onclick="return confirm('Delete ${esc(u.name)}?')">Delete</button></form>`
+          :'<span style="font-size:9px;color:var(--dim);padding:8px 0;">(you)</span>'}
         </div>
-        <div id="edit-${esc(u.id)}" style="display:none;margin-top:12px;background:var(--bg3);border:1px solid var(--border2);padding:16px;">
+        <div id="edit-forge_${esc(u.id)}" style="display:none;margin-top:12px;background:var(--bg3);border:1px solid var(--border2);padding:16px;">
           <form method="POST" action="${BASE}/users/edit/${encodeURIComponent(u.id)}">
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
-              <div>
-                <div class="form-label" style="margin-bottom:4px;">Name</div>
-                <input class="form-input" name="name" value="${esc(u.name)}" required/>
-              </div>
-              <div>
-                <div class="form-label" style="margin-bottom:4px;">Role</div>
+              <div><div class="form-label" style="margin-bottom:4px;">Name</div>
+                <input class="form-input" name="name" value="${esc(u.name)}" required/></div>
+              <div><div class="form-label" style="margin-bottom:4px;">Role</div>
                 <select class="form-select" name="role">
-                  <option value="user"  ${u.role==='user' ?'selected':''}>User</option>
+                  <option value="user" ${u.role==='user'?'selected':''}>User</option>
                   <option value="admin" ${u.role==='admin'?'selected':''}>Admin</option>
-                </select>
-              </div>
+                </select></div>
               ${u.type==='Manual'?`
-              <div>
-                <div class="form-label" style="margin-bottom:4px;">Email (optional)</div>
-                <input class="form-input" name="email" type="email" placeholder="email address" value="${esc(u.display_email==='[No email set]'?'':u.display_email)}"/>
-              </div>
-              <div>
-                <div class="form-label" style="margin-bottom:4px;">New Password</div>
-                <input class="form-input" name="password" type="password" placeholder="leave blank to keep"/>
-              </div>`:'<div></div><div></div>'}
+              <div><div class="form-label" style="margin-bottom:4px;">Email</div>
+                <input class="form-input" name="email" type="email" value="${esc(u.display_email==='[No email set]'?'':u.display_email)}"/></div>
+              <div><div class="form-label" style="margin-bottom:4px;">New Password</div>
+                <input class="form-input" name="password" type="password" placeholder="leave blank to keep"/></div>`
+              :'<div></div><div></div>'}
             </div>
             <div style="display:flex;gap:8px;">
               <button class="btn primary" type="submit">Save</button>
-              <button class="btn" type="button" onclick="toggleEdit('${esc(u.id)}')">Cancel</button>
+              <button class="btn" type="button" onclick="toggleEdit('forge_${esc(u.id)}')">Cancel</button>
             </div>
           </form>
         </div>
       </td>
     </tr>`).join('');
 
+  // ── Legacy rows ──
+  const legacyRows = legacyUsers.map(u => `
+    <tr>
+      <td>
+        <div style="color:var(--text);font-size:12px;font-weight:600;">${esc(u.username)}</div>
+        ${u.first_name||u.last_name?`<div style="color:var(--dim);font-size:10px;">${esc([u.first_name,u.last_name].filter(Boolean).join(' '))}</div>`:''}
+        ${u.display_name&&u.display_name!==u.username?`<div style="color:var(--dim);font-size:9px;letter-spacing:0.05em;">${esc(u.display_name)}</div>`:''}
+      </td>
+      <td style="font-size:11px;color:var(--dim)">${esc(u.email||'—')}</td>
+      <td><span class="badge ${u.is_admin?'warn':'info'}">${u.is_admin?'Admin':'User'}</span></td>
+      <td><span class="badge ${u.activity_status?'ok':'info'}">${u.activity_status?'Active':'Inactive'}</span></td>
+      <td>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span class="badge ${u.twofa_enabled?'ok':'info'}">${u.twofa_enabled?'ON':'OFF'}</span>
+          ${u.twofa_enabled?`<form method="POST" action="${BASE}/users/legacy/toggle-2fa/${encodeURIComponent(u.username)}" style="display:inline;">
+            <input type="hidden" name="action" value="disable"/>
+            <button class="btn" style="padding:3px 8px;font-size:9px;" type="submit" onclick="return confirm('Disable 2FA for ${esc(u.username)}?')">Disable</button>
+          </form>`:'<span style="font-size:9px;color:var(--dim);">—</span>'}
+        </div>
+      </td>
+      <td style="font-size:10px;color:var(--dim)">${u.last_active?new Date(u.last_active).toLocaleString('en-ZA'):'—'}</td>
+      <td style="white-space:nowrap;">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button class="btn" onclick="toggleEdit('leg_${esc(u.username)}')" type="button">Edit</button>
+          <form method="POST" action="${BASE}/users/legacy/delete/${encodeURIComponent(u.username)}" style="display:inline;">
+            <button class="btn danger" type="submit" onclick="return confirm('Permanently delete Legacy user ${esc(u.username)} and ALL their data?')">Delete</button>
+          </form>
+        </div>
+        <div id="edit-leg_${esc(u.username)}" style="display:none;margin-top:12px;background:var(--bg3);border:1px solid var(--border2);padding:16px;">
+          <form method="POST" action="${BASE}/users/legacy/edit/${encodeURIComponent(u.username)}">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+              <div><div class="form-label" style="margin-bottom:4px;">First Name</div>
+                <input class="form-input" name="firstName" value="${esc(u.first_name||'')}" placeholder="First name"/></div>
+              <div><div class="form-label" style="margin-bottom:4px;">Last Name</div>
+                <input class="form-input" name="lastName" value="${esc(u.last_name||'')}" placeholder="Last name"/></div>
+              <div><div class="form-label" style="margin-bottom:4px;">Email</div>
+                <input class="form-input" name="email" type="email" value="${esc(u.email||'')}" placeholder="email@address.com"/></div>
+              <div><div class="form-label" style="margin-bottom:4px;">New Password</div>
+                <input class="form-input" name="password" type="password" placeholder="leave blank to keep"/></div>
+              <div><div class="form-label" style="margin-bottom:4px;">Role</div>
+                <select class="form-select" name="isAdmin">
+                  <option value="0" ${!u.is_admin?'selected':''}>User</option>
+                  <option value="1" ${u.is_admin?'selected':''}>Admin</option>
+                </select></div>
+            </div>
+            <div style="display:flex;gap:8px;">
+              <button class="btn primary" type="submit">Save Changes</button>
+              <button class="btn" type="button" onclick="toggleEdit('leg_${esc(u.username)}')">Cancel</button>
+            </div>
+          </form>
+        </div>
+      </td>
+    </tr>`).join('');
+
+  // ── Access pairs ──
+  const accessRows = accessList.map(a => `
+    <tr>
+      <td style="color:var(--text);font-size:11px;">${esc(a.viewer)}</td>
+      <td style="color:var(--dim);font-size:12px;">→</td>
+      <td style="color:var(--text);font-size:11px;">${esc(a.target)}</td>
+      <td>
+        <form method="POST" action="${BASE}/users/legacy/revoke-access" style="display:inline;">
+          <input type="hidden" name="viewer" value="${esc(a.viewer)}"/>
+          <input type="hidden" name="target" value="${esc(a.target)}"/>
+          <button class="btn danger" style="padding:3px 10px;font-size:9px;" type="submit">Revoke</button>
+        </form>
+      </td>
+    </tr>`).join('');
+
+  const usernameOpts = usernames.map(u => `<option value="${esc(u)}">${esc(u)}</option>`).join('');
+
   const body = `
     <div class="page-title">Users</div>
-    <div class="page-sub">§ bookforge database · users table · ${users.length} accounts</div>
+    <div class="page-sub">§ Forge + Legacy · User Management</div>
     ${flash?`<div class="alert ${flash.type}">${esc(flash.msg)}</div>`:''}
 
     <div class="stat-row">
@@ -782,69 +841,103 @@ app.get(BASE + '/users', isAuth, async (req, res) => {
       <div class="stat-cell"><div class="stat-num">${users.filter(u=>u.role==='admin').length}</div><div class="stat-label">Forge Admins</div></div>
       <div class="stat-cell"><div class="stat-num">${legacyUsers.length}</div><div class="stat-label">Legacy Users</div></div>
       <div class="stat-cell"><div class="stat-num">${legacyUsers.filter(u=>u.is_admin).length}</div><div class="stat-label">Legacy Admins</div></div>
+      <div class="stat-cell"><div class="stat-num">${accessList.length}</div><div class="stat-label">Partner Links</div></div>
     </div>
 
+    <!-- ── ADD FORGE USER ── -->
     <div class="section">
-      <div class="section-hdr"><span class="sh-num">01</span><span class="sh-title">Add New User · bookforge.users</span><div class="sh-line"></div></div>
+      <div class="section-hdr"><span class="sh-num">01</span><span class="sh-title">Add Forge User · bookforge.users</span><div class="sh-line"></div></div>
       <div class="form-wrap" style="padding:24px 32px;">
         <form method="POST" action="${BASE}/users/add">
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:12px;align-items:end;">
-            <div class="form-group" style="margin:0;">
-              <label class="form-label">Name <span class="req">*</span></label>
-              <input class="form-input" name="name" placeholder="username" required/>
-            </div>
-            <div class="form-group" style="margin:0;">
-              <label class="form-label">Email</label>
-              <input class="form-input" name="email" type="email" placeholder="optional"/>
-            </div>
-            <div class="form-group" style="margin:0;">
-              <label class="form-label">Password <span class="req">*</span></label>
-              <input class="form-input" name="password" type="password" placeholder="password" required/>
-            </div>
-            <div class="form-group" style="margin:0;">
-              <label class="form-label">Role</label>
+            <div class="form-group" style="margin:0;"><label class="form-label">Name <span class="req">*</span></label>
+              <input class="form-input" name="name" placeholder="username" required/></div>
+            <div class="form-group" style="margin:0;"><label class="form-label">Email</label>
+              <input class="form-input" name="email" type="email" placeholder="optional"/></div>
+            <div class="form-group" style="margin:0;"><label class="form-label">Password <span class="req">*</span></label>
+              <input class="form-input" name="password" type="password" required/></div>
+            <div class="form-group" style="margin:0;"><label class="form-label">Role</label>
               <select class="form-select" name="role">
-                <option value="user">User</option>
-                <option value="admin">Admin</option>
-              </select>
-            </div>
+                <option value="user">User</option><option value="admin">Admin</option>
+              </select></div>
             <button class="btn primary" type="submit" style="padding:10px 20px;">Add ↗</button>
           </div>
         </form>
       </div>
     </div>
 
+    <!-- ── ADD LEGACY USER ── -->
     <div class="section">
-      <div class="section-hdr"><span class="sh-num">02</span><span class="sh-title">All Users · ${users.length} Accounts</span><div class="sh-line"></div></div>
+      <div class="section-hdr"><span class="sh-num">02</span><span class="sh-title">Add Legacy User · VectraArchLegacy</span><div class="sh-line"></div></div>
+      <div class="form-wrap" style="padding:24px 32px;">
+        <form method="POST" action="${BASE}/users/legacy/add">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr auto;gap:12px;align-items:end;">
+            <div class="form-group" style="margin:0;"><label class="form-label">Username <span class="req">*</span></label>
+              <input class="form-input" name="username" placeholder="username" required/></div>
+            <div class="form-group" style="margin:0;"><label class="form-label">First Name</label>
+              <input class="form-input" name="firstName" placeholder="First"/></div>
+            <div class="form-group" style="margin:0;"><label class="form-label">Last Name</label>
+              <input class="form-input" name="lastName" placeholder="Last"/></div>
+            <div class="form-group" style="margin:0;"><label class="form-label">Email</label>
+              <input class="form-input" name="email" type="email" placeholder="optional"/></div>
+            <div class="form-group" style="margin:0;"><label class="form-label">Password <span class="req">*</span></label>
+              <input class="form-input" name="password" type="password" required/></div>
+            <button class="btn primary" type="submit" style="padding:10px 20px;">Add ↗</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ── FORGE USERS TABLE ── -->
+    <div class="section">
+      <div class="section-hdr"><span class="sh-num">03</span><span class="sh-title">Forge Users · ${users.length} Accounts</span><div class="sh-line"></div></div>
       <table>
         <thead><tr><th>Name / Email / ID</th><th>Type</th><th>Role</th><th>Status</th><th>Logins</th><th>Last Login</th><th>2FA</th><th>Actions</th></tr></thead>
-        <tbody>${rows}</tbody>
+        <tbody>${forgeRows}</tbody>
       </table>
     </div>
+
+    <!-- ── LEGACY USERS TABLE ── -->
     <div class="section">
-      <div class="section-hdr"><span class="sh-num">03</span><span class="sh-title">Legacy Users · VectraArchLegacy · ${legacyUsers.length} Accounts</span><div class="sh-line"></div></div>
-      ${legacyUsers.length === 0
-        ? '<div style="padding:24px;background:var(--bg2);color:var(--dim);text-align:center;letter-spacing:0.1em;font-size:10px;">No Legacy users found — VectraArchLegacy DB may be unavailable</div>'
+      <div class="section-hdr"><span class="sh-num">04</span><span class="sh-title">Legacy Users · VectraArchLegacy · ${legacyUsers.length} Accounts</span><div class="sh-line"></div></div>
+      ${legacyUsers.length===0
+        ? '<div style="padding:24px;background:var(--bg2);color:var(--dim);text-align:center;letter-spacing:0.1em;font-size:10px;">No Legacy users found</div>'
         : `<table>
-            <thead><tr><th>Username / Display Name</th><th>Email</th><th>Role</th><th>Activity</th><th>2FA</th><th>Last Active</th></tr></thead>
-            <tbody>${legacyUsers.map(u => `
-              <tr>
-                <td>
-                  <div style="color:var(--text);font-size:12px;">${esc(u.username)}</div>
-                  ${u.display_name && u.display_name !== u.username
-                    ? `<div style="color:var(--dim);font-size:10px;">${esc(u.display_name)}</div>` : ''}
-                  ${u.first_name || u.last_name
-                    ? `<div style="color:var(--dim);font-size:10px;">${esc([u.first_name,u.last_name].filter(Boolean).join(' '))}</div>` : ''}
-                </td>
-                <td style="font-size:11px;color:var(--dim)">${esc(u.email||'—')}</td>
-                <td><span class="badge ${u.is_admin?'warn':'info'}">${u.is_admin?'Admin':'User'}</span></td>
-                <td><span class="badge ${u.activity_status?'ok':'info'}">${u.activity_status?'Active':'Inactive'}</span></td>
-                <td><span class="badge ${u.twofa_enabled?'ok':'info'}">${u.twofa_enabled?'On':'Off'}</span></td>
-                <td style="font-size:10px;color:var(--dim)">${u.last_active ? new Date(u.last_active).toLocaleString('en-ZA') : '—'}</td>
-              </tr>`).join('')}
-            </tbody>
-          </table>`}
+            <thead><tr><th>Username / Name</th><th>Email</th><th>Role</th><th>Activity</th><th>2FA</th><th>Last Active</th><th>Actions</th></tr></thead>
+            <tbody>${legacyRows}</tbody>
+           </table>`}
     </div>
+
+    <!-- ── PARTNER SHARING / ACCESS LINKS ── -->
+    <div class="section">
+      <div class="section-hdr"><span class="sh-num">05</span><span class="sh-title">Partner Sharing · Access Links · ${accessList.length} pairs</span><div class="sh-line"></div></div>
+      <div class="form-wrap" style="padding:20px 32px 24px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+          <div>
+            <div class="form-label" style="margin-bottom:12px;font-size:10px;letter-spacing:0.15em;">GRANT ACCESS (viewer can see target's data)</div>
+            <form method="POST" action="${BASE}/users/legacy/grant-access">
+              <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end;">
+                <div><div class="form-label" style="margin-bottom:4px;">Viewer</div>
+                  <select class="form-select" name="viewer"><option value="">— Select —</option>${usernameOpts}</select></div>
+                <div><div class="form-label" style="margin-bottom:4px;">Can see →</div>
+                  <select class="form-select" name="target"><option value="">— Select —</option>${usernameOpts}</select></div>
+                <button class="btn primary" type="submit" style="padding:10px 16px;">Grant ↗</button>
+              </div>
+            </form>
+          </div>
+          <div>
+            <div class="form-label" style="margin-bottom:12px;font-size:10px;letter-spacing:0.15em;">CURRENT LINKS · ${accessList.length} pairs</div>
+            ${accessList.length===0
+              ? '<div style="color:var(--dim);font-size:10px;padding:8px 0;">No partner links configured.</div>'
+              : `<table style="width:100%;">
+                  <thead><tr><th>Viewer</th><th></th><th>Target</th><th>Action</th></tr></thead>
+                  <tbody>${accessRows}</tbody>
+                 </table>`}
+          </div>
+        </div>
+      </div>
+    </div>
+
     <script>function toggleEdit(id){var el=document.getElementById('edit-'+id);el.style.display=el.style.display==='none'?'block':'none';}</script>`;
 
   res.send(layout('Users', 'users', body));
@@ -916,6 +1009,117 @@ app.post(BASE + '/users/delete/:id', isAuth, async (req, res) => {
   await pool.query('INSERT INTO conduit_log (event,payload,status) VALUES ($1,$2,$3)',
     ['user_delete', `id:${uid} name:${name}`, 'ok']);
   req.session.flash = { type:'ok', msg:`✓ User "${name}" deleted from bookforge` };
+  res.redirect(BASE + '/users');
+});
+
+
+// ── LEGACY USER MANAGEMENT ROUTES ────────────────────────────────────────────
+
+// POST: Add a new Legacy user
+app.post(BASE + '/users/legacy/add', isAuth, async (req, res) => {
+  const { username, firstName, lastName, email, password, isAdmin } = req.body;
+  if (!username || !password) {
+    req.session.flash = { type:'err', msg:'Username and password are required.' };
+    return res.redirect(BASE + '/users');
+  }
+  try {
+    const bcrypt = require('bcrypt');
+    const hash = await bcrypt.hash(password, 10);
+    await legacyPool.query(
+      'INSERT INTO vectraarchlegacy_users (username, password_hash, first_name, last_name, display_name, email, is_admin) VALUES ($1,$2,$3,$4,$5,$6,$7)',
+      [username.toLowerCase().trim(), hash, firstName||null, lastName||null,
+       (firstName&&lastName)?`${firstName} ${lastName}`:username, email||null, isAdmin?1:0]
+    );
+    await pool.query('INSERT INTO conduit_log (event,payload,status) VALUES ($1,$2,$3)',
+      ['legacy_user_add', `username:${username}`, 'ok']);
+    req.session.flash = { type:'ok', msg:`✓ Legacy user "${username}" created` };
+  } catch(e) {
+    req.session.flash = { type:'err', msg:`Error: ${e.message}` };
+  }
+  res.redirect(BASE + '/users');
+});
+
+// POST: Edit Legacy user fields
+app.post(BASE + '/users/legacy/edit/:username', isAuth, async (req, res) => {
+  const { username } = req.params;
+  const { firstName, lastName, email, newUsername, isAdmin, password } = req.body;
+  try {
+    const displayName = (firstName&&lastName)?`${firstName} ${lastName}`:username;
+    await legacyPool.query(
+      `UPDATE vectraarchlegacy_users SET first_name=$1, last_name=$2, display_name=$3, email=$4, is_admin=$5 WHERE username=$6`,
+      [firstName||null, lastName||null, displayName, email||null, isAdmin?1:0, username]
+    );
+    if (password && password.trim()) {
+      const bcrypt = require('bcrypt');
+      const hash = await bcrypt.hash(password.trim(), 10);
+      await legacyPool.query('UPDATE vectraarchlegacy_users SET password_hash=$1 WHERE username=$2', [hash, username]);
+    }
+    await pool.query('INSERT INTO conduit_log (event,payload,status) VALUES ($1,$2,$3)',
+      ['legacy_user_edit', `username:${username}`, 'ok']);
+    req.session.flash = { type:'ok', msg:`✓ Legacy user "${username}" updated` };
+  } catch(e) {
+    req.session.flash = { type:'err', msg:`Error: ${e.message}` };
+  }
+  res.redirect(BASE + '/users');
+});
+
+// POST: Delete Legacy user
+app.post(BASE + '/users/legacy/delete/:username', isAuth, async (req, res) => {
+  const { username } = req.params;
+  try {
+    await legacyPool.query('DELETE FROM vectraarchlegacy_users WHERE username=$1', [username]);
+    await pool.query('INSERT INTO conduit_log (event,payload,status) VALUES ($1,$2,$3)',
+      ['legacy_user_delete', `username:${username}`, 'ok']);
+    req.session.flash = { type:'ok', msg:`✓ Legacy user "${username}" deleted` };
+  } catch(e) {
+    req.session.flash = { type:'err', msg:`Error: ${e.message}` };
+  }
+  res.redirect(BASE + '/users');
+});
+
+// POST: Toggle Legacy user 2FA (reset secret = disable)
+app.post(BASE + '/users/legacy/toggle-2fa/:username', isAuth, async (req, res) => {
+  const { username } = req.params;
+  const { action } = req.body; // 'disable'
+  try {
+    if (action === 'disable') {
+      await legacyPool.query('UPDATE vectraarchlegacy_users SET twofa_secret=NULL WHERE username=$1', [username]);
+      req.session.flash = { type:'ok', msg:`✓ 2FA disabled for "${username}"` };
+    }
+  } catch(e) {
+    req.session.flash = { type:'err', msg:`Error: ${e.message}` };
+  }
+  res.redirect(BASE + '/users');
+});
+
+// POST: Grant Legacy access (partner sharing)
+app.post(BASE + '/users/legacy/grant-access', isAuth, async (req, res) => {
+  const { viewer, target } = req.body;
+  if (!viewer||!target||viewer===target) {
+    req.session.flash = { type:'err', msg:'Viewer and target must be different users.' };
+    return res.redirect(BASE + '/users');
+  }
+  try {
+    await legacyPool.query(
+      'INSERT INTO vectraarchlegacy_access (viewer,target) VALUES ($1,$2) ON CONFLICT DO NOTHING',
+      [viewer, target]
+    );
+    req.session.flash = { type:'ok', msg:`✓ Access granted: ${viewer} → ${target}` };
+  } catch(e) {
+    req.session.flash = { type:'err', msg:`Error: ${e.message}` };
+  }
+  res.redirect(BASE + '/users');
+});
+
+// POST: Revoke Legacy access
+app.post(BASE + '/users/legacy/revoke-access', isAuth, async (req, res) => {
+  const { viewer, target } = req.body;
+  try {
+    await legacyPool.query('DELETE FROM vectraarchlegacy_access WHERE viewer=$1 AND target=$2', [viewer, target]);
+    req.session.flash = { type:'ok', msg:`✓ Access revoked: ${viewer} → ${target}` };
+  } catch(e) {
+    req.session.flash = { type:'err', msg:`Error: ${e.message}` };
+  }
   res.redirect(BASE + '/users');
 });
 

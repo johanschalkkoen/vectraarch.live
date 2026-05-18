@@ -1446,12 +1446,34 @@ const ProfilePage = ({user, setUser, partner, setPartner, sharingConfig, setShar
   const [pushNotifs, setPushNotifs] = useState(true);
   const [selectedColor, setSelectedColor] = useState(user.eventColor||'#00e676');
   const [alert, setAlert] = useState({msg:'',type:''});
+  // Track whether the actual DB access link exists
+  const [partnerLinked, setPartnerLinked] = useState(false);
 
   const COLORS=['#00e676','#ff3b3b','#448aff','#ffd600','#e91e8c','#e040fb'];
   const msg=(m,t='ok')=>{ setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
 
+  const sharingItems=['Finances','Calendar','Budget','Gym','Meals','Cycle'];
   const isSharing = Object.values(sharingConfig).some(v=>v);
   const currentUser = activeUser.username===user.username?user:partner;
+
+  // Load access status on mount — check if user→partner link exists
+  useEffect(()=>{
+    if(!partner) return;
+    axios.get(`${API}/get-access`,{params:{viewer:user.username,adminUsername:user.username}})
+      .then(r=>{
+        if(r.data.success){
+          const linked = (r.data.accessList||[]).some(a=>a.viewer===user.username&&a.target===partner.username);
+          setPartnerLinked(linked);
+          if(linked){
+            // If linked, default all sharing to true
+            setSharingConfig(p=>{
+              const allOff = Object.values(p).every(v=>!v);
+              return allOff ? Object.fromEntries(sharingItems.map(i=>[i,true])) : p;
+            });
+          }
+        }
+      }).catch(()=>{});
+  },[partner]);
 
   const handleSave = async()=>{
     try {
@@ -1463,10 +1485,28 @@ const ProfilePage = ({user, setUser, partner, setPartner, sharingConfig, setShar
     } catch { msg('Error saving.','err'); }
   };
 
+  // Toggle individual sharing item — local state only (controls data merging in each tab)
   const toggleSharingItem = (item) => {
     setSharingConfig(p=>({...p,[item]:!p[item]}));
   };
-  const sharingItems=['Finances','Calendar','Budget','Gym','Meals','Cycle'];
+
+  // SHARE ALL / UNSHARE ALL — also grants/revokes the DB access link
+  const handleShareAll = async() => {
+    if(!partner) return;
+    const all = !isSharing;
+    setSharingConfig(Object.fromEntries(sharingItems.map(i=>[i,all])));
+    try {
+      if(all && !partnerLinked){
+        await axios.post(`${API}/grant-access`,{viewer:user.username,target:partner.username,adminUsername:user.username});
+        setPartnerLinked(true);
+        msg('Partner sharing enabled — now viewing shared data.');
+      } else if(!all && partnerLinked){
+        await axios.post(`${API}/revoke-access`,{viewer:user.username,target:partner.username,adminUsername:user.username});
+        setPartnerLinked(false);
+        msg('Partner sharing disabled.');
+      }
+    } catch { msg('Sharing updated locally.'); }
+  };
 
   return (
     <div className="page-outer">
@@ -1491,6 +1531,12 @@ const ProfilePage = ({user, setUser, partner, setPartner, sharingConfig, setShar
           </div>
 
           {/* Partner sharing */}
+          {!partner&&(
+            <div style={{background:'var(--bg2)',border:'1px solid var(--border2)',borderRadius:6,padding:'14px 16px',marginBottom:16}}>
+              <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.18em',textTransform:'uppercase',color:'var(--pink)',marginBottom:6}}>§ PARTNER SHARING</div>
+              <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',lineHeight:1.6}}>No partner linked. Ask your admin to set up access via <strong style={{color:'var(--text2)'}}>vectraarch.live/conduit/users</strong></div>
+            </div>
+          )}
           {partner&&(
             <div className="partner-sharing-card">
               <div className="profile-section-title">§ PARTNER SHARING</div>
@@ -1500,7 +1546,9 @@ const ProfilePage = ({user, setUser, partner, setPartner, sharingConfig, setShar
                   <div className="partner-info-name">{partner.displayName||(partner.firstName&&partner.lastName?`${partner.firstName} ${partner.lastName}`:null)||partner.username}</div>
                   <div className="partner-info-status">Partner · linked</div>
                 </div>
-                <button className={`share-all-btn ${isSharing?'sharing':'not-sharing'}`} onClick={()=>{const all=!isSharing;setSharingConfig(Object.fromEntries(sharingItems.map(i=>[i,all])));}}>{isSharing?'SHARING ALL':'SHARE ALL'}</button>
+                <button className={`share-all-btn ${isSharing?'sharing':'not-sharing'}`} onClick={handleShareAll}>
+                  {isSharing?'✓ SHARING ALL':'SHARE ALL'}
+                </button>
               </div>
               <div className="partner-hint">Tap a tab below to enable shared view. When enabled, totals combine both partners' data on that page.</div>
               <div className="sharing-grid">
@@ -1517,10 +1565,7 @@ const ProfilePage = ({user, setUser, partner, setPartner, sharingConfig, setShar
           {/* Account Details */}
           <div className="profile-section">
             <div className="profile-section-title">§ ACCOUNT DETAILS</div>
-            <div className="profile-field">
-              <div className="profile-field-label">Display Name</div>
-              <input className="profile-field-input" value={form.displayName} onChange={e=>setForm(p=>({...p,displayName:e.target.value}))}/>
-            </div>
+
             <div className="profile-field">
               <div className="profile-field-label">Email</div>
               <input className="profile-field-input" value={form.email} onChange={e=>setForm(p=>({...p,email:e.target.value}))} type="email"/>
