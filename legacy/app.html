@@ -49,25 +49,25 @@ const Icons = {
 };
 
 /* ── SHARED COMPONENTS ── */
-const UserRow = ({user, partner, isShared, onToggleShared}) => (
-  <div className="user-row">
+const UserRow = ({user, partner, partners=[], activePartners=[], isShared, onToggleShared}) => (
+  <div className="user-row" style={{flexWrap:'wrap',gap:6}}>
     <div className="user-chip">
       <img className="user-chip-avatar" src={user?.profilePicUrl||DP} alt={user?.username} style={{border:`2px solid ${user?.eventColor||'#e91e8c'}`}}/>
       <span className="user-chip-name">{user?.displayName||(user?.firstName&&user?.lastName?`${user.firstName} ${user.lastName}`:null)||user?.username||'USER'}</span>
       <span className="user-chip-arrow">⌄</span>
     </div>
-    {partner
-      ? <button className={`badge-shared`} onClick={onToggleShared} style={!isShared?{background:'transparent',border:'1px solid rgba(255,255,255,0.12)',color:'var(--text3)'}:{}}>
-          {isShared ? 'SHARED' : 'SOLO'}
+    {(partners.length>0?partners:partner?[partner]:[]).length > 0
+      ? <button className="badge-shared" onClick={onToggleShared} style={!isShared?{background:'transparent',border:'1px solid rgba(255,255,255,0.12)',color:'var(--text3)'}:{}}>
+          {isShared ? '● SHARED' : 'SOLO'}
         </button>
       : <span className="badge-solo">SOLO</span>
     }
-    {partner && isShared && (
-      <div className="partner-chip">
-        <img className="partner-chip-avatar" src={partner?.profilePicUrl||DP} alt={partner?.username} style={{border:`2px solid ${partner?.eventColor||'#448aff'}`}}/>
-        <span className="partner-chip-name">+ {partner?.displayName||(partner?.firstName&&partner?.lastName?`${partner.firstName} ${partner.lastName}`:null)||partner?.username}</span>
+    {activePartners.map(p=>(
+      <div key={p.username} className="partner-chip">
+        <img className="partner-chip-avatar" src={p.profilePicUrl||DP} alt={p.username} style={{border:`2px solid ${p.eventColor||'#448aff'}`}}/>
+        <span className="partner-chip-name">+ {p.displayName||(p.firstName&&p.lastName?`${p.firstName} ${p.lastName}`:null)||p.username}</span>
       </div>
-    )}
+    ))}
   </div>
 );
 
@@ -95,7 +95,7 @@ const ItemAvatar = ({username, user, partner, size=36}) => {
 };
 
 /* ── FINANCES PAGE ── */
-const FinancesPage = ({user, partner, isShared, onToggleShared, tabColor='#00e676'}) => {
+const FinancesPage = ({user, partner, partners=[], activePartners=[], isShared, onToggleShared, tabColor='#00e676'}) => {
   const [items, setItems] = useState([]);
   const [budgets, setBudgets] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()+1).padStart(2,'0'));
@@ -109,7 +109,7 @@ const FinancesPage = ({user, partner, isShared, onToggleShared, tabColor='#00e67
   const msg = (m,t='ok') => { setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
 
   const fetchAll = useCallback(async () => {
-    const users = [user.username, ...(isShared&&partner?[partner.username]:[])];
+    const users = [user.username, ...activePartners.map(p=>p.username)];
     try {
       const [fins, buds] = await Promise.all([
         Promise.all(users.map(u=>axios.get(`${API}/financial`,{params:{user:u}}).then(r=>r.data).catch(()=>[]))).then(r=>r.flat()),
@@ -122,7 +122,7 @@ const FinancesPage = ({user, partner, isShared, onToggleShared, tabColor='#00e67
   useEffect(()=>{ fetchAll(); },[fetchAll]);
 
   const filtered = useMemo(()=>{
-    const users = [user.username, ...(isShared&&partner?[partner.username]:[])];
+    const users = [user.username, ...activePartners.map(p=>p.username)];
     let list = items.filter(i=>users.includes(i.user||i.username)&&(i.date||'').slice(5,7)===selectedMonth);
     if(search) list = list.filter(i=>(i.category||'').toLowerCase().includes(search.toLowerCase()));
     return [...list].sort((a,b)=>sortField==='amount'?parseFloat(b.amount)-parseFloat(a.amount):new Date(b.date)-new Date(a.date));
@@ -168,7 +168,7 @@ const FinancesPage = ({user, partner, isShared, onToggleShared, tabColor='#00e67
             <div className="page-title">FINANCES</div>
             <div className="page-sub">{isShared2?'COMBINED HOUSEHOLD TOTALS':'INCOME · EXPENSES · NET TOTAL'}</div>
           </div>
-          <UserRow user={user} partner={partner} isShared={isShared} onToggleShared={onToggleShared}/>
+          <UserRow user={user} partner={partner} partners={partners} activePartners={activePartners} isShared={isShared} onToggleShared={onToggleShared}/>
           <div className="toolbar-row">
             <div className="tb-chip">
               <span style={{fontSize:'9px',fontFamily:"'DM Mono',monospace",letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--text3)'}}>MONTH</span>
@@ -217,7 +217,7 @@ const FinancesPage = ({user, partner, isShared, onToggleShared, tabColor='#00e67
                   <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
                     <ItemAvatar username={item.user||item.username} user={user} partner={partner} size={36}/>
                     <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:600,letterSpacing:'0.12em',padding:'3px 8px',borderRadius:3,textTransform:'uppercase',flexShrink:0,background:isIncome?'rgba(0,230,118,0.15)':'rgba(255,61,61,0.15)',color:isIncome?'var(--green)':'var(--red)',border:`1px solid ${isIncome?'rgba(0,230,118,0.3)':'rgba(255,61,61,0.3)'}`}}>{(item.type||'expense').toUpperCase()}</span>
-                    {finOwner&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:finOwner.eventColor||'var(--text3)',letterSpacing:'0.08em'}}>{(finOwner.displayName||finOwner.username||'').toUpperCase().slice(0,14)}</span>}
+                    {finOwner&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:finOwner.eventColor||'var(--text3)',letterSpacing:'0.08em'}}>{(finOwner.displayName||finOwner.username||'').toUpperCase()}</span>}
                   </div>
                   <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
                     <div>
@@ -276,7 +276,7 @@ const FinancesPage = ({user, partner, isShared, onToggleShared, tabColor='#00e67
 };
 
 /* ── CALENDAR PAGE ── */
-const CalendarPage = ({user, partner, isShared, onToggleShared, tabColor='#448aff'}) => {
+const CalendarPage = ({user, partner, partners=[], activePartners=[], isShared, onToggleShared, tabColor='#448aff'}) => {
   const [events, setEvents] = useState([]);
   const [viewDate, setViewDate] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState(new Date());
@@ -288,7 +288,7 @@ const CalendarPage = ({user, partner, isShared, onToggleShared, tabColor='#448af
   const msg = (m,t='ok')=>{ setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
 
   const fetchEvents = useCallback(async()=>{
-    const users=[user.username,...(isShared&&partner?[partner.username]:[])];
+    const users=[user.username,...activePartners.map(p=>p.username)];
     try {
       const [calAll, periodAll] = await Promise.all([
         Promise.all(users.map(u=>axios.get(`${API}/calendar`,{params:{user:u}}).then(r=>r.data.map(e=>({...e,user:e.user||u}))).catch(()=>[]))).then(r=>r.flat()),
@@ -376,7 +376,7 @@ const CalendarPage = ({user, partner, isShared, onToggleShared, tabColor='#448af
             <div className="page-title">CALENDAR</div>
             <div className="page-sub">EVENTS · CYCLE · SCHEDULE</div>
           </div>
-          <UserRow user={user} partner={partner} isShared={isShared} onToggleShared={onToggleShared}/>
+          <UserRow user={user} partner={partner} partners={partners} activePartners={activePartners} isShared={isShared} onToggleShared={onToggleShared}/>
           <Alert {...alert}/>
 
           {/* Nav */}
@@ -450,7 +450,7 @@ const CalendarPage = ({user, partner, isShared, onToggleShared, tabColor='#448af
                 <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
                   <ItemAvatar username={e.user||e.username} user={user} partner={partner} size={36}/>
                   <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:600,letterSpacing:'0.12em',padding:'3px 8px',borderRadius:3,textTransform:'uppercase',flexShrink:0,background:`${dotColor}22`,color:dotColor,border:`1px solid ${dotColor}55`}}>{(e.type||'personal').toUpperCase()}</span>
-                  {calOwner&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:calOwner.eventColor||'var(--text3)',letterSpacing:'0.08em'}}>{(calOwner.displayName||calOwner.username||'').toUpperCase().slice(0,14)}</span>}
+                  {calOwner&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:calOwner.eventColor||'var(--text3)',letterSpacing:'0.08em'}}>{(calOwner.displayName||calOwner.username||'').toUpperCase()}</span>}
                 </div>
                 <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
                   <div>
@@ -530,7 +530,7 @@ const CalendarPage = ({user, partner, isShared, onToggleShared, tabColor='#448af
 };
 
 /* ── BUDGET PAGE ── */
-const BudgetPage = ({user, partner, isShared, onToggleShared, tabColor='#ffd600'}) => {
+const BudgetPage = ({user, partner, partners=[], activePartners=[], isShared, onToggleShared, tabColor='#ffd600'}) => {
   const [budgets, setBudgets] = useState([]);
   const [items, setItems] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()+1).padStart(2,'0'));
@@ -541,7 +541,7 @@ const BudgetPage = ({user, partner, isShared, onToggleShared, tabColor='#ffd600'
   const msg=(m,t='ok')=>{ setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
 
   const fetchAll = useCallback(async()=>{
-    const users=[user.username,...(isShared&&partner?[partner.username]:[])];
+    const users=[user.username,...activePartners.map(p=>p.username)];
     try {
       const [buds,fins]=await Promise.all([
         Promise.all(users.map(u=>axios.get(`${API}/budget`,{params:{user:u}}).then(r=>{const rows=r.data.data||r.data||[];return rows.map(b=>({...b,expenses:Array.isArray(b.expenses)?b.expenses:(typeof b.expenses==='string'?JSON.parse(b.expenses||'[]'):(b.expenses||[])),user:b.user||u}));}).catch(()=>[]))).then(r=>r.flat()),
@@ -562,12 +562,12 @@ const BudgetPage = ({user, partner, isShared, onToggleShared, tabColor='#ffd600'
 
   const totalPlanned = filteredBudgets.reduce((s,b)=>s+b.expenses.reduce((ss,e)=>ss+parseFloat(e.amount||0),0),0);
   const totalActual = useMemo(()=>{
-    const users=[user.username,...(isShared&&partner?[partner.username]:[])];
+    const users=[user.username,...activePartners.map(p=>p.username)];
     return items.filter(i=>users.includes(i.user||i.username)&&(i.date||'').slice(5,7)===selectedMonth&&i.type==='expense').reduce((s,i)=>s+parseFloat(i.amount||0),0);
   },[items,selectedMonth,user.username,partner,isShared]);
 
   const getBudgetActual = (b) => {
-    const users=[user.username,...(isShared&&partner?[partner.username]:[])];
+    const users=[user.username,...activePartners.map(p=>p.username)];
     return items.filter(i=>users.includes(i.user||i.username)&&(i.date||'').slice(5,7)===selectedMonth&&i.type==='expense').reduce((s,i)=>s+parseFloat(i.amount||0),0);
   };
 
@@ -607,7 +607,7 @@ const BudgetPage = ({user, partner, isShared, onToggleShared, tabColor='#ffd600'
             <div className="page-title">BUDGET</div>
             <div className="page-sub">PLANNED · ACTUAL · REMAINING</div>
           </div>
-          <UserRow user={user} partner={partner} isShared={isShared} onToggleShared={onToggleShared}/>
+          <UserRow user={user} partner={partner} partners={partners} activePartners={activePartners} isShared={isShared} onToggleShared={onToggleShared}/>
           <div className="toolbar-row">
             <div className="tb-chip">
               <span style={{fontSize:'9px',fontFamily:"'DM Mono',monospace",letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--text3)'}}>MONTH</span>
@@ -655,7 +655,7 @@ const BudgetPage = ({user, partner, isShared, onToggleShared, tabColor='#ffd600'
                 <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
                   <ItemAvatar username={b.user||user.username} user={user} partner={partner} size={36}/>
                   <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:600,letterSpacing:'0.12em',padding:'3px 8px',borderRadius:3,textTransform:'uppercase',flexShrink:0,background:'rgba(255,214,0,0.15)',color:'var(--yellow)',border:'1px solid rgba(255,214,0,0.3)'}}>BUDGET</span>
-                  {budOwner&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:budOwner.eventColor||'var(--text3)',letterSpacing:'0.08em'}}>{(budOwner.displayName||budOwner.username||'').toUpperCase().slice(0,14)}</span>}
+                  {budOwner&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:budOwner.eventColor||'var(--text3)',letterSpacing:'0.08em'}}>{(budOwner.displayName||budOwner.username||'').toUpperCase()}</span>}
                 </div>
                 <div className="meal-name" style={{marginBottom:4}}>{(b.expenses[0]?.category||'Budget').toUpperCase()}</div>
                 <div className="meal-note" style={{marginBottom:10}}>{fmtDate(b.date)}</div>
@@ -791,7 +791,7 @@ const gymFormatDetail = w => {
   return `${sets} × ${reps} reps @ ${weight} kg`;
 };
 
-const GymPage = ({user, partner, isShared, onToggleShared, tabColor='#ff3b3b'}) => {
+const GymPage = ({user, partner, partners=[], activePartners=[], isShared, onToggleShared, tabColor='#ff3b3b'}) => {
   const [workouts, setWorkouts] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()+1).padStart(2,'0'));
   const [showForm, setShowForm] = useState(false);
@@ -801,7 +801,7 @@ const GymPage = ({user, partner, isShared, onToggleShared, tabColor='#ff3b3b'}) 
   const msg=(m,t='ok')=>{ setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
 
   const fetchAll = useCallback(async()=>{
-    const users=[user.username,...(isShared&&partner?[partner.username]:[])];
+    const users=[user.username,...activePartners.map(p=>p.username)];
     try {
       const all=await Promise.all(users.map(u=>axios.get(`${API}/gymworkout`,{params:{user:u}}).then(r=>r.data.map(w=>({...w,userKey:String(u)}))).catch(()=>[])));
       setWorkouts(all.flat());
@@ -835,7 +835,7 @@ const GymPage = ({user, partner, isShared, onToggleShared, tabColor='#ff3b3b'}) 
     try { await axios.delete(`${API}/gymworkout/${id}`); fetchAll(); } catch {}
   };
 
-  const users = [user, ...(isShared&&partner?[partner]:[])];
+  const users = [user, ...activePartners];
   const t = form.type;
 
   return (
@@ -847,7 +847,7 @@ const GymPage = ({user, partner, isShared, onToggleShared, tabColor='#ff3b3b'}) 
             <div className="page-title">GYM WORKOUT</div>
             <div className="page-sub">EXERCISES · STRENGTH · WEEKLY PLAN</div>
           </div>
-          <UserRow user={user} partner={partner} isShared={isShared} onToggleShared={onToggleShared}/>
+          <UserRow user={user} partner={partner} partners={partners} activePartners={activePartners} isShared={isShared} onToggleShared={onToggleShared}/>
           <div className="toolbar-row">
             <div className="tb-chip">
               <span style={{fontSize:'9px',fontFamily:"'DM Mono',monospace",letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--text3)'}}>MONTH</span>
@@ -881,7 +881,7 @@ const GymPage = ({user, partner, isShared, onToggleShared, tabColor='#ff3b3b'}) 
                           <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
                             <ItemAvatar username={String(w.userKey)} user={user} partner={partner} size={22}/>
                             <span className={`workout-type-badge ${wt}`} style={{margin:0}}>{wt.toUpperCase()}</span>
-                            {owner&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:owner.eventColor||'var(--text3)',letterSpacing:'0.08em'}}>{(owner.displayName||owner.username||'').toUpperCase().slice(0,12)}</span>}
+                            {owner&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:owner.eventColor||'var(--text3)',letterSpacing:'0.08em'}}>{(owner.displayName||owner.username||'').toUpperCase()}</span>}
                           </div>
                           <div className="workout-name">{(w.exercise||'').toUpperCase()}</div>
                           <div className="workout-detail">{gymFormatDetail(w)}</div>
@@ -1034,7 +1034,7 @@ const MEAL_OPTIONS = [
   { label:'Custom', options:[{value:'__custom__',label:'Custom meal...',cal:0}]}
 ];
 
-const MealsPage = ({user, partner, isShared, onToggleShared, tabColor='#d67bff'}) => {
+const MealsPage = ({user, partner, partners=[], activePartners=[], isShared, onToggleShared, tabColor='#d67bff'}) => {
   const [meals, setMeals] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()+1).padStart(2,'0'));
   const [typeFilter, setTypeFilter] = useState('All');
@@ -1045,7 +1045,7 @@ const MealsPage = ({user, partner, isShared, onToggleShared, tabColor='#d67bff'}
   const msg=(m,t='ok')=>{ setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
 
   const fetchMeals = useCallback(async()=>{
-    const users=[user.username,...(isShared&&partner?[partner.username]:[])];
+    const users=[user.username,...activePartners.map(p=>p.username)];
     try {
       const all=await Promise.all(users.map(u=>axios.get(`${API}/mealplan`,{params:{user:u}}).then(r=>r.data.map(m=>({...m,userKey:String(u)}))).catch(()=>[])));
       setMeals(all.flat());
@@ -1055,7 +1055,7 @@ const MealsPage = ({user, partner, isShared, onToggleShared, tabColor='#d67bff'}
   useEffect(()=>{ fetchMeals(); },[fetchMeals]);
 
   const filtered = useMemo(()=>{
-    const users=[user.username,...(isShared&&partner?[partner.username]:[])];
+    const users=[user.username,...activePartners.map(p=>p.username)];
     let list = meals.filter(m=>users.map(String).includes(String(m.userKey))&&(m.date||'').slice(5,7)===selectedMonth);
     if(typeFilter!=='All') list=list.filter(m=>(m.mealType||'').toLowerCase()===typeFilter.toLowerCase());
     return list;
@@ -1109,7 +1109,7 @@ const MealsPage = ({user, partner, isShared, onToggleShared, tabColor='#d67bff'}
             <div className="page-title">MEAL PLAN</div>
             <div className="page-sub">MACROS · DAILY FOOD LOG</div>
           </div>
-          <UserRow user={user} partner={partner} isShared={isShared} onToggleShared={onToggleShared}/>
+          <UserRow user={user} partner={partner} partners={partners} activePartners={activePartners} isShared={isShared} onToggleShared={onToggleShared}/>
           <div className="toolbar-row">
             <div className="tb-chip">
               <span style={{fontSize:'9px',fontFamily:"'DM Mono',monospace",letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--text3)'}}>MONTH</span>
@@ -1147,7 +1147,7 @@ const MealsPage = ({user, partner, isShared, onToggleShared, tabColor='#d67bff'}
                 <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
                   <ItemAvatar username={String(m.userKey)} user={user} partner={partner} size={36}/>
                   <span className={`meal-type-badge ${mt}`} style={{flexShrink:0}}>{mt.toUpperCase()}</span>
-                  {owner&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:owner.eventColor||'var(--text3)',letterSpacing:'0.08em'}}>{(owner.displayName||owner.username||'').toUpperCase().slice(0,14)}</span>}
+                  {owner&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:owner.eventColor||'var(--text3)',letterSpacing:'0.08em'}}>{(owner.displayName||owner.username||'').toUpperCase()}</span>}
                 </div>
                 {/* Meal name */}
                 <div className="meal-name" style={{marginBottom:8}}>{desc.toUpperCase()}</div>
@@ -1219,7 +1219,7 @@ const MealsPage = ({user, partner, isShared, onToggleShared, tabColor='#d67bff'}
 };
 
 /* ── CYCLE PAGE ── */
-const CyclePage = ({user, partner, isShared, onToggleShared, tabColor='#e91e8c'}) => {
+const CyclePage = ({user, partner, partners=[], activePartners=[], isShared, onToggleShared, tabColor='#e91e8c'}) => {
   const [cycles, setCycles] = useState([]);
   const [viewDate, setViewDate] = useState(new Date());
   const [showForm, setShowForm] = useState(false);
@@ -1361,7 +1361,7 @@ const CyclePage = ({user, partner, isShared, onToggleShared, tabColor='#e91e8c'}
             <div className="page-title">CYCLE TRACKER</div>
             <div className="page-sub">PERIOD · OVULATION · FERTILITY</div>
           </div>
-          <UserRow user={user} partner={partner} isShared={isShared} onToggleShared={onToggleShared}/>
+          <UserRow user={user} partner={partner} partners={partners} activePartners={activePartners} isShared={isShared} onToggleShared={onToggleShared}/>
           <Alert {...alert}/>
 
           {/* Stats */}
@@ -1417,7 +1417,7 @@ const CyclePage = ({user, partner, isShared, onToggleShared, tabColor='#e91e8c'}
                 <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
                   <ItemAvatar username={user.username} user={user} partner={partner} size={36}/>
                   <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:600,letterSpacing:'0.12em',padding:'3px 8px',borderRadius:3,textTransform:'uppercase',flexShrink:0,background:'rgba(233,30,140,0.15)',color:'var(--pink)',border:'1px solid rgba(233,30,140,0.3)'}}>🩸 CYCLE</span>
-                  {cycOwner&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:cycOwner.eventColor||'var(--pink)',letterSpacing:'0.08em'}}>{(cycOwner.displayName||cycOwner.username||'').toUpperCase().slice(0,14)}</span>}
+                  {cycOwner&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:cycOwner.eventColor||'var(--pink)',letterSpacing:'0.08em'}}>{(cycOwner.displayName||cycOwner.username||'').toUpperCase()}</span>}
                 </div>
                 {/* Start date as title */}
                 <div className="meal-name" style={{marginBottom:8}}>START: {fmtDate(c.startDate).toUpperCase()}</div>
@@ -1498,7 +1498,6 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
   const COLORS = ['#00e676','#ff3b3b','#448aff','#ffd600','#e91e8c','#e040fb'];
   const msg = (m,t='ok') => { setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
   const sharingItems = ['Finances','Calendar','Budget','Gym','Meals','Cycle'];
-  const isSharing    = Object.values(sharingConfig).some(v=>v);
 
   // Re-sync form when user prop updates (after App reloads profile)
   useEffect(()=>{
@@ -1513,20 +1512,22 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
     setPicPreview(user.profilePicUrl||DP);
   },[user.username]);
 
-  // Load partner access link status
+  // Load partner access link status — populate sharingConfig per partner
   useEffect(()=>{
     if(!partner) return;
     axios.get(`${API}/get-access`,{params:{viewer:user.username,adminUsername:user.username}})
       .then(r=>{
         if(r.data.success){
-          const linked=(r.data.accessList||[]).some(a=>a.viewer===user.username&&a.target===partner.username);
-          setPartnerLinked(linked);
-          if(linked){
-            setSharingConfig(p=>{
-              const allOff=Object.values(p).every(v=>!v);
-              return allOff?Object.fromEntries(sharingItems.map(i=>[i,true])):p;
-            });
-          }
+          const allPartners2=partners.length>0?partners:[partner];
+          allPartners2.forEach(p=>{
+            const linked=(r.data.accessList||[]).some(a=>a.viewer===user.username&&a.target===p.username);
+            if(linked){
+              setSharingConfig(prev=>{
+                if(prev[p.username]) return prev; // already set — don't overwrite
+                return {...prev,[p.username]:Object.fromEntries(sharingItems.map(i=>[i,true]))};
+              });
+            }
+          });
         }
       }).catch(()=>{});
   },[partner?.username]);
@@ -1570,24 +1571,7 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
     } catch(e) { msg('Error saving.','err'); }
   };
 
-  const toggleSharingItem = (item) => setSharingConfig(p=>({...p,[item]:!p[item]}));
 
-  const handleShareAll = async() => {
-    if(!partner) return;
-    const all = !isSharing;
-    setSharingConfig(Object.fromEntries(sharingItems.map(i=>[i,all])));
-    try {
-      if(all&&!partnerLinked){
-        await axios.post(`${API}/grant-access`,{viewer:user.username,target:partner.username,adminUsername:user.username});
-        setPartnerLinked(true);
-        msg('Partner sharing enabled.');
-      } else if(!all&&partnerLinked){
-        await axios.post(`${API}/revoke-access`,{viewer:user.username,target:partner.username,adminUsername:user.username});
-        setPartnerLinked(false);
-        msg('Partner sharing disabled.');
-      }
-    } catch { msg('Sharing updated.'); }
-  };
 
   const fullName = form.firstName&&form.lastName ? `${form.firstName} ${form.lastName}` : (user.displayName||user.username);
 
@@ -1628,17 +1612,36 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
               <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',lineHeight:1.6}}>No partner linked. Contact admin at <strong style={{color:'var(--text2)'}}>vectraarch.live/conduit/users</strong></div>
             </div>
           )}
-          {partner&&(
+          {(partners.length>0?partners:partner?[partner]:[]).length>0&&(
             <div className="partner-sharing-card">
               <div className="profile-section-title">§ PARTNER SHARING</div>
-              <div className="partner-hint" style={{marginBottom:12}}>Enable shared view per section. When on, totals combine both partners' data on that page.</div>
+              <div className="partner-hint" style={{marginBottom:12}}>Enable shared view per section. Each partner is controlled independently.</div>
 
-              {/* Each linked partner gets their own share-all + grid */}
               {(partners.length>0?partners:[partner]).map((p,pi)=>{
-                const pKey = p.username;
-                const pSharing = Object.values(sharingConfig).some(v=>v);
+                const pun    = p.username;
+                const pCfg   = sharingConfig[pun] || {};
+                const pAll   = sharingItems.every(i=>pCfg[i]);
+
+                const toggleItem = (item) => setSharingConfig(prev=>({
+                  ...prev,
+                  [pun]: { ...(prev[pun]||{}), [item]: !(prev[pun]?.[item]) }
+                }));
+
+                const shareAll = async() => {
+                  const next = !pAll;
+                  setSharingConfig(prev=>({
+                    ...prev,
+                    [pun]: Object.fromEntries(sharingItems.map(i=>[i,next]))
+                  }));
+                  try {
+                    if(next) await axios.post(`${API}/grant-access`,{viewer:user.username,target:pun,adminUsername:user.username});
+                    else     await axios.post(`${API}/revoke-access`,{viewer:user.username,target:pun,adminUsername:user.username});
+                    msg(next?`Sharing enabled with ${pun}.`:`Sharing disabled with ${pun}.`);
+                  } catch {}
+                };
+
                 return (
-                  <div key={pKey} style={pi>0?{marginTop:16,paddingTop:16,borderTop:'1px solid var(--border)'}:{}}>
+                  <div key={pun} style={pi>0?{marginTop:16,paddingTop:16,borderTop:'1px solid var(--border)'}:{}}>
                     <div className="partner-row" style={{marginBottom:10}}>
                       <img className="partner-avatar" src={p.profilePicUrl||DP} alt=""
                         style={{border:`2px solid ${p.eventColor||'#448aff'}`}}/>
@@ -1646,16 +1649,16 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
                         <div className="partner-info-name">{p.displayName||(p.firstName&&p.lastName?`${p.firstName} ${p.lastName}`:null)||p.username}</div>
                         <div className="partner-info-status">Partner · linked</div>
                       </div>
-                      <button className={`share-all-btn ${pSharing?'sharing':'not-sharing'}`} onClick={handleShareAll}>
-                        {pSharing?'✓ SHARING ALL':'SHARE ALL'}
+                      <button className={`share-all-btn ${pAll?'sharing':'not-sharing'}`} onClick={shareAll}>
+                        {pAll?'✓ SHARING ALL':'SHARE ALL'}
                       </button>
                     </div>
                     <div className="sharing-grid">
                       {sharingItems.map(item=>(
-                        <div key={item} className={`sharing-item ${sharingConfig[item]?'on':''}`}
-                          onClick={()=>toggleSharingItem(item)}>
+                        <div key={item} className={`sharing-item ${pCfg[item]?'on':''}`}
+                          onClick={()=>toggleItem(item)}>
                           <span className="sharing-item-label">{item.toUpperCase()}</span>
-                          <div className={`sharing-check ${sharingConfig[item]?'on':'off'}`}>{sharingConfig[item]?'✓':''}</div>
+                          <div className={`sharing-check ${pCfg[item]?'on':'off'}`}>{pCfg[item]?'✓':''}</div>
                         </div>
                       ))}
                     </div>
@@ -1890,7 +1893,7 @@ const App = () => {
   const [partner, setPartner] = useState(null);
   const [partners, setPartners] = useState([]);
   const [activeTab, setActiveTab] = useState('budget');
-  const [sharingConfig, setSharingConfig] = useState({Finances:false,Calendar:false,Budget:false,Gym:false,Meals:false,Cycle:false});
+  const [sharingConfig, setSharingConfig] = useState({}); // { partnerUsername: { Finances:bool, Calendar:bool, ... } }
   const [error, setError] = useState('');
 
   const handleLogout = useCallback(()=>{
@@ -1954,18 +1957,39 @@ const App = () => {
   if(error) return <div style={{padding:'40px',color:'var(--red)',fontFamily:"'DM Mono',monospace"}}>{error}</div>;
   if(!user) return <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',color:'var(--text3)',fontFamily:"'DM Mono',monospace",fontSize:'11px',letterSpacing:'0.14em'}}>LOADING...</div>;
 
-  const tabSharingKey = {finances:'Finances',calendar:'Calendar',budget:'Budget',gym:'Gym',meals:'Meals',cycle:'Cycle'}[activeTab];
-  const isShared = tabSharingKey ? sharingConfig[tabSharingKey] : false;
-  const toggleShared = () => { if(tabSharingKey) setSharingConfig(p=>({...p,[tabSharingKey]:!p[tabSharingKey]})); };
-  // Map tab id → its color so each page can theme its forms
   const TAB_COLORS = {budget:'#ffd600',finances:'#00e676',calendar:'#448aff',gym:'#ff3b3b',meals:'#d67bff',cycle:'#e91e8c',profile:'#b06aff'};
   const tabColor = TAB_COLORS[activeTab] || '#00e676';
-  const sharedProps = {user, partner, isShared, onToggleShared:toggleShared, tabColor};
+  const TAB_KEY = {finances:'Finances',calendar:'Calendar',budget:'Budget',gym:'Gym',meals:'Meals',cycle:'Cycle'};
+  const tabSharingKey = TAB_KEY[activeTab];
 
-  // Cycle tab: show if user is female, OR if partner is female and cycle sharing is on
+  // All linked partners (use partners array if populated, else single partner)
+  const allPartners = partners.length > 0 ? partners : (partner ? [partner] : []);
+
+  // For this tab: list of partner objects whose sharing for this tab is ON
+  const activePartners = allPartners.filter(p =>
+    tabSharingKey && sharingConfig[p.username]?.[tabSharingKey]
+  );
+  const isShared = activePartners.length > 0;
+
+  // Toggle shared for primary partner (UserRow button)
+  const toggleShared = () => {
+    if(!tabSharingKey || allPartners.length === 0) return;
+    // Toggle the primary partner's tab sharing
+    const pun = allPartners[0].username;
+    setSharingConfig(prev => ({
+      ...prev,
+      [pun]: { ...(prev[pun]||{}), [tabSharingKey]: !(prev[pun]?.[tabSharingKey]) }
+    }));
+  };
+
+  const sharedProps = {user, partner, partners:allPartners, activePartners, isShared, onToggleShared:toggleShared, tabColor, sharingConfig, setSharingConfig};
+
+  // Cycle tab: show if user is female, OR if any partner is female and cycle sharing is on
   const userIsFemale = (user.gender||'').toLowerCase()==='female';
-  const partnerIsFemale = (partner?.gender||'').toLowerCase()==='female';
-  const showCycle = userIsFemale || (partnerIsFemale && sharingConfig.Cycle);
+  const anyCycleFemale = allPartners.some(p=>
+    (p.gender||'').toLowerCase()==='female' && sharingConfig[p.username]?.Cycle
+  );
+  const showCycle = userIsFemale || anyCycleFemale;
   const isAdmin = !!(user.isAdmin || user.is_admin); // handle int (1/0) or bool
   const visibleTabs = ALL_TABS.filter(t=>{
     if(t.adminOnly) return isAdmin;
