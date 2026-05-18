@@ -292,11 +292,11 @@ input, select, textarea { font-family: inherit; color: inherit; }
 input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
 
 /* ── PINK TOP ACCENT ── */
-body::before { content: ''; position: fixed; top: 0; left: 0; right: 0; height: calc(3px + env(safe-area-inset-top, 0px)); background: var(--pink); z-index: 1000; }
+body::before { display: none; }
 
 /* ── APP SHELL ── */
 #root { position: fixed; top: 0; left: 0; right: 0; bottom: 0; overflow: hidden; display: flex; flex-direction: column; }
-.app-shell { display: flex; flex-direction: column; flex: 1; min-height: 0; padding-top: calc(3px + env(safe-area-inset-top, 0px)); overflow: hidden; }
+.app-shell { display: flex; flex-direction: column; flex: 1; min-height: 0; padding-top: env(safe-area-inset-top, 0px); overflow: hidden; }
 .app-shell > div:first-child { flex: 1; overflow: hidden; min-height: 0; }
 .page-outer { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
 
