@@ -1162,12 +1162,7 @@ const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPart
                 {MONTHS.map(m=><option key={m.v} value={m.v}>{m.l}</option>)}
               </select>
             </div>
-            <div className="tb-chip">
-              <span style={{fontSize:'9px',fontFamily:"'DM Mono',monospace",letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--text3)'}}>TYPE</span>
-              <select value={typeFilter} onChange={e=>setTypeFilter(e.target.value)} style={{color:'var(--green)'}}>
-                {['All','Breakfast','Lunch','Dinner','Snack'].map(tp=><option key={tp}>{tp}</option>)}
-              </select>
-            </div>
+
           </div>
           <Alert {...alert}/>
 
@@ -1179,35 +1174,65 @@ const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPart
             <div className="macro-card fat" ><div className="macro-value">{totals.fat}</div><div className="macro-unit">g · FAT</div></div>
           </div>
 
-          <div className="section-label">§ MEALS · {filtered.length} RECORDS</div>
-          {filtered.map(m=>{
-            const cal   = parseFloat(m.calories)||0;
-            const desc  = m.description||m.name||'Unknown';
-            const own   = String(m.userKey)===user.username;
-            const owner = getOwner(String(m.userKey), user, partner, partners);
-            const moc = owner?.eventColor||'#d67bff';
-            const mt    = m.mealType||'breakfast';
+          {/* Days first — all users' meals together under each day, same as Gym */}
+          {DAYS.map(day=>{
+            const dayMeals = filtered.filter(m=>{
+              // Match by stored day field, or derive from date
+              const storedDay = m.day||(m.date?new Date(m.date).toLocaleDateString('en-US',{weekday:'long'}):'');
+              return storedDay===day;
+            });
+            const totalMeals = dayMeals.length;
+            const dayCal = dayMeals.reduce((s,m)=>s+parseFloat(m.calories||0),0);
             return (
-              <div key={m.id} className="meal-card" style={{marginBottom:8,borderLeft:`3px solid ${moc}`}}>
-                {/* Top row: avatar + type badge + owner name */}
-                <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
-                  <ItemAvatar username={String(m.userKey)} user={user} partner={partner} partners={partners} size={36}/>
-                  <span className={`meal-type-badge ${mt}`} style={{flexShrink:0}}>{mt.toUpperCase()}</span>
-                  {owner&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:moc,letterSpacing:'0.08em'}}>{(owner.displayName||owner.username||'').toUpperCase()}</span>}
+              <div key={day} className="day-block">
+                <div className="day-header">
+                  <div className="day-name">{day}</div>
+                  <div style={{display:'flex',alignItems:'center',gap:12}}>
+                    <div className="day-count">{totalMeals} meal{totalMeals!==1?'s':''}{dayCal>0?` · ${Math.round(dayCal)} kcal`:''}</div>
+                    <button className="day-add-btn" style={{borderColor:'var(--meals-color,#d67bff)',color:'var(--meals-color,#d67bff)'}}
+                      onClick={()=>{
+                        // Pre-set the date to the nearest occurrence of this day
+                        const today=new Date();
+                        const dayIdx=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'].indexOf(day);
+                        const diff=(dayIdx-today.getDay()+7)%7;
+                        const target=new Date(today);target.setDate(today.getDate()+(diff===0?0:diff));
+                        target.setMinutes(target.getMinutes()-target.getTimezoneOffset());
+                        setForm(p=>({...p,date:target.toISOString().slice(0,19)}));
+                        setShowForm(true);
+                      }}>+ ADD</button>
+                  </div>
                 </div>
-                {/* Meal name */}
-                <div className="meal-name" style={{marginBottom:8}}>{desc.toUpperCase()}</div>
-                {/* Macro badges */}
-                <div className="meal-macros">
-                  <span className="macro-badge kcal">{Math.round(cal)} kcal</span>
-                  {m.protein!=null&&<span className="macro-badge prot">P {Math.round(m.protein)}g</span>}
-                  {m.carbs!=null&&<span className="macro-badge carb">C {Math.round(m.carbs)}g</span>}
-                  {m.fat!=null&&<span className="macro-badge fat">F {Math.round(m.fat)}g</span>}
-                </div>
-                {m.description&&<div className="meal-note" style={{marginTop:6}}>· {m.description}</div>}
-                {own&&(
-                  <button style={{marginTop:'8px',fontFamily:"'DM Mono',monospace",fontSize:'9px',color:'var(--red)',background:'transparent',border:'none',cursor:'pointer',textTransform:'uppercase',letterSpacing:'0.1em'}} onClick={()=>handleDelete(m.id)}>✕ Remove</button>
-                )}
+                {totalMeals===0
+                  ? <div className="rest-day">· No meals logged</div>
+                  : dayMeals.map(m=>{
+                      const cal   = parseFloat(m.calories)||0;
+                      const desc  = m.description||m.name||'Unknown';
+                      const own   = String(m.userKey)===user.username;
+                      const owner = getOwner(String(m.userKey), user, partner, partners);
+                      const moc   = owner?.eventColor||'#d67bff';
+                      const mt    = m.mealType||'breakfast';
+                      return (
+                        <div key={m.id} className="meal-card" style={{marginBottom:6,borderLeft:`3px solid ${moc}`}}>
+                          <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
+                            <ItemAvatar username={String(m.userKey)} user={user} partner={partner} partners={partners} size={36}/>
+                            <span className={`meal-type-badge ${mt}`} style={{flexShrink:0}}>{mt.toUpperCase()}</span>
+                            {owner&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:moc,letterSpacing:'0.08em'}}>{(owner.displayName||owner.username||'').toUpperCase()}</span>}
+                          </div>
+                          <div className="meal-name" style={{marginBottom:8}}>{desc.toUpperCase()}</div>
+                          <div className="meal-macros">
+                            <span className="macro-badge kcal">{Math.round(cal)} kcal</span>
+                            {m.protein!=null&&<span className="macro-badge prot">P {Math.round(m.protein)}g</span>}
+                            {m.carbs!=null&&<span className="macro-badge carb">C {Math.round(m.carbs)}g</span>}
+                            {m.fat!=null&&<span className="macro-badge fat">F {Math.round(m.fat)}g</span>}
+                          </div>
+                          {m.description&&<div className="meal-note" style={{marginTop:6}}>· {m.description}</div>}
+                          {own&&(
+                            <button style={{marginTop:'8px',fontFamily:"'DM Mono',monospace",fontSize:'9px',color:'var(--red)',background:'transparent',border:'none',cursor:'pointer',textTransform:'uppercase',letterSpacing:'0.1em'}} onClick={()=>handleDelete(m.id)}>✕ Remove</button>
+                          )}
+                        </div>
+                      );
+                    })
+                }
               </div>
             );
           })}
