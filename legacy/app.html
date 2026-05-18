@@ -49,38 +49,55 @@ const Icons = {
 };
 
 /* ── SHARED COMPONENTS ── */
-const UserRow = ({user, partner, partners=[], activePartners=[], permittedPartners=[], isShared, onToggleShared}) => {
-  // permittedPartners = who has permission for this tab (set in Profile)
-  // activePartners    = currently visible (permission + view toggle on)
-  const hasPermitted = permittedPartners.length > 0;
+const UserRow = ({user, partner, partners=[], activePartners=[], permittedPartners=[],
+    selfVisible=true, tabSelected, isShared, onToggleUser}) => {
+  const selfOn = tabSelected ? tabSelected.has(user?.username) : true;
+  const selfColor = user?.eventColor || '#e91e8c';
   return (
     <div className="user-row" style={{flexWrap:'wrap',gap:6}}>
-      <div className="user-chip">
-        <img className="user-chip-avatar" src={user?.profilePicUrl||DP} alt={user?.username} style={{border:`2px solid ${user?.eventColor||'#e91e8c'}`}}/>
-        <span className="user-chip-name">{user?.displayName||(user?.firstName&&user?.lastName?`${user.firstName} ${user.lastName}`:null)||user?.username||'USER'}</span>
-        <span className="user-chip-arrow">⌄</span>
+      {/* Self chip — clickable to toggle own data */}
+      <div
+        onClick={()=>onToggleUser&&onToggleUser(user?.username)}
+        style={{
+          display:'flex',alignItems:'center',gap:8,
+          background:selfOn?`${selfColor}18`:'var(--bg3)',
+          border:`1px solid ${selfOn?selfColor:'rgba(255,255,255,0.12)'}`,
+          borderRadius:4,padding:'6px 10px',cursor:'pointer',
+          transition:'all 0.15s',opacity:selfOn?1:0.5,
+        }}>
+        <img src={user?.profilePicUrl||DP} alt={user?.username}
+          style={{width:28,height:28,borderRadius:'50%',objectFit:'cover',border:`2px solid ${selfColor}`}}/>
+        <span style={{fontFamily:"'DM Mono',monospace",fontSize:11,fontWeight:500,letterSpacing:'0.06em',
+          textTransform:'uppercase',color:selfOn?selfColor:'var(--text3)'}}>
+          {user?.displayName||(user?.firstName&&user?.lastName?`${user.firstName} ${user.lastName}`:null)||user?.username||'USER'}
+        </span>
+        <span style={{fontSize:9,color:selfOn?selfColor:'var(--text3)'}}>{selfOn?'●':'○'}</span>
       </div>
-      {hasPermitted
-        ? <button
-            className="badge-shared"
-            onClick={onToggleShared}
-            title={isShared ? 'Click to view solo' : 'Click to show shared data'}
-            style={!isShared ? {background:'transparent',border:'1px solid rgba(255,255,255,0.12)',color:'var(--text3)'} : {}}>
-            {isShared ? '● SHARED' : '○ SOLO'}
-          </button>
-        : <span className="badge-solo">SOLO</span>
-      }
-      {/* Always show permitted partner chips so user knows who is linked */}
-      {permittedPartners.map(p=>(
-        <div key={p.username} className="partner-chip" style={!isShared?{opacity:0.45}:{}}>
-          <img className="partner-chip-avatar" src={p.profilePicUrl||DP} alt={p.username}
-            style={{border:`2px solid ${p.eventColor||'#448aff'}`}}/>
-          <span className="partner-chip-name">
-            {isShared ? '+ ' : ''}
-            {p.displayName||(p.firstName&&p.lastName?`${p.firstName} ${p.lastName}`:null)||p.username}
-          </span>
-        </div>
-      ))}
+
+      {/* Partner chips — only shown if they have permission for this tab */}
+      {permittedPartners.map(p=>{
+        const on = tabSelected ? tabSelected.has(p.username) : false;
+        const pc = p.eventColor||'#448aff';
+        return (
+          <div key={p.username}
+            onClick={()=>onToggleUser&&onToggleUser(p.username)}
+            style={{
+              display:'flex',alignItems:'center',gap:8,
+              background:on?`${pc}18`:'var(--bg3)',
+              border:`1px solid ${on?pc:'rgba(255,255,255,0.12)'}`,
+              borderRadius:4,padding:'6px 10px',cursor:'pointer',
+              transition:'all 0.15s',opacity:on?1:0.5,
+            }}>
+            <img src={p.profilePicUrl||DP} alt={p.username}
+              style={{width:28,height:28,borderRadius:'50%',objectFit:'cover',border:`2px solid ${pc}`}}/>
+            <span style={{fontFamily:"'DM Mono',monospace",fontSize:11,fontWeight:500,letterSpacing:'0.06em',
+              textTransform:'uppercase',color:on?pc:'var(--text3)'}}>
+              {p.displayName||(p.firstName&&p.lastName?`${p.firstName} ${p.lastName}`:null)||p.username}
+            </span>
+            <span style={{fontSize:9,color:on?pc:'var(--text3)'}}>{on?'●':'○'}</span>
+          </div>
+        );
+      })}
     </div>
   );
 };
@@ -111,7 +128,7 @@ const ItemAvatar = ({username, user, partner, partners=[], size=36}) => {
 };
 
 /* ── FINANCES PAGE ── */
-const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedPartners=[], isShared, onToggleShared, tabColor='#00e676'}) => {
+const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedPartners=[], selfVisible=true, isShared, tabSelected, onToggleUser, tabColor='#00e676'}) => {
   const [items, setItems] = useState([]);
   const [budgets, setBudgets] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()+1).padStart(2,'0'));
@@ -125,7 +142,7 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
   const msg = (m,t='ok') => { setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
 
   const fetchAll = useCallback(async () => {
-    const users = [user.username, ...(activePartners||[]).map(p=>p.username)];
+    const users = [...(selfVisible?[user.username]:[]), ...(activePartners||[]).map(p=>p.username)];
     try {
       const [fins, buds] = await Promise.all([
         Promise.all(users.map(u=>axios.get(`${API}/financial`,{params:{user:u}}).then(r=>r.data).catch(()=>[]))).then(r=>r.flat()),
@@ -138,7 +155,7 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
   useEffect(()=>{ fetchAll(); },[fetchAll]);
 
   const filtered = useMemo(()=>{
-    const users = [user.username, ...(activePartners||[]).map(p=>p.username)];
+    const users = [...(selfVisible?[user.username]:[]), ...(activePartners||[]).map(p=>p.username)];
     let list = items.filter(i=>users.includes(i.user||i.username)&&(i.date||'').slice(5,7)===selectedMonth);
     if(search) list = list.filter(i=>(i.category||'').toLowerCase().includes(search.toLowerCase()));
     return [...list].sort((a,b)=>sortField==='amount'?parseFloat(b.amount)-parseFloat(a.amount):new Date(b.date)-new Date(a.date));
@@ -184,7 +201,7 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
             <div className="page-title">FINANCES</div>
             <div className="page-sub">{isShared2?'COMBINED HOUSEHOLD TOTALS':'INCOME · EXPENSES · NET TOTAL'}</div>
           </div>
-          <UserRow user={user} partner={partner} partners={partners} activePartners={activePartners} permittedPartners={permittedPartners} isShared={isShared} onToggleShared={onToggleShared}/>
+          <UserRow user={user} partner={partner} partners={partners} activePartners={activePartners} permittedPartners={permittedPartners} selfVisible={selfVisible} tabSelected={tabSelected} isShared={isShared} onToggleUser={onToggleUser}/>
           <div className="toolbar-row">
             <div className="tb-chip">
               <span style={{fontSize:'9px',fontFamily:"'DM Mono',monospace",letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--text3)'}}>MONTH</span>
@@ -293,7 +310,7 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
 };
 
 /* ── CALENDAR PAGE ── */
-const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedPartners=[], isShared, onToggleShared, tabColor='#448aff'}) => {
+const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedPartners=[], selfVisible=true, isShared, tabSelected, onToggleUser, tabColor='#448aff'}) => {
   const [events, setEvents] = useState([]);
   const [viewDate, setViewDate] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState(new Date());
@@ -305,7 +322,7 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
   const msg = (m,t='ok')=>{ setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
 
   const fetchEvents = useCallback(async()=>{
-    const users=[user.username,...(activePartners||[]).map(p=>p.username)];
+    const users=[...(selfVisible?[user.username]:[]),...(activePartners||[]).map(p=>p.username)];
     try {
       const [calAll, periodAll] = await Promise.all([
         Promise.all(users.map(u=>axios.get(`${API}/calendar`,{params:{user:u}}).then(r=>r.data.map(e=>({...e,user:e.user||u}))).catch(()=>[]))).then(r=>r.flat()),
@@ -391,7 +408,7 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
             <div className="page-title">CALENDAR</div>
             <div className="page-sub">EVENTS · CYCLE · SCHEDULE</div>
           </div>
-          <UserRow user={user} partner={partner} partners={partners} activePartners={activePartners} permittedPartners={permittedPartners} isShared={isShared} onToggleShared={onToggleShared}/>
+          <UserRow user={user} partner={partner} partners={partners} activePartners={activePartners} permittedPartners={permittedPartners} selfVisible={selfVisible} tabSelected={tabSelected} isShared={isShared} onToggleUser={onToggleUser}/>
           <Alert {...alert}/>
 
           {/* Nav */}
@@ -546,7 +563,7 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
 };
 
 /* ── BUDGET PAGE ── */
-const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPartners=[], isShared, onToggleShared, tabColor='#ffd600'}) => {
+const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPartners=[], selfVisible=true, isShared, tabSelected, onToggleUser, tabColor='#ffd600'}) => {
   const [budgets, setBudgets] = useState([]);
   const [items, setItems] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()+1).padStart(2,'0'));
@@ -557,7 +574,7 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
   const msg=(m,t='ok')=>{ setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
 
   const fetchAll = useCallback(async()=>{
-    const users=[user.username,...(activePartners||[]).map(p=>p.username)];
+    const users=[...(selfVisible?[user.username]:[]),...(activePartners||[]).map(p=>p.username)];
     try {
       const [buds,fins]=await Promise.all([
         Promise.all(users.map(u=>axios.get(`${API}/budget`,{params:{user:u}}).then(r=>{const rows=r.data.data||r.data||[];return rows.map(b=>({...b,expenses:Array.isArray(b.expenses)?b.expenses:(typeof b.expenses==='string'?JSON.parse(b.expenses||'[]'):(b.expenses||[])),user:b.user||u}));}).catch(()=>[]))).then(r=>r.flat()),
@@ -578,12 +595,12 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
 
   const totalPlanned = filteredBudgets.reduce((s,b)=>s+b.expenses.reduce((ss,e)=>ss+parseFloat(e.amount||0),0),0);
   const totalActual = useMemo(()=>{
-    const users=[user.username,...(activePartners||[]).map(p=>p.username)];
+    const users=[...(selfVisible?[user.username]:[]),...(activePartners||[]).map(p=>p.username)];
     return items.filter(i=>users.includes(i.user||i.username)&&(i.date||'').slice(5,7)===selectedMonth&&i.type==='expense').reduce((s,i)=>s+parseFloat(i.amount||0),0);
   },[items,selectedMonth,user.username,partner,isShared]);
 
   const getBudgetActual = (b) => {
-    const users=[user.username,...(activePartners||[]).map(p=>p.username)];
+    const users=[...(selfVisible?[user.username]:[]),...(activePartners||[]).map(p=>p.username)];
     return items.filter(i=>users.includes(i.user||i.username)&&(i.date||'').slice(5,7)===selectedMonth&&i.type==='expense').reduce((s,i)=>s+parseFloat(i.amount||0),0);
   };
 
@@ -623,7 +640,7 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
             <div className="page-title">BUDGET</div>
             <div className="page-sub">PLANNED · ACTUAL · REMAINING</div>
           </div>
-          <UserRow user={user} partner={partner} partners={partners} activePartners={activePartners} permittedPartners={permittedPartners} isShared={isShared} onToggleShared={onToggleShared}/>
+          <UserRow user={user} partner={partner} partners={partners} activePartners={activePartners} permittedPartners={permittedPartners} selfVisible={selfVisible} tabSelected={tabSelected} isShared={isShared} onToggleUser={onToggleUser}/>
           <div className="toolbar-row">
             <div className="tb-chip">
               <span style={{fontSize:'9px',fontFamily:"'DM Mono',monospace",letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--text3)'}}>MONTH</span>
@@ -808,7 +825,7 @@ const gymFormatDetail = w => {
   return `${sets} × ${reps} reps @ ${weight} kg`;
 };
 
-const GymPage = ({user, partner, partners=[], activePartners=[], permittedPartners=[], isShared, onToggleShared, tabColor='#ff3b3b'}) => {
+const GymPage = ({user, partner, partners=[], activePartners=[], permittedPartners=[], selfVisible=true, isShared, tabSelected, onToggleUser, tabColor='#ff3b3b'}) => {
   const [workouts, setWorkouts] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()+1).padStart(2,'0'));
   const [showForm, setShowForm] = useState(false);
@@ -818,7 +835,7 @@ const GymPage = ({user, partner, partners=[], activePartners=[], permittedPartne
   const msg=(m,t='ok')=>{ setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
 
   const fetchAll = useCallback(async()=>{
-    const users=[user.username,...(activePartners||[]).map(p=>p.username)];
+    const users=[...(selfVisible?[user.username]:[]),...(activePartners||[]).map(p=>p.username)];
     try {
       const all=await Promise.all(users.map(u=>axios.get(`${API}/gymworkout`,{params:{user:u}}).then(r=>r.data.map(w=>({...w,userKey:String(u)}))).catch(()=>[])));
       setWorkouts(all.flat());
@@ -864,7 +881,7 @@ const GymPage = ({user, partner, partners=[], activePartners=[], permittedPartne
             <div className="page-title">GYM WORKOUT</div>
             <div className="page-sub">EXERCISES · STRENGTH · WEEKLY PLAN</div>
           </div>
-          <UserRow user={user} partner={partner} partners={partners} activePartners={activePartners} permittedPartners={permittedPartners} isShared={isShared} onToggleShared={onToggleShared}/>
+          <UserRow user={user} partner={partner} partners={partners} activePartners={activePartners} permittedPartners={permittedPartners} selfVisible={selfVisible} tabSelected={tabSelected} isShared={isShared} onToggleUser={onToggleUser}/>
           <div className="toolbar-row">
             <div className="tb-chip">
               <span style={{fontSize:'9px',fontFamily:"'DM Mono',monospace",letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--text3)'}}>MONTH</span>
@@ -1052,7 +1069,7 @@ const MEAL_OPTIONS = [
   { label:'Custom', options:[{value:'__custom__',label:'Custom meal...',cal:0}]}
 ];
 
-const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPartners=[], isShared, onToggleShared, tabColor='#d67bff'}) => {
+const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPartners=[], selfVisible=true, isShared, tabSelected, onToggleUser, tabColor='#d67bff'}) => {
   const [meals, setMeals] = useState([]);
   const [mealTemplates, setMealTemplates] = useState(MEAL_OPTIONS); // start with static, replace with DB
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()+1).padStart(2,'0'));
@@ -1072,7 +1089,7 @@ const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPart
   },[]);
 
   const fetchMeals = useCallback(async()=>{
-    const users=[user.username,...(activePartners||[]).map(p=>p.username)];
+    const users=[...(selfVisible?[user.username]:[]),...(activePartners||[]).map(p=>p.username)];
     try {
       const all=await Promise.all(users.map(u=>axios.get(`${API}/mealplan`,{params:{user:u}}).then(r=>r.data.map(m=>({...m,userKey:String(u)}))).catch(()=>[])));
       setMeals(all.flat());
@@ -1082,7 +1099,7 @@ const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPart
   useEffect(()=>{ fetchMeals(); },[fetchMeals]);
 
   const filtered = useMemo(()=>{
-    const users=[user.username,...(activePartners||[]).map(p=>p.username)];
+    const users=[...(selfVisible?[user.username]:[]),...(activePartners||[]).map(p=>p.username)];
     let list = meals.filter(m=>users.map(String).includes(String(m.userKey))&&(m.date||'').slice(5,7)===selectedMonth);
     if(typeFilter!=='All') list=list.filter(m=>(m.mealType||'').toLowerCase()===typeFilter.toLowerCase());
     return list;
@@ -1137,7 +1154,7 @@ const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPart
             <div className="page-title">MEAL PLAN</div>
             <div className="page-sub">MACROS · DAILY FOOD LOG</div>
           </div>
-          <UserRow user={user} partner={partner} partners={partners} activePartners={activePartners} permittedPartners={permittedPartners} isShared={isShared} onToggleShared={onToggleShared}/>
+          <UserRow user={user} partner={partner} partners={partners} activePartners={activePartners} permittedPartners={permittedPartners} selfVisible={selfVisible} tabSelected={tabSelected} isShared={isShared} onToggleUser={onToggleUser}/>
           <div className="toolbar-row">
             <div className="tb-chip">
               <span style={{fontSize:'9px',fontFamily:"'DM Mono',monospace",letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--text3)'}}>MONTH</span>
@@ -1305,7 +1322,7 @@ const PhaseWheel = ({dayOfCycle=1, cycleLength=28, accentColor='#e91e8c'}) => {
   );
 };
 
-const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPartners=[], isShared, onToggleShared, tabColor='#e91e8c'}) => {
+const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPartners=[], selfVisible=true, isShared, tabSelected, onToggleUser, tabColor='#e91e8c'}) => {
   // allCycles stored per username: { username: [cycles] }
   const [allCycles, setAllCycles] = useState({});
   const [showForm, setShowForm]   = useState(false);
@@ -1393,7 +1410,7 @@ const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPart
             <div className="page-title">CYCLE TRACKER</div>
             <div className="page-sub">PERIOD · OVULATION · FERTILITY</div>
           </div>
-          <UserRow user={user} partner={partner} partners={partners} activePartners={activePartners} permittedPartners={permittedPartners} isShared={isShared} onToggleShared={onToggleShared}/>
+          <UserRow user={user} partner={partner} partners={partners} activePartners={activePartners} permittedPartners={permittedPartners} selfVisible={selfVisible} tabSelected={tabSelected} isShared={isShared} onToggleUser={onToggleUser}/>
           <Alert {...alert}/>
 
           {/* One section per user */}
@@ -1945,7 +1962,7 @@ const App = () => {
       return parsed;
     } catch { return {}; }
   }); // { partnerUsername: { Finances:bool, ... } } — managed in Profile only
-  const [viewConfig, setViewConfig] = useState({finances:true,calendar:true,budget:true,gym:true,meals:true,cycle:true}); // display toggle per tab
+  const [selectedUsers, setSelectedUsers] = useState({}); // { tabId: Set<username> } — which users' data to show
   const [error, setError] = useState('');
 
   const handleLogout = useCallback(()=>{
@@ -2042,24 +2059,35 @@ const App = () => {
   // All linked partners
   const allPartners = partners.length > 0 ? partners : (partner ? [partner] : []);
 
-  // Partners who HAVE permission for this tab (set in Profile sharing)
+  // Partners who HAVE permission for this tab (from Profile sharing config)
   const permittedPartners = allPartners.filter(p =>
     tabSharingKey && sharingConfig[p.username]?.[tabSharingKey]
   );
 
-  // Partners whose data is CURRENTLY VISIBLE (permission ON and view toggle ON)
-  const viewOn = viewConfig[activeTab] !== false; // default true
-  const activePartners = viewOn ? permittedPartners : [];
-  const isShared = activePartners.length > 0;
+  // Which usernames are currently selected (visible) for this tab
+  // Default: only own user. Each chip click toggles that user on/off.
+  const tabSelected = selectedUsers[activeTab] || new Set([user.username]);
 
-  // Toggle = view-only switch: shows/hides already-permitted partners
-  // Does NOT change sharingConfig (permissions are managed in Profile only)
-  const toggleShared = () => {
-    if(permittedPartners.length === 0) return; // nothing permitted — button does nothing
-    setViewConfig(prev => ({...prev, [activeTab]: !viewOn}));
+  // Partners currently visible = permitted AND selected
+  const activePartners = permittedPartners.filter(p => tabSelected.has(p.username));
+  const selfVisible    = tabSelected.has(user.username);
+  const isShared       = activePartners.length > 0;
+
+  // Toggle a specific user's visibility for this tab
+  const toggleUser = (username) => {
+    setSelectedUsers(prev => {
+      const current = prev[activeTab] || new Set([user.username]);
+      const next = new Set(current);
+      if(next.has(username)) next.delete(username);
+      else next.add(username);
+      // Always keep at least one user selected
+      if(next.size === 0) next.add(user.username);
+      return {...prev, [activeTab]: next};
+    });
   };
 
-  const sharedProps = {user, partner, partners:allPartners, activePartners, permittedPartners, isShared, onToggleShared:toggleShared, tabColor, sharingConfig, setSharingConfig};
+  const sharedProps = {user, partner, partners:allPartners, activePartners, permittedPartners,
+    selfVisible, isShared, tabSelected, onToggleUser:toggleUser, tabColor, sharingConfig, setSharingConfig};
 
   // Cycle tab: show if user is female, OR if any partner is female and cycle sharing is on
   const userIsFemale = (user.gender||'').toLowerCase()==='female';
