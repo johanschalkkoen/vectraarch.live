@@ -66,7 +66,7 @@ const UserRow = ({user, partner, partners=[], activePartners=[], permittedPartne
             onClick={onToggleShared}
             title={isShared ? 'Click to view solo' : 'Click to show shared data'}
             style={!isShared ? {background:'transparent',border:'1px solid rgba(255,255,255,0.12)',color:'var(--text3)'} : {}}>
-            {isShared ? '● HIDE' : '○ UNHIDE'}
+            {isShared ? '● SHARED' : '○ SOLO'}
           </button>
         : <span className="badge-solo">SOLO</span>
       }
@@ -1052,6 +1052,7 @@ const MEAL_OPTIONS = [
 
 const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPartners=[], isShared, onToggleShared, tabColor='#d67bff'}) => {
   const [meals, setMeals] = useState([]);
+  const [mealTemplates, setMealTemplates] = useState(MEAL_OPTIONS); // start with static, replace with DB
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()+1).padStart(2,'0'));
   const [typeFilter, setTypeFilter] = useState('All');
   const [showForm, setShowForm] = useState(false);
@@ -1059,6 +1060,14 @@ const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPart
   const [form, setForm] = useState({name:'',mealType:'breakfast',calories:'',note:'',date:now()});
   const [alert, setAlert] = useState({msg:'',type:''});
   const msg=(m,t='ok')=>{ setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
+
+  // Load meal templates from DB (fallback to static MEAL_OPTIONS)
+  useEffect(()=>{
+    axios.get(`${API}/meal-templates`).then(r=>{
+      if(r.data.success&&r.data.data&&r.data.data.length>0)
+        setMealTemplates(r.data.data);
+    }).catch(()=>{});
+  },[]);
 
   const fetchMeals = useCallback(async()=>{
     const users=[user.username,...activePartners.map(p=>p.username)];
@@ -1085,14 +1094,15 @@ const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPart
 
   const handleMealSelect = (val) => {
     if(val==='__custom__'){ setIsCustomMeal(true); setForm(p=>({...p,name:'',calories:''})); return; }
+    if(!val) return;
     setIsCustomMeal(false);
-    const allOpts = MEAL_OPTIONS.flatMap(g=>g.options);
+    // Search DB templates first, then fall back to static options
+    const allOpts = [...mealTemplates, ...MEAL_OPTIONS].flatMap(g=>g.options||[]);
     const opt = allOpts.find(o=>o.value===val);
-    if(!opt) return;
-    const labelParts = opt.label.split(':');
+    const labelParts = (opt?.label||val).split(':');
     const mTypeStr = labelParts[0]?.trim()||'';
     const mt = MEAL_TYPE_MAP[mTypeStr]||form.mealType;
-    setForm(p=>({...p, name:val, calories:String(opt.cal||''), mealType:mt}));
+    setForm(p=>({...p, name:val, calories:String(opt?.cal||''), mealType:mt}));
   };
 
   const handleSave = async()=>{
@@ -1905,11 +1915,11 @@ const AdminPage = ({user, onLogout}) => {
 };
 
 const ALL_TABS = [
+  {id:'budget',   label:'BUDGET',   color:'#ffd600'},
+  {id:'finances', label:'FINANCES', color:'#00e676'},
   {id:'calendar', label:'CALENDAR', color:'#448aff'},
   {id:'gym',      label:'GYM',      color:'#ff3b3b'},
   {id:'meals',    label:'MEALS',    color:'#d67bff'},
-  {id:'budget',   label:'BUDGET',   color:'#ffd600'},
-  {id:'finances', label:'FINANCES', color:'#00e676'},
   {id:'cycle',    label:'CYCLE',    color:'#e91e8c', cycleOnly:true},
   {id:'profile',  label:'PROFILE',  color:'#b06aff'},
   {id:'admin',    label:'ADMIN',    color:'#ff9800', adminOnly:true},
