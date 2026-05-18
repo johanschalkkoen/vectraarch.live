@@ -303,7 +303,6 @@ body::before { content: ''; position: fixed; top: 0; left: 0; right: 0; height: 
 /* ── TOP BAR ── */
 .top-bar { flex-shrink: 0; height: var(--top-h); display: flex; align-items: center; padding: 0 16px; border-bottom: 1px solid var(--border); background: var(--bg); }
 .top-eyebrow { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--text3); }
-.top-eyebrow span { color: var(--pink); }
 
 /* ── PAGE SCROLL ── */
 .page-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; }
