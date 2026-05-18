@@ -349,12 +349,7 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
                     </div>
                     <div style={{display:'flex',alignItems:'center',gap:8}}>
                       <div className={`item-amount ${item.type}`}>{fmtR(item.amount)}</div>
-                      {(item.user||item.username)===user.username&&(
-                        <div style={{display:'flex',flexDirection:'column',gap:3}}>
-                          <button onClick={()=>startFinEdit(item)} style={{fontFamily:"'DM Mono',monospace",fontSize:'8px',color:'var(--blue)',border:'1px solid rgba(68,138,255,0.35)',borderRadius:3,padding:'3px 7px',background:'transparent',cursor:'pointer',letterSpacing:'0.1em'}}>EDIT</button>
-                          <button onClick={()=>handleFinDelete(item.id)} style={{fontFamily:"'DM Mono',monospace",fontSize:'8px',color:'var(--red)',border:'1px solid rgba(255,61,61,0.35)',borderRadius:3,padding:'3px 7px',background:'transparent',cursor:'pointer',letterSpacing:'0.1em'}}>DEL</button>
-                        </div>
-                      )}
+                      {(item.user||item.username)===user.username&&<span style={{color:'var(--text3)',fontSize:12}}>›</span>}
                     </div>
                   </div>
                 </div>
@@ -405,6 +400,14 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
   );
 };
 
+// ── Legend item component for calendar ──
+const LegendItem = ({icon, label, color}) => (
+  <div style={{display:'flex',alignItems:'center',gap:3,color:color||'var(--text3)'}}>
+    <span style={{display:'flex',alignItems:'center'}}>{icon}</span>
+    <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.08em'}}>{label}</span>
+  </div>
+);
+
 /* ── CALENDAR PAGE ── */
 const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedPartners=[], selfVisible=true, isShared, tabSelected, onToggleUser, tabColor='#448aff'}) => {
   const [events, setEvents]           = useState([]);
@@ -416,6 +419,7 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
   const [alert, setAlert]             = useState({msg:'',type:''});
   const [search, setSearch]             = useState('');
   const [confirmDelCal, setConfirmDelCal] = useState(null);
+  const [actionCalEvent, setActionCalEvent] = useState(null);
   const msg = (m,t='ok')=>{ setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
 
   const calUserIsMale    = (user.gender||'').toLowerCase()==='male';
@@ -615,25 +619,15 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
           </div>
 
           {/* ── Legend inline — SVG icons matching tab icons ── */}
-          {(()=>{
-            const Li = ({icon, label, color}) => (
-              <div style={{display:'flex',alignItems:'center',gap:3,color:color||'var(--text3)'}}>
-                <span style={{display:'flex',alignItems:'center'}}>{icon}</span>
-                <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.08em'}}>{label}</span>
-              </div>
-            );
-            return (
-              <div style={{display:'flex',flexWrap:'wrap',gap:8,padding:'8px 12px 4px',borderTop:'1px solid var(--border)',marginTop:4}}>
-                {canSeeCycle&&<Li color="#e91e8c" label="MENSTRUATION" icon={<svg viewBox="0 0 24 24" fill="#e91e8c" width="10" height="10"><path d="M12 2C12 2 5 10.5 5 15a7 7 0 0 0 14 0C19 10.5 12 2 12 2z"/></svg>}/>}
-                {canSeeCycle&&<Li color="#1de9b6" label="OVULATION" icon={<svg viewBox="0 0 24 24" fill="none" stroke="#1de9b6" strokeWidth="2" width="10" height="10"><circle cx="12" cy="12" r="5"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/></svg>}/>}
-                <Li label="PERSONAL" icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="10" height="10"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>}/>
-                <Li label="WORK" icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="10" height="10"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>}/>
-                <Li label="HEALTH" icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="10" height="10"><path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/></svg>}/>
-                <Li color="var(--green)" label="INCOME" icon={<svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="2.5" width="10" height="10"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>}/>
-                <Li color="var(--red)" label="EXPENSE" icon={<svg viewBox="0 0 24 24" fill="none" stroke="var(--red)" strokeWidth="2.5" width="10" height="10"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>}/>
-              </div>
-            );
-          })()}
+          <div style={{display:'flex',flexWrap:'wrap',gap:8,padding:'8px 12px 4px',borderTop:'1px solid var(--border)',marginTop:4}}>
+            {canSeeCycle&&<LegendItem color="#e91e8c" label="MENSTRUATION" icon={<svg viewBox="0 0 24 24" fill="#e91e8c" width="10" height="10"><path d="M12 2C12 2 5 10.5 5 15a7 7 0 0 0 14 0C19 10.5 12 2 12 2z"/></svg>}/>}
+            {canSeeCycle&&<LegendItem color="#1de9b6" label="OVULATION" icon={<svg viewBox="0 0 24 24" fill="none" stroke="#1de9b6" strokeWidth="2" width="10" height="10"><circle cx="12" cy="12" r="5"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/></svg>}/>}
+            <LegendItem label="PERSONAL" icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="10" height="10"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>}/>
+            <LegendItem label="WORK" icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="10" height="10"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>}/>
+            <LegendItem label="HEALTH" icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="10" height="10"><path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/></svg>}/>
+            <LegendItem color="var(--green)" label="INCOME" icon={<svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="2.5" width="10" height="10"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>}/>
+            <LegendItem color="var(--red)" label="EXPENSE" icon={<svg viewBox="0 0 24 24" fill="none" stroke="var(--red)" strokeWidth="2.5" width="10" height="10"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>}/>
+          </div>
 
           {/* ── Selected day header — iPhone style ── */}
           <div style={{padding:'14px 16px 6px',borderTop:'1px solid var(--border)',marginTop:8,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
@@ -680,7 +674,8 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
               const badgeColor = isFin ? (e.type==='expense'?'var(--red)':'var(--green)') : coc;
               const timeStr = fmtDate(e.date);
               return (
-                <div key={e.id} className="meal-card" style={{marginBottom:8,borderLeft:`3px solid ${coc}`}}>
+                <div key={e.id} className="meal-card" style={{marginBottom:8,borderLeft:`3px solid ${coc}`,cursor:isOwn?'pointer':'default'}}
+                  onClick={()=>isOwn&&setActionCalEvent(e)}>
                   {/* Top row: avatar + icon badge + owner name — same as gym/budget */}
                   <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
                     <ItemAvatar username={e.user||e.username} user={user} partner={partner} partners={partners} size={36}/>
@@ -706,7 +701,7 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
                     {e.amount&&<div style={{fontFamily:"'DM Mono',monospace",fontSize:13,fontWeight:600,
                       color:e.type==='expense'?'var(--red)':'var(--green)'}}>{fmtR(e.amount)}</div>}
                   </div>
-                  {isOwn&&<div style={{color:'var(--text3)',fontSize:10,textAlign:'right',marginTop:4}}>tap to manage ›</div>}
+                  {isOwn&&<span style={{color:'var(--text3)',fontSize:12,marginLeft:'auto',flexShrink:0}}>›</span>}
                 </div>
               );
             })}
@@ -722,8 +717,12 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
         + ADD EVENT
       </button>
 
-      <ConfirmModal open={!!confirmDelCal} message="Delete event?" detail={selectedEvent?.title}
-        onConfirm={async()=>{await handleDeleteEvent(confirmDelCal);setConfirmDelCal(null);setSelectedEvent(null);}}
+      <ActionSheet open={!!actionCalEvent} title={actionCalEvent?.title} tabColor={tabColor}
+        canEdit={false}
+        onDelete={()=>setConfirmDelCal(actionCalEvent?.id)}
+        onClose={()=>setActionCalEvent(null)}/>
+      <ConfirmModal open={!!confirmDelCal} message="Delete event?" detail={actionCalEvent?.title||selectedEvent?.title}
+        onConfirm={async()=>{await handleDeleteEvent(confirmDelCal);setConfirmDelCal(null);setSelectedEvent(null);setActionCalEvent(null);}}
         onCancel={()=>setConfirmDelCal(null)}/>
 
       {/* ── Event detail modal ── */}
@@ -1094,6 +1093,7 @@ const GymPage = ({user, partner, partners=[], activePartners=[], permittedPartne
   const [search, setSearch] = useState('');
   const [actionWorkout, setActionWorkout] = useState(null);
   const [confirmDelGym, setConfirmDelGym] = useState(null);
+  const [editWorkoutId, setEditWorkoutId] = useState(null);
   const [workouts, setWorkouts] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()+1).padStart(2,'0'));
   const [showForm, setShowForm] = useState(false);
@@ -1185,9 +1185,7 @@ const GymPage = ({user, partner, partners=[], activePartners=[], permittedPartne
                           <div className="workout-name">{(w.exercise||'').toUpperCase()}</div>
                           <div className="workout-detail">{gymFormatDetail(w)}</div>
                           <div className="workout-time">{fmtDate(w.date)}</div>
-                          {own&&(
-                            <button style={{marginTop:'6px',fontFamily:"'DM Mono',monospace",fontSize:'9px',color:'var(--red)',background:'transparent',border:'none',cursor:'pointer',textTransform:'uppercase',letterSpacing:'0.1em'}} onClick={()=>handleDelete(w.id)}>✕ Remove</button>
-                          )}
+
                         </div>
                       );
                     })
@@ -1200,7 +1198,7 @@ const GymPage = ({user, partner, partners=[], activePartners=[], permittedPartne
       </div>
       <button className="fab" style={{background:tabColor,boxShadow:`0 4px 20px ${tabColor}55`}} onClick={()=>setShowForm(true)}>+ ADD EXERCISE</button>
       <ActionSheet open={!!actionWorkout} title={actionWorkout?.exercise} tabColor={tabColor}
-        canEdit={false}
+        onEdit={()=>startEditWorkout(actionWorkout)}
         onDelete={()=>setConfirmDelGym(actionWorkout?.id)}
         onClose={()=>setActionWorkout(null)}/>
       <ConfirmModal open={!!confirmDelGym} message="Remove exercise?" detail={actionWorkout?.exercise}
@@ -1344,6 +1342,7 @@ const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPart
   const [search, setSearch] = useState('');
   const [actionMeal, setActionMeal] = useState(null);
   const [confirmDelMeal, setConfirmDelMeal] = useState(null);
+  const [editMealId, setEditMealId] = useState(null);
   const [meals, setMeals] = useState([]);
   const [mealTemplates, setMealTemplates] = useState(MEAL_OPTIONS); // start with static, replace with DB
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()+1).padStart(2,'0'));
@@ -1578,7 +1577,7 @@ const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPart
       </div>
       <button className="fab" style={{background:tabColor,boxShadow:`0 4px 20px ${tabColor}55`}} onClick={()=>setShowForm(true)}>+ ADD MEAL</button>
       <ActionSheet open={!!actionMeal} title={actionMeal?.description||actionMeal?.name} tabColor={tabColor}
-        canEdit={false}
+        onEdit={()=>startEditMeal(actionMeal)}
         onDelete={()=>setConfirmDelMeal(actionMeal?.id)}
         onClose={()=>setActionMeal(null)}/>
       <ConfirmModal open={!!confirmDelMeal} message="Remove meal?" detail={actionMeal?.description||actionMeal?.name}
