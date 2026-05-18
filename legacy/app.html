@@ -500,8 +500,7 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
                 {canSeeCycle&&selectedEvents.some(e=>e.isFertile)?' · 🩵 ovulation':''}
               </div>
             </div>
-            <button onClick={()=>{ setForm(p=>({...p,date:dayKey(selectedDay)+'T09:00:00'})); setShowForm(true); }}
-              style={{width:32,height:32,borderRadius:'50%',background:tabColor,border:'none',color:'#fff',fontSize:20,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>+</button>
+
           </div>
 
           {/* ── Events list ── */}
@@ -563,17 +562,22 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
             })}
           </div>
 
-          {/* ── Legend ── */}
-          <div style={{display:'flex',flexWrap:'wrap',gap:10,padding:'12px 16px',borderTop:'1px solid var(--border)',marginTop:8}}>
-            {canSeeCycle&&<div style={{display:'flex',alignItems:'center',gap:5,fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.1em',color:'var(--text3)'}}><div style={{width:7,height:7,borderRadius:'50%',background:'#e91e8c'}}/> MENSTRUATION</div>}
-            {canSeeCycle&&<div style={{display:'flex',alignItems:'center',gap:5,fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.1em',color:'var(--text3)'}}><div style={{width:7,height:7,borderRadius:'50%',background:'#1de9b6'}}/> OVULATION</div>}
-            <div style={{display:'flex',alignItems:'center',gap:5,fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.1em',color:'var(--text3)'}}><div style={{width:7,height:7,borderRadius:'50%',background:'var(--yellow)'}}/> PERSONAL</div>
-            <div style={{display:'flex',alignItems:'center',gap:5,fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.1em',color:'var(--text3)'}}><div style={{width:7,height:7,borderRadius:'50%',background:'var(--blue)'}}/> WORK</div>
-            <div style={{display:'flex',alignItems:'center',gap:5,fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.1em',color:'var(--text3)'}}><div style={{width:7,height:7,borderRadius:'50%',background:'var(--green)'}}/> HEALTH</div>
-          </div>
           <div style={{height:'80px'}}/>
         </div>
       </div>
+
+      {/* ── Legend fixed above FAB ── */}
+      <div style={{position:'fixed',bottom:64,left:0,right:0,display:'flex',flexWrap:'wrap',justifyContent:'center',gap:10,padding:'8px 16px',background:'var(--bg)',borderTop:'1px solid var(--border)',zIndex:10}}>
+        {canSeeCycle&&<div style={{display:'flex',alignItems:'center',gap:5,fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.1em',color:'var(--text3)'}}><div style={{width:7,height:7,borderRadius:'50%',background:'#e91e8c'}}/> MENSTRUATION</div>}
+        {canSeeCycle&&<div style={{display:'flex',alignItems:'center',gap:5,fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.1em',color:'var(--text3)'}}><div style={{width:7,height:7,borderRadius:'50%',background:'#1de9b6'}}/> OVULATION</div>}
+        <div style={{display:'flex',alignItems:'center',gap:5,fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.1em',color:'var(--text3)'}}><div style={{width:7,height:7,borderRadius:'50%',background:'var(--yellow)'}}/> PERSONAL</div>
+        <div style={{display:'flex',alignItems:'center',gap:5,fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.1em',color:'var(--text3)'}}><div style={{width:7,height:7,borderRadius:'50%',background:'var(--blue)'}}/> WORK</div>
+        <div style={{display:'flex',alignItems:'center',gap:5,fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.1em',color:'var(--text3)'}}><div style={{width:7,height:7,borderRadius:'50%',background:'var(--green)'}}/> HEALTH</div>
+      </div>
+      <button className="fab" style={{background:tabColor,boxShadow:`0 4px 20px ${tabColor}66`}}
+        onClick={()=>{ setForm(p=>({...p,date:dayKey(selectedDay)+'T09:00:00'})); setShowForm(true); }}>
+        + ADD EVENT
+      </button>
 
       {/* ── Event detail modal ── */}
       {selectedEvent&&(
