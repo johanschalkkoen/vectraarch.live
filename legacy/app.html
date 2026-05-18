@@ -1454,14 +1454,6 @@ const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPart
     setEditCycleId(cyc.id); setShowForm(true);
   };
 
-  // Dynamic legend based on avgLen
-  const ovStartLegend = Math.max(avgLen-14-4, 6);
-  const ovEndLegend   = Math.min(avgLen-14+1, avgLen-1);
-  const phaseLegend = [
-    ['#e91e8c', `MENSTRUATION · 1-5`],
-    ['#1de9b6', `OVULATION · ${ovStartLegend}-${ovEndLegend}`],
-  ];
-
   return (
     <div className="page-outer">
       <div className="top-bar"><span className="top-eyebrow"><span style={{color:user?.eventColor||'#00e676'}}>§ VECTRA ARCH</span> · LEGACY · HEALTH</span></div>
@@ -1479,6 +1471,12 @@ const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPart
             const uCycles  = allCycles[u.username] || [];
             const stats    = cycleStats(uCycles);
             const {latest, avgLen, dayOfCycle, nextPeriod, fertileStart, fertileEnd} = stats;
+            const ovStartL = Math.max(avgLen-14-4, 6);
+            const ovEndL   = Math.min(avgLen-14+1, avgLen-1);
+            const phaseLegend = [
+              ['#e91e8c', `MENSTRUATION · 1-5`],
+              ['#1de9b6', `OVULATION · ${ovStartL}-${ovEndL}`],
+            ];
             const isOwn    = u.username === user.username;
             const owner    = getOwner(u.username, user, partner, partners) || u;
             const accentColor = owner.eventColor || '#e91e8c';
