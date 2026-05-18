@@ -1027,14 +1027,29 @@ app.post(BASE + '/users/delete/:id', isAuth, async (req, res) => {
 // POST: Set/unset admin for a Legacy user (quick toggle)
 app.post(BASE + '/users/legacy/set-admin/:username', isAuth, async (req, res) => {
   const { username } = req.params;
-  const adminFlag = (req.body.isAdmin === '1' || req.body.isAdmin === 1) ? 1 : 0;
+  const rawVal   = req.body.isAdmin;
+  const adminFlag = (rawVal === '1' || rawVal === 1 || rawVal === true) ? 1 : 0;
+  console.log(`[conduit] set-admin: user="${username}" raw="${rawVal}" flag=${adminFlag}`);
   try {
-    await legacyPool.query('UPDATE vectraarchlegacy_users SET is_admin=$1 WHERE username=$2', [adminFlag, username]);
-    await pool.query('INSERT INTO conduit_log (event,payload,status) VALUES ($1,$2,$3)',
-      ['legacy_set_admin', `username:${username} admin:${adminFlag}`, 'ok']);
-    req.session.flash = { type:'ok', msg:`✓ Admin ${adminFlag?'granted to':'revoked from'} "${username}"` };
+    // Use explicit integer cast to avoid type issues with the pg driver
+    const result = await legacyPool.query(
+      'UPDATE vectraarchlegacy_users SET is_admin=$1::integer WHERE username=$2 RETURNING username, is_admin',
+      [adminFlag, username]
+    );
+    if (result.rowCount === 0) {
+      console.warn(`[conduit] set-admin: no rows updated for username="${username}"`);
+      req.session.flash = { type:'err', msg:`User "${username}" not found in Legacy DB` };
+    } else {
+      console.log(`[conduit] set-admin: updated ${result.rowCount} row(s) — is_admin=${result.rows[0]?.is_admin}`);
+      try {
+        await pool.query('INSERT INTO conduit_log (event,payload,status) VALUES ($1,$2,$3)',
+          ['legacy_set_admin', `username:${username} admin:${adminFlag}`, 'ok']);
+      } catch {}
+      req.session.flash = { type:'ok', msg:`✓ Admin ${adminFlag ? 'granted to' : 'revoked from'} "${username}"` };
+    }
   } catch(e) {
-    req.session.flash = { type:'err', msg:`Error: ${e.message}` };
+    console.error(`[conduit] set-admin ERROR: ${e.message}`, e);
+    req.session.flash = { type:'err', msg:`DB Error: ${e.message}` };
   }
   res.redirect(BASE + '/users');
 });
@@ -1051,7 +1066,7 @@ app.post(BASE + '/users/legacy/add', isAuth, async (req, res) => {
     const bcrypt = require('bcrypt');
     const hash = await bcrypt.hash(password, 10);
     await legacyPool.query(
-      'INSERT INTO vectraarchlegacy_users (username, password_hash, first_name, last_name, display_name, email, is_admin) VALUES ($1,$2,$3,$4,$5,$6,$7)',
+      'INSERT INTO vectraarchlegacy_users (username, password_hash, first_name, last_name, display_name, email, is_admin) VALUES ($1,$2,$3,$4,$5,$6,$7::integer)',
       [username.toLowerCase().trim(), hash, firstName||null, lastName||null,
        (firstName&&lastName)?`${firstName} ${lastName}`:username, email||null, isAdmin?1:0]
     );
@@ -1073,7 +1088,7 @@ app.post(BASE + '/users/legacy/edit/:username', isAuth, async (req, res) => {
     // isAdmin arrives as string "0" or "1" from form — coerce to integer
     const adminFlag = (isAdmin==='1'||isAdmin===true||isAdmin===1) ? 1 : 0;
     await legacyPool.query(
-      `UPDATE vectraarchlegacy_users SET first_name=$1, last_name=$2, display_name=$3, email=$4, is_admin=$5 WHERE username=$6`,
+      'UPDATE vectraarchlegacy_users SET first_name=$1, last_name=$2, display_name=$3, email=$4, is_admin=$5::integer WHERE username=$6',
       [firstName||null, lastName||null, displayName, email||null, adminFlag, username]
     );
     if (password && password.trim()) {
@@ -1151,7 +1166,24 @@ app.post(BASE + '/users/legacy/revoke-access', isAuth, async (req, res) => {
 });
 
 // ── START ─────────────────────────────────────────────────────────────────────
+// Ensure legacyPool write access on startup
+async function checkLegacyAccess() {
+  try {
+    await legacyPool.query('SELECT 1');
+    console.log('[conduit] legacyPool: connection OK');
+    // Quick write test
+    const t = await legacyPool.query("SELECT has_table_privilege($1,'vectraarchlegacy_users','UPDATE') AS can_update", ['forge_master']);
+    console.log(`[conduit] legacyPool write access: ${t.rows[0]?.can_update}`);
+    if (!t.rows[0]?.can_update) {
+      console.warn('[conduit] WARNING: forge_master cannot UPDATE vectraarchlegacy_users — run GRANT UPDATE ON vectraarchlegacy_users TO forge_master;');
+    }
+  } catch(e) {
+    console.error('[conduit] legacyPool check failed:', e.message);
+  }
+}
+
 setupDB().then(() => {
+  checkLegacyAccess();
   app.listen(PORT, HOST, () => {
     console.log(`[conduit] VectraArchConduit listening on ${HOST}:${PORT}`);
     console.log(`[conduit] Database: bookforge (${process.env.DB_USER}@${process.env.DB_HOST||'localhost'})`);
