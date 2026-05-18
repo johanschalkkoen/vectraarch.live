@@ -467,7 +467,7 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
               <div key={e.id} className="meal-card" style={{marginBottom:8,borderLeft:`3px solid ${coc}`,cursor:'pointer'}} onClick={()=>setSelectedEvent(e)}>
                 <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
                   <ItemAvatar username={e.user||e.username} user={user} partner={partner} partners={partners} size={36}/>
-                  <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:600,letterSpacing:'0.12em',padding:'3px 8px',borderRadius:3,textTransform:'uppercase',flexShrink:0,background:`${dotColor}22`,color:dotColor,border:`1px solid ${dotColor}55`}}>{(e.type||'personal').toUpperCase()}</span>
+                  <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:600,letterSpacing:'0.12em',padding:'3px 8px',borderRadius:3,textTransform:'uppercase',flexShrink:0,background:`${coc}22`,color:coc,border:`1px solid ${coc}55`}}>{(e.type||'personal').toUpperCase()}</span>
                   {calOwner&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:coc,letterSpacing:'0.08em'}}>{(calOwner.displayName||calOwner.username||'').toUpperCase()}</span>}
                 </div>
                 <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
@@ -1565,8 +1565,10 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
             const linked=(r.data.accessList||[]).some(a=>a.viewer===user.username&&a.target===p.username);
             if(linked){
               setSharingConfig(prev=>{
-                if(prev[p.username]) return prev; // already set — don't overwrite
-                return {...prev,[p.username]:Object.fromEntries(sharingItems.map(i=>[i,true]))};
+                // Merge: keep existing per-item choices, add missing items as true
+                const existing=prev[p.username]||{};
+                const merged=Object.fromEntries(sharingItems.map(i=>[i,existing[i]!==undefined?existing[i]:true]));
+                return {...prev,[p.username]:merged};
               });
             }
           });
@@ -1648,10 +1650,10 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
           </div>
 
           {/* ── Partner sharing ── */}
-          {!partner&&(
+          {(partners.length===0&&!partner)&&(
             <div style={{background:'var(--bg2)',border:'1px solid var(--border2)',borderRadius:6,padding:'14px 16px',marginBottom:16}}>
               <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.18em',textTransform:'uppercase',color:'var(--pink)',marginBottom:6}}>§ PARTNER SHARING</div>
-              <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',lineHeight:1.6}}>No partner linked. Contact admin at <strong style={{color:'var(--text2)'}}>vectraarch.live/conduit/users</strong></div>
+              <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',lineHeight:1.6}}>No partners linked yet. An admin can set up access links at <strong style={{color:'var(--text2)'}}>vectraarch.live/conduit/users</strong></div>
             </div>
           )}
           {(partners.length>0?partners:partner?[partner]:[]).length>0&&(
@@ -1935,14 +1937,23 @@ const App = () => {
   const [partner, setPartner] = useState(null);
   const [partners, setPartners] = useState([]);
   const [activeTab, setActiveTab] = useState('budget');
-  const [sharingConfig, setSharingConfig] = useState({}); // { partnerUsername: { Finances:bool, ... } } — managed in Profile only
+  const [sharingConfig, setSharingConfig] = useState(()=>{
+    try { const s=localStorage.getItem('legacySharingConfig'); return s?JSON.parse(s):{};} catch{return {};}
+  }); // { partnerUsername: { Finances:bool, ... } } — managed in Profile only
   const [viewConfig, setViewConfig] = useState({finances:true,calendar:true,budget:true,gym:true,meals:true,cycle:true}); // display toggle per tab
   const [error, setError] = useState('');
 
   const handleLogout = useCallback(()=>{
     localStorage.removeItem('user');
+    localStorage.removeItem('legacySharingConfig');
     window.location.href = '/legacy/login.html';
   },[]);
+
+  // Persist sharingConfig to localStorage whenever it changes
+  useEffect(()=>{
+    if(Object.keys(sharingConfig).length>0)
+      localStorage.setItem('legacySharingConfig', JSON.stringify(sharingConfig));
+  },[sharingConfig]);
 
   useEffect(()=>{
     const stored = localStorage.getItem('user');
@@ -1995,11 +2006,15 @@ const App = () => {
           if(data.success&&data.accessList?.length>0){
             const targets=data.accessList.filter(a=>a.viewer===u.username).map(a=>a.target);
             if(targets.length>0){
-              // Default: all tabs enabled for all linked partners
+              // Populate sharingConfig for all linked partners
+              // Only set defaults for partners not already in localStorage config
               const defaultCfg={Finances:true,Calendar:true,Budget:true,Gym:true,Meals:true,Cycle:true};
               setSharingConfig(prev=>{
                 const next={...prev};
-                targets.forEach(t=>{ if(!next[t]) next[t]={...defaultCfg}; });
+                targets.forEach(t=>{
+                  // Keep existing config but ensure all keys exist
+                  next[t] = {...defaultCfg, ...(next[t]||{})};
+                });
                 return next;
               });
             }
