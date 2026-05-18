@@ -841,87 +841,136 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
 
 /* ── BUDGET PAGE ── */
 const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPartners=[], selfVisible=true, isShared, tabSelected, onToggleUser, tabColor='#ffd600'}) => {
-  const [search, setSearch] = useState('');
+  const [search, setSearch]             = useState('');
+  const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()+1).padStart(2,'0'));
+  const [budgets, setBudgets]           = useState([]);
+  const [finances, setFinances]         = useState([]);
+  const [showForm, setShowForm]         = useState(false);
+  const [editBudgetId, setEditBudgetId] = useState(null);
   const [actionBudget, setActionBudget] = useState(null);
   const [confirmDelBud, setConfirmDelBud] = useState(null);
-  const [editBudgetId, setEditBudgetId] = useState(null);
-  const [budgets, setBudgets] = useState([]);
-  const [items, setItems] = useState([]);
-  const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()+1).padStart(2,'0'));
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({name:'',category:'',income:'',expenses:[{category:'',amount:''}],date:now()});
-  const [alert, setAlert] = useState({msg:'',type:''});
+  const [alert, setAlert]               = useState({msg:'',type:''});
 
-  const msg=(m,t='ok')=>{ setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
+  // Budget form: name, planned amount, category type (need/want/saving)
+  const [form, setForm] = useState({
+    category: '', income: '', type: 'need',
+    expenses: [{category:'', amount:''}], date: now()
+  });
+
+  const msg = (m,t='ok')=>{ setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
+
+  const CAT_TYPES = [
+    {key:'need',  label:'NEEDS',   color:'#448aff', desc:'Housing · Food · Utilities · Transport'},
+    {key:'want',  label:'WANTS',   color:'#e040fb', desc:'Entertainment · Dining · Shopping'},
+    {key:'saving',label:'SAVINGS', color:'#00e676', desc:'Emergency fund · Investments · Goals'},
+  ];
 
   const fetchAll = useCallback(async()=>{
     const users=[...(selfVisible?[user.username]:[]),...(activePartners||[]).map(p=>p.username)];
+    if(users.length===0){setBudgets([]);setFinances([]);return;}
     try {
-      const [buds,fins]=await Promise.all([
-        Promise.all(users.map(u=>axios.get(`${API}/budget`,{params:{user:u}}).then(r=>{const rows=r.data.data||r.data||[];return rows.map(b=>({...b,expenses:Array.isArray(b.expenses)?b.expenses:(typeof b.expenses==='string'?JSON.parse(b.expenses||'[]'):(b.expenses||[])),user:b.user||u}));}).catch(()=>[]))).then(r=>r.flat()),
+      const [buds,fins] = await Promise.all([
+        Promise.all(users.map(u=>axios.get(`${API}/budget`,{params:{user:u}})
+          .then(r=>{
+            const rows=r.data.data||r.data||[];
+            return rows.map(b=>({
+              ...b,
+              expenses: Array.isArray(b.expenses)?b.expenses
+                :(typeof b.expenses==='string'?JSON.parse(b.expenses||'[]'):(b.expenses||[])),
+              user: b.user||u
+            }));
+          }).catch(()=>[])
+        )).then(r=>r.flat()),
         Promise.all(users.map(u=>axios.get(`${API}/financial`,{params:{user:u}}).then(r=>r.data).catch(()=>[]))).then(r=>r.flat())
       ]);
-      setBudgets(buds); setItems(fins);
+      setBudgets(buds);
+      setFinances(fins);
     } catch {}
   },[user.username, partner, isShared, selfVisible, JSON.stringify((activePartners||[]).map(p=>p.username))]);
 
   useEffect(()=>{ fetchAll(); },[fetchAll]);
 
-  const filteredBudgets = useMemo(()=>{
+  // ── Computed values ──
+  const monthLabel = MONTHS.find(m=>m.v===selectedMonth)?.l||'';
+
+  const monthFinances = useMemo(()=>
+    finances.filter(f=>(f.date||'').slice(5,7)===selectedMonth)
+  ,[finances, selectedMonth]);
+
+  const totalIncome  = useMemo(()=>monthFinances.filter(f=>f.type==='income').reduce((s,f)=>s+parseFloat(f.amount||0),0),[monthFinances]);
+  const totalExpense = useMemo(()=>monthFinances.filter(f=>f.type==='expense').reduce((s,f)=>s+parseFloat(f.amount||0),0),[monthFinances]);
+  const netFlow      = totalIncome - totalExpense;
+
+  const monthBudgets = useMemo(()=>{
     const users=[...(selfVisible?[user.username]:[]),...(activePartners||[]).map(p=>p.username)];
-    if(users.length===0) return [];
-    return budgets.filter(b=>{
-      const d = b.date||'';
-      const month = d.slice(5,7);
-      return month===selectedMonth && users.includes(b.user||b.username||user.username);
+    return budgets.filter(b=>(b.date||'').slice(5,7)===selectedMonth && users.includes(b.user||user.username));
+  },[budgets, selectedMonth, selfVisible, JSON.stringify((activePartners||[]).map(p=>p.username))]);
+
+  const filteredBudgets = useMemo(()=>
+    monthBudgets.filter(b=>!search||(b.expenses[0]?.category||'').toLowerCase().includes(search.toLowerCase()))
+  ,[monthBudgets, search]);
+
+  // Per-type totals
+  const byType = useMemo(()=>{
+    const result = {};
+    CAT_TYPES.forEach(ct=>{
+      const typeBuds = monthBudgets.filter(b=>(b.budget_type||b.expenses[0]?.type||'need')===ct.key);
+      const planned  = typeBuds.reduce((s,b)=>s+b.expenses.reduce((ss,e)=>ss+parseFloat(e.amount||0),0),0);
+      // Match actual expenses to this category type by category name
+      const catNames = typeBuds.flatMap(b=>b.expenses.map(e=>(e.category||'').toLowerCase()));
+      const actual   = monthFinances.filter(f=>f.type==='expense'&&catNames.some(n=>n&&(f.category||'').toLowerCase().includes(n))).reduce((s,f)=>s+parseFloat(f.amount||0),0);
+      result[ct.key] = {planned, actual, left: planned-actual};
     });
-  },[budgets,selectedMonth,user.username,selfVisible,JSON.stringify((activePartners||[]).map(p=>p.username))]);
+    return result;
+  },[monthBudgets, monthFinances]);
 
-  const totalPlanned = filteredBudgets.reduce((s,b)=>s+b.expenses.reduce((ss,e)=>ss+parseFloat(e.amount||0),0),0);
-  const totalActual = useMemo(()=>{
-    const users=[...(selfVisible?[user.username]:[]),...(activePartners||[]).map(p=>p.username)];
-    return items.filter(i=>users.includes(i.user||i.username)&&(i.date||'').slice(5,7)===selectedMonth&&i.type==='expense').reduce((s,i)=>s+parseFloat(i.amount||0),0);
-  },[items,selectedMonth,user.username,selfVisible,JSON.stringify((activePartners||[]).map(p=>p.username))]);
-
-  const getBudgetActual = (b) => {
-    const users=[...(selfVisible?[user.username]:[]),...(activePartners||[]).map(p=>p.username)];
-    return items.filter(i=>users.includes(i.user||i.username)&&(i.date||'').slice(5,7)===selectedMonth&&i.type==='expense').reduce((s,i)=>s+parseFloat(i.amount||0),0);
-  };
-
-  const getBudgetStatus = (planned, actual) => {
-    const pct = planned>0 ? actual/planned : 0;
-    if(pct>=1) return 'over';
-    if(pct>=0.65) return 'warn';
-    return 'ok';
-  };
+  // 50/30/20 rule suggestions based on income
+  const rule = useMemo(()=>({
+    need:   totalIncome * 0.50,
+    want:   totalIncome * 0.30,
+    saving: totalIncome * 0.20,
+  }),[totalIncome]);
 
   const handleSave = async()=>{
-    if(!form.expenses[0]?.category){msg('Category name required.','err');return;}
-    if(!form.income||parseFloat(form.income)<=0){msg('Amount must be greater than 0.','err');return;}
-    const expensesJson = JSON.stringify([{category:form.expenses[0].category||'Budget',amount:parseFloat(form.income)}]);
-    const dateStr = form.date||now();
+    if(!form.expenses[0]?.category){ msg('Category name required.','err'); return; }
+    if(!form.income||parseFloat(form.income)<=0){ msg('Amount must be greater than 0.','err'); return; }
+    const expensesJson = JSON.stringify([{
+      category: form.expenses[0].category,
+      amount:   parseFloat(form.income),
+      type:     form.type
+    }]);
     try {
       if(editBudgetId) await axios.delete(`${API}/budget/${editBudgetId}`);
-      await axios.post(`${API}/budget`,{user:user.username,income:parseFloat(form.income),expenses:expensesJson,date:dateStr});
+      await axios.post(`${API}/budget`,{
+        user:     user.username,
+        income:   parseFloat(form.income),
+        expenses: expensesJson,
+        date:     (form.date||now()).slice(0,10)+'-01',
+        budget_type: form.type,
+      });
       msg(editBudgetId?'Budget updated.':'Budget saved.');
-      setShowForm(false);setEditBudgetId(null);
-      setForm({name:'',category:'',income:'',expenses:[{category:'',amount:''}],date:now()});
+      setShowForm(false); setEditBudgetId(null);
+      setForm({category:'',income:'',type:'need',expenses:[{category:'',amount:''}],date:now()});
       fetchAll();
-    } catch(e) { msg(e.response?.data?.message||'Error saving budget.','err'); }
+    } catch(e){ msg(e.response?.data?.message||'Error.','err'); }
   };
+
   const startEditBudget = (b) => {
     const cat = b.expenses?.[0]?.category||'';
     const amt = b.expenses?.[0]?.amount||b.income||0;
-    setForm({name:cat,category:cat,income:String(amt),expenses:[{category:cat,amount:String(amt)}],date:(b.date||now()).slice(0,10)+'T00:00:00'});
+    const typ = b.budget_type||b.expenses?.[0]?.type||'need';
+    setForm({category:cat,income:String(amt),type:typ,expenses:[{category:cat,amount:String(amt)}],date:(b.date||now()).slice(0,7)+'-01'});
     setEditBudgetId(b.id);
     setShowForm(true);
   };
+
   const handleBudgetDelete = async(id)=>{
     try { await axios.delete(`${API}/budget/${id}`); msg('Deleted.'); fetchAll(); } catch { msg('Error.','err'); }
   };
 
-  const monthLabel = MONTHS.find(m=>m.v===selectedMonth)?.l||'';
-  const left = totalPlanned - totalActual;
+  const totalPlanned = monthBudgets.reduce((s,b)=>s+b.expenses.reduce((ss,e)=>ss+parseFloat(e.amount||0),0),0);
+  const totalActual  = totalExpense;
+  const savings      = netFlow;
 
   return (
     <div className="page-outer">
@@ -930,100 +979,232 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
         <div className="page-inner">
           <div className="page-head">
             <div className="page-title">BUDGET</div>
-            <div className="page-sub">PLANNED · ACTUAL · REMAINING</div>
+            <div className="page-sub">50/30/20 · PLANNED vs ACTUAL · VARIANCE</div>
           </div>
           <UserRow user={user} partner={partner} partners={partners} activePartners={activePartners} permittedPartners={permittedPartners} selfVisible={selfVisible} tabSelected={tabSelected} isShared={isShared} onToggleUser={onToggleUser}/>
           <MonthNav selectedMonth={selectedMonth} setSelectedMonth={setSelectedMonth} tabColor={tabColor}/>
-          <SearchBar value={search} onChange={setSearch} placeholder="Search budgets..." tabColor={tabColor}/>
           <Alert {...alert}/>
 
-          {/* Summary */}
-          <div className="section-label">SUMMARY <span style={{color:"var(--accent)",fontSize:14}}>·</span> {monthLabel.toUpperCase()} 2026</div>
-          <div className="summary-card">
-            <div className="summary-grid">
-              <div>
-                <div className="summary-item-label">Planned</div>
-                <div className="summary-item-value" style={{color:tabColor}}>{fmtR(totalPlanned)}</div>
+          {/* ── Monthly income/expense overview ── */}
+          <div className="section-label">OVERVIEW <span style={{color:tabColor}}>{monthLabel.toUpperCase()}</span></div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginBottom:16}}>
+            {[
+              {label:'INCOME',  val:totalIncome,  color:'var(--green)'},
+              {label:'SPENT',   val:totalExpense, color:'var(--red)'},
+              {label:'NET',     val:netFlow,      color:netFlow>=0?'var(--green)':'var(--red)'},
+            ].map(({label,val,color})=>(
+              <div key={label} style={{background:'var(--bg2)',borderRadius:8,padding:'12px 14px',border:'1px solid var(--border)'}}>
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.12em',color:'var(--text3)',marginBottom:6}}>{label}</div>
+                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:18,color,letterSpacing:'0.02em'}}>{fmtR(Math.abs(val))}</div>
+                {label==='NET'&&<div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:netFlow>=0?'var(--green)':'var(--red)',marginTop:2}}>{netFlow>=0?'SURPLUS':'DEFICIT'}</div>}
               </div>
-              <div>
-                <div className="summary-item-label">Actual</div>
-                <div className="summary-item-value" style={{color:'var(--red)'}}>{fmtR(totalActual)}</div>
-              </div>
-              <div>
-                <div className="summary-item-label">Left</div>
-                <div className="summary-item-value" style={{color:left>=0?'var(--green)':'var(--red)'}}>{fmtR(Math.abs(left))}</div>
-              </div>
-            </div>
+            ))}
           </div>
 
-          <SearchBar value={search} onChange={setSearch} placeholder="Search budgets..." tabColor={tabColor}/>
-          <div className="section-label">BUDGETS <span style={{color:tabColor}}>{filteredBudgets.filter(b=>!search||(b.expenses[0]?.category||'').toLowerCase().includes(search.toLowerCase())).length}</span> RECORDS</div>
-          {filteredBudgets.filter(b=>!search||(b.expenses[0]?.category||'').toLowerCase().includes(search.toLowerCase())).map(b=>{
-            const planned  = b.expenses.reduce((s,e)=>s+parseFloat(e.amount||0),0);
-            const actual   = getBudgetActual(b);
-            const pct      = planned>0?Math.min(actual/planned,1):0;
-            const status   = getBudgetStatus(planned, actual);
-            const leftVal  = planned - actual;
-            const budOwner = getOwner(b.user||user.username, user, partner, partners);
-            const boc = budOwner?.eventColor||'#ffd600';
+          {/* ── 50/30/20 rule visual ── */}
+          {totalIncome>0&&(
+            <div style={{background:'var(--bg2)',borderRadius:8,padding:'14px',border:'1px solid var(--border)',marginBottom:16}}>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
+                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:15,color:'var(--text)'}}>50 / 30 / 20 RULE</div>
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'var(--text3)'}}>BASED ON {fmtR(totalIncome)} INCOME</div>
+              </div>
+              {CAT_TYPES.map(ct=>{
+                const pct = ct.key==='need'?50:ct.key==='want'?30:20;
+                const suggested = rule[ct.key];
+                const planned   = byType[ct.key]?.planned||0;
+                const actual    = byType[ct.key]?.actual||0;
+                const barPct    = suggested>0?Math.min(actual/suggested,1.2):0;
+                const over      = actual > suggested;
+                return (
+                  <div key={ct.key} style={{marginBottom:12}}>
+                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:4}}>
+                      <div style={{display:'flex',alignItems:'center',gap:8}}>
+                        <div style={{width:10,height:10,borderRadius:2,background:ct.color,flexShrink:0}}/>
+                        <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,color:'var(--text)'}}>{ct.label}</span>
+                        <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'var(--text3)'}}>{pct}%</span>
+                      </div>
+                      <div style={{textAlign:'right'}}>
+                        <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:over?'var(--red)':ct.color,fontWeight:600}}>{fmtR(actual)}</span>
+                        <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'var(--text3)'}}> / {fmtR(suggested)}</span>
+                      </div>
+                    </div>
+                    <div style={{height:6,background:'var(--bg3)',borderRadius:3,overflow:'hidden'}}>
+                      <div style={{height:'100%',width:`${Math.min(barPct*100,100)}%`,background:over?'var(--red)':ct.color,borderRadius:3,transition:'width 0.5s'}}/>
+                    </div>
+                    <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:'var(--text3)',marginTop:2}}>{ct.desc}</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* ── Budget allocations ── */}
+          <SearchBar value={search} onChange={setSearch} placeholder="Search budget categories..." tabColor={tabColor}/>
+          <div className="section-label">ALLOCATIONS <span style={{color:tabColor}}>{filteredBudgets.length}</span> CATEGORIES</div>
+
+          {/* Group by type */}
+          {CAT_TYPES.map(ct=>{
+            const typeBuds = filteredBudgets.filter(b=>(b.budget_type||b.expenses[0]?.type||'need')===ct.key);
+            if(typeBuds.length===0) return null;
+            const typePlanned = typeBuds.reduce((s,b)=>s+b.expenses.reduce((ss,e)=>ss+parseFloat(e.amount||0),0),0);
             return (
-              <div key={b.id} className="meal-card" style={{marginBottom:8,position:'relative',borderLeft:`3px solid ${boc}`,cursor:(b.user===user.username||!b.user)?'pointer':'default'}}
-                onClick={()=>(b.user===user.username||!b.user)&&setActionBudget(b)}>
-                <span className={`budget-status-badge ${status}`}>{status.toUpperCase()}</span>
-                {/* Top row: avatar + BUDGET badge + owner name */}
-                <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
-                  <ItemAvatar username={b.user||user.username} user={user} partner={partner} partners={partners} size={36}/>
-                  <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:600,letterSpacing:'0.12em',padding:'3px 8px',borderRadius:3,textTransform:'uppercase',flexShrink:0,background:`${boc}22`,color:boc,border:`1px solid ${boc}55`}}>BUDGET</span>
-                  {budOwner&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:boc,letterSpacing:'0.08em'}}>{(budOwner.displayName||budOwner.username||'').toUpperCase()}</span>}
+              <div key={ct.key} style={{marginBottom:16}}>
+                {/* Type header */}
+                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'6px 12px',background:`${ct.color}15`,borderRadius:6,marginBottom:8,border:`1px solid ${ct.color}33`}}>
+                  <div style={{display:'flex',alignItems:'center',gap:8}}>
+                    <div style={{width:8,height:8,borderRadius:2,background:ct.color}}/>
+                    <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:14,color:ct.color,letterSpacing:'0.04em'}}>{ct.label}</span>
+                  </div>
+                  <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:ct.color,fontWeight:600}}>{fmtR(typePlanned)}</span>
                 </div>
-                <div className="meal-name" style={{marginBottom:4}}>{(b.expenses[0]?.category||'Budget').toUpperCase()}</div>
-                <div className="meal-note" style={{marginBottom:10}}>{fmtDate(b.date)}</div>
-                <div className="budget-cols">
-                  <div><div className="budget-col-label">Plan</div><div className="budget-col-value plan">{fmtR(planned)}</div></div>
-                  <div><div className="budget-col-label">Act</div><div className="budget-col-value act">{fmtR(actual)}</div></div>
-                  <div><div className="budget-col-label">Left</div><div className={`budget-col-value left ${leftVal>=0?'pos':'neg'}`}>{fmtR(Math.abs(leftVal))}</div></div>
-                </div>
-                <div className="progress-bar"><div className={`progress-fill ${status}`} style={{width:`${pct*100}%`}}/></div>
-                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-                  <div className="progress-label">{Math.round(pct*100)}% USED</div>
-{(b.user===user.username||!b.user)&&<div style={{color:'var(--text3)',fontSize:12}}>›</div>}
-                </div>
+
+                {typeBuds.map(b=>{
+                  const planned  = b.expenses.reduce((s,e)=>s+parseFloat(e.amount||0),0);
+                  // Match actual spend from finances by category name
+                  const catName  = (b.expenses[0]?.category||'').toLowerCase();
+                  const actual   = monthFinances.filter(f=>f.type==='expense'&&(f.category||'').toLowerCase().includes(catName)).reduce((s,f)=>s+parseFloat(f.amount||0),0);
+                  const pct      = planned>0?Math.min(actual/planned,1.5):0;
+                  const over     = actual>planned;
+                  const left     = planned-actual;
+                  const budOwner = getOwner(b.user||user.username,user,partner,partners);
+                  const boc      = budOwner?.eventColor||ct.color;
+                  const isOwn    = (b.user===user.username||!b.user);
+                  return (
+                    <div key={b.id} className="meal-card" style={{marginBottom:6,borderLeft:`3px solid ${boc}`,cursor:isOwn?'pointer':'default'}}
+                      onClick={()=>isOwn&&setActionBudget(b)}>
+                      {/* Header row */}
+                      <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
+                        <ItemAvatar username={b.user||user.username} user={user} partner={partner} partners={partners} size={32}/>
+                        <div style={{flex:1}}>
+                          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:16,color:'var(--text)'}}>{(b.expenses[0]?.category||'Budget').toUpperCase()}</div>
+                          <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'var(--text3)'}}>{fmtDate(b.date)}</div>
+                        </div>
+                        <div style={{textAlign:'right',flexShrink:0}}>
+                          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:16,color:over?'var(--red)':boc}}>{fmtR(actual)}</div>
+                          <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'var(--text3)'}}>of {fmtR(planned)}</div>
+                        </div>
+                        {isOwn&&<span style={{color:'var(--text3)',fontSize:12,flexShrink:0}}>›</span>}
+                      </div>
+                      {/* Progress bar */}
+                      <div style={{height:5,background:'var(--bg3)',borderRadius:3,overflow:'hidden',marginBottom:4}}>
+                        <div style={{height:'100%',width:`${Math.min(pct*100,100)}%`,background:over?'var(--red)':ct.color,borderRadius:3,transition:'width 0.4s'}}/>
+                      </div>
+                      {/* Stats row */}
+                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                        <div style={{display:'flex',gap:16}}>
+                          <div>
+                            <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:'var(--text3)',letterSpacing:'0.1em'}}>SPENT</div>
+                            <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:over?'var(--red)':'var(--text)',fontWeight:600}}>{Math.round(pct*100)}%</div>
+                          </div>
+                          <div>
+                            <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:'var(--text3)',letterSpacing:'0.1em'}}>{left>=0?'REMAINING':'OVER BY'}</div>
+                            <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:left>=0?'var(--green)':'var(--red)',fontWeight:600}}>{fmtR(Math.abs(left))}</div>
+                          </div>
+                        </div>
+                        <span style={{fontFamily:"'DM Mono',monospace",fontSize:7,padding:'2px 6px',borderRadius:2,
+                          background:over?'rgba(255,61,61,0.15)':pct>0.75?'rgba(255,214,0,0.15)':'rgba(0,230,118,0.15)',
+                          color:over?'var(--red)':pct>0.75?'var(--yellow)':'var(--green)',fontWeight:600,letterSpacing:'0.1em'}}>
+                          {over?'OVER':pct>0.75?'WARN':'OK'}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             );
           })}
-          {filteredBudgets.length===0&&<div className="no-events"><div className="no-events-text">No budgets for {monthLabel}</div></div>}
+
+          {filteredBudgets.length===0&&(
+            <div className="no-events">
+              <div className="no-events-icon">📊</div>
+              <div className="no-events-text">No budget allocations for {monthLabel}</div>
+              <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)',marginTop:8,textAlign:'center'}}>Tap + ADD BUDGET to create your first allocation</div>
+            </div>
+          )}
           <div style={{height:'80px'}}/>
         </div>
       </div>
       <button className="fab" style={{background:tabColor,boxShadow:`0 4px 20px ${tabColor}55`}} onClick={()=>setShowForm(true)}>+ ADD BUDGET</button>
-      <ActionSheet open={!!actionBudget} title={actionBudget?.expenses?.[0]?.category||'Budget'} tabColor={tabColor}
+      <ActionSheet open={!!actionBudget} title={actionBudget?.expenses?.[0]?.category} tabColor={tabColor}
         onEdit={()=>startEditBudget(actionBudget)}
         onDelete={()=>setConfirmDelBud(actionBudget?.id)}
         onClose={()=>setActionBudget(null)}/>
-      <ConfirmModal open={!!confirmDelBud} message="Delete budget?" detail="This cannot be undone."
+      <ConfirmModal open={!!confirmDelBud} message="Delete budget allocation?" detail={actionBudget?.expenses?.[0]?.category}
         onConfirm={async()=>{await handleBudgetDelete(confirmDelBud);setConfirmDelBud(null);setActionBudget(null);}}
         onCancel={()=>setConfirmDelBud(null)}/>
 
+      {/* ── Add / Edit Budget Modal ── */}
       {showForm&&(
         <div className="modal-overlay" onClick={()=>setShowForm(false)}>
-          <div className="modal-sheet" onClick={e=>e.stopPropagation()}>
+          <div className="modal-sheet" style={{"--page-color":tabColor}} onClick={e=>e.stopPropagation()}>
             <div className="modal-handle"/>
-            <div className="modal-title">Add Budget</div>
+            <div className="modal-title">{editBudgetId?'Edit':'Add'} Budget Allocation</div>
+
+            {/* Category name */}
             <div className="form-field">
               <label className="form-label">Category Name</label>
-              <input className="form-input" placeholder="e.g. Groceries, Fuel, Savings" value={form.expenses[0]?.category||''} onChange={e=>setForm(p=>({...p,expenses:[{...p.expenses[0],category:e.target.value}]}))}/>
+              <input className="form-input" placeholder="e.g. Groceries, Rent, Netflix"
+                value={form.expenses[0]?.category||''}
+                onChange={e=>setForm(p=>({...p,category:e.target.value,expenses:[{...p.expenses[0],category:e.target.value}]}))}/>
             </div>
+
+            {/* Planned amount */}
             <div className="form-field">
-              <label className="form-label">Planned Amount (ZAR)</label>
-              <input className="form-input" type="number" min="0" step="0.01" placeholder="0.00" value={form.income}
-                onChange={e=>setForm(p=>({...p,income:e.target.value,expenses:[{...(p.expenses[0]||{}),amount:e.target.value,category:p.expenses[0]?.category||''}]}))}/>
+              <label className="form-label">Planned Amount (R)</label>
+              <input className="form-input" type="number" placeholder="e.g. 5000"
+                value={form.income}
+                onChange={e=>setForm(p=>({...p,income:e.target.value,expenses:[{...p.expenses[0],amount:e.target.value}]}))}/>
             </div>
+
+            {/* Budget type — need/want/saving */}
+            <div className="form-field">
+              <label className="form-label">Category Type</label>
+              <div style={{display:'flex',flexDirection:'column',gap:8,paddingTop:4}}>
+                {CAT_TYPES.map(ct=>(
+                  <button key={ct.key} onClick={()=>setForm(p=>({...p,type:ct.key}))}
+                    style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',borderRadius:8,cursor:'pointer',
+                      border:`1px solid ${form.type===ct.key?ct.color:'var(--border2)'}`,
+                      background:form.type===ct.key?`${ct.color}15`:'transparent',textAlign:'left'}}>
+                    <div style={{width:10,height:10,borderRadius:2,background:ct.color,flexShrink:0}}/>
+                    <div>
+                      <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,color:form.type===ct.key?ct.color:'var(--text)'}}>{ct.label}</div>
+                      <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'var(--text3)'}}>{ct.desc}</div>
+                    </div>
+                    {form.type===ct.key&&<div style={{marginLeft:'auto',color:ct.color,fontSize:16}}>✓</div>}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Month */}
             <div className="form-field">
               <label className="form-label">Month</label>
-              <input className="form-input" type="month" value={form.date.slice(0,7)} onChange={e=>setForm(p=>({...p,date:e.target.value+'-01T00:00:00'}))}/>
+              <select className="form-input" value={form.date.slice(0,7)}
+                onChange={e=>setForm(p=>({...p,date:e.target.value+'-01T00:00:00'}))}>
+                {MONTHS.map(m=><option key={m.v} value={`${new Date().getFullYear()}-${m.v}`}>{m.l} {new Date().getFullYear()}</option>)}
+              </select>
             </div>
-            <button className="form-submit" style={{background:tabColor,color:'#000'}} onClick={handleSave}>SAVE BUDGET</button>
-            <button className="form-cancel" onClick={()=>setShowForm(false)}>Cancel</button>
+
+            {/* 50/30/20 hint */}
+            {totalIncome>0&&(
+              <div style={{background:'var(--bg3)',borderRadius:6,padding:'10px 12px',marginBottom:12,border:'1px solid var(--border)'}}>
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'var(--text3)',marginBottom:4}}>50/30/20 SUGGESTION</div>
+                <div style={{display:'flex',gap:12}}>
+                  {CAT_TYPES.map(ct=>(
+                    <button key={ct.key} onClick={()=>setForm(p=>({...p,type:ct.key,income:String(Math.round(rule[ct.key])),expenses:[{...p.expenses[0],amount:String(Math.round(rule[ct.key]))}]}))}
+                      style={{flex:1,padding:'6px 4px',borderRadius:4,border:`1px solid ${ct.color}55`,background:`${ct.color}10`,cursor:'pointer',textAlign:'center'}}>
+                      <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:ct.color,letterSpacing:'0.08em'}}>{ct.label}</div>
+                      <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:11,color:ct.color}}>{fmtR(Math.round(rule[ct.key]))}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <button className="form-submit" style={{background:tabColor,color:'#000'}} onClick={handleSave}>
+              {editBudgetId?'UPDATE':'SAVE'} ALLOCATION
+            </button>
+            <button className="form-cancel" onClick={()=>{setShowForm(false);setEditBudgetId(null);setForm({category:'',income:'',type:'need',expenses:[{category:'',amount:''}],date:now()});}}>Cancel</button>
           </div>
         </div>
       )}
