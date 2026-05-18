@@ -1601,8 +1601,10 @@ const PhaseWheel = ({dayOfCycle=1, cycleLength=28, accentColor='#e91e8c'}) => {
 
 const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPartners=[], selfVisible=true, isShared, tabSelected, onToggleUser, tabColor='#e91e8c'}) => {
   // allCycles stored per username: { username: [cycles] }
-  const [allCycles, setAllCycles] = useState({});
-  const [showForm, setShowForm]   = useState(false);
+  const [allCycles, setAllCycles]   = useState({});
+  const [showForm, setShowForm]     = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()+1).padStart(2,'0'));
+  const [search, setSearch]         = useState('');
   const [editCycleId, setEditCycleId] = useState(null);
   const [form, setForm] = useState({startDate:todayISO(),endDate:'',cycleLength:'28',symptoms:[],date:now()});
   const [alert, setAlert] = useState({msg:'',type:''});
@@ -1693,10 +1695,17 @@ const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPart
           </div>
           <UserRow user={user} partner={partner} partners={partners} activePartners={activePartners} permittedPartners={permittedPartners} selfVisible={selfVisible} tabSelected={tabSelected} isShared={isShared} onToggleUser={onToggleUser}/>
           <Alert {...alert}/>
+          <MonthNav selectedMonth={selectedMonth} setSelectedMonth={setSelectedMonth} tabColor={tabColor}/>
+          <SearchBar value={search} onChange={setSearch} placeholder="Search cycles..." tabColor={tabColor}/>
 
           {/* One section per user */}
           {allUsers.map((u,ui)=>{
-            const uCycles  = allCycles[u.username] || [];
+            const uCycles  = (allCycles[u.username] || []).filter(cyc=>{
+              const monthMatch = !selectedMonth || (cyc.startDate||'').slice(5,7)===selectedMonth;
+              const searchMatch = !search || (cyc.startDate||'').includes(search) ||
+                (cyc.symptoms||'').toLowerCase().includes(search.toLowerCase());
+              return monthMatch && searchMatch;
+            });
             const stats    = cycleStats(uCycles);
             const {latest, avgLen, dayOfCycle, nextPeriod, fertileStart, fertileEnd} = stats;
             const ovStartL = Math.max(avgLen-14-4, 6);
