@@ -638,7 +638,7 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
                 {' '}{MONTHS_SHORT[selectedDay.getMonth()]} {selectedDay.getFullYear()}
               </div>
               <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)',marginTop:2}}>
-                {selectedEvents.filter(e=>!e.isCycle&&!e.isFertile).length} event{selectedEvents.filter(e=>!e.isCycle&&!e.isFertile).length!==1?'s':''}
+                {selectedEvents.filter(e=>!e.isCycle&&!e.isFertile&&(!search||(e.title||'').toLowerCase().includes(search.toLowerCase()))).length} event{selectedEvents.filter(e=>!e.isCycle&&!e.isFertile&&(!search||(e.title||'').toLowerCase().includes(search.toLowerCase()))).length!==1?'s':''}
                 {canSeeCycle&&selectedEvents.some(e=>e.isCycle)?' · 🩸 period':''}
                 {canSeeCycle&&selectedEvents.some(e=>e.isFertile)?' · 🩵 ovulation':''}
               </div>
@@ -660,12 +660,12 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
                 <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,color:'#1de9b6'}}>OVULATION WINDOW</div>
               </div>
             )}
-            {selectedEvents.filter(e=>!e.isCycle&&!e.isFertile).length===0&&!selectedEvents.some(e=>e.isCycle||e.isFertile)&&(
+            {selectedEvents.filter(e=>!e.isCycle&&!e.isFertile&&(!search||(e.title||'').toLowerCase().includes(search.toLowerCase()))).length===0&&!selectedEvents.some(e=>e.isCycle||e.isFertile)&&(
               <div style={{textAlign:'center',padding:'24px 0',color:'var(--text3)',fontFamily:"'DM Mono',monospace",fontSize:10,letterSpacing:'0.1em'}}>
                 NO EVENTS
               </div>
             )}
-            {selectedEvents.filter(e=>!e.isCycle&&!e.isFertile).map(e=>{
+            {selectedEvents.filter(e=>!e.isCycle&&!e.isFertile&&(!search||(e.title||'').toLowerCase().includes(search.toLowerCase())||(e.type||'').toLowerCase().includes(search.toLowerCase()))).map(e=>{
               const calOwner = getOwner(e.user||e.username,user,partner,partners);
               const coc      = calOwner?.eventColor||e.eventColor||e.event_color||'var(--yellow)';
               const isOwn    = (e.user||e.username)===user.username;
@@ -1709,6 +1709,8 @@ const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPart
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()+1).padStart(2,'0'));
   const [search, setSearch]         = useState('');
   const [editCycleId, setEditCycleId] = useState(null);
+  const [actionCycle, setActionCycle] = useState(null);
+  const [confirmDelCyc, setConfirmDelCyc] = useState(null);
   const [form, setForm] = useState({startDate:todayISO(),endDate:'',cycleLength:'28',symptoms:[],date:now()});
   const [alert, setAlert] = useState({msg:'',type:''});
 
