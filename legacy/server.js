@@ -543,8 +543,12 @@ app.get('/api/budget', async (req, res) => {
     const { user } = req.query;
     if (!user) return res.status(400).json({ success: false, message: 'User required.' });
     try {
-        const rows = await dbAll('SELECT id, username AS user, income, expenses, date FROM vectraarchlegacy_budget WHERE username = $1', [user]);
-        res.json(rows);
+        // Cast date to text so frontend slice(5,7) works; expenses returned as object from jsonb
+        const rows = await dbAll(
+            "SELECT id, username AS user, income::float AS income, expenses, to_char(date,'YYYY-MM-DD') AS date FROM vectraarchlegacy_budget WHERE username = $1 ORDER BY date DESC",
+            [user]
+        );
+        res.json({ success: true, data: rows });
     } catch (e) {
         res.status(500).json({ success: false, message: 'Database error fetching budget.', error: e.message });
     }
@@ -552,11 +556,21 @@ app.get('/api/budget', async (req, res) => {
 
 app.post('/api/budget', async (req, res) => {
     const { user, income, expenses, date } = req.body;
-    if (!user || !income || !expenses || !date) return res.status(400).json({ success: false, message: 'All fields required.' });
-    if (isNaN(income) || income < 0) return res.status(400).json({ success: false, message: 'Income must be a non-negative number.' });
-    try { JSON.parse(expenses); } catch { return res.status(400).json({ success: false, message: 'Invalid expenses JSON format.' }); }
+    if (!user || income === undefined || income === null || !expenses || !date)
+        return res.status(400).json({ success: false, message: 'All fields required.' });
+    if (isNaN(income) || Number(income) < 0)
+        return res.status(400).json({ success: false, message: 'Income must be a non-negative number.' });
+    // Parse expenses — accept both JSON string and already-parsed object
+    let expensesObj;
+    try { expensesObj = typeof expenses === 'string' ? JSON.parse(expenses) : expenses; }
+    catch { return res.status(400).json({ success: false, message: 'Invalid expenses format.' }); }
+    // date column is type DATE — strip to YYYY-MM-DD
+    const dateOnly = String(date).slice(0, 10);
     try {
-        const r = await dbRun('INSERT INTO vectraarchlegacy_budget (username,income,expenses,date) VALUES ($1,$2,$3,$4) RETURNING id', [user, income, expenses, date]);
+        const r = await dbRun(
+            'INSERT INTO vectraarchlegacy_budget (username,income,expenses,date) VALUES ($1,$2,$3,$4) RETURNING id',
+            [user, Number(income), JSON.stringify(expensesObj), dateOnly]
+        );
         await logTransaction(user, 'CREATE', 'budget', r.rows[0].id, user);
         res.json({ success: true, message: 'Budget item added successfully!' });
     } catch (e) {
@@ -567,15 +581,20 @@ app.post('/api/budget', async (req, res) => {
 app.put('/api/budget/:id', async (req, res) => {
     const { id } = req.params;
     const { user, income, expenses, date } = req.body;
-    if (!user || !income || !expenses || !date) return res.status(400).json({ success: false, message: 'All fields required.' });
-    if (isNaN(income) || income < 0) return res.status(400).json({ success: false, message: 'Income must be a non-negative number.' });
-    try { JSON.parse(expenses); } catch { return res.status(400).json({ success: false, message: 'Invalid expenses JSON format.' }); }
+    if (!user || income === undefined || !expenses || !date)
+        return res.status(400).json({ success: false, message: 'All fields required.' });
+    let expensesObj;
+    try { expensesObj = typeof expenses === 'string' ? JSON.parse(expenses) : expenses; }
+    catch { return res.status(400).json({ success: false, message: 'Invalid expenses format.' }); }
+    const dateOnly = String(date).slice(0, 10);
     try {
         const row = await dbQuery('SELECT id FROM vectraarchlegacy_budget WHERE id=$1 AND username=$2', [id, user]);
         if (!row) return res.status(404).json({ success: false, message: 'Budget not found.' });
         await dbTransaction([
-            { sql: 'UPDATE vectraarchlegacy_budget SET income=$1,expenses=$2,date=$3 WHERE id=$4', params: [income,expenses,date,id] },
-            { sql: 'INSERT INTO vectraarchlegacy_transaction_history (username,action,table_name,record_id,modified_by,modified_at) VALUES ($1,$2,$3,$4,$5,$6)', params: [user,'UPDATE','budget',id,user,new Date().toISOString()] }
+            { sql: 'UPDATE vectraarchlegacy_budget SET income=$1,expenses=$2,date=$3 WHERE id=$4',
+              params: [Number(income), JSON.stringify(expensesObj), dateOnly, id] },
+            { sql: 'INSERT INTO vectraarchlegacy_transaction_history (username,action,table_name,record_id,modified_by,modified_at) VALUES ($1,$2,$3,$4,$5,$6)',
+              params: [user,'UPDATE','budget',id,user,new Date().toISOString()] }
         ]);
         res.json({ success: true, message: 'Budget item updated successfully!' });
     } catch (e) {
