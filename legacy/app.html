@@ -316,7 +316,7 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
   const [viewDate, setViewDate]       = useState(new Date());
   const [selectedDay, setSelectedDay] = useState(new Date());
   const [showForm, setShowForm]       = useState(false);
-  const [form, setForm]               = useState({title:'',date:now(),type:'personal',color:user?.eventColor||'#448aff',amount:'',allDay:false});
+  const [form, setForm]               = useState({title:'',date:now(),type:'personal',color:user?.eventColor||'#448aff',amount:'',finType:'income',financial:false});
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [alert, setAlert]             = useState({msg:'',type:''});
   const msg = (m,t='ok')=>{ setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
@@ -393,8 +393,20 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
   const handleSave = async()=>{
     if(!form.title||!form.date){msg('Title and date required.','err');return;}
     try {
-      await axios.post(`${API}/calendar`,{user:user.username,title:form.title,date:form.date,financial:false,eventColor:form.color||user.eventColor||'#448aff',type:form.type,amount:form.amount||null});
-      msg('Event saved.');setShowForm(false);setForm({title:'',date:now(),type:'personal',color:user?.eventColor||'#448aff',amount:'',allDay:false});fetchEvents();
+      await axios.post(`${API}/calendar`,{
+        user:       user.username,
+        title:      form.title,
+        date:       form.date,
+        financial:  form.financial && !!form.amount,
+        finType:    form.finType||'income',
+        eventColor: form.color||user.eventColor||'#448aff',
+        type:       form.financial ? form.finType : form.type,
+        amount:     form.amount||null,
+      });
+      msg('Event saved.');
+      setShowForm(false);
+      setForm({title:'',date:now(),type:'personal',color:user?.eventColor||'#448aff',amount:'',finType:'income',financial:false});
+      fetchEvents();
     } catch { msg('Error.','err'); }
   };
   const handleDeleteEvent = async(id)=>{
@@ -410,6 +422,23 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
   const DAYS_FULL   =['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 
   const EVENT_TYPES = ['personal','work','health','social','financial'];
+  const EVENT_ICONS = {
+    personal:   '🌟',
+    work:       '💼',
+    health:     '🏃',
+    social:     '🎉',
+    financial:  '💰',
+    income:     '💰',
+    expense:    '💸',
+    cycle:      '🩸',
+    fertile:    '🌿',
+  };
+  const getEventIcon = (e) => {
+    if(e.isCycle)   return '🩸';
+    if(e.isFertile) return '🌿';
+    if(e.financial||e.is_financial) return e.type==='expense'?'💸':'💰';
+    return EVENT_ICONS[e.type||'personal']||'🌟';
+  };
   const TYPE_COLORS = {personal:'var(--yellow)',work:'var(--blue)',health:'var(--green)',social:'var(--pink)',financial:'var(--green)'};
 
   return (
@@ -472,14 +501,14 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
                     fontFamily:"'Barlow Condensed',sans-serif",fontWeight:isSel||isToday?800:500,
                     fontSize:15,color:numColor,
                   }}>{item.date.getDate()}</div>
-                  {/* Event dots */}
-                  <div style={{display:'flex',gap:2,marginTop:2,height:5,alignItems:'center'}}>
-                    {realEvts.slice(0,3).map((e,j)=>{
-                      const owner=getOwner(e.user||e.username,user,partner,partners);
-                      const dc=owner?.eventColor||e.eventColor||e.event_color||'var(--yellow)';
-                      return <div key={j} style={{width:4,height:4,borderRadius:'50%',background:dc}}/>;
-                    })}
-                    {hasFertile&&<div style={{width:4,height:4,borderRadius:'50%',background:'#1de9b6'}}/>}
+                  {/* Event icons */}
+                  <div style={{display:'flex',gap:1,marginTop:2,height:10,alignItems:'center',justifyContent:'center',flexWrap:'nowrap'}}>
+                    {hasCycle&&<span style={{fontSize:7,lineHeight:1}}>🩸</span>}
+                    {hasFertile&&!hasCycle&&<span style={{fontSize:7,lineHeight:1}}>🌿</span>}
+                    {realEvts.slice(0,2).map((e,j)=>(
+                      <span key={j} style={{fontSize:7,lineHeight:1}}>{getEventIcon(e)}</span>
+                    ))}
+                    {realEvts.length>2&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:6,color:'var(--text3)'}}>+{realEvts.length-2}</span>}
                   </div>
                 </div>
               );
@@ -526,37 +555,41 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
               const calOwner = getOwner(e.user||e.username,user,partner,partners);
               const coc      = calOwner?.eventColor||e.eventColor||e.event_color||'var(--yellow)';
               const isOwn    = (e.user||e.username)===user.username;
+              const icon     = getEventIcon(e);
+              const isFin    = e.financial||e.is_financial||e.financial==='1'||e.is_financial===1;
+              const badgeColor = isFin ? (e.type==='expense'?'var(--red)':'var(--green)') : coc;
+              const timeStr  = e.date&&e.date.length>10
+                ? new Date(e.date).toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit',hour12:false})
+                : 'ALL DAY';
               return (
-                <div key={e.id}
-                  style={{display:'flex',alignItems:'center',gap:12,padding:'12px 14px',
-                    background:'var(--bg2)',borderRadius:10,marginBottom:8,
-                    borderLeft:`3px solid ${coc}`,cursor:'pointer'}}
-                  onClick={()=>setSelectedEvent(e)}>
-                  {/* Time dot */}
-                  <div style={{display:'flex',flexDirection:'column',alignItems:'center',flexShrink:0,width:36}}>
-                    <div style={{width:10,height:10,borderRadius:'50%',background:coc,marginBottom:2}}/>
-                    <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'var(--text3)',textAlign:'center'}}>
-                      {e.date&&e.date.length>10 ? new Date(e.date).toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit',hour12:false}) : 'ALL DAY'}
-                    </div>
+                <div key={e.id} className="meal-card" style={{marginBottom:8,borderLeft:`3px solid ${coc}`}}>
+                  {/* Top row: avatar + icon badge + owner name — same as gym/budget */}
+                  <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
+                    <ItemAvatar username={e.user||e.username} user={user} partner={partner} partners={partners} size={36}/>
+                    <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:600,letterSpacing:'0.12em',
+                      padding:'3px 8px',borderRadius:3,textTransform:'uppercase',flexShrink:0,
+                      background:`${badgeColor}20`,color:badgeColor,border:`1px solid ${badgeColor}55`}}>
+                      {icon} {(e.type||'personal').toUpperCase()}
+                    </span>
+                    {calOwner&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:coc,letterSpacing:'0.08em'}}>
+                      {(calOwner.displayName||(calOwner.firstName&&calOwner.lastName?`${calOwner.firstName} ${calOwner.lastName}`:null)||calOwner.username||'').toUpperCase()}
+                    </span>}
                   </div>
-                  {/* Content */}
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:16,color:'var(--text)',textTransform:'uppercase',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
-                      {e.title||'Untitled'}
-                    </div>
-                    <div style={{display:'flex',alignItems:'center',gap:6,marginTop:2}}>
-                      <img src={calOwner?.profilePicUrl||DP} alt=""
-                        style={{width:14,height:14,borderRadius:'50%',objectFit:'cover',border:`1px solid ${coc}`}}/>
-                      <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:coc,letterSpacing:'0.08em'}}>
-                        {(calOwner?.displayName||(calOwner?.firstName&&calOwner?.lastName?`${calOwner.firstName} ${calOwner.lastName}`:null)||calOwner?.username||'').toUpperCase()}
-                      </span>
-                      <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'var(--text3)',padding:'1px 5px',background:'var(--bg3)',borderRadius:2,letterSpacing:'0.08em'}}>
-                        {(e.type||'personal').toUpperCase()}
-                      </span>
-                      {e.amount&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--green)',marginLeft:'auto'}}>{fmtR(e.amount)}</span>}
-                    </div>
+                  {/* Title */}
+                  <div className="meal-name" style={{marginBottom:6}}>{(e.title||'Untitled').toUpperCase()}</div>
+                  {/* Time + amount row */}
+                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                    <div className="meal-note">{timeStr}</div>
+                    {e.amount&&<div style={{fontFamily:"'DM Mono',monospace",fontSize:13,fontWeight:600,
+                      color:e.type==='expense'?'var(--red)':'var(--green)'}}>{fmtR(e.amount)}</div>}
                   </div>
-                  {isOwn&&<div style={{color:'var(--text3)',fontSize:12,flexShrink:0}}>›</div>}
+                  {isOwn&&(
+                    <button onClick={()=>handleDeleteEvent(e.id)}
+                      style={{marginTop:8,fontFamily:"'DM Mono',monospace",fontSize:'9px',color:'var(--red)',
+                        background:'transparent',border:'none',cursor:'pointer',textTransform:'uppercase',letterSpacing:'0.1em'}}>
+                      ✕ Remove
+                    </button>
+                  )}
                 </div>
               );
             })}
@@ -567,12 +600,14 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
       </div>
 
       {/* ── Legend fixed above FAB ── */}
-      <div style={{position:'fixed',bottom:64,left:0,right:0,display:'flex',flexWrap:'wrap',justifyContent:'center',gap:10,padding:'8px 16px',background:'var(--bg)',borderTop:'1px solid var(--border)',zIndex:10}}>
-        {canSeeCycle&&<div style={{display:'flex',alignItems:'center',gap:5,fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.1em',color:'var(--text3)'}}><div style={{width:7,height:7,borderRadius:'50%',background:'#e91e8c'}}/> MENSTRUATION</div>}
-        {canSeeCycle&&<div style={{display:'flex',alignItems:'center',gap:5,fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.1em',color:'var(--text3)'}}><div style={{width:7,height:7,borderRadius:'50%',background:'#1de9b6'}}/> OVULATION</div>}
-        <div style={{display:'flex',alignItems:'center',gap:5,fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.1em',color:'var(--text3)'}}><div style={{width:7,height:7,borderRadius:'50%',background:'var(--yellow)'}}/> PERSONAL</div>
-        <div style={{display:'flex',alignItems:'center',gap:5,fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.1em',color:'var(--text3)'}}><div style={{width:7,height:7,borderRadius:'50%',background:'var(--blue)'}}/> WORK</div>
-        <div style={{display:'flex',alignItems:'center',gap:5,fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.1em',color:'var(--text3)'}}><div style={{width:7,height:7,borderRadius:'50%',background:'var(--green)'}}/> HEALTH</div>
+      <div style={{position:'fixed',bottom:64,left:0,right:0,display:'flex',flexWrap:'wrap',justifyContent:'center',gap:12,padding:'7px 16px',background:'var(--bg)',borderTop:'1px solid var(--border)',zIndex:10}}>
+        {canSeeCycle&&<div style={{display:'flex',alignItems:'center',gap:4,fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.08em',color:'var(--text3)'}}>🩸 MENSTRUATION</div>}
+        {canSeeCycle&&<div style={{display:'flex',alignItems:'center',gap:4,fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.08em',color:'var(--text3)'}}>🌿 OVULATION</div>}
+        <div style={{display:'flex',alignItems:'center',gap:4,fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.08em',color:'var(--text3)'}}>🌟 PERSONAL</div>
+        <div style={{display:'flex',alignItems:'center',gap:4,fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.08em',color:'var(--text3)'}}>💼 WORK</div>
+        <div style={{display:'flex',alignItems:'center',gap:4,fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.08em',color:'var(--text3)'}}>🏃 HEALTH</div>
+        <div style={{display:'flex',alignItems:'center',gap:4,fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.08em',color:'var(--text3)'}}>💰 INCOME</div>
+        <div style={{display:'flex',alignItems:'center',gap:4,fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.08em',color:'var(--text3)'}}>💸 EXPENSE</div>
       </div>
       <button className="fab" style={{background:tabColor,boxShadow:`0 4px 20px ${tabColor}66`}}
         onClick={()=>{ setForm(p=>({...p,date:dayKey(selectedDay)+'T09:00:00'})); setShowForm(true); }}>
@@ -615,22 +650,57 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
               <input className="form-input" placeholder="Event name" value={form.title} onChange={e=>setForm(p=>({...p,title:e.target.value}))} autoFocus/>
             </div>
             <div className="form-field">
-              <label className="form-label">Type</label>
-              <div className="type-toggle">
-                {EVENT_TYPES.map(t=>(
-                  <button key={t} className={`type-toggle-btn ${form.type===t?'active':''}`}
-                    onClick={()=>setForm(p=>({...p,type:t}))}>{t.toUpperCase()}</button>
-                ))}
-              </div>
-            </div>
-            <div className="form-field">
               <label className="form-label">Date & Time</label>
               <input className="form-input" type="datetime-local" value={form.date} onChange={e=>setForm(p=>({...p,date:e.target.value}))}/>
             </div>
+            {/* Financial toggle */}
             <div className="form-field">
-              <label className="form-label">Amount (optional)</label>
-              <input className="form-input" type="number" placeholder="e.g. 500" value={form.amount} onChange={e=>setForm(p=>({...p,amount:e.target.value}))}/>
+              <label className="form-label">Has Financial Impact?</label>
+              <div style={{display:'flex',gap:10,paddingTop:6}}>
+                {[['no','No'],['yes','Yes — add to Finances']].map(([v,l])=>(
+                  <button key={v} onClick={()=>setForm(p=>({...p,financial:v==='yes'}))}
+                    style={{fontFamily:"'DM Mono',monospace",fontSize:10,letterSpacing:'0.1em',textTransform:'uppercase',
+                      padding:'8px 16px',borderRadius:4,cursor:'pointer',
+                      border:`1px solid ${(v==='yes')===form.financial?tabColor:'var(--border2)'}`,
+                      color:(v==='yes')===form.financial?tabColor:'var(--text3)',
+                      background:(v==='yes')===form.financial?`${tabColor}18`:'transparent'}}>
+                    {l}
+                  </button>
+                ))}
+              </div>
             </div>
+            {form.financial&&(
+              <>
+                <div className="form-field">
+                  <label className="form-label">Type</label>
+                  <div className="type-toggle">
+                    {['income','expense'].map(t=>(
+                      <button key={t} className={`type-toggle-btn ${form.finType===t?'active':''}`}
+                        onClick={()=>setForm(p=>({...p,finType:t}))}
+                        style={form.finType===t?{borderColor:t==='income'?'var(--green)':'var(--red)',color:t==='income'?'var(--green)':'var(--red)',background:t==='income'?'rgba(0,230,118,0.1)':'rgba(255,61,61,0.1)'}:{}}>
+                        {t.toUpperCase()}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="form-field">
+                  <label className="form-label">Amount (R)</label>
+                  <input className="form-input" type="number" placeholder="e.g. 1500" value={form.amount}
+                    onChange={e=>setForm(p=>({...p,amount:e.target.value}))}/>
+                </div>
+              </>
+            )}
+            {!form.financial&&(
+              <div className="form-field">
+                <label className="form-label">Category</label>
+                <div className="type-toggle">
+                  {EVENT_TYPES.map(t=>(
+                    <button key={t} className={`type-toggle-btn ${form.type===t?'active':''}`}
+                      onClick={()=>setForm(p=>({...p,type:t}))}>{t.toUpperCase()}</button>
+                  ))}
+                </div>
+              </div>
+            )}
             <button className="form-submit" style={{background:tabColor}} onClick={handleSave}>SAVE EVENT</button>
             <button className="form-cancel" onClick={()=>setShowForm(false)}>Cancel</button>
           </div>

@@ -620,21 +620,37 @@ app.get('/api/calendar', async (req, res) => {
 });
 
 app.post('/api/calendar', async (req, res) => {
-    const { user, title, date, financial, type, amount, eventColor } = req.body;
+    const { user, title, date, financial, type, amount, eventColor, finType } = req.body;
     if (!user || !title || !date) return res.status(400).json({ success: false, message: 'User, title, and date required.' });
     try {
+        // Always insert into calendar
+        const isFinancial = financial && amount && parseFloat(amount) > 0;
+        const calType = isFinancial ? (finType||type||'income') : (type||null);
         const r = await dbRun(
             'INSERT INTO vectraarchlegacy_calendar (username,title,date,is_financial,type,amount,event_color) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id',
-            [user, title, date, financial?1:0, type||null, amount||null, eventColor||null]
+            [user, title, date, isFinancial?1:0, calType, amount||null, eventColor||null]
         );
-        await logTransaction(user, 'CREATE', 'calendar', r.rows[0].id, user);
+        const calId = r.rows[0].id;
+
+        // If financial, ALSO insert into vectraarchlegacy_financial so it appears on Finances tab
+        if (isFinancial) {
+            const fType = finType || 'income'; // income or expense
+            const fRes = await dbRun(
+                'INSERT INTO vectraarchlegacy_financial (username,category,amount,type,date) VALUES ($1,$2,$3,$4,$5) RETURNING id',
+                [user, title, parseFloat(amount), fType, date.slice(0,10)]
+            );
+            await logTransaction(user, 'CREATE', 'financial', fRes.rows[0].id, user);
+        }
+
+        await logTransaction(user, 'CREATE', 'calendar', calId, user);
         const userData = await dbQuery('SELECT telegram_chat_id, email FROM vectraarchlegacy_users WHERE username = $1', [user]);
         const notifs = await dbAll('SELECT type, enabled FROM vectraarchlegacy_notifications WHERE username = $1', [user]);
-        const msg = `New event added: ${title} on ${date}`;
+        const msg = `New event added: ${title} on ${date}${isFinancial ? ` (${finType||'income'}: ${amount})` : ''}`;
         if (notifs.some(n => n.type === 'telegram' && n.enabled) && userData?.telegram_chat_id) sendTelegramMessage(userData.telegram_chat_id, msg);
         if (notifs.some(n => n.type === 'email' && n.enabled) && userData?.email) await sendEmailNotification(userData.email, 'New Calendar Event', msg);
         res.json({ success: true, message: 'Calendar event added successfully!' });
     } catch (e) {
+        console.error('[calendar POST]', e);
         res.status(500).json({ success: false, message: 'Database error adding calendar event.', error: e.message });
     }
 });
