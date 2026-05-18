@@ -95,7 +95,7 @@ const ItemAvatar = ({username, user, partner, size=36}) => {
 };
 
 /* ── FINANCES PAGE ── */
-const FinancesPage = ({user, partner, isShared}) => {
+const FinancesPage = ({user, partner, isShared, onToggleShared, tabColor='#00e676'}) => {
   const [items, setItems] = useState([]);
   const [budgets, setBudgets] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()+1).padStart(2,'0'));
@@ -168,7 +168,7 @@ const FinancesPage = ({user, partner, isShared}) => {
             <div className="page-title">FINANCES</div>
             <div className="page-sub">{isShared2?'COMBINED HOUSEHOLD TOTALS':'INCOME · EXPENSES · NET TOTAL'}</div>
           </div>
-          <UserRow user={user} partner={partner} isShared={isShared}/>
+          <UserRow user={user} partner={partner} isShared={isShared} onToggleShared={onToggleShared}/>
           <div className="toolbar-row">
             <div className="tb-chip">
               <span style={{fontSize:'9px',fontFamily:"'DM Mono',monospace",letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--text3)'}}>MONTH</span>
@@ -236,7 +236,7 @@ const FinancesPage = ({user, partner, isShared}) => {
 
       {showForm&&(
         <div className="modal-overlay" onClick={()=>setShowForm(false)}>
-          <div className="modal-sheet" style={{"--page-color":tabColor}} onClick={e=>e.stopPropagation()}>
+          <div className="modal-sheet" style={{"--page-color":tabColor||"var(--pink)"}} onClick={e=>e.stopPropagation()}>
             <div className="modal-handle"/>
             <div className="modal-title">{editId?"Edit":"Add"} Transaction</div>
             <div className="form-field">
@@ -257,7 +257,7 @@ const FinancesPage = ({user, partner, isShared}) => {
               <label className="form-label">Date</label>
               <input className="form-input" type="datetime-local" value={form.date} onChange={e=>setForm(p=>({...p,date:e.target.value}))} step="1"/>
             </div>
-            <button className="form-submit" style={{background:tabColor,color:'#fff'}} onClick={handleSave}>{editId?"UPDATE":"SAVE"}</button>
+            <button className="form-submit" style={{background:tabColor,color:tabColor==='#ffd600'||tabColor==='#00e676'?'#000':'#fff'}} onClick={handleSave}>{editId?"UPDATE":"SAVE"}</button>
             <button className="form-cancel" onClick={()=>{setShowForm(false);setEditId(null);setForm({category:'',amount:'',type:'expense',date:now()});}}>Cancel</button>
           </div>
         </div>
@@ -267,7 +267,7 @@ const FinancesPage = ({user, partner, isShared}) => {
 };
 
 /* ── CALENDAR PAGE ── */
-const CalendarPage = ({user, partner, isShared}) => {
+const CalendarPage = ({user, partner, isShared, onToggleShared, tabColor='#448aff'}) => {
   const [events, setEvents] = useState([]);
   const [viewDate, setViewDate] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState(new Date());
@@ -367,7 +367,7 @@ const CalendarPage = ({user, partner, isShared}) => {
             <div className="page-title">CALENDAR</div>
             <div className="page-sub">EVENTS · CYCLE · SCHEDULE</div>
           </div>
-          <UserRow user={user} partner={partner} isShared={isShared}/>
+          <UserRow user={user} partner={partner} isShared={isShared} onToggleShared={onToggleShared}/>
           <Alert {...alert}/>
 
           {/* Nav */}
@@ -453,7 +453,7 @@ const CalendarPage = ({user, partner, isShared}) => {
 
       {showForm&&(
         <div className="modal-overlay" onClick={()=>setShowForm(false)}>
-          <div className="modal-sheet" style={{"--page-color":tabColor}} onClick={e=>e.stopPropagation()}>
+          <div className="modal-sheet" style={{"--page-color":tabColor||"var(--pink)"}} onClick={e=>e.stopPropagation()}>
             <div className="modal-handle"/>
             <div className="modal-title">Add Event</div>
             <div className="form-field">
@@ -514,7 +514,7 @@ const CalendarPage = ({user, partner, isShared}) => {
 };
 
 /* ── BUDGET PAGE ── */
-const BudgetPage = ({user, partner, isShared}) => {
+const BudgetPage = ({user, partner, isShared, onToggleShared, tabColor='#ffd600'}) => {
   const [budgets, setBudgets] = useState([]);
   const [items, setItems] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()+1).padStart(2,'0'));
@@ -591,7 +591,7 @@ const BudgetPage = ({user, partner, isShared}) => {
             <div className="page-title">BUDGET</div>
             <div className="page-sub">PLANNED · ACTUAL · REMAINING</div>
           </div>
-          <UserRow user={user} partner={partner} isShared={isShared}/>
+          <UserRow user={user} partner={partner} isShared={isShared} onToggleShared={onToggleShared}/>
           <div className="toolbar-row">
             <div className="tb-chip">
               <span style={{fontSize:'9px',fontFamily:"'DM Mono',monospace",letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--text3)'}}>MONTH</span>
@@ -844,7 +844,7 @@ const GymPage = ({user, partner, isShared, tabColor='#ff3b3b'}) => {
             <div className="page-title">GYM WORKOUT</div>
             <div className="page-sub">EXERCISES · STRENGTH · WEEKLY PLAN</div>
           </div>
-          <UserRow user={user} partner={partner} isShared={isShared}/>
+          <UserRow user={user} partner={partner} isShared={isShared} onToggleShared={onToggleShared}/>
           <div className="toolbar-row">
             <div className="tb-chip">
               <span style={{fontSize:'9px',fontFamily:"'DM Mono',monospace",letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--text3)'}}>MONTH</span>
@@ -906,7 +906,7 @@ const GymPage = ({user, partner, isShared, tabColor='#ff3b3b'}) => {
 
       {showForm&&(
         <div className="modal-overlay" onClick={()=>setShowForm(false)}>
-          <div className="modal-sheet" style={{"--page-color":tabColor}} onClick={e=>e.stopPropagation()}>
+          <div className="modal-sheet" style={{"--page-color":tabColor||"var(--pink)"}} onClick={e=>e.stopPropagation()}>
             <div className="modal-handle"/>
             <div className="modal-title">Log Exercise</div>
             <div className="form-field">
@@ -1120,7 +1120,7 @@ const MealsPage = ({user, partner, isShared, tabColor='#d67bff'}) => {
             <div className="page-title">MEAL PLAN</div>
             <div className="page-sub">MACROS · DAILY FOOD LOG</div>
           </div>
-          <UserRow user={user} partner={partner} isShared={isShared}/>
+          <UserRow user={user} partner={partner} isShared={isShared} onToggleShared={onToggleShared}/>
           <div className="toolbar-row">
             <div className="tb-chip">
               <span style={{fontSize:'9px',fontFamily:"'DM Mono',monospace",letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--text3)'}}>MONTH</span>
@@ -1177,7 +1177,7 @@ const MealsPage = ({user, partner, isShared, tabColor='#d67bff'}) => {
 
       {showForm&&(
         <div className="modal-overlay" onClick={()=>setShowForm(false)}>
-          <div className="modal-sheet" style={{"--page-color":tabColor}} onClick={e=>e.stopPropagation()}>
+          <div className="modal-sheet" style={{"--page-color":tabColor||"var(--pink)"}} onClick={e=>e.stopPropagation()}>
             <div className="modal-handle"/>
             <div className="modal-title">Log Meal</div>
             <div className="form-field">
@@ -1349,7 +1349,7 @@ const CyclePage = ({user, partner, isShared, tabColor='#e91e8c'}) => {
             <div className="page-title">CYCLE TRACKER</div>
             <div className="page-sub">PERIOD · OVULATION · FERTILITY</div>
           </div>
-          <UserRow user={user} partner={partner} isShared={isShared}/>
+          <UserRow user={user} partner={partner} isShared={isShared} onToggleShared={onToggleShared}/>
           <Alert {...alert}/>
 
           {/* Stats */}
@@ -1439,7 +1439,7 @@ const CyclePage = ({user, partner, isShared, tabColor='#e91e8c'}) => {
 
       {showForm&&(
         <div className="modal-overlay" onClick={()=>setShowForm(false)}>
-          <div className="modal-sheet" style={{"--page-color":tabColor}} onClick={e=>e.stopPropagation()}>
+          <div className="modal-sheet" style={{"--page-color":tabColor||"var(--pink)"}} onClick={e=>e.stopPropagation()}>
             <div className="modal-handle"/>
             <div className="modal-title">{editCycleId?'Edit':'Log'} Cycle</div>
             <div className="form-field">
@@ -1483,7 +1483,7 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
   const [picFile, setPicFile]               = useState(null);
   const [partnerLinked, setPartnerLinked]   = useState(false);
   const [alert, setAlert]                   = useState({msg:'',type:''});
-  const fileInputRef = React.useRef();
+  const fileInputRef = useRef();
 
   const COLORS = ['#00e676','#ff3b3b','#448aff','#ffd600','#e91e8c','#e040fb'];
   const msg = (m,t='ok') => { setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
