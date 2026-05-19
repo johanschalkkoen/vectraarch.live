@@ -6,7 +6,7 @@
  * DB:   bookforge (forge_master) — same DB as VectraArchForge
  */
 
-require('dotenv').config({ path: '/var/www/conduit.vectraarch.live/.env' });
+require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 const pm2 = require('pm2');
 
 const express  = require('express');
