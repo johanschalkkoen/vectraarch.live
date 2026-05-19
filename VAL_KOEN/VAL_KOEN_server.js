@@ -1117,4 +1117,4 @@ const httpServer = http.createServer((req, res) => {
     res.writeHead(301, { Location: `https://${req.headers.host}${req.url}` });
     res.end();
 });
-httpServer.listen(1000, () => console.log('HTTP Redirect Server running on port 1001'));
+httpServer.listen(8444, () => console.log('HTTP Redirect Server running on port 8444'));
