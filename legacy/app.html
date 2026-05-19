@@ -3602,69 +3602,6 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
             {picFile&&<div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--green)',letterSpacing:'0.1em'}}>NEW PHOTO — SAVE TO APPLY</div>}
           </div>
 
-          {/* ── Partner sharing ── */}
-          {(partners.length===0&&!partner)&&(
-            <div style={{background:'var(--bg2)',border:'1px solid var(--border2)',borderRadius:6,padding:'14px 16px',marginBottom:16}}>
-              <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.18em',textTransform:'uppercase',color:'var(--pink)',marginBottom:6}}>§ PARTNER SHARING</div>
-              <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',lineHeight:1.6}}>No partners linked yet. An admin can set up access links at <strong style={{color:'var(--text2)'}}>vectraarch.live/conduit/users</strong></div>
-            </div>
-          )}
-          {(partners.length>0?partners:partner?[partner]:[]).length>0&&(
-            <div className="partner-sharing-card">
-              <div className="profile-section-title">§ PARTNER SHARING</div>
-              <div className="partner-hint" style={{marginBottom:12}}>Enable shared view per section. Each partner is controlled independently.</div>
-
-              {(partners.length>0?partners:[partner]).map((p,pi)=>{
-                const pun    = p.username;
-                const pCfg   = sharingConfig[pun] || {};
-                const pAll   = sharingItems.every(i=>pCfg[i]);
-
-                const toggleItem = (item) => setSharingConfig(prev=>({
-                  ...prev,
-                  [pun]: { ...(prev[pun]||{}), [item]: !(prev[pun]?.[item]) }
-                }));
-
-                const shareAll = async() => {
-                  const next = !pAll;
-                  setSharingConfig(prev=>({
-                    ...prev,
-                    [pun]: Object.fromEntries(sharingItems.map(i=>[i,next]))
-                  }));
-                  try {
-                    if(next) await axios.post(`${API}/grant-access`,{viewer:user.username,target:pun,adminUsername:user.username});
-                    else     await axios.post(`${API}/revoke-access`,{viewer:user.username,target:pun,adminUsername:user.username});
-                    msg(next?`Sharing enabled with ${pun}.`:`Sharing disabled with ${pun}.`);
-                  } catch {}
-                };
-
-                return (
-                  <div key={pun} style={pi>0?{marginTop:16,paddingTop:16,borderTop:'1px solid var(--border)'}:{}}>
-                    <div className="partner-row" style={{marginBottom:10}}>
-                      <img className="partner-avatar" src={p.profilePicUrl||DP} alt=""
-                        style={{border:`2px solid ${p.eventColor||'#448aff'}`}}/>
-                      <div style={{flex:1}}>
-                        <div className="partner-info-name">{p.displayName||(p.firstName&&p.lastName?`${p.firstName} ${p.lastName}`:null)||p.username}</div>
-                        <div className="partner-info-status">Partner · linked</div>
-                      </div>
-                      <button className={`share-all-btn ${pAll?'sharing':'not-sharing'}`} onClick={shareAll}>
-                        {pAll?'✓ SHARING ALL':'SHARE ALL'}
-                      </button>
-                    </div>
-                    <div className="sharing-grid">
-                      {sharingItems.map(item=>(
-                        <div key={item} className={`sharing-item ${pCfg[item]?'on':''}`}
-                          onClick={()=>toggleItem(item)}>
-                          <span className="sharing-item-label">{item.toUpperCase()}</span>
-                          <div className={`sharing-check ${pCfg[item]?'on':'off'}`}>{pCfg[item]?'✓':''}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
           {/* ── Account Details ── */}
           <div className="profile-section">
             <div className="profile-section-title">§ ACCOUNT DETAILS</div>
@@ -3832,13 +3769,69 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
 
           <button className="save-btn" onClick={handleSave}>SAVE CHANGES</button>
 
-          <button onClick={onLogout} style={{width:'100%',padding:'14px',background:'transparent',border:'1px solid rgba(233,30,140,0.4)',color:'var(--pink)',borderRadius:'6px',fontFamily:"'DM Mono',monospace",fontWeight:500,fontSize:'12px',letterSpacing:'0.14em',textTransform:'uppercase',marginBottom:'16px',cursor:'pointer'}}>SIGN OUT ×</button>
+          {/* ── Partner sharing — moved to bottom ── */}
+          {(partners.length===0&&!partner)&&(
+            <div style={{background:'var(--bg2)',border:'1px solid var(--border2)',borderRadius:6,padding:'14px 16px',marginBottom:16,marginTop:8}}>
+              <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.18em',textTransform:'uppercase',color:'var(--pink)',marginBottom:6}}>§ PARTNER SHARING</div>
+              <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',lineHeight:1.6}}>No partners linked yet. An admin can set up access links at <strong style={{color:'var(--text2)'}}>vectraarch.live/conduit/users</strong></div>
+            </div>
+          )}
+          {(partners.length>0?partners:partner?[partner]:[]).length>0&&(
+            <div className="partner-sharing-card" style={{marginTop:8}}>
+              <div className="profile-section-title">§ PARTNER SHARING</div>
+              <div className="partner-hint" style={{marginBottom:12}}>Enable shared view per section. Each partner is controlled independently.</div>
 
-          <div className="profile-section-title" style={{color:'var(--red)',marginBottom:'8px'}}>§ DANGER ZONE</div>
-          <div className="danger-zone">
-            <button className="danger-btn">CHANGE PASSWORD</button>
-            <button className="danger-btn">DELETE ACCOUNT</button>
-          </div>
+              {(partners.length>0?partners:[partner]).map((p,pi)=>{
+                const pun    = p.username;
+                const pCfg   = sharingConfig[pun] || {};
+                const pAll   = sharingItems.every(i=>pCfg[i]);
+
+                const toggleItem = (item) => setSharingConfig(prev=>({
+                  ...prev,
+                  [pun]: { ...(prev[pun]||{}), [item]: !(prev[pun]?.[item]) }
+                }));
+
+                const shareAll = async() => {
+                  const next = !pAll;
+                  setSharingConfig(prev=>({
+                    ...prev,
+                    [pun]: Object.fromEntries(sharingItems.map(i=>[i,next]))
+                  }));
+                  try {
+                    if(next) await axios.post(`${API}/grant-access`,{viewer:user.username,target:pun,adminUsername:user.username});
+                    else     await axios.post(`${API}/revoke-access`,{viewer:user.username,target:pun,adminUsername:user.username});
+                    msg(next?`Sharing enabled with ${pun}.`:`Sharing disabled with ${pun}.`);
+                  } catch {}
+                };
+
+                return (
+                  <div key={pun} style={pi>0?{marginTop:16,paddingTop:16,borderTop:'1px solid var(--border)'}:{}}>
+                    <div className="partner-row" style={{marginBottom:10}}>
+                      <img className="partner-avatar" src={p.profilePicUrl||DP} alt=""
+                        style={{border:`2px solid ${p.eventColor||'#448aff'}`}}/>
+                      <div style={{flex:1}}>
+                        <div className="partner-info-name">{p.displayName||(p.firstName&&p.lastName?`${p.firstName} ${p.lastName}`:null)||p.username}</div>
+                        <div className="partner-info-status">Partner · linked</div>
+                      </div>
+                      <button className={`share-all-btn ${pAll?'sharing':'not-sharing'}`} onClick={shareAll}>
+                        {pAll?'✓ SHARING ALL':'SHARE ALL'}
+                      </button>
+                    </div>
+                    <div className="sharing-grid">
+                      {sharingItems.map(item=>(
+                        <div key={item} className={`sharing-item ${pCfg[item]?'on':''}`}
+                          onClick={()=>toggleItem(item)}>
+                          <span className="sharing-item-label">{item.toUpperCase()}</span>
+                          <div className={`sharing-check ${pCfg[item]?'on':'off'}`}>{pCfg[item]?'✓':''}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
           <div style={{height:'32px'}}/>
         </div>
       </div>
