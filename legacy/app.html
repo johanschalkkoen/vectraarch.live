@@ -1579,58 +1579,135 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
           <SearchBar value={search} onChange={setSearch} placeholder="Search budget categories..." tabColor={tabColor}/>
           <Alert {...alert}/>
 
-          {/* ── Monthly income/expense overview ── */}
-          <div className="section-label">OVERVIEW <span style={{color:tabColor}}>{monthLabel.toUpperCase()}</span></div>
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginBottom:16}}>
-            {[
-              {label:'INCOME',  val:totalIncome,  color:'var(--green)'},
-              {label:'SPENT',   val:totalExpense, color:'var(--red)'},
-              {label:'NET',     val:netFlow,      color:netFlow>=0?'var(--green)':'var(--red)'},
-            ].map(({label,val,color})=>(
-              <div key={label} style={{background:'var(--bg2)',borderRadius:8,padding:'12px 14px',border:'1px solid var(--border)'}}>
-                <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.12em',color:'var(--text3)',marginBottom:6}}>{label}</div>
-                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:18,color,letterSpacing:'0.02em'}}>{fmtR(Math.abs(val))}</div>
-                {label==='NET'&&<div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:netFlow>=0?'var(--green)':'var(--red)',marginTop:2}}>{netFlow>=0?'SURPLUS':'DEFICIT'}</div>}
-              </div>
-            ))}
-          </div>
+          
+          {/* ── Budget Dashboard Widget ── */}
+          <div style={{margin:'4px 0 16px',background:'#0d0d0b',border:'1px solid rgba(255,255,255,0.08)',borderRadius:12,overflow:'hidden'}}>
 
-          {/* ── 50/30/20 rule visual ── */}
-          {totalIncome>0&&(
-            <div style={{background:'var(--bg2)',borderRadius:8,padding:'14px',border:'1px solid var(--border)',marginBottom:16}}>
-              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
-                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:15,color:'var(--text)'}}>50 / 30 / 20 RULE</div>
-                <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'var(--text3)'}}>BASED ON {fmtR(totalIncome)} INCOME</div>
-              </div>
-              {CAT_TYPES.map(ct=>{
-                const pct = ct.key==='need'?50:ct.key==='want'?30:20;
-                const suggested = rule[ct.key];
-                const planned   = byType[ct.key]?.planned||0;
-                const actual    = byType[ct.key]?.actual||0;
-                const barPct    = suggested>0?Math.min(actual/suggested,1.2):0;
-                const over      = actual > suggested;
-                return (
-                  <div key={ct.key} style={{marginBottom:12}}>
-                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:4}}>
-                      <div style={{display:'flex',alignItems:'center',gap:8}}>
-                        <div style={{width:10,height:10,borderRadius:2,background:ct.color,flexShrink:0}}/>
-                        <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,color:'var(--text)'}}>{ct.label}</span>
-                        <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'var(--text3)'}}>{pct}%</span>
-                      </div>
-                      <div style={{textAlign:'right'}}>
-                        <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:over?'var(--red)':ct.color,fontWeight:600}}>{fmtR(actual)}</span>
-                        <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'var(--text3)'}}> / {fmtR(suggested)}</span>
-                      </div>
-                    </div>
-                    <div style={{height:6,background:'var(--bg3)',borderRadius:3,overflow:'hidden'}}>
-                      <div style={{height:'100%',width:`${Math.min(barPct*100,100)}%`,background:over?'var(--red)':ct.color,borderRadius:3,transition:'width 0.5s'}}/>
-                    </div>
-                    <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:'var(--text3)',marginTop:2}}>{ct.desc}</div>
-                  </div>
-                );
-              })}
+            {/* Row 1: Income / Spent / Net */}
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:0,borderBottom:'1px solid rgba(255,255,255,0.07)'}}>
+              {[
+                {label:'INCOME', val:totalIncome,  color:'#00e676'},
+                {label:'SPENT',  val:totalExpense, color:'#ff3b3b'},
+                {label:'NET',    val:netFlow,      color:netFlow>=0?'#00e676':'#ff3b3b', sub:netFlow>=0?'SURPLUS':'DEFICIT'},
+              ].map((s,i)=>(
+                <div key={s.label} style={{padding:'14px 14px 12px',borderRight:i<2?'1px solid rgba(255,255,255,0.07)':'none'}}>
+                  <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.18em',color:'rgba(255,255,255,0.35)',marginBottom:5}}>{s.label}</div>
+                  <div style={{fontFamily:"'DM Mono',monospace",fontWeight:500,fontSize:13,color:s.color,letterSpacing:'0.04em',lineHeight:1}}>{fmtR(Math.abs(s.val))}</div>
+                  {s.sub&&<div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:s.color,marginTop:4,letterSpacing:'0.14em'}}>{s.sub}</div>}
+                </div>
+              ))}
             </div>
-          )}
+
+            {/* Row 2: 50/30/20 rule with donut + bars */}
+            <div style={{borderBottom:'1px solid rgba(255,255,255,0.07)',padding:'14px'}}>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
+                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:16,color:'rgba(255,255,255,0.9)',letterSpacing:'0.06em'}}>50 / 30 / 20 RULE</div>
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'rgba(255,255,255,0.3)',letterSpacing:'0.08em'}}>BASED ON {fmtR(totalIncome)} INCOME</div>
+              </div>
+              <div style={{display:'flex',gap:14,alignItems:'center'}}>
+                {(()=>{
+                  const R=38,r=24,CX=50,CY=50;
+                  const sliceData=CAT_TYPES.map(ct=>({color:ct.color,val:byType[ct.key]?.actual||0}));
+                  const total=sliceData.reduce((s,d)=>s+d.val,0)||1;
+                  let cumAngle=-Math.PI/2;
+                  const slices=sliceData.map(d=>{
+                    const angle=(d.val/total)*2*Math.PI;
+                    const x1=CX+R*Math.cos(cumAngle),y1=CY+R*Math.sin(cumAngle);
+                    cumAngle+=angle;
+                    const x2=CX+R*Math.cos(cumAngle),y2=CY+R*Math.sin(cumAngle);
+                    const xi1=CX+r*Math.cos(cumAngle-angle),yi1=CY+r*Math.sin(cumAngle-angle);
+                    const xi2=CX+r*Math.cos(cumAngle),yi2=CY+r*Math.sin(cumAngle);
+                    const large=angle>Math.PI?1:0;
+                    const path=`M${x1.toFixed(2)},${y1.toFixed(2)} A${R},${R} 0 ${large},1 ${x2.toFixed(2)},${y2.toFixed(2)} L${xi2.toFixed(2)},${yi2.toFixed(2)} A${r},${r} 0 ${large},0 ${xi1.toFixed(2)},${yi1.toFixed(2)} Z`;
+                    return {...d,path};
+                  });
+                  const hasData=sliceData.some(d=>d.val>0);
+                  return (
+                    <div style={{flexShrink:0,position:'relative',width:100,height:100}}>
+                      <svg viewBox="0 0 100 100" width="100" height="100">
+                        {hasData?slices.map((s,i)=><path key={i} d={s.path} fill={s.color}/>)
+                          :<circle cx="50" cy="50" r="38" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="14"/>}
+                      </svg>
+                      <div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',pointerEvents:'none'}}>
+                        <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,letterSpacing:'0.1em',color:'rgba(255,255,255,0.4)',marginBottom:2}}>ALLOC</div>
+                        <div style={{fontFamily:"'DM Mono',monospace",fontWeight:500,fontSize:10,color:'#ff3b3b',lineHeight:1,textAlign:'center'}}>{fmtR(totalExpense)}</div>
+                      </div>
+                    </div>
+                  );
+                })()}
+                <div style={{flex:1,display:'flex',flexDirection:'column',gap:10}}>
+                  {CAT_TYPES.map(ct=>{
+                    const ruleAmt=rule[ct.key];
+                    const actual=byType[ct.key]?.actual||0;
+                    const barFill=ruleAmt>0?Math.min((actual/ruleAmt)*100,100):0;
+                    const over=actual>ruleAmt&&ruleAmt>0;
+                    const actualPct=totalIncome>0?Math.round((actual/totalIncome)*100):0;
+                    return (
+                      <div key={ct.key}>
+                        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:3}}>
+                          <div style={{display:'flex',alignItems:'center',gap:6}}>
+                            <div style={{width:8,height:8,borderRadius:'50%',background:ct.color,flexShrink:0}}/>
+                            <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:13,color:ct.color,letterSpacing:'0.06em'}}>{ct.label}</span>
+                            <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'rgba(255,255,255,0.3)'}}>{actualPct}%</span>
+                          </div>
+                          <div style={{fontFamily:"'DM Mono',monospace",fontSize:8}}>
+                            <span style={{color:over?'#ff3b3b':ct.color}}>{fmtR(actual)}</span>
+                            <span style={{color:'rgba(255,255,255,0.25)'}}> / </span>
+                            <span style={{color:'rgba(255,255,255,0.4)'}}>{fmtR(ruleAmt)}</span>
+                          </div>
+                        </div>
+                        <div style={{height:4,background:'rgba(255,255,255,0.07)',borderRadius:2,overflow:'hidden',marginBottom:2}}>
+                          <div style={{height:'100%',width:`${barFill}%`,background:over?'#ff3b3b':ct.color,borderRadius:2,transition:'width 0.5s',boxShadow:`0 0 6px ${over?'#ff3b3b':ct.color}88`}}/>
+                        </div>
+                        <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:'rgba(255,255,255,0.25)',letterSpacing:'0.06em'}}>{ct.desc}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Row 3: Net trend sparkline — last 6 months */}
+            {(()=>{
+              const cur=new Date();
+              const months6=[];
+              for(let i=5;i>=0;i--){
+                const d=new Date(cur.getFullYear(),cur.getMonth()-i,1);
+                const mv=String(d.getMonth()+1).padStart(2,'0');
+                const key=`${d.getFullYear()}-${mv}`;
+                const label=d.toLocaleString('default',{month:'short'}).toUpperCase();
+                const mFins=finances.filter(f=>(f.date||'').startsWith(key));
+                const inc=mFins.filter(f=>f.type==='income').reduce((s,f)=>s+parseFloat(f.amount||0),0);
+                const exp=mFins.filter(f=>f.type==='expense').reduce((s,f)=>s+parseFloat(f.amount||0),0);
+                months6.push({label,net:inc-exp});
+              }
+              const vals=months6.map(m=>m.net);
+              const minV=Math.min(...vals,0);
+              const maxV=Math.max(...vals,1);
+              const range=maxV-minV||1;
+              const W=400,H=60,PAD=8;
+              const pts=vals.map((v,i)=>{
+                const x=PAD+(i/(vals.length-1||1))*(W-PAD*2);
+                const y=PAD+(1-(v-minV)/range)*(H-PAD*2);
+                return `${x.toFixed(1)},${y.toFixed(1)}`;
+              });
+              const lastNet=vals[vals.length-1]||0;
+              return (
+                <div style={{position:'relative'}}>
+                  <div style={{position:'absolute',top:10,left:14,fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.14em',color:'rgba(255,255,255,0.3)',zIndex:2}}>NET TREND · LAST 6 MONTHS</div>
+                  <div style={{position:'absolute',top:10,right:14,fontFamily:"'DM Mono',monospace",fontSize:9,color:lastNet>=0?'#00e676':'#ff3b3b',zIndex:2}}>{lastNet>=0?'▲':'▼'} {fmtR(Math.abs(lastNet))}</div>
+                  <svg viewBox={`0 0 ${W} ${H}`} style={{width:'100%',height:72,display:'block'}} preserveAspectRatio="none">
+                    <defs><linearGradient id="budNetGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#00e676" stopOpacity="0.4"/><stop offset="100%" stopColor="#00e676" stopOpacity="0.02"/></linearGradient></defs>
+                    <polygon points={`${pts[0]} ${pts.join(' ')} ${W-PAD},${H} ${PAD},${H}`} fill="url(#budNetGrad)"/>
+                    <polyline points={pts.join(' ')} fill="none" stroke="#00e676" strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round"/>
+                    {pts.map((p,i)=>{ const [x,y]=p.split(','); return <circle key={i} cx={x} cy={y} r={i===pts.length-1?3:2} fill={months6[i].net>=0?'#00e676':'#ff3b3b'}/> })}
+                    {months6.map((m,i)=>{ const x=PAD+(i/(vals.length-1||1))*(W-PAD*2); return <text key={i} x={x.toFixed(1)} y={H-2} textAnchor="middle" fontFamily="DM Mono" fontSize="7" fill="rgba(255,255,255,0.3)">{m.label}</text>; })}
+                  </svg>
+                </div>
+              );
+            })()}
+          </div>
+          {/* end budget dashboard widget */}
 
           {/* ── Budget allocations ── */}
           <div className="section-label">ALLOCATIONS <span style={{color:tabColor}}>{filteredBudgets.length}</span> CATEGORIES</div>
