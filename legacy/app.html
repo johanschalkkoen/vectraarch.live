@@ -3150,7 +3150,7 @@ const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPart
                           <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.12em',color:'rgba(255,255,255,0.3)',marginBottom:4}}>{g.label}</div>
                           <div style={{display:'flex',alignItems:'baseline',gap:4,marginBottom:4}}>
                             <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:16,color:ac}}>{g.val}</span>
-                            <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'rgba(255,255,255,0.25)'}}>/\u00a0{g.target}</span>
+                            <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'rgba(255,255,255,0.25)'}}>{' / '}{g.target}</span>
                           </div>
                           <div style={{height:3,background:'rgba(255,255,255,0.07)',borderRadius:2,marginBottom:4,overflow:'hidden'}}>
                             <div style={{height:'100%',width:`${g.pct!==undefined?g.pct:Math.min(100,100-(Math.abs(g.delta||0)/5)*20)}%`,background:ac,borderRadius:2,transition:'width 0.4s'}}/>
