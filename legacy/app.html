@@ -302,10 +302,10 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
 
   // ── Month-over-month data (last 6 months) ──
   const trendData = useMemo(()=>{
-    const cur = new Date();
+    const anchor = new Date(new Date().getFullYear(), parseInt(selectedMonth,10)-1, 1);
     const months = [];
     for(let i=5;i>=0;i--){
-      const d = new Date(cur.getFullYear(), cur.getMonth()-i, 1);
+      const d = new Date(anchor.getFullYear(), anchor.getMonth()-i, 1);
       const mv = String(d.getMonth()+1).padStart(2,'0');
       const year = d.getFullYear();
       const key = `${year}-${mv}`;
@@ -316,7 +316,7 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
       months.push({label,key,inc,exp,net:inc-exp});
     }
     return months;
-  },[allUserItems]);
+  },[allUserItems,selectedMonth]);
 
   // ── Top categories for selected month ──
   const topCategories = useMemo(()=>{
@@ -1669,10 +1669,11 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
 
             {/* Row 3: Net trend sparkline — last 6 months */}
             {(()=>{
-              const cur=new Date();
+              const selY=new Date().getFullYear(), selM=parseInt(selectedMonth,10)-1;
+              const anchor=new Date(selY,selM,1);
               const months6=[];
               for(let i=5;i>=0;i--){
-                const d=new Date(cur.getFullYear(),cur.getMonth()-i,1);
+                const d=new Date(anchor.getFullYear(),anchor.getMonth()-i,1);
                 const mv=String(d.getMonth()+1).padStart(2,'0');
                 const key=`${d.getFullYear()}-${mv}`;
                 const label=d.toLocaleString('default',{month:'short'}).toUpperCase();
@@ -2096,51 +2097,55 @@ const GymPage = ({user, partner, partners=[], activePartners=[], permittedPartne
           {(()=>{
             const visUsers = [...(selfVisible?[user.username]:[]), ...(activePartners||[]).map(p=>p.username)];
             if(visUsers.length===0) return null;
-            const today = new Date();
-            // Build 4-week history: week 0 = current, week 1 = last, etc.
-            const getWeekStart = (weeksAgo) => {
-              const d = new Date(today);
-              d.setDate(d.getDate() - d.getDay() - weeksAgo*7 + 1); // Mon
+
+            // Derive the selected month's year and reference date
+            const selYear = new Date().getFullYear();
+            const selMonthIdx = parseInt(selectedMonth,10)-1; // 0-indexed
+            // "Anchor" date = last day of selected month (so we look back 4 weeks from there)
+            const anchorDate = new Date(selYear, selMonthIdx+1, 0); // last day of month
+            anchorDate.setHours(23,59,59,999);
+
+            // Week containing anchorDate (Mon-based)
+            const getWeekStartFromAnchor = (weeksAgo) => {
+              const d = new Date(anchorDate);
+              d.setDate(d.getDate() - ((d.getDay()+6)%7) - weeksAgo*7); // back to Mon
               d.setHours(0,0,0,0);
               return d;
             };
+
+            // "This week" = week containing last day of selected month
+            const thisWeekStart = getWeekStartFromAnchor(0);
+            const thisWeekEnd = new Date(thisWeekStart); thisWeekEnd.setDate(thisWeekStart.getDate()+6); thisWeekEnd.setHours(23,59,59,999);
+
             return (
               <div style={{display:'flex',flexDirection:'column',gap:10,margin:'4px 0 16px'}}>
                 {visUsers.map(uname=>{
                   const owner = getOwner(uname, user, partner, partners);
                   const oc = owner?.eventColor || '#00e676';
-                  const uWorkouts = workouts.filter(w=>String(w.userKey)===String(uname));
+                  // Filter workouts to selected month
+                  const uWorkouts = workouts.filter(w=>String(w.userKey)===String(uname)&&(w.date||'').slice(5,7)===selectedMonth);
+                  const allUWorkouts = workouts.filter(w=>String(w.userKey)===String(uname));
 
-                  // Weekly load: exercises per day this week (Mon–Sun)
-                  const weekStart = getWeekStart(0);
-                  const weekLoad = DAYS.map((dayName, di) => {
-                    const dayDate = new Date(weekStart);
-                    dayDate.setDate(weekStart.getDate() + di);
-                    const dayStr = dayDate.toLocaleDateString('en-CA'); // YYYY-MM-DD
-                    return uWorkouts.filter(w => {
-                      const wDate = w.date ? w.date.slice(0,10) : '';
-                      // Match by both date string AND day name (day name is the stored field)
-                      return w.day===dayName || wDate===dayStr;
-                    }).length;
+                  // Weekly load: exercises per day of the week within selected month
+                  const weekLoad = DAYS.map((dayName) => {
+                    return uWorkouts.filter(w => w.day===dayName).length;
                   });
 
-                  // 4-week trend: total exercises per week
+                  // 4-week trend: look at last 4 weeks relative to anchor date
                   const weekTotals = [3,2,1,0].map(weeksAgo => {
-                    const ws = getWeekStart(weeksAgo);
-                    const we = new Date(ws); we.setDate(ws.getDate()+6);
-                    return uWorkouts.filter(w=>{
+                    const ws = getWeekStartFromAnchor(weeksAgo);
+                    const we = new Date(ws); we.setDate(ws.getDate()+6); we.setHours(23,59,59,999);
+                    return allUWorkouts.filter(w=>{
                       if(!w.date) return false;
                       const d = new Date(w.date);
                       return d>=ws && d<=we;
                     }).length;
                   });
 
-                  // This week total
-                  const thisWeekTotal = weekTotals[3];
+                  const thisWeekTotal = uWorkouts.length;
                   const maxLoad = Math.max(...weekLoad, 1);
                   const maxTrend = Math.max(...weekTotals, 1);
 
-                  // Sparkline points for 4-week trend
                   const SW=200, SH=44, SPAD=6;
                   const trendPts = weekTotals.map((v,i)=>{
                     const x = SPAD + (i/(weekTotals.length-1||1))*(SW-SPAD*2);
@@ -2171,7 +2176,7 @@ const GymPage = ({user, partner, partners=[], activePartners=[], permittedPartne
                             {DAYS.map((dayName,di)=>{
                               const cnt = weekLoad[di];
                               const barH = maxLoad>0?(cnt/maxLoad)*40:0;
-                              const isToday = di === (today.getDay()+6)%7;
+                              const isToday = di === (anchorDate.getDay()+6)%7;
                               return (
                                 <div key={dayName} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:3}}>
                                   <div style={{width:'100%',height:40,display:'flex',alignItems:'flex-end',justifyContent:'center'}}>
@@ -2542,12 +2547,18 @@ const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPart
             const visUsers=[...(selfVisible?[user.username]:[]),...(activePartners||[]).map(p=>p.username)];
             if(visUsers.length===0) return null;
 
-            const today = new Date();
-            const todayStr = today.toLocaleDateString('en-CA');
-            const todayDay = today.toLocaleDateString('en-US',{weekday:'long'});
-            const todayDayIdx = (today.getDay()+6)%7;
-            const weekStart = new Date(today);
-            weekStart.setDate(today.getDate()-(today.getDay()+6)%7);
+            // Anchor to selected month
+            const selYear = new Date().getFullYear();
+            const selMonthIdx = parseInt(selectedMonth,10)-1;
+            const isCurrentMonth = selectedMonth===String(new Date().getMonth()+1).padStart(2,'0');
+            // "Active day" = today if current month, else last day of selected month
+            const activeDate = isCurrentMonth ? new Date() : new Date(selYear, selMonthIdx+1, 0);
+            const activeDateStr = activeDate.toLocaleDateString('en-CA');
+            const activeDayName = activeDate.toLocaleDateString('en-US',{weekday:'long'});
+            const activeDayIdx = (activeDate.getDay()+6)%7;
+            // Week containing active date
+            const weekStart = new Date(activeDate);
+            weekStart.setDate(activeDate.getDate()-(activeDate.getDay()+6)%7);
             weekStart.setHours(0,0,0,0);
 
             // Ring component — uses user's eventColor for all 4 rings, label in white
@@ -2581,14 +2592,19 @@ const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPart
                   const owner = getOwner(uname, user, partner, partners);
                   const oc = owner?.eventColor||'#ffd600';
                   const uMeals = meals.filter(m=>String(m.userKey)===String(uname));
-
-                  // Today's kcal
-                  const todayMeals = uMeals.filter(m=>{
+                  // Meals for the "active day" within selected month
+                  const activeDayMeals = uMeals.filter(m=>{
                     const d=m.date?m.date.slice(0,10):'';
                     const sd=m.day||(m.date?new Date(m.date).toLocaleDateString('en-US',{weekday:'long'}):'');
-                    return d===todayStr||sd===todayDay;
+                    return d===activeDateStr||sd===activeDayName;
                   });
-                  const todayCal = Math.round(todayMeals.reduce((s,m)=>s+parseFloat(m.calories||0),0));
+                  const todayCal = Math.round(activeDayMeals.reduce((s,m)=>s+parseFloat(m.calories||0),0));
+
+                  // Also compute total for the whole selected month for rings
+                  const monthMeals = uMeals.filter(m=>(m.date||'').slice(5,7)===selectedMonth);
+                  const monthCal = Math.round(monthMeals.reduce((s,m)=>s+parseFloat(m.calories||0),0));
+                  // Use month total for rings, day total for header
+                  const ringCal = monthCal;
 
                   // TDEE for this user
                   const ownerFull = uname===user.username ? user : (partners.find(p=>p.username===uname)||owner);
@@ -2597,11 +2613,12 @@ const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPart
                   const protTarget = Math.round(kcalTarget*0.075);
                   const carbTarget = Math.round(kcalTarget*0.05);
                   const fatTarget  = Math.round(kcalTarget*0.028);
-                  const todayProt  = Math.round(todayCal*0.075);
-                  const todayCarb  = Math.round(todayCal*0.05);
-                  const todayFat   = Math.round(todayCal*0.028);
+                  // Rings use month total
+                  const todayProt  = Math.round(ringCal*0.075);
+                  const todayCarb  = Math.round(ringCal*0.05);
+                  const todayFat   = Math.round(ringCal*0.028);
 
-                  // Weekly kcal bar
+                  // Weekly kcal bars: 7 days of the week containing the anchor date
                   const weekDayKcal = DAYS.map((dayName,di)=>{
                     const dayDate = new Date(weekStart);
                     dayDate.setDate(weekStart.getDate()+di);
@@ -2615,10 +2632,10 @@ const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPart
                   const maxKcal = Math.max(...weekDayKcal, kcalTarget, 1);
 
                   const macros = [
-                    {label:'KCAL', val:todayCal,  target:kcalTarget, unit:`${todayCal}/${kcalTarget}`},
-                    {label:'PROT', val:todayProt, target:protTarget,  unit:`${todayProt}/${protTarget}g`},
-                    {label:'CARB', val:todayCarb, target:carbTarget,  unit:`${todayCarb}/${carbTarget}g`},
-                    {label:'FAT',  val:todayFat,  target:fatTarget,   unit:`${todayFat}/${fatTarget}g`},
+                    {label:'KCAL', val:ringCal,    target:kcalTarget, unit:`${ringCal}/${kcalTarget}`},
+                    {label:'PROT', val:todayProt,  target:protTarget,  unit:`${todayProt}/${protTarget}g`},
+                    {label:'CARB', val:todayCarb,  target:carbTarget,  unit:`${todayCarb}/${carbTarget}g`},
+                    {label:'FAT',  val:todayFat,   target:fatTarget,   unit:`${todayFat}/${fatTarget}g`},
                   ];
 
                   return (
@@ -2633,7 +2650,7 @@ const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPart
                           </div>
                         </div>
                         <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'rgba(255,255,255,0.35)',letterSpacing:'0.1em'}}>
-                          <span style={{color:oc,fontWeight:600}}>{todayCal.toLocaleString()}</span> kcal
+                          <span style={{color:oc,fontWeight:600}}>{ringCal.toLocaleString()}</span> kcal
                         </div>
                       </div>
 
@@ -2648,13 +2665,13 @@ const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPart
                       <div style={{padding:'10px 14px 12px'}}>
                         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
                           <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.14em',color:'rgba(255,255,255,0.28)'}}>WEEKLY KCAL TREND</div>
-                          <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:oc,letterSpacing:'0.06em'}}>{todayCal.toLocaleString()} kcal today</div>
+                          <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:oc,letterSpacing:'0.06em'}}>{ringCal.toLocaleString()} kcal {isCurrentMonth?'today':'this period'}</div>
                         </div>
                         <div style={{display:'flex',alignItems:'flex-end',gap:3,height:48}}>
                           {DAYS.map((dayName,di)=>{
                             const kcal = weekDayKcal[di];
                             const barH = maxKcal>0?(kcal/maxKcal)*40:0;
-                            const isToday = di===todayDayIdx;
+                            const isToday = di===activeDayIdx;
                             const hasData = kcal>0;
                             return (
                               <div key={dayName} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:3}}>
