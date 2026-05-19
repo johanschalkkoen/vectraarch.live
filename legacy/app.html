@@ -2090,9 +2090,137 @@ const GymPage = ({user, partner, partners=[], activePartners=[], permittedPartne
           </div>
           <UserRow user={user} partner={partner} partners={partners} activePartners={activePartners} permittedPartners={permittedPartners} selfVisible={selfVisible} tabSelected={tabSelected} isShared={isShared} onToggleUser={onToggleUser}/>
           <MonthNav selectedMonth={selectedMonth} setSelectedMonth={setSelectedMonth} tabColor={tabColor}/>
-          <SearchBar value={search} onChange={setSearch} placeholder="Search budget categories..." tabColor={tabColor}/>
           <Alert {...alert}/>
           <SearchBar value={search} onChange={setSearch} placeholder="Search exercises..." tabColor={tabColor}/>
+          {/* ── Per-user summary cards ── */}
+          {(()=>{
+            const visUsers = [...(selfVisible?[user.username]:[]), ...(activePartners||[]).map(p=>p.username)];
+            if(visUsers.length===0) return null;
+            const today = new Date();
+            // Build 4-week history: week 0 = current, week 1 = last, etc.
+            const getWeekStart = (weeksAgo) => {
+              const d = new Date(today);
+              d.setDate(d.getDate() - d.getDay() - weeksAgo*7 + 1); // Mon
+              d.setHours(0,0,0,0);
+              return d;
+            };
+            return (
+              <div style={{display:'flex',flexDirection:'column',gap:10,margin:'4px 0 16px'}}>
+                {visUsers.map(uname=>{
+                  const owner = getOwner(uname, user, partner, partners);
+                  const oc = owner?.eventColor || '#00e676';
+                  const uWorkouts = workouts.filter(w=>String(w.userKey)===String(uname));
+
+                  // Weekly load: exercises per day this week (Mon–Sun)
+                  const weekStart = getWeekStart(0);
+                  const weekLoad = DAYS.map((dayName, di) => {
+                    const dayDate = new Date(weekStart);
+                    dayDate.setDate(weekStart.getDate() + di);
+                    const dayStr = dayDate.toLocaleDateString('en-CA'); // YYYY-MM-DD
+                    return uWorkouts.filter(w => {
+                      const wDate = w.date ? w.date.slice(0,10) : '';
+                      // Match by both date string AND day name (day name is the stored field)
+                      return w.day===dayName || wDate===dayStr;
+                    }).length;
+                  });
+
+                  // 4-week trend: total exercises per week
+                  const weekTotals = [3,2,1,0].map(weeksAgo => {
+                    const ws = getWeekStart(weeksAgo);
+                    const we = new Date(ws); we.setDate(ws.getDate()+6);
+                    return uWorkouts.filter(w=>{
+                      if(!w.date) return false;
+                      const d = new Date(w.date);
+                      return d>=ws && d<=we;
+                    }).length;
+                  });
+
+                  // This week total
+                  const thisWeekTotal = weekTotals[3];
+                  const maxLoad = Math.max(...weekLoad, 1);
+                  const maxTrend = Math.max(...weekTotals, 1);
+
+                  // Sparkline points for 4-week trend
+                  const SW=200, SH=44, SPAD=6;
+                  const trendPts = weekTotals.map((v,i)=>{
+                    const x = SPAD + (i/(weekTotals.length-1||1))*(SW-SPAD*2);
+                    const y = SPAD + (1-(v/maxTrend))*(SH-SPAD*2);
+                    return `${x.toFixed(1)},${y.toFixed(1)}`;
+                  });
+
+                  return (
+                    <div key={uname} style={{background:'#0d0d0b',border:`1px solid ${oc}33`,borderRadius:12,padding:'14px 16px',borderLeft:`3px solid ${oc}`}}>
+                      {/* Header: avatar + name + weekly count */}
+                      <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14}}>
+                        <ItemAvatar username={uname} user={user} partner={partner} partners={partners} size={36}/>
+                        <div style={{flex:1}}>
+                          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:16,color:oc,letterSpacing:'0.06em',textTransform:'uppercase'}}>
+                            {(owner?.displayName||(owner?.firstName&&owner?.lastName?`${owner.firstName} ${owner.lastName}`:null)||uname).toUpperCase()}
+                          </div>
+                        </div>
+                        <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'rgba(255,255,255,0.4)',letterSpacing:'0.1em'}}>
+                          <span style={{color:oc,fontWeight:600}}>{thisWeekTotal}</span> EX/WK
+                        </div>
+                      </div>
+
+                      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
+                        {/* Weekly load bar chart */}
+                        <div>
+                          <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.16em',color:'rgba(255,255,255,0.3)',marginBottom:8}}>WEEKLY LOAD</div>
+                          <div style={{display:'flex',alignItems:'flex-end',gap:4,height:48}}>
+                            {DAYS.map((dayName,di)=>{
+                              const cnt = weekLoad[di];
+                              const barH = maxLoad>0?(cnt/maxLoad)*40:0;
+                              const isToday = di === (today.getDay()+6)%7;
+                              return (
+                                <div key={dayName} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:3}}>
+                                  <div style={{width:'100%',height:40,display:'flex',alignItems:'flex-end',justifyContent:'center'}}>
+                                    <div style={{
+                                      width:'100%', height:Math.max(barH,cnt>0?6:0),
+                                      background:cnt>0?oc:'rgba(255,255,255,0.06)',
+                                      borderRadius:'3px 3px 0 0',
+                                      boxShadow:cnt>0?`0 0 8px ${oc}66`:'none',
+                                      transition:'height 0.3s',
+                                      minHeight:cnt>0?6:3,
+                                    }}/>
+                                  </div>
+                                  <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:isToday?oc:'rgba(255,255,255,0.25)',letterSpacing:'0.04em'}}>
+                                    {dayName[0]}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* 4-week trend sparkline */}
+                        <div>
+                          <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.16em',color:'rgba(255,255,255,0.3)',marginBottom:8}}>4-WEEK TREND</div>
+                          <svg viewBox={`0 0 ${SW} ${SH}`} style={{width:'100%',height:48,display:'block'}} preserveAspectRatio="none">
+                            <defs>
+                              <linearGradient id={`gymGrad_${uname}`} x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor={oc} stopOpacity="0.3"/>
+                                <stop offset="100%" stopColor={oc} stopOpacity="0.02"/>
+                              </linearGradient>
+                            </defs>
+                            {weekTotals.some(v=>v>0)&&(
+                              <polygon points={`${trendPts[0]} ${trendPts.join(' ')} ${SW-SPAD},${SH} ${SPAD},${SH}`} fill={`url(#gymGrad_${uname})`}/>
+                            )}
+                            <polyline points={trendPts.join(' ')} fill="none" stroke={oc} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round"/>
+                            {trendPts.map((p,i)=>{
+                              const [x,y]=p.split(',');
+                              return <circle key={i} cx={x} cy={y} r={i===trendPts.length-1?3.5:2} fill={oc} opacity={i===trendPts.length-1?1:0.6}/>;
+                            })}
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+
           <div className="section-label">EXERCISES <span style={{color:tabColor}}>{workouts.filter(w=>(w.date||'').slice(5,7)===selectedMonth).length}</span> THIS MONTH</div>
           {/* Days first — all users' workouts together under each day */}
           {DAYS.map(day=>{
