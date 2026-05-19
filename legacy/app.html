@@ -2536,13 +2536,136 @@ const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPart
           <Alert {...alert}/>
 
           <div className="section-label">MEALS <span style={{color:tabColor}}>{filtered.length}</span> RECORDS</div>
-          <div className="section-label" style={{fontSize:13,fontWeight:600,marginTop:-4}}>TODAY'S MACROS</div>
-          <div className="macro-grid">
-            <div className="macro-card kcal"><div className="macro-value">{totals.cal}</div><div className="macro-unit">kcal · CAL</div></div>
-            <div className="macro-card prot"><div className="macro-value">{totals.prot}</div><div className="macro-unit">g · PROT</div></div>
-            <div className="macro-card carb"><div className="macro-value">{totals.carb}</div><div className="macro-unit">g · CARB</div></div>
-            <div className="macro-card fat" ><div className="macro-value">{totals.fat}</div><div className="macro-unit">g · FAT</div></div>
-          </div>
+
+          {/* ── Nutrition Dashboard Widget ── */}
+          {(()=>{
+            const tc = tabColor||'#ffd600';
+            // Targets (TDEE-based or sensible defaults)
+            const kcalTarget = userTDEE||2000;
+            const protTarget = Math.round(kcalTarget*0.075); // ~30% protein in grams (4kcal/g)
+            const carbTarget = Math.round(kcalTarget*0.05);  // ~40% carbs
+            const fatTarget  = Math.round(kcalTarget*0.028); // ~25% fat (9kcal/g)
+
+            // Today's actual totals from filtered meals for today
+            const todayStr = new Date().toLocaleDateString('en-CA');
+            const todayMeals = meals.filter(m=>{
+              const users=[...(selfVisible?[user.username]:[]),...(activePartners||[]).map(p=>p.username)];
+              if(!users.map(String).includes(String(m.userKey))) return false;
+              const d = m.date?m.date.slice(0,10):'';
+              const storedDay = m.day||(m.date?new Date(m.date).toLocaleDateString('en-US',{weekday:'long'}):'');
+              const todayDay = new Date().toLocaleDateString('en-US',{weekday:'long'});
+              return d===todayStr||storedDay===todayDay;
+            });
+            const todayCal  = Math.round(todayMeals.reduce((s,m)=>s+parseFloat(m.calories||0),0));
+            const todayProt = Math.round(todayCal*0.075);
+            const todayCarb = Math.round(todayCal*0.05);
+            const todayFat  = Math.round(todayCal*0.028);
+
+            const macros = [
+              {label:'KCAL', val:todayCal,  target:kcalTarget, unit:`${todayCal}/${kcalTarget}g`, color:'#ffd600'},
+              {label:'PROT', val:todayProt, target:protTarget,  unit:`${todayProt}/${protTarget}g`, color:'#00e676'},
+              {label:'CARB', val:todayCarb, target:carbTarget,  unit:`${todayCarb}/${carbTarget}g`, color:'#448aff'},
+              {label:'FAT',  val:todayFat,  target:fatTarget,   unit:`${todayFat}/${fatTarget}g`,  color:'#ff3b3b'},
+            ];
+
+            // Weekly kcal per day (Mon–Sun this week)
+            const today = new Date();
+            const weekStart = new Date(today);
+            weekStart.setDate(today.getDate() - (today.getDay()+6)%7);
+            weekStart.setHours(0,0,0,0);
+            const weekDayKcal = DAYS.map((dayName,di)=>{
+              const dayDate = new Date(weekStart);
+              dayDate.setDate(weekStart.getDate()+di);
+              const dayStr2 = dayDate.toLocaleDateString('en-CA');
+              return meals.filter(m=>{
+                const users=[...(selfVisible?[user.username]:[]),...(activePartners||[]).map(p=>p.username)];
+                if(!users.map(String).includes(String(m.userKey))) return false;
+                const d = m.date?m.date.slice(0,10):'';
+                const sd = m.day||(m.date?new Date(m.date).toLocaleDateString('en-US',{weekday:'long'}):'');
+                return d===dayStr2||sd===dayName;
+              }).reduce((s,m)=>s+parseFloat(m.calories||0),0);
+            });
+            const maxDayKcal = Math.max(...weekDayKcal, kcalTarget, 1);
+            const todayDayIdx = (today.getDay()+6)%7;
+
+            // Ring SVG helper
+            const Ring = ({val, target, color, label, unit}) => {
+              const pct  = target>0?Math.min(val/target,1):0;
+              const pctLabel = Math.round(pct*100);
+              const R=34, stroke=5, norm=2*Math.PI*R;
+              const dash = pct*norm;
+              return (
+                <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:6}}>
+                  <div style={{position:'relative',width:80,height:80}}>
+                    <svg viewBox="0 0 80 80" width="80" height="80">
+                      {/* Track */}
+                      <circle cx="40" cy="40" r={R} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth={stroke}/>
+                      {/* Progress */}
+                      <circle cx="40" cy="40" r={R} fill="none" stroke={color} strokeWidth={stroke}
+                        strokeDasharray={`${dash.toFixed(2)} ${norm.toFixed(2)}`}
+                        strokeLinecap="round"
+                        transform="rotate(-90 40 40)"
+                        style={{filter:`drop-shadow(0 0 4px ${color}88)`,transition:'stroke-dasharray 0.5s ease'}}/>
+                    </svg>
+                    <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center'}}>
+                      <span style={{fontFamily:"'DM Mono',monospace",fontWeight:600,fontSize:14,color,lineHeight:1}}>{pctLabel}%</span>
+                    </div>
+                  </div>
+                  <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:600,letterSpacing:'0.14em',color,textAlign:'center'}}>{label}</div>
+                  <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'rgba(255,255,255,0.3)',textAlign:'center',letterSpacing:'0.04em'}}>{unit}</div>
+                </div>
+              );
+            };
+
+            return (
+              <div style={{margin:'0 0 16px',background:'#0d0d0b',border:'1px solid rgba(255,255,255,0.08)',borderRadius:12,overflow:'hidden'}}>
+
+                {/* Row 1: 4 rings */}
+                <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:0,padding:'16px 8px 12px',borderBottom:'1px solid rgba(255,255,255,0.07)'}}>
+                  {macros.map(m=>(
+                    <Ring key={m.label} val={m.val} target={m.target} color={m.color} label={m.label} unit={m.unit}/>
+                  ))}
+                </div>
+
+                {/* Row 2: Weekly kcal bar chart */}
+                <div style={{padding:'12px 14px 10px'}}>
+                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
+                    <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.16em',color:'rgba(255,255,255,0.3)'}}>WEEKLY KCAL TREND</div>
+                    <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'#ffd600',letterSpacing:'0.06em'}}>
+                      <span style={{fontWeight:600}}>{todayCal.toLocaleString()}</span> kcal today
+                    </div>
+                  </div>
+                  <div style={{display:'flex',alignItems:'flex-end',gap:4,height:56}}>
+                    {DAYS.map((dayName,di)=>{
+                      const kcal = weekDayKcal[di];
+                      const barH = maxDayKcal>0?(kcal/maxDayKcal)*48:0;
+                      const isToday = di===todayDayIdx;
+                      const hasData = kcal>0;
+                      return (
+                        <div key={dayName} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:3}}>
+                          <div style={{width:'100%',height:48,display:'flex',alignItems:'flex-end',justifyContent:'center'}}>
+                            <div style={{
+                              width:'100%',
+                              height:Math.max(hasData?barH:4, hasData?6:4),
+                              background:hasData?'#ffd600':'rgba(255,255,255,0.06)',
+                              borderRadius:'4px 4px 0 0',
+                              boxShadow:hasData&&isToday?'0 0 10px #ffd60099':'none',
+                              opacity:isToday?1:hasData?0.75:0.3,
+                              transition:'height 0.3s',
+                            }}/>
+                          </div>
+                          <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:isToday?'#ffd600':'rgba(255,255,255,0.25)',letterSpacing:'0.04em'}}>
+                            {dayName[0]}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+              </div>
+            );
+          })()}
 
           {/* ── Calorie target bar ── */}
           {userTDEE&&(()=>{
