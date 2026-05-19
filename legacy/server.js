@@ -78,7 +78,7 @@ function mapUser(row) {
         displayName:      row.display_name      || row.username,
         bio:              row.bio               || '',
         pronouns:         row.pronouns          || '',
-        profilePicUrl:    row.profile_pic_url   || 'https://placehold.co/50x50/808080/FFFFFF?text=U',
+        profilePicUrl:    row.profile_pic_url   || (row.gender === 'Female' ? '/images/female.jpg' : '/images/male.jpg'),
         email:            row.email             || '',
         phone:            row.phone             || '',
         address:          row.address           || '',
