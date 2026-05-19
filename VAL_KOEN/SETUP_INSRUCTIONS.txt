@@ -1,0 +1,62 @@
+##Step 1: Create the Directory Tree
+##Create the structure under your root path and create the images directory:
+
+mkdir -p /var/www/vectraarch.live/VAL_KOEN/images
+
+##Step 2: Initialize Node.js & Dependencies
+##Navigate into the folder, build your package.json, and pull down the exact production-level dependencies used by the application framework:
+
+cd /var/www/vectraarch.live/VAL_KOEN
+
+# Initialize a clean configuration file
+cat << 'EOF' > package.json
+{
+  "name": "val-koen-service",
+  "version": "1.0.0",
+  "description": "VectraArch Legacy Core Instance for VAL_KOEN",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "bcrypt": "^5.1.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "nodemailer": "^6.9.13",
+    "otplib": "^12.0.1",
+    "pg": "^8.11.5",
+    "qrcode": "^1.5.3"
+  }
+}
+EOF
+
+# Install the packages cleanly
+npm install
+
+
+##Step 3: Extract & Modify server.js
+##Drop your raw logic into the folder. The variable below targets the dedicated database while keeping your shared environment profile intact.
+
+
+# Fix API Endpoints inside app.html and index.html to read from local paths
+sed -i 's|/legacy/api|/api|g' app.html
+sed -i 's|/legacy/api|/api|g' index.html
+
+##Step 5: Start the Process with PM2
+##Launch the engine and monitor its stability under PM2 process isolation:
+
+pm2 start server.js --name "VectraArchKoen"
+
+# Verify that the process started successfully
+pm2 list
+
+Nginx Routing Config Note
+Ensure your main Nginx server block routes to the new port 8444 when tracking the static files in your filesystem:
+
+
+location /VAL_KOEN/api/ {
+    proxy_pass https://127.0.0.1:1001/api/;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+}
