@@ -228,6 +228,7 @@ const ItemAvatar = ({username, user, partner, partners=[], size=36}) => {
 };
 
 /* ── FINANCES PAGE ── */
+/* ── FINANCES PAGE ── */
 const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedPartners=[], selfVisible=true, isShared, tabSelected, onToggleUser, tabColor='#00e676'}) => {
   const [items, setItems] = useState([]);
   const [budgets, setBudgets] = useState([]);
@@ -236,26 +237,49 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({category:'',amount:'',type:'expense',date:now()});
-  const [editId, setEditId]           = useState(null);
-  const [actionItem, setActionItem]   = useState(null);
-  const [confirmDel, setConfirmDel]   = useState(null);
+  const [editId, setEditId] = useState(null);
+  const [actionItem, setActionItem] = useState(null);
+  const [confirmDel, setConfirmDel] = useState(null);
   const [alert, setAlert] = useState({msg:'',type:''});
 
+  // ── New feature state ──
+  const [activeSection, setActiveSection] = useState('overview'); // 'overview'|'trends'|'recurring'|'categories'|'savings'
+  const [recurringItems, setRecurringItems] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(`legacy_recurring_${user.username}`) || '[]'); } catch { return []; }
+  });
+  const [savingsGoals, setSavingsGoals] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(`legacy_savings_${user.username}`) || '[]'); } catch { return []; }
+  });
+  const [showRecurringForm, setShowRecurringForm] = useState(false);
+  const [showSavingsForm, setShowSavingsForm] = useState(false);
+  const [recurringForm, setRecurringForm] = useState({name:'',amount:'',type:'expense',frequency:'monthly',category:''});
+  const [savingsForm, setSavingsForm] = useState({name:'',target:'',saved:'',color:tabColor,deadline:''});
+  const [editSavingsIdx, setEditSavingsIdx] = useState(null);
+  const [editRecurringIdx, setEditRecurringIdx] = useState(null);
+
   const msg = (m,t='ok') => { setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
+
+  // Persist recurring & savings to localStorage
+  useEffect(()=>{ localStorage.setItem(`legacy_recurring_${user.username}`, JSON.stringify(recurringItems)); },[recurringItems, user.username]);
+  useEffect(()=>{ localStorage.setItem(`legacy_savings_${user.username}`, JSON.stringify(savingsGoals)); },[savingsGoals, user.username]);
 
   const fetchAll = useCallback(async () => {
     const users = [...(selfVisible?[user.username]:[]), ...(activePartners||[]).map(p=>p.username)];
     try {
       const [fins, buds] = await Promise.all([
         Promise.all(users.map(u=>axios.get(`${API}/financial`,{params:{user:u}}).then(r=>r.data).catch(()=>[]))).then(r=>r.flat()),
-        Promise.all(users.map(u=>axios.get(`${API}/budget`,{params:{user:u}}).then(r=>r.data.map(b=>({...b,expenses:JSON.parse(b.expenses||'[]')}))).catch(()=>[]))).then(r=>r.flat())
+        Promise.all(users.map(u=>axios.get(`${API}/budget`,{params:{user:u}}).then(r=>{
+          const rows=r.data.data||r.data||[];
+          return rows.map(b=>({...b,expenses:Array.isArray(b.expenses)?b.expenses:(typeof b.expenses==='string'?JSON.parse(b.expenses||'[]'):(b.expenses||[])),user:b.user||u}));
+        }).catch(()=>[]))).then(r=>r.flat())
       ]);
       setItems(fins); setBudgets(buds);
     } catch {}
-  }, [user.username, partner, isShared]);
+  }, [user.username, partner, isShared, selfVisible, JSON.stringify((activePartners||[]).map(p=>p.username))]);
 
   useEffect(()=>{ fetchAll(); },[fetchAll]);
 
+  // ── Current month filtered items ──
   const filtered = useMemo(()=>{
     const users = [...(selfVisible?[user.username]:[]), ...(activePartners||[]).map(p=>p.username)];
     if(users.length===0) return [];
@@ -270,6 +294,39 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
     return {inc,exp,net:inc-exp};
   },[filtered]);
 
+  // ── All items across all months (for trends) ──
+  const allUserItems = useMemo(()=>{
+    const users = [...(selfVisible?[user.username]:[]), ...(activePartners||[]).map(p=>p.username)];
+    return items.filter(i=>users.includes(i.user||i.username));
+  },[items,selfVisible,user.username,JSON.stringify((activePartners||[]).map(p=>p.username))]);
+
+  // ── Month-over-month data (last 6 months) ──
+  const trendData = useMemo(()=>{
+    const cur = new Date();
+    const months = [];
+    for(let i=5;i>=0;i--){
+      const d = new Date(cur.getFullYear(), cur.getMonth()-i, 1);
+      const mv = String(d.getMonth()+1).padStart(2,'0');
+      const year = d.getFullYear();
+      const key = `${year}-${mv}`;
+      const label = d.toLocaleString('default',{month:'short'}).toUpperCase();
+      const monthItems = allUserItems.filter(it=>(it.date||'').startsWith(key));
+      const inc = monthItems.filter(it=>it.type==='income').reduce((s,it)=>s+parseFloat(it.amount||0),0);
+      const exp = monthItems.filter(it=>it.type==='expense').reduce((s,it)=>s+parseFloat(it.amount||0),0);
+      months.push({label,key,inc,exp,net:inc-exp});
+    }
+    return months;
+  },[allUserItems]);
+
+  // ── Top categories for selected month ──
+  const topCategories = useMemo(()=>{
+    const expenses = filtered.filter(i=>i.type==='expense');
+    const map = {};
+    expenses.forEach(i=>{ const k=(i.category||'Other').toUpperCase(); map[k]=(map[k]||0)+parseFloat(i.amount||0); });
+    return Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([cat,amt])=>({cat,amt,pct:totals.exp>0?((amt/totals.exp)*100):0}));
+  },[filtered,totals.exp]);
+
+  // ── CRUD handlers ──
   const handleSave = async () => {
     if(!form.category||!form.amount){msg('Fill all fields.','err');return;}
     try {
@@ -291,8 +348,119 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
     setEditId(item.id); setShowForm(true);
   };
 
+  // ── Savings goal handlers ──
+  const handleSaveSavings = () => {
+    if(!savingsForm.name||!savingsForm.target){msg('Name and target required.','err');return;}
+    const goal = {...savingsForm, target:parseFloat(savingsForm.target)||0, saved:parseFloat(savingsForm.saved)||0, id:Date.now()};
+    if(editSavingsIdx!==null){
+      setSavingsGoals(prev=>prev.map((g,i)=>i===editSavingsIdx?{...g,...goal,id:g.id}:g));
+      setEditSavingsIdx(null);
+    } else {
+      setSavingsGoals(prev=>[...prev, goal]);
+    }
+    setSavingsForm({name:'',target:'',saved:'',color:tabColor,deadline:''});
+    setShowSavingsForm(false);
+  };
+  const deleteSavingsGoal = (idx) => setSavingsGoals(prev=>prev.filter((_,i)=>i!==idx));
+  const startEditSavings = (idx) => {
+    const g = savingsGoals[idx];
+    setSavingsForm({name:g.name,target:String(g.target),saved:String(g.saved),color:g.color||tabColor,deadline:g.deadline||''});
+    setEditSavingsIdx(idx); setShowSavingsForm(true);
+  };
+  const addToSavings = (idx, amount) => {
+    setSavingsGoals(prev=>prev.map((g,i)=>i===idx?{...g,saved:Math.min(g.target,(g.saved||0)+amount)}:g));
+  };
+
+  // ── Recurring handlers ──
+  const handleSaveRecurring = () => {
+    if(!recurringForm.name||!recurringForm.amount){msg('Name and amount required.','err');return;}
+    const item = {...recurringForm, amount:parseFloat(recurringForm.amount)||0, id:Date.now()};
+    if(editRecurringIdx!==null){
+      setRecurringItems(prev=>prev.map((r,i)=>i===editRecurringIdx?{...r,...item,id:r.id}:r));
+      setEditRecurringIdx(null);
+    } else {
+      setRecurringItems(prev=>[...prev, item]);
+    }
+    setRecurringForm({name:'',amount:'',type:'expense',frequency:'monthly',category:''});
+    setShowRecurringForm(false);
+  };
+  const deleteRecurring = (idx) => setRecurringItems(prev=>prev.filter((_,i)=>i!==idx));
+  const startEditRecurring = (idx) => {
+    const r = recurringItems[idx];
+    setRecurringForm({name:r.name,amount:String(r.amount),type:r.type,frequency:r.frequency,category:r.category||''});
+    setEditRecurringIdx(idx); setShowRecurringForm(true);
+  };
+
+  // Inject a recurring item into finances
+  const applyRecurring = async (rec) => {
+    try {
+      await axios.post(`${API}/financial`,{user:user.username,category:rec.name,amount:rec.amount,type:rec.type,date:now()});
+      msg(`"${rec.name}" added to transactions.`); fetchAll();
+    } catch { msg('Error adding transaction.','err'); }
+  };
+
   const monthLabel = MONTHS.find(m=>m.v===selectedMonth)?.l||'';
-  const isShared2 = isShared && partner;
+
+  // ── Inline SVG bar chart for trends ──
+  const TrendChart = ({data}) => {
+    const maxVal = Math.max(...data.map(d=>Math.max(d.inc,d.exp)),1);
+    const W=320, H=120, BAR=28, GAP=8, COLS=data.length;
+    const grpW = BAR*2+GAP;
+    const totalW = COLS*(grpW+16);
+    return (
+      <svg viewBox={`0 0 ${totalW+40} ${H+40}`} style={{width:'100%',maxWidth:'100%',display:'block'}}>
+        {/* Y gridlines */}
+        {[0,0.25,0.5,0.75,1].map(pct=>{
+          const y = 10 + (H-20)*(1-pct);
+          return <line key={pct} x1="32" x2={totalW+40} y1={y} y2={y} stroke="rgba(255,255,255,0.06)" strokeWidth="1"/>;
+        })}
+        {data.map((d,i)=>{
+          const x = 36 + i*(grpW+16);
+          const incH = maxVal>0?((d.inc/maxVal)*(H-20)):0;
+          const expH = maxVal>0?((d.exp/maxVal)*(H-20)):0;
+          const netPos = d.net >= 0;
+          return (
+            <g key={d.key}>
+              {/* Income bar */}
+              <rect x={x} y={10+(H-20)-incH} width={BAR} height={Math.max(incH,1)} fill="rgba(0,230,118,0.7)" rx="2"/>
+              {/* Expense bar */}
+              <rect x={x+BAR+GAP} y={10+(H-20)-expH} width={BAR} height={Math.max(expH,1)} fill="rgba(255,61,61,0.7)" rx="2"/>
+              {/* Month label */}
+              <text x={x+BAR+GAP/2} y={H+16} textAnchor="middle" fontFamily="DM Mono" fontSize="8" fill="rgba(255,255,255,0.4)" letterSpacing="0.08em">{d.label}</text>
+              {/* Net dot */}
+              <circle cx={x+BAR+GAP/2} cy={10+(H-20)-(maxVal>0?((Math.abs(d.net)/maxVal)*(H-20)/2):0)} r="3" fill={netPos?'#00e676':'#ff3b3b'} opacity="0.9"/>
+            </g>
+          );
+        })}
+        {/* Legend */}
+        <rect x="36" y={H+26} width="8" height="8" fill="rgba(0,230,118,0.7)" rx="1"/>
+        <text x="48" y={H+33} fontFamily="DM Mono" fontSize="7" fill="rgba(255,255,255,0.4)" letterSpacing="0.08em">INCOME</text>
+        <rect x="96" y={H+26} width="8" height="8" fill="rgba(255,61,61,0.7)" rx="1"/>
+        <text x="108" y={H+33} fontFamily="DM Mono" fontSize="7" fill="rgba(255,255,255,0.4)" letterSpacing="0.08em">EXPENSES</text>
+        <circle cx="160" cy={H+30} r="3" fill="#00e676"/>
+        <text x="168" y={H+33} fontFamily="DM Mono" fontSize="7" fill="rgba(255,255,255,0.4)" letterSpacing="0.08em">NET</text>
+      </svg>
+    );
+  };
+
+  // ── Section pill nav ──
+  const SECTIONS = [
+    {id:'overview',   label:'OVERVIEW'},
+    {id:'trends',     label:'TRENDS'},
+    {id:'categories', label:'CATEGORIES'},
+    {id:'recurring',  label:'RECURRING'},
+    {id:'savings',    label:'SAVINGS'},
+  ];
+
+  const pillStyle = (id) => ({
+    fontFamily:"'DM Mono',monospace", fontSize:9, letterSpacing:'0.12em', fontWeight:600,
+    padding:'6px 14px', borderRadius:20, border:`1px solid ${activeSection===id?tabColor:'rgba(255,255,255,0.12)'}`,
+    background:activeSection===id?`${tabColor}18`:'transparent',
+    color:activeSection===id?tabColor:'var(--text3)', cursor:'pointer', whiteSpace:'nowrap',
+  });
+
+  const inputStyle = {width:'100%',background:'var(--bg2)',border:'1px solid var(--border2)',borderRadius:8,padding:'10px 12px',fontFamily:"'DM Mono',monospace",fontSize:11,color:'var(--text)',outline:'none',marginBottom:10};
+  const labelStyle = {fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.12em',textTransform:'uppercase',color:'var(--text3)',display:'block',marginBottom:4};
 
   return (
     <div className="page-outer">
@@ -301,65 +469,285 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
         <div className="page-inner">
           <div className="page-head">
             <div className="page-title">FINANCES</div>
-            <div className="page-sub">{isShared2?'COMBINED HOUSEHOLD TOTALS':'INCOME · EXPENSES · NET TOTAL'}</div>
+            <div className="page-sub">{isShared?'COMBINED HOUSEHOLD TOTALS':'INCOME · EXPENSES · NET TOTAL'}</div>
           </div>
+
           <UserRow user={user} partner={partner} partners={partners} activePartners={activePartners} permittedPartners={permittedPartners} selfVisible={selfVisible} tabSelected={tabSelected} isShared={isShared} onToggleUser={onToggleUser}/>
           <MonthNav selectedMonth={selectedMonth} setSelectedMonth={setSelectedMonth} tabColor={tabColor}/>
-          <SearchBar value={search} onChange={setSearch} placeholder="Search transactions..." tabColor={tabColor}/>
           <Alert {...alert}/>
 
-          {/* Summary */}
-          <div className="section-label">SUMMARY <span style={{color:"var(--accent)",fontSize:14}}>·</span> {monthLabel.toUpperCase()} 2026</div>
-          <div className="summary-card">
-            <div className="summary-grid">
-              <div>
-                <div className="summary-item-label">Income</div>
-                <div className={`summary-item-value income`}>{fmtR(totals.inc)}</div>
-              </div>
-              <div>
-                <div className="summary-item-label">Expenses</div>
-                <div className="summary-item-value expense">{fmtR(totals.exp)}</div>
-              </div>
-              <div>
-                <div className="summary-item-label">Net</div>
-                <div className={`summary-item-value ${totals.net>=0?'net-pos':'net-neg'}`}>{fmtR(totals.net)}</div>
-              </div>
-            </div>
+          {/* ── Section nav ── */}
+          <div style={{display:'flex',gap:6,padding:'8px 16px 4px',overflowX:'auto',scrollbarWidth:'none'}}>
+            {SECTIONS.map(s=><button key={s.id} style={pillStyle(s.id)} onClick={()=>setActiveSection(s.id)}>{s.label}</button>)}
           </div>
 
-          {/* Items */}
-          <div className="section-label">ITEMS <span style={{color:tabColor}}>{filtered.length}</span> RECORDS</div>
-          <div className="item-list">
-            {filtered.map(item=>{
-              const finOwner=getOwner(item.user||item.username, user, partner, partners);
-              const oc = finOwner?.eventColor||'#00e676';
-              const isIncome=item.type==='income';
-              return (
-                <div key={item.id} className="meal-card" style={{marginBottom:8,borderLeft:`3px solid ${oc}`,cursor:(item.user||item.username)===user.username?'pointer':'default'}}
-                  onClick={()=>(item.user||item.username)===user.username&&setActionItem(item)}>
-                  <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
-                    <ItemAvatar username={item.user||item.username} user={user} partner={partner} partners={partners} size={36}/>
-                    <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:600,letterSpacing:'0.12em',padding:'3px 8px',borderRadius:3,textTransform:'uppercase',flexShrink:0,background:isIncome?'rgba(0,230,118,0.15)':'rgba(255,61,61,0.15)',color:isIncome?'var(--green)':'var(--red)',border:`1px solid ${isIncome?'rgba(0,230,118,0.3)':'rgba(255,61,61,0.3)'}`}}>{(item.type||'expense').toUpperCase()}</span>
-                    {finOwner&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:oc,letterSpacing:'0.08em'}}>{(finOwner.displayName||finOwner.username||'').toUpperCase()}</span>}
+          {/* ══ OVERVIEW SECTION ══ */}
+          {activeSection==='overview'&&(<>
+            <div className="section-label" style={{padding:'12px 16px 4px'}}>SUMMARY <span style={{color:tabColor,fontSize:14}}>·</span> {monthLabel.toUpperCase()} 2026</div>
+            <div className="summary-card">
+              <div className="summary-grid">
+                <div>
+                  <div className="summary-item-label">Income</div>
+                  <div className="summary-item-value income">{fmtR(totals.inc)}</div>
+                </div>
+                <div>
+                  <div className="summary-item-label">Expenses</div>
+                  <div className="summary-item-value expense">{fmtR(totals.exp)}</div>
+                </div>
+                <div>
+                  <div className="summary-item-label">Net</div>
+                  <div className={`summary-item-value ${totals.net>=0?'net-pos':'net-neg'}`}>{fmtR(totals.net)}</div>
+                </div>
+              </div>
+            </div>
+
+            <SearchBar value={search} onChange={setSearch} placeholder="Search transactions..." tabColor={tabColor}/>
+
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'4px 16px 8px'}}>
+              <div className="section-label" style={{padding:0}}>ITEMS <span style={{color:tabColor}}>{filtered.length}</span></div>
+              <div style={{display:'flex',gap:6}}>
+                {['date','amount'].map(f=>(
+                  <button key={f} onClick={()=>setSortField(f)} style={{...pillStyle(sortField===f?'_active':'_'),borderColor:sortField===f?tabColor:'rgba(255,255,255,0.1)',background:sortField===f?`${tabColor}18`:'transparent',color:sortField===f?tabColor:'var(--text3)'}}>
+                    {f.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="item-list">
+              {filtered.map(item=>{
+                const finOwner=getOwner(item.user||item.username, user, partner, partners);
+                const oc = finOwner?.eventColor||'#00e676';
+                const isIncome=item.type==='income';
+                return (
+                  <div key={item.id} className="meal-card" style={{marginBottom:8,borderLeft:`3px solid ${oc}`,cursor:(item.user||item.username)===user.username?'pointer':'default'}}
+                    onClick={()=>(item.user||item.username)===user.username&&setActionItem(item)}>
+                    <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
+                      <ItemAvatar username={item.user||item.username} user={user} partner={partner} partners={partners} size={36}/>
+                      <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:600,letterSpacing:'0.12em',padding:'3px 8px',borderRadius:3,textTransform:'uppercase',flexShrink:0,background:isIncome?'rgba(0,230,118,0.15)':'rgba(255,61,61,0.15)',color:isIncome?'var(--green)':'var(--red)',border:`1px solid ${isIncome?'rgba(0,230,118,0.3)':'rgba(255,61,61,0.3)'}`}}>{(item.type||'expense').toUpperCase()}</span>
+                      {finOwner&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:oc,letterSpacing:'0.08em'}}>{(finOwner.displayName||finOwner.username||'').toUpperCase()}</span>}
+                    </div>
+                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                      <div>
+                        <div className="meal-name">{(item.category||'').toUpperCase()}</div>
+                        <div className="meal-note" style={{marginTop:2}}>{fmtDate(item.date)}</div>
+                      </div>
+                      <div style={{display:'flex',alignItems:'center',gap:8}}>
+                        <div className={`item-amount ${item.type}`}>{fmtR(item.amount)}</div>
+                        {(item.user||item.username)===user.username&&<span style={{color:'var(--text3)',fontSize:12}}>›</span>}
+                      </div>
+                    </div>
                   </div>
-                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-                    <div>
-                      <div className="meal-name">{(item.category||'').toUpperCase()}</div>
-                      <div className="meal-note" style={{marginTop:2}}>{fmtDate(item.date)}</div>
+                );
+              })}
+            </div>
+            {filtered.length===0&&<div className="no-events"><div className="no-events-text">No transactions for {monthLabel}</div></div>}
+          </>)}
+
+          {/* ══ TRENDS SECTION ══ */}
+          {activeSection==='trends'&&(<>
+            <div className="section-label" style={{padding:'12px 16px 6px'}}>INCOME VS EXPENSES · LAST 6 MONTHS</div>
+            <div style={{background:'var(--bg2)',borderRadius:12,margin:'0 16px 16px',padding:'16px 12px'}}>
+              <TrendChart data={trendData}/>
+            </div>
+
+            <div className="section-label" style={{padding:'4px 16px 6px'}}>MONTH-OVER-MONTH COMPARISON</div>
+            <div style={{margin:'0 16px 16px',display:'flex',flexDirection:'column',gap:1}}>
+              {trendData.map((d,i)=>{
+                const prev = trendData[i-1];
+                const netChange = prev ? d.net - prev.net : null;
+                const expChange = prev ? d.exp - prev.exp : null;
+                return (
+                  <div key={d.key} style={{background:'var(--bg2)',padding:'12px 16px',borderRadius:i===0?'8px 8px 0 0':i===trendData.length-1?'0 0 8px 8px':'0',borderLeft:`3px solid ${d.net>=0?'#00e676':'#ff3b3b'}`}}>
+                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                      <div>
+                        <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:16,letterSpacing:'0.06em',color:'var(--text)'}}>{d.label} {d.key.slice(0,4)}</div>
+                        <div style={{display:'flex',gap:12,marginTop:3}}>
+                          <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--green)'}}>▲ {fmtR(d.inc)}</span>
+                          <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--red)'}}>▼ {fmtR(d.exp)}</span>
+                        </div>
+                      </div>
+                      <div style={{textAlign:'right'}}>
+                        <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:20,color:d.net>=0?'#00e676':'#ff3b3b',letterSpacing:'0.04em'}}>{fmtR(Math.abs(d.net))}</div>
+                        {netChange!==null&&(
+                          <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:netChange>=0?'#00e676':'#ff3b3b',marginTop:1}}>
+                            NET {netChange>=0?'▲':'▼'} {fmtR(Math.abs(netChange))} vs prev
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <div style={{display:'flex',alignItems:'center',gap:8}}>
-                      <div className={`item-amount ${item.type}`}>{fmtR(item.amount)}</div>
-                      {(item.user||item.username)===user.username&&<span style={{color:'var(--text3)',fontSize:12}}>›</span>}
+                    {expChange!==null&&expChange!==0&&(
+                      <div style={{marginTop:6,fontFamily:"'DM Mono',monospace",fontSize:8,color:expChange>0?'#ff3b3b':'#00e676',letterSpacing:'0.08em'}}>
+                        SPEND {expChange>0?'UP':'DOWN'} {fmtR(Math.abs(expChange))} vs previous month
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </>)}
+
+          {/* ══ CATEGORIES SECTION ══ */}
+          {activeSection==='categories'&&(<>
+            <div className="section-label" style={{padding:'12px 16px 6px'}}>TOP SPENDING · {monthLabel.toUpperCase()} 2026</div>
+            {topCategories.length===0
+              ? <div className="no-events"><div className="no-events-text">No expenses for {monthLabel}</div></div>
+              : <div style={{margin:'0 16px 16px',background:'var(--bg2)',borderRadius:12,overflow:'hidden'}}>
+                  <div style={{padding:'12px 16px',borderBottom:'1px solid var(--border2)',display:'grid',gridTemplateColumns:'1fr 80px 60px',gap:8}}>
+                    <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.14em',color:'var(--text3)'}}>CATEGORY</span>
+                    <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.14em',color:'var(--text3)',textAlign:'right'}}>AMOUNT</span>
+                    <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.14em',color:'var(--text3)',textAlign:'right'}}>% OF TOTAL</span>
+                  </div>
+                  {topCategories.map((c,i)=>(
+                    <div key={c.cat} style={{padding:'10px 16px',borderBottom:i<topCategories.length-1?'1px solid var(--border2)':'none'}}>
+                      <div style={{display:'grid',gridTemplateColumns:'1fr 80px 60px',gap:8,alignItems:'center',marginBottom:6}}>
+                        <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:600,fontSize:14,letterSpacing:'0.04em',color:'var(--text)'}}>{c.cat}</span>
+                        <span style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--red)',textAlign:'right'}}>{fmtR(c.amt)}</span>
+                        <span style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',textAlign:'right'}}>{c.pct.toFixed(1)}%</span>
+                      </div>
+                      <div style={{height:4,background:'var(--bg3)',borderRadius:2,overflow:'hidden'}}>
+                        <div style={{height:'100%',width:`${c.pct}%`,background:tabColor,borderRadius:2,transition:'width 0.4s ease'}}/>
+                      </div>
                     </div>
+                  ))}
+                  <div style={{padding:'12px 16px',borderTop:'1px solid var(--border2)',display:'flex',justifyContent:'space-between'}}>
+                    <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.1em',color:'var(--text3)'}}>TOTAL EXPENSES</span>
+                    <span style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:18,color:'var(--red)'}}>{fmtR(totals.exp)}</span>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-          {filtered.length===0&&<div className="no-events"><div className="no-events-text">No transactions for {monthLabel}</div></div>}
+            }
+          </>)}
+
+          {/* ══ RECURRING SECTION ══ */}
+          {activeSection==='recurring'&&(<>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 16px 6px'}}>
+              <div className="section-label" style={{padding:0}}>RECURRING · {recurringItems.length} ITEMS</div>
+              <button onClick={()=>{setShowRecurringForm(true);setEditRecurringIdx(null);setRecurringForm({name:'',amount:'',type:'expense',frequency:'monthly',category:''});}}
+                style={{...pillStyle('_add'),background:`${tabColor}18`,borderColor:tabColor,color:tabColor}}>+ ADD</button>
+            </div>
+            {recurringItems.length===0
+              ? <div className="no-events"><div className="no-events-text">No recurring items yet</div></div>
+              : <div style={{margin:'0 16px 16px',display:'flex',flexDirection:'column',gap:8}}>
+                  {recurringItems.map((r,i)=>(
+                    <div key={r.id||i} style={{background:'var(--bg2)',borderRadius:10,padding:'14px 16px',borderLeft:`3px solid ${r.type==='income'?'#00e676':'#ff3b3b'}`}}>
+                      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:4}}>
+                        <div>
+                          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:16,letterSpacing:'0.04em',color:'var(--text)'}}>{(r.name||'').toUpperCase()}</div>
+                          <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'var(--text3)',letterSpacing:'0.1em',marginTop:2}}>
+                            {(r.frequency||'monthly').toUpperCase()} · {(r.type||'expense').toUpperCase()}{r.category?` · ${r.category.toUpperCase()}`:''}
+                          </div>
+                        </div>
+                        <div style={{textAlign:'right'}}>
+                          <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:20,color:r.type==='income'?'#00e676':'#ff3b3b'}}>{fmtR(r.amount)}</div>
+                        </div>
+                      </div>
+                      <div style={{display:'flex',gap:6,marginTop:8}}>
+                        <button onClick={()=>applyRecurring(r)} style={{flex:1,padding:'8px',background:`${tabColor}18`,border:`1px solid ${tabColor}55`,borderRadius:6,fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:600,letterSpacing:'0.1em',color:tabColor,cursor:'pointer'}}>ADD TO THIS MONTH</button>
+                        <button onClick={()=>startEditRecurring(i)} style={{padding:'8px 12px',background:'var(--bg3)',border:'1px solid var(--border2)',borderRadius:6,fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)',cursor:'pointer'}}>EDIT</button>
+                        <button onClick={()=>deleteRecurring(i)} style={{padding:'8px 12px',background:'rgba(255,61,61,0.1)',border:'1px solid rgba(255,61,61,0.3)',borderRadius:6,fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--red)',cursor:'pointer'}}>DEL</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+            }
+            {/* Recurring total summary */}
+            {recurringItems.length>0&&(
+              <div style={{margin:'0 16px 16px',background:'var(--bg2)',borderRadius:10,padding:'14px 16px'}}>
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.14em',color:'var(--text3)',marginBottom:8}}>MONTHLY RECURRING SUMMARY</div>
+                <div style={{display:'flex',gap:16}}>
+                  {['income','expense'].map(t=>{
+                    const tot = recurringItems.filter(r=>r.type===t&&r.frequency==='monthly').reduce((s,r)=>s+parseFloat(r.amount||0),0);
+                    return tot>0&&(
+                      <div key={t}>
+                        <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'var(--text3)',marginBottom:2}}>{t.toUpperCase()}</div>
+                        <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:18,color:t==='income'?'#00e676':'#ff3b3b'}}>{fmtR(tot)}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </>)}
+
+          {/* ══ SAVINGS SECTION ══ */}
+          {activeSection==='savings'&&(<>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 16px 6px'}}>
+              <div className="section-label" style={{padding:0}}>SAVINGS GOALS · {savingsGoals.length} ACTIVE</div>
+              <button onClick={()=>{setShowSavingsForm(true);setEditSavingsIdx(null);setSavingsForm({name:'',target:'',saved:'',color:tabColor,deadline:''})}}
+                style={{...pillStyle('_add'),background:`${tabColor}18`,borderColor:tabColor,color:tabColor}}>+ ADD GOAL</button>
+            </div>
+            {savingsGoals.length===0
+              ? <div className="no-events"><div className="no-events-text">No savings goals yet</div></div>
+              : <div style={{margin:'0 16px 16px',display:'flex',flexDirection:'column',gap:10}}>
+                  {savingsGoals.map((g,i)=>{
+                    const pct = g.target>0?Math.min(100,((g.saved||0)/g.target)*100):0;
+                    const remaining = g.target-(g.saved||0);
+                    const done = remaining<=0;
+                    const gc = g.color||tabColor;
+                    return (
+                      <div key={g.id||i} style={{background:'var(--bg2)',borderRadius:12,padding:'16px',border:`1px solid ${done?gc+'55':'var(--border2)'}`}}>
+                        <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:10}}>
+                          <div>
+                            <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:18,letterSpacing:'0.04em',color:'var(--text)',display:'flex',alignItems:'center',gap:6}}>
+                              {done&&<span style={{fontSize:14}}>✅</span>}
+                              {(g.name||'').toUpperCase()}
+                            </div>
+                            {g.deadline&&<div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'var(--text3)',letterSpacing:'0.1em',marginTop:2}}>TARGET DATE: {g.deadline}</div>}
+                          </div>
+                          <div style={{textAlign:'right'}}>
+                            <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:20,color:gc}}>{fmtR(g.saved||0)}</div>
+                            <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'var(--text3)'}}>of {fmtR(g.target)}</div>
+                          </div>
+                        </div>
+                        {/* Progress bar */}
+                        <div style={{height:8,background:'var(--bg3)',borderRadius:4,overflow:'hidden',marginBottom:6}}>
+                          <div style={{height:'100%',width:`${pct}%`,background:gc,borderRadius:4,transition:'width 0.5s ease',boxShadow:`0 0 8px ${gc}66`}}/>
+                        </div>
+                        <div style={{display:'flex',justifyContent:'space-between',marginBottom:10}}>
+                          <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:gc,letterSpacing:'0.06em'}}>{pct.toFixed(1)}% COMPLETE</span>
+                          <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'var(--text3)',letterSpacing:'0.06em'}}>{done?'GOAL REACHED!':(fmtR(remaining)+' TO GO')}</span>
+                        </div>
+                        {!done&&(
+                          <div style={{display:'flex',gap:4,marginBottom:8,flexWrap:'wrap'}}>
+                            {[100,500,1000].map(amt=>(
+                              <button key={amt} onClick={()=>addToSavings(i,amt)} style={{padding:'5px 10px',background:`${gc}12`,border:`1px solid ${gc}40`,borderRadius:6,fontFamily:"'DM Mono',monospace",fontSize:8,color:gc,cursor:'pointer',letterSpacing:'0.08em'}}>+R{amt}</button>
+                            ))}
+                          </div>
+                        )}
+                        <div style={{display:'flex',gap:6}}>
+                          <button onClick={()=>startEditSavings(i)} style={{flex:1,padding:'7px',background:'var(--bg3)',border:'1px solid var(--border2)',borderRadius:6,fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)',cursor:'pointer'}}>EDIT</button>
+                          <button onClick={()=>deleteSavingsGoal(i)} style={{padding:'7px 12px',background:'rgba(255,61,61,0.1)',border:'1px solid rgba(255,61,61,0.3)',borderRadius:6,fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--red)',cursor:'pointer'}}>DELETE</button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+            }
+            {/* Total savings progress */}
+            {savingsGoals.length>0&&(
+              <div style={{margin:'0 16px 16px',background:'var(--bg2)',borderRadius:10,padding:'14px 16px'}}>
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.14em',color:'var(--text3)',marginBottom:8}}>TOTAL SAVINGS PROGRESS</div>
+                <div style={{display:'flex',gap:24}}>
+                  <div><div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'var(--text3)',marginBottom:2}}>SAVED</div>
+                    <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:20,color:tabColor}}>{fmtR(savingsGoals.reduce((s,g)=>s+(g.saved||0),0))}</div></div>
+                  <div><div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'var(--text3)',marginBottom:2}}>TARGET</div>
+                    <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:20,color:'var(--text)'}}>{fmtR(savingsGoals.reduce((s,g)=>s+g.target,0))}</div></div>
+                  <div><div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'var(--text3)',marginBottom:2}}>GOALS</div>
+                    <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:20,color:'var(--text3)'}}>{savingsGoals.filter(g=>(g.saved||0)>=g.target).length}/{savingsGoals.length}</div></div>
+                </div>
+              </div>
+            )}
+          </>)}
+
         </div>
       </div>
-      <button className="fab" style={{background:tabColor,boxShadow:`0 4px 20px ${tabColor}55`}} onClick={()=>setShowForm(true)}>+ ADD ITEM</button>
+
+      {/* ── FAB: only on overview ── */}
+      {activeSection==='overview'&&(
+        <button className="fab" style={{background:tabColor,boxShadow:`0 4px 20px ${tabColor}55`}} onClick={()=>setShowForm(true)}>+ ADD ITEM</button>
+      )}
+
+      {/* ── Action sheets & modals ── */}
       <ActionSheet open={!!actionItem} title={actionItem?.category} tabColor={tabColor}
         onEdit={()=>startFinEdit(actionItem)}
         onDelete={()=>setConfirmDel(actionItem?.id)}
@@ -368,9 +756,10 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
         onConfirm={async()=>{await handleFinDelete(confirmDel);setConfirmDel(null);setActionItem(null);}}
         onCancel={()=>setConfirmDel(null)}/>
 
+      {/* Add/Edit Transaction */}
       {showForm&&(
         <div className="modal-overlay" onClick={()=>setShowForm(false)}>
-          <div className="modal-sheet" style={{"--page-color":tabColor||"var(--pink)"}} onClick={e=>e.stopPropagation()}>
+          <div className="modal-sheet" style={{"--page-color":tabColor||"var(--green)"}} onClick={e=>e.stopPropagation()}>
             <div className="modal-handle"/>
             <div className="modal-title">{editId?"Edit":"Add"} Transaction</div>
             <div className="form-field">
@@ -391,8 +780,81 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
               <label className="form-label">Date</label>
               <input className="form-input" type="datetime-local" value={form.date} onChange={e=>setForm(p=>({...p,date:e.target.value}))} step="1"/>
             </div>
-            <button className="form-submit" style={{background:tabColor,color:tabColor==='#ffd600'||tabColor==='#00e676'?'#000':'#fff'}} onClick={handleSave}>{editId?"UPDATE":"SAVE"}</button>
+            <button className="form-submit" style={{background:tabColor,color:'#000'}} onClick={handleSave}>{editId?"UPDATE":"SAVE"}</button>
             <button className="form-cancel" onClick={()=>{setShowForm(false);setEditId(null);setForm({category:'',amount:'',type:'expense',date:now()});}}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {/* Add/Edit Recurring */}
+      {showRecurringForm&&(
+        <div className="modal-overlay" onClick={()=>setShowRecurringForm(false)}>
+          <div className="modal-sheet" style={{"--page-color":tabColor}} onClick={e=>e.stopPropagation()}>
+            <div className="modal-handle"/>
+            <div className="modal-title">{editRecurringIdx!==null?'Edit':'Add'} Recurring Item</div>
+            <div className="form-field">
+              <label className="form-label">Name</label>
+              <input className="form-input" placeholder="e.g. Netflix, Rent, Salary" value={recurringForm.name} onChange={e=>setRecurringForm(p=>({...p,name:e.target.value}))}/>
+            </div>
+            <div className="form-field">
+              <label className="form-label">Amount (ZAR)</label>
+              <input className="form-input" type="number" placeholder="0.00" value={recurringForm.amount} onChange={e=>setRecurringForm(p=>({...p,amount:e.target.value}))}/>
+            </div>
+            <div className="form-field">
+              <label className="form-label">Type</label>
+              <div className="type-toggle">
+                {['income','expense'].map(t=><button key={t} className={`type-toggle-btn ${recurringForm.type===t?'active':''}`} onClick={()=>setRecurringForm(p=>({...p,type:t}))}>{t.toUpperCase()}</button>)}
+              </div>
+            </div>
+            <div className="form-field">
+              <label className="form-label">Frequency</label>
+              <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+                {['daily','weekly','monthly','annually'].map(f=>(
+                  <button key={f} onClick={()=>setRecurringForm(p=>({...p,frequency:f}))}
+                    style={{padding:'7px 14px',borderRadius:20,border:`1px solid ${recurringForm.frequency===f?tabColor:'rgba(255,255,255,0.12)'}`,background:recurringForm.frequency===f?`${tabColor}18`:'transparent',color:recurringForm.frequency===f?tabColor:'var(--text3)',fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.1em',cursor:'pointer'}}>
+                    {f.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="form-field">
+              <label className="form-label">Category (optional)</label>
+              <input className="form-input" placeholder="e.g. Housing, Entertainment" value={recurringForm.category} onChange={e=>setRecurringForm(p=>({...p,category:e.target.value}))}/>
+            </div>
+            <button className="form-submit" style={{background:tabColor,color:'#000'}} onClick={handleSaveRecurring}>{editRecurringIdx!==null?'UPDATE':'SAVE'}</button>
+            <button className="form-cancel" onClick={()=>setShowRecurringForm(false)}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {/* Add/Edit Savings Goal */}
+      {showSavingsForm&&(
+        <div className="modal-overlay" onClick={()=>setShowSavingsForm(false)}>
+          <div className="modal-sheet" style={{"--page-color":tabColor}} onClick={e=>e.stopPropagation()}>
+            <div className="modal-handle"/>
+            <div className="modal-title">{editSavingsIdx!==null?'Edit':'Add'} Savings Goal</div>
+            <div className="form-field">
+              <label className="form-label">Goal Name</label>
+              <input className="form-input" placeholder="e.g. Emergency Fund, Vacation" value={savingsForm.name} onChange={e=>setSavingsForm(p=>({...p,name:e.target.value}))}/>
+            </div>
+            <div className="form-field">
+              <label className="form-label">Target Amount (ZAR)</label>
+              <input className="form-input" type="number" placeholder="0.00" value={savingsForm.target} onChange={e=>setSavingsForm(p=>({...p,target:e.target.value}))}/>
+            </div>
+            <div className="form-field">
+              <label className="form-label">Amount Already Saved (ZAR)</label>
+              <input className="form-input" type="number" placeholder="0.00" value={savingsForm.saved} onChange={e=>setSavingsForm(p=>({...p,saved:e.target.value}))}/>
+            </div>
+            <div className="form-field">
+              <label className="form-label">Target Date (optional)</label>
+              <input className="form-input" type="date" value={savingsForm.deadline} onChange={e=>setSavingsForm(p=>({...p,deadline:e.target.value}))}/>
+            </div>
+            <div className="form-field">
+              <label className="form-label">Colour</label>
+              <input className="form-input" type="color" value={savingsForm.color} onChange={e=>setSavingsForm(p=>({...p,color:e.target.value}))} style={{height:44,padding:'4px 8px',cursor:'pointer'}}/>
+            </div>
+            <button className="form-submit" style={{background:tabColor,color:'#000'}} onClick={handleSaveSavings}>{editSavingsIdx!==null?'UPDATE':'SAVE GOAL'}</button>
+            <button className="form-cancel" onClick={()=>setShowSavingsForm(false)}>Cancel</button>
           </div>
         </div>
       )}
