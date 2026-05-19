@@ -26,7 +26,7 @@ const { useState, useEffect, useRef, useCallback, useMemo } = React;
 
 /* ── CONSTANTS ── */
 const API = '/legacy/api';
-const DP = 'https://placehold.co/50x50/2a2d31/888?text=U';
+const DP = '/var/www/vectraarch.live/legacy/images/placeholder_image.png';
 const MONTHS = Array.from({length:12},(_,i)=>({v:(i+1).toString().padStart(2,'0'),l:new Date(2026,i,1).toLocaleString('default',{month:'long'})}));
 const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
 const fmtR = n => `R${parseFloat(n||0).toLocaleString('en-ZA',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
