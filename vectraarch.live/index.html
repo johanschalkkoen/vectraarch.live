@@ -141,7 +141,7 @@
     <div class="sr"></div>
   </div>
   <div class="studio-links reveal">
-    <a href="https://vectraarch.live/conduit" class="studio-link">
+    <a href="https://conduit.vectraarch.live/" class="studio-link">
       <div class="sl-index">· Conduit · </div>
       <div class="sl-name">Automation<br/>Hub</div>
       <div class="sl-desc">Social Triggers · Announcements<br/>Press · Forge · Volition</div>
@@ -158,7 +158,7 @@
     <div class="sr"></div>
   </div>
   <div class="studio-links reveal">
-    <a href="https://vectraarch.live/forge" class="studio-link">
+    <a href="https://forge.vectraarch.live" class="studio-link">
       <div class="sl-index">· Forge · </div>
       <div class="sl-name">Book<br/>Forge</div>
       <div class="sl-desc">Writing Management App<br/>Node.js · Self-Hosted · Multi-User</div>
@@ -181,7 +181,7 @@
     <div class="sr"></div>
   </div>
   <div class="studio-links reveal">
-    <a href="https://vectraarch.live/legacy" class="studio-link">
+    <a href="https://legacy.vectraarch.live" class="studio-link">
       <div class="sl-index">· Legacy · </div>
       <div class="sl-name">LifeStyle<br/>App</div>
       <div class="sl-desc">Financial Tracking · Integrated Calendar · User Management & Profiles · Collaborative Data Sharing · Secure Communication<br/>Share Everything</div>
@@ -538,19 +538,19 @@
       <p class="card-desc">Central hub. Personal bio, human systems content, studio grid linking all sites. Serves the global stylesheet at /shared/va.css used by every path. Contact form routes through VectraArchContact.</p>
     </div>
     <div class="card">
-      <div class="card-index">vectraarch.live/fabric</div>
+      <div class="card-index">vectraarch.live/#fabric</div>
       <div class="card-title">Fabric</div>
       <div class="card-meta">Static HTML · Infrastructure portfolio</div>
       <p class="card-desc">Technical infrastructure documentation. Career progression, live stack, security layer, and full constellation map. References the real PM2 processes and PostgreSQL tables running on this server.</p>
     </div>
     <div class="card">
-      <div class="card-index">vectraarch.live/forge</div>
+      <div class="card-index">forge.vectraarch.live</div>
       <div class="card-title">Book Forge</div>
       <div class="card-meta">VectraArchForge · Node.js · Express · PostgreSQL · PM2</div>
       <p class="card-desc">Full-stack writing management application proxied by Nginx. Multi-user, multi-book. Google OAuth + manual auth + TOTP 2FA. Publishes books to /press by writing static HTML to the press web root.</p>
     </div>
     <div class="card">
-      <div class="card-index">vectraarch.live/conduit</div>
+      <div class="card-index">conduit.vectraarch.live</div>
       <div class="card-title">Conduit Hub</div>
       <div class="card-meta">VectraArchConduit · Node.js · PostgreSQL · PM2</div>
       <p class="card-desc">Automation and social dashboard. Queries bookforge DB directly. Shows published volumes, fires Telegram announcements per book, logs all trigger events to the conduit_log table.</p>
@@ -562,13 +562,13 @@
       <p class="card-desc">Public publishing catalogue. Not a CMS — a static HTML file written by VectraArchForge's rebuildPressIndex() on every publish/unpublish event. No server-side logic required to serve it.</p>
     </div>
     <div class="card">
-      <div class="card-index">vectraarch.live/foundation</div>
+      <div class="card-index">vectraarch.live/#foundation</div>
       <div class="card-title">Foundation</div>
       <div class="card-meta">Static HTML · Central auth routing</div>
       <p class="card-desc">Central login hub for the constellation. Routes to the correct auth endpoint per service — VectraArchForge manual login, Google OAuth. Single point of entry for all authenticated services.</p>
     </div>
     <div class="card">
-      <div class="card-index">vectraarch.live/kinetic</div>
+      <div class="card-index">vectraarch.live/#kinetic</div>
       <div class="card-title">Kinetic</div>
       <div class="card-meta">Static HTML · Visual portfolio</div>
       <p class="card-desc">Visual work hub. Sculpture portfolio, Bo7 coaching platform, Press catalogue, Book Forge. Connects the visual and creative output of the constellation.</p>
@@ -586,7 +586,7 @@
       <p class="card-desc">CoD Black Ops 7 coaching platform for ZenithB_Actual. Coaching packages, Discord integration, booking form routing through /api/booking on VectraArchContact.</p>
     </div>
     <div class="card">
-      <div class="card-index">vectraarch.live/legacy</div>
+      <div class="card-index">legacy.vectraarch.live</div>
       <div class="card-title">Legacy</div>
       <div class="card-meta">VectraArchLegacy · Node.js · PM2</div>
       <p class="card-desc">Full-stack lifestyle management application. Financial tracking, integrated calendar, multi-user with secure authentication, collaborative data sharing. Runs over HTTPS exclusively.</p>
@@ -598,7 +598,7 @@
       <p class="card-desc">VectraArch Identity Bridge. Authentication coordination across the constellation. All external API tokens held server-side only.</p>
     </div>
     <div class="card">
-      <div class="card-index">vectraarch.live/keystone</div>
+      <div class="card-index">vectraarch.live/#keystone</div>
       <div class="card-title">Keystone</div>
       <div class="card-meta">Static HTML · Architecture docs</div>
       <p class="card-desc">The central locking piece — full technical architecture of the VectraArch constellation documented in one place.</p>
@@ -656,8 +656,8 @@
     <div class="tl"><span class="d">vectraarch.live/bo7 → POST /api/booking → VectraArchContact → Telegram API</span></div>
     <div class="tl">&nbsp;</div>
     <div class="tl"><span class="p">AUTHENTICATION</span></div>
-    <div class="tl"><span class="d">vectraarch.live/foundation → /forge/auth/manual → bookforge.users</span></div>
-    <div class="tl"><span class="d">vectraarch.live/foundation → /forge/auth/google → Google OAuth → bookforge.users</span></div>
+    <div class="tl"><span class="d">vectraarch.live/#foundation → https://forge.vectraarch.live/auth/manual → bookforge.users</span></div>
+    <div class="tl"><span class="d">vectraarch.live/#foundation → https://forge.vectraarch.live/auth/google → Google OAuth → bookforge.users</span></div>
     <div class="tl">&nbsp;</div>
     <div class="tl"><span class="p">PUBLISHING PIPELINE</span></div>
     <div class="tl"><span class="d">VectraArchForge → POST /book/:id/publish → bookforge.books → rebuildPressIndex()</span></div>
@@ -696,28 +696,28 @@
       <div class="card-title">Write · Publish</div>
       <div class="card-meta">Manual auth · Google OAuth · 2FA</div>
       <p class="card-desc">Full-stack writing management. Access via Foundation for manual credentials or Google OAuth.</p>
-      <a href="https://vectraarch.live/forge/auth/google" style="display:inline-block;margin-top:12px;color:var(--accent);font-family:'DM Mono',monospace;font-size:11px;">→ Authenticate via Google</a>
+      <a href="https://forge.vectraarch.live/auth/google" style="display:inline-block;margin-top:12px;color:var(--accent);font-family:'DM Mono',monospace;font-size:11px;">→ Authenticate via Google</a>
     </div>
     <div class="card">
       <div class="card-index">Conduit</div>
       <div class="card-title">Management</div>
       <div class="card-meta">Manual auth · Admin only</div>
       <p class="card-desc">Automation and social dashboard. Manual credentials required.</p>
-      <a href="https://vectraarch.live/conduit/login" style="display:inline-block;margin-top:12px;color:var(--accent);font-family:'DM Mono',monospace;font-size:11px;">→ Authenticate</a>
+      <a href="https://conduit.vectraarch.live/" style="display:inline-block;margin-top:12px;color:var(--accent);font-family:'DM Mono',monospace;font-size:11px;">→ Authenticate</a>
     </div>
     <div class="card">
       <div class="card-index">Legacy</div>
       <div class="card-title">Lifestyle App</div>
       <div class="card-meta">Own authentication system</div>
       <p class="card-desc">Lifestyle management application with its own authentication layer.</p>
-      <a href="https://vectraarch.live/legacy" style="display:inline-block;margin-top:12px;color:var(--accent);font-family:'DM Mono',monospace;font-size:11px;">→ Go to Legacy</a>
+      <a href="https://legacy.vectraarch.live/" style="display:inline-block;margin-top:12px;color:var(--accent);font-family:'DM Mono',monospace;font-size:11px;">→ Go to Legacy</a>
     </div>
     <div class="card">
       <div class="card-index">Foundation</div>
       <div class="card-title">Full Login Hub</div>
       <div class="card-meta">Central access portal</div>
       <p class="card-desc">Access the full Foundation login interface — service selector, Google OAuth, and manual credentials in one place.</p>
-      <a href="https://vectraarch.live/foundation" style="display:inline-block;margin-top:12px;color:var(--accent);font-family:'DM Mono',monospace;font-size:11px;">→ Open Foundation</a>
+      <a href="https://vectraarch.live/#foundation" style="display:inline-block;margin-top:12px;color:var(--accent);font-family:'DM Mono',monospace;font-size:11px;">→ Open Foundation</a>
     </div>
   </div>
 </section>
@@ -780,7 +780,7 @@
     <span class="st">Legacy · Lifestyle App</span>
     <div class="sr"></div>
   </div>
-  <a href="https://vectraarch.live/legacy" class="bo7-card reveal">
+  <a href="https://legacy.vectraarch.live" class="bo7-card reveal">
     <div class="bo7-corner">Legacy</div>
     <div class="bo7-eyebrow">§ Studio <span class="infinity-symbol">&infin;</span> · VectraArchLegacy · Node.js · Self-Hosted</div>
     <div class="bo7-title">Legacy<em>Lifestyle</em></div>
@@ -831,7 +831,7 @@
     <span class="st">Book Forge · Writing Management</span>
     <div class="sr"></div>
   </div>
-  <a href="https://vectraarch.live/forge" class="bo7-card reveal">
+  <a href="https://forge.vectraarch.live" class="bo7-card reveal">
     <div class="bo7-corner">Forge</div>
     <div class="bo7-eyebrow">§ Studio <span class="infinity-symbol">&infin;</span> · Self-Hosted · Node.js · PostgreSQL</div>
     <div class="bo7-title">Book<em>Forge</em></div>
@@ -962,7 +962,7 @@
     <li><a href="#volition">Volition</a></li>
     <li><a href="#foundation">Foundation</a></li>
     <li><a href="https://vectraarch.live/press">Press</a></li>
-    <li><a href="https://vectraarch.live/forge">Book Forge</a></li>
+    <li><a href="https://forge.vectraarch.live">Book Forge</a></li>
   </ul>
   <div class="footer-meta" id="footer-clock">
     Born Namibia 1984 · Built on Linux · 2026
