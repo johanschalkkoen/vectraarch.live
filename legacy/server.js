@@ -552,45 +552,45 @@ app.get('/api/budget', async (req, res) => {
 
 app.post('/api/budget', async (req, res) => {
     const { user, income, expenses, date, budget_type } = req.body;
-    if (!user || !expenses || !date) return res.status(400).json({ success: false, message: 'User, expenses, and date required.' });
+    if (!user || !date) return res.status(400).json({ success: false, message: 'User and date required.' });
 
     // Parse expenses — accept string or array
-    let expArr;
+    let expArr = [];
     try {
-        expArr = typeof expenses === 'string' ? JSON.parse(expenses) : expenses;
-        if (!Array.isArray(expArr) || expArr.length === 0) throw new Error('Empty');
-    } catch {
-        return res.status(400).json({ success: false, message: 'Invalid expenses format. Expected JSON array.' });
-    }
+        const raw = expenses || '[]';
+        expArr = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        if (!Array.isArray(expArr)) expArr = [];
+    } catch { expArr = []; }
 
-    // Total planned = sum of all expense items
+    if (expArr.length === 0) return res.status(400).json({ success: false, message: 'At least one expense category required.' });
+
     const totalPlanned = expArr.reduce((s, e) => s + parseFloat(e.amount || 0), 0);
     const incomeVal = parseFloat(income) || totalPlanned;
     const expJson = JSON.stringify(expArr);
     const budType = budget_type || expArr[0]?.type || 'need';
+    const dateVal = String(date).slice(0,10);
 
     try {
-        // Try with budget_type column first; fall back if column doesn't exist yet
+        // Check if budget_type column exists
+        const colCheck = await pool.query(
+            "SELECT column_name FROM information_schema.columns WHERE table_name='vectraarchlegacy_budget' AND column_name='budget_type'"
+        );
+        const hasBudgetType = colCheck.rows.length > 0;
+
         let r;
-        try {
+        if (hasBudgetType) {
             r = await dbRun(
                 'INSERT INTO vectraarchlegacy_budget (username,income,expenses,date,budget_type) VALUES ($1,$2,$3,$4,$5) RETURNING id',
-                [user, incomeVal, expJson, date.slice(0,10), budType]
+                [user, incomeVal, expJson, dateVal, budType]
             );
-        } catch (colErr) {
-            if (colErr.message.includes('budget_type') || colErr.message.includes('column')) {
-                // Column doesn't exist yet — insert without it and log a reminder
-                console.warn('[budget] budget_type column missing — run: ALTER TABLE vectraarchlegacy_budget ADD COLUMN IF NOT EXISTS budget_type VARCHAR(20) DEFAULT \'need\';');
-                r = await dbRun(
-                    'INSERT INTO vectraarchlegacy_budget (username,income,expenses,date) VALUES ($1,$2,$3,$4) RETURNING id',
-                    [user, incomeVal, expJson, date.slice(0,10)]
-                );
-            } else {
-                throw colErr;
-            }
+        } else {
+            r = await dbRun(
+                'INSERT INTO vectraarchlegacy_budget (username,income,expenses,date) VALUES ($1,$2,$3,$4) RETURNING id',
+                [user, incomeVal, expJson, dateVal]
+            );
         }
         await logTransaction(user, 'CREATE', 'budget', r.rows[0].id, user);
-        res.json({ success: true, message: 'Budget allocation saved!', id: r.rows[0].id });
+        res.json({ success: true, message: 'Budget saved!', id: r.rows[0].id });
     } catch (e) {
         console.error('[budget POST]', e.message);
         res.status(500).json({ success: false, message: 'Database error: ' + e.message });
@@ -600,28 +600,29 @@ app.post('/api/budget', async (req, res) => {
 app.put('/api/budget/:id', async (req, res) => {
     const { id } = req.params;
     const { user, income, expenses, date, budget_type } = req.body;
-    if (!user || !expenses || !date) return res.status(400).json({ success: false, message: 'User, expenses, and date required.' });
-    let expArr;
-    try { expArr = typeof expenses === 'string' ? JSON.parse(expenses) : expenses; } catch { return res.status(400).json({ success: false, message: 'Invalid expenses JSON.' }); }
+    if (!user || !date) return res.status(400).json({ success: false, message: 'User and date required.' });
+    let expArr = [];
+    try { const raw = expenses||'[]'; expArr = typeof raw==='string'?JSON.parse(raw):raw; if(!Array.isArray(expArr)) expArr=[]; } catch { expArr=[]; }
     const totalPlanned = expArr.reduce((s,e)=>s+parseFloat(e.amount||0),0);
     const incomeVal = parseFloat(income)||totalPlanned;
     const expJson = JSON.stringify(expArr);
     const budType = budget_type || expArr[0]?.type || 'need';
+    const dateVal = String(date).slice(0,10);
     try {
         const row = await dbQuery('SELECT id FROM vectraarchlegacy_budget WHERE id=$1 AND username=$2', [id, user]);
         if (!row) return res.status(404).json({ success: false, message: 'Budget not found.' });
-        try {
+        const colCheck = await pool.query("SELECT column_name FROM information_schema.columns WHERE table_name='vectraarchlegacy_budget' AND column_name='budget_type'");
+        const hasBudgetType = colCheck.rows.length > 0;
+        if (hasBudgetType) {
             await dbTransaction([
-                { sql: 'UPDATE vectraarchlegacy_budget SET income=$1,expenses=$2,date=$3,budget_type=$4 WHERE id=$5', params: [incomeVal,expJson,date.slice(0,10),budType,id] },
-                { sql: 'INSERT INTO vectraarchlegacy_transaction_history (username,action,table_name,record_id,modified_by,modified_at) VALUES ($1,$2,$3,$4,$5,$6)', params: [user,'UPDATE','budget',id,user,new Date().toISOString()] }
+                { sql: 'UPDATE vectraarchlegacy_budget SET income=$1,expenses=$2,date=$3,budget_type=$4 WHERE id=$5', params:[incomeVal,expJson,dateVal,budType,id] },
+                { sql: 'INSERT INTO vectraarchlegacy_transaction_history (username,action,table_name,record_id,modified_by,modified_at) VALUES ($1,$2,$3,$4,$5,$6)', params:[user,'UPDATE','budget',id,user,new Date().toISOString()] }
             ]);
-        } catch (colErr) {
-            if (colErr.message.includes('budget_type') || colErr.message.includes('column')) {
-                await dbTransaction([
-                    { sql: 'UPDATE vectraarchlegacy_budget SET income=$1,expenses=$2,date=$3 WHERE id=$4', params: [incomeVal,expJson,date.slice(0,10),id] },
-                    { sql: 'INSERT INTO vectraarchlegacy_transaction_history (username,action,table_name,record_id,modified_by,modified_at) VALUES ($1,$2,$3,$4,$5,$6)', params: [user,'UPDATE','budget',id,user,new Date().toISOString()] }
-                ]);
-            } else { throw colErr; }
+        } else {
+            await dbTransaction([
+                { sql: 'UPDATE vectraarchlegacy_budget SET income=$1,expenses=$2,date=$3 WHERE id=$4', params:[incomeVal,expJson,dateVal,id] },
+                { sql: 'INSERT INTO vectraarchlegacy_transaction_history (username,action,table_name,record_id,modified_by,modified_at) VALUES ($1,$2,$3,$4,$5,$6)', params:[user,'UPDATE','budget',id,user,new Date().toISOString()] }
+            ]);
         }
         res.json({ success: true, message: 'Budget updated!' });
     } catch (e) {
