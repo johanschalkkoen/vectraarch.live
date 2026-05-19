@@ -3041,28 +3041,34 @@ const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPart
                 (cyc.symptoms||'').toLowerCase().includes(search.toLowerCase());
               return monthMatch && searchMatch;
             });
-            // Use ALL cycles (not month-filtered) for stats/trends
-            const stats    = cycleStats(allUCycles);
-            const {latest, avgLen, dayOfCycle, nextPeriod, fertileStart, fertileEnd} = stats;
             const isOwn    = u.username === user.username;
             const owner    = getOwner(u.username, user, partner, partners) || u;
             const ac = owner.eventColor || '#e91e8c';
 
-            // ── Derived analytics ──
-            const sorted6 = [...allUCycles].sort((a,b)=>new Date(a.startDate)-new Date(b.startDate)).slice(-6);
+            // ── Use month cycle if present, else latest overall for predictions ──
+            // For predictions: use the most recent cycle up to and including selected month
+            const selectedYear = new Date().getFullYear();
+            const cyclesUpToMonth = allUCycles.filter(c=>{
+              const cd = (c.startDate||'').slice(0,7);
+              return cd <= `${selectedYear}-${selectedMonth}`;
+            }).sort((a,b)=>new Date(b.startDate)-new Date(a.startDate));
+
+            // Stats based on cycles available up to selected month
+            const stats = cycleStats(cyclesUpToMonth);
+            const {latest, avgLen, dayOfCycle, nextPeriod, fertileStart, fertileEnd} = stats;
+
+            // ── Derived analytics — use last 6 cycles up to selected month for trends ──
+            const sorted6 = [...cyclesUpToMonth].sort((a,b)=>new Date(a.startDate)-new Date(b.startDate)).slice(-6);
             const durations = sorted6.map(c=>c.endDate?Math.max(1,Math.floor((new Date(c.endDate)-new Date(c.startDate))/86400000)):5);
             const avgDur = durations.length?Math.round(durations.reduce((s,d)=>s+d,0)/durations.length):5;
             const lengths = sorted6.map(c=>parseInt(c.cycleLength)||28);
             const avgLenAll = lengths.length?Math.round(lengths.reduce((s,l)=>s+l,0)/lengths.length):28;
             const sigma = lengths.length>1?Math.sqrt(lengths.reduce((s,l)=>s+(l-avgLenAll)**2,0)/lengths.length).toFixed(1):'0.0';
             const regularity = lengths.length>1?Math.max(0,Math.round(100-(parseFloat(sigma)/avgLenAll)*100)):100;
-            // Confidence ring: based on number of cycles logged (5+ = high)
-            const conf = Math.min(100,Math.round((allUCycles.length/5)*100));
-            // Next period delta display
+            const conf = Math.min(100,Math.round((cyclesUpToMonth.length/5)*100));
             const nextPeriodStr = nextPeriod ? nextPeriod.toISOString().slice(0,10) : '—';
             const deltaDays = nextPeriod ? Math.round((nextPeriod-new Date())/86400000) : null;
             const fertile = fertileStart&&fertileEnd ? `${fertileStart.toLocaleDateString('en-ZA',{month:'short',day:'numeric'})} – ${fertileEnd.toLocaleDateString('en-ZA',{month:'short',day:'numeric'})} ±1d` : '—';
-            // Phase breakdown
             const mensDays = 5;
             const ovDay = Math.max(avgLen-14,1);
             const fertStartDay = Math.max(ovDay-4,mensDays+1);
@@ -3075,14 +3081,28 @@ const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPart
               {label:'OVULATION',  days:ovDays,   color:'#00e676'},
               {label:'LUTEAL',     days:lutDays,  color:'#448aff'},
             ];
-            // Cycle length sparkline (last 6)
             const clVals = sorted6.map(c=>parseInt(c.cycleLength)||28);
-            const clMax = Math.max(...clVals,35);
-            const clMin = Math.min(...clVals,20);
-            // Period duration bars (last 6)
+            // hasData: whether we have any cycles at all up to this month
+            const hasData = cyclesUpToMonth.length > 0;
 
             return (
               <div key={u.username} style={{marginBottom:ui<allUsers.length-1?20:0}}>
+
+                {!hasData ? (
+                  /* ── No data for this period ── */
+                  <div style={{background:'#0d0d0b',border:`1px solid ${ac}22`,borderRadius:12,padding:'20px 16px',marginBottom:10,borderLeft:`3px solid ${ac}`}}>
+                    <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
+                      <ItemAvatar username={u.username} user={user} partner={partner} partners={partners} size={36}/>
+                      <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:16,color:ac,letterSpacing:'0.06em',textTransform:'uppercase'}}>
+                        {(owner.displayName||(owner.firstName&&owner.lastName?`${owner.firstName} ${owner.lastName}`:null)||owner.username||'').toUpperCase()}
+                      </div>
+                    </div>
+                    <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'rgba(255,255,255,0.3)',letterSpacing:'0.1em',textAlign:'center',padding:'8px 0'}}>
+                      NO CYCLE DATA FOR THIS PERIOD
+                      {allUCycles.length>0&&<div style={{marginTop:4,fontSize:8,color:`${ac}88`}}>← NAVIGATE TO A MONTH WITH LOGGED CYCLES</div>}
+                    </div>
+                  </div>
+                ) : (<>
 
                 {/* ── Top prediction card ── */}
                 <div style={{background:'#0d0d0b',border:`1px solid ${ac}33`,borderRadius:12,overflow:'hidden',marginBottom:10,borderLeft:`3px solid ${ac}`}}>
@@ -3339,6 +3359,9 @@ const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPart
                     </div>
                   </div>
                 )}
+
+                {/* close hasData block */}
+                </>)}
 
                 {/* ── Cycle records (collapsible list) ── */}
                 <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.16em',color:'rgba(255,255,255,0.35)',marginBottom:8,marginTop:4}}>
