@@ -459,7 +459,7 @@ app.get('/api/financial', async (req, res) => {
     const { user } = req.query;
     if (!user) return res.status(400).json({ success: false, message: 'User required.' });
     try {
-        const rows = await dbAll('SELECT * FROM vectraarchlegacy_financial WHERE username = $1', [user]);
+        const rows = await dbAll("SELECT id, username, category, amount, type, TO_CHAR(date, 'YYYY-MM-DD') AS date FROM vectraarchlegacy_financial WHERE username = $1", [user]);
         res.json(rows);
     } catch (e) {
         res.status(500).json({ success: false, message: 'Database error fetching financial items.', error: e.message });
@@ -549,7 +549,7 @@ app.get('/api/budget', async (req, res) => {
     if (!user) return res.status(400).json({ success: false, message: 'User required.' });
     try {
         const rows = await dbAll(
-            "SELECT id, username AS \"user\", income, expenses, date, COALESCE(budget_type,'need') AS budget_type FROM vectraarchlegacy_budget WHERE username = $1 ORDER BY date DESC",
+            "SELECT id, username AS \"user\", income, expenses, TO_CHAR(date, 'YYYY-MM-DD') AS date, COALESCE(budget_type,'need') AS budget_type FROM vectraarchlegacy_budget WHERE username = $1 ORDER BY date DESC",
             [user]
         );
         // expenses is jsonb — pg driver already returns a parsed JS array, no JSON.parse needed.
@@ -666,7 +666,7 @@ app.get('/api/calendar', async (req, res) => {
     if (!user) return res.status(400).json({ success: false, message: 'User required.' });
     try {
         const rows = await dbAll(
-            'SELECT id, username AS user, title, date, is_financial AS financial, type, amount, event_color AS "eventColor" FROM vectraarchlegacy_calendar WHERE username = $1',
+            "SELECT id, username AS user, title, TO_CHAR(date, 'YYYY-MM-DD HH24:MI:SS') AS date, is_financial AS financial, type, amount, event_color AS \"eventColor\" FROM vectraarchlegacy_calendar WHERE username = $1",
             [user]
         );
         res.json(rows);
