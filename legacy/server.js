@@ -85,9 +85,6 @@ function mapUser(row) {
         eventColor:       row.event_color       || '#2dd4bf',
         isAdmin:          !!row.is_admin,
         gender:           row.gender            || '',
-        dob:              row.dob               || '',
-        weight:           row.weight            != null ? String(row.weight) : '',
-        height:           row.height            != null ? String(row.height) : '',
         telegram_chat_id: row.telegram_chat_id  || '',
         theme:            row.theme             || 'dark',
         activityStatus:   !!row.activity_status,
@@ -310,7 +307,7 @@ app.get('/api/profile-pictures', async (req, res) => {
 });
 
 app.post('/api/profile-pictures', async (req, res) => {
-    const { username, firstName, lastName, profilePicUrl, email, phone, address, eventColor, gender, dob, weight, height, telegram_chat_id, displayName, bio, pronouns, theme, activityStatus } = req.body;
+    const { username, firstName, lastName, profilePicUrl, email, phone, address, eventColor, gender, telegram_chat_id, displayName, bio, pronouns, theme, activityStatus } = req.body;
     if (!username) return res.status(400).json({ success: false, message: 'Username required.' });
     if (firstName && firstName.length > 50) return res.status(400).json({ success: false, message: 'First name must be 50 characters or less.' });
     if (lastName  && lastName.length  > 50) return res.status(400).json({ success: false, message: 'Last name must be 50 characters or less.' });
@@ -321,14 +318,11 @@ app.post('/api/profile-pictures', async (req, res) => {
             UPDATE vectraarchlegacy_users SET
                 first_name=$1, last_name=$2, profile_pic_url=$3, email=$4, phone=$5, address=$6,
                 event_color=$7, gender=$8, telegram_chat_id=$9, display_name=$10,
-                bio=$11, pronouns=$12, theme=$13, activity_status=$14, last_active=$15,
-                dob=$16, weight=$17, height=$18
-            WHERE username=$19`,
+                bio=$11, pronouns=$12, theme=$13, activity_status=$14, last_active=$15
+            WHERE username=$16`,
             [firstName||null, lastName||null, profilePicUrl||null, email||null, phone||null, address||null,
              eventColor||'#2dd4bf', gender||null, telegram_chat_id||null, displayName||username,
-             bio||null, pronouns||null, theme||'dark', activityStatus?1:0, new Date().toISOString(),
-             dob||null, weight?parseFloat(weight):null, height?parseInt(height):null,
-             username]
+             bio||null, pronouns||null, theme||'dark', activityStatus?1:0, new Date().toISOString(), username]
         );
         await logTransaction(username, 'UPDATE_PROFILE', 'users', null, username);
         const updated = await dbQuery('SELECT * FROM vectraarchlegacy_users WHERE username = $1', [username]);
@@ -549,18 +543,8 @@ app.get('/api/budget', async (req, res) => {
     const { user } = req.query;
     if (!user) return res.status(400).json({ success: false, message: 'User required.' });
     try {
-        const rows = await dbAll(
-            'SELECT id, username AS "user", income, expenses, date, budget_type FROM vectraarchlegacy_budget WHERE username = $1',
-            [user]
-        );
-        // Parse expenses JSON safely, attach budget_type
-        const parsed = rows.map(r => ({
-            ...r,
-            expenses: (() => {
-                try { return JSON.parse(r.expenses || '[]'); } catch { return []; }
-            })(),
-        }));
-        res.json({ success: true, data: parsed });
+        const rows = await dbAll('SELECT id, username AS user, income, expenses, date, COALESCE(budget_type,\'need\') AS budget_type FROM vectraarchlegacy_budget WHERE username = $1 ORDER BY date DESC', [user]);
+        res.json(rows);
     } catch (e) {
         res.status(500).json({ success: false, message: 'Database error fetching budget.', error: e.message });
     }
@@ -568,59 +552,56 @@ app.get('/api/budget', async (req, res) => {
 
 app.post('/api/budget', async (req, res) => {
     const { user, income, expenses, date, budget_type } = req.body;
-    if (!user || income === undefined || !expenses || !date) {
-        return res.status(400).json({ success: false, message: 'All fields required.' });
+    if (!user || !expenses || !date) return res.status(400).json({ success: false, message: 'User, expenses, and date required.' });
+
+    // Parse expenses — accept string or array
+    let expArr;
+    try {
+        expArr = typeof expenses === 'string' ? JSON.parse(expenses) : expenses;
+        if (!Array.isArray(expArr) || expArr.length === 0) throw new Error('Empty');
+    } catch {
+        return res.status(400).json({ success: false, message: 'Invalid expenses format. Expected JSON array.' });
     }
-    if (isNaN(income) || income < 0) {
-        return res.status(400).json({ success: false, message: 'Income must be a non-negative number.' });
-    }
-    let parsedExpenses;
-    try { parsedExpenses = typeof expenses === 'string' ? JSON.parse(expenses) : expenses; }
-    catch { return res.status(400).json({ success: false, message: 'Invalid expenses JSON format.' }); }
-    const expensesStr = JSON.stringify(parsedExpenses);
-    const btype = budget_type || 'need';
+
+    // Total planned = sum of all expense items
+    const totalPlanned = expArr.reduce((s, e) => s + parseFloat(e.amount || 0), 0);
+    const incomeVal = parseFloat(income) || totalPlanned;
+    const expJson = JSON.stringify(expArr);
+    const budType = budget_type || expArr[0]?.type || 'need';
+
     try {
         const r = await dbRun(
-            'INSERT INTO vectraarchlegacy_budget (username, income, expenses, date, budget_type) VALUES ($1,$2,$3,$4,$5) RETURNING id',
-            [user, income, expensesStr, date, btype]
+            'INSERT INTO vectraarchlegacy_budget (username,income,expenses,date,budget_type) VALUES ($1,$2,$3,$4,$5) RETURNING id',
+            [user, incomeVal, expJson, date.slice(0,10), budType]
         );
         await logTransaction(user, 'CREATE', 'budget', r.rows[0].id, user);
-        res.json({ success: true, message: 'Budget item added successfully!' });
+        res.json({ success: true, message: 'Budget allocation saved!', id: r.rows[0].id });
     } catch (e) {
-        res.status(500).json({ success: false, message: 'Database error adding budget.', error: e.message });
+        console.error('[budget POST]', e.message);
+        res.status(500).json({ success: false, message: 'Database error: ' + e.message });
     }
 });
 
 app.put('/api/budget/:id', async (req, res) => {
     const { id } = req.params;
     const { user, income, expenses, date, budget_type } = req.body;
-    if (!user || income === undefined || !expenses || !date) {
-        return res.status(400).json({ success: false, message: 'All fields required.' });
-    }
-    if (isNaN(income) || income < 0) {
-        return res.status(400).json({ success: false, message: 'Income must be a non-negative number.' });
-    }
-    let parsedExpenses;
-    try { parsedExpenses = typeof expenses === 'string' ? JSON.parse(expenses) : expenses; }
-    catch { return res.status(400).json({ success: false, message: 'Invalid expenses JSON format.' }); }
-    const expensesStr = JSON.stringify(parsedExpenses);
-    const btype = budget_type || 'need';
+    if (!user || !expenses || !date) return res.status(400).json({ success: false, message: 'User, expenses, and date required.' });
+    let expArr;
+    try { expArr = typeof expenses === 'string' ? JSON.parse(expenses) : expenses; } catch { return res.status(400).json({ success: false, message: 'Invalid expenses JSON.' }); }
+    const totalPlanned = expArr.reduce((s,e)=>s+parseFloat(e.amount||0),0);
+    const incomeVal = parseFloat(income)||totalPlanned;
+    const expJson = JSON.stringify(expArr);
+    const budType = budget_type || expArr[0]?.type || 'need';
     try {
         const row = await dbQuery('SELECT id FROM vectraarchlegacy_budget WHERE id=$1 AND username=$2', [id, user]);
         if (!row) return res.status(404).json({ success: false, message: 'Budget not found.' });
         await dbTransaction([
-            {
-                sql: 'UPDATE vectraarchlegacy_budget SET income=$1, expenses=$2, date=$3, budget_type=$4 WHERE id=$5',
-                params: [income, expensesStr, date, btype, id]
-            },
-            {
-                sql: 'INSERT INTO vectraarchlegacy_transaction_history (username,action,table_name,record_id,modified_by,modified_at) VALUES ($1,$2,$3,$4,$5,$6)',
-                params: [user, 'UPDATE', 'budget', id, user, new Date().toISOString()]
-            }
+            { sql: 'UPDATE vectraarchlegacy_budget SET income=$1,expenses=$2,date=$3,budget_type=$4 WHERE id=$5', params: [incomeVal,expJson,date.slice(0,10),budType,id] },
+            { sql: 'INSERT INTO vectraarchlegacy_transaction_history (username,action,table_name,record_id,modified_by,modified_at) VALUES ($1,$2,$3,$4,$5,$6)', params: [user,'UPDATE','budget',id,user,new Date().toISOString()] }
         ]);
-        res.json({ success: true, message: 'Budget item updated successfully!' });
+        res.json({ success: true, message: 'Budget updated!' });
     } catch (e) {
-        res.status(500).json({ success: false, message: 'Database error updating budget.', error: e.message });
+        res.status(500).json({ success: false, message: 'Database error: ' + e.message });
     }
 });
 
@@ -631,10 +612,7 @@ app.delete('/api/budget/:id', async (req, res) => {
         if (!row) return res.status(404).json({ success: false, message: 'Budget not found.' });
         await dbTransaction([
             { sql: 'DELETE FROM vectraarchlegacy_budget WHERE id=$1', params: [id] },
-            {
-                sql: 'INSERT INTO vectraarchlegacy_transaction_history (username,action,table_name,record_id,modified_by,modified_at) VALUES ($1,$2,$3,$4,$5,$6)',
-                params: [row.username, 'DELETE', 'budget', id, row.username, new Date().toISOString()]
-            }
+            { sql: 'INSERT INTO vectraarchlegacy_transaction_history (username,action,table_name,record_id,modified_by,modified_at) VALUES ($1,$2,$3,$4,$5,$6)', params: [row.username,'DELETE','budget',id,row.username,new Date().toISOString()] }
         ]);
         res.json({ success: true, message: 'Budget item deleted successfully!' });
     } catch (e) {
@@ -658,37 +636,21 @@ app.get('/api/calendar', async (req, res) => {
 });
 
 app.post('/api/calendar', async (req, res) => {
-    const { user, title, date, financial, type, amount, eventColor, finType } = req.body;
+    const { user, title, date, financial, type, amount, eventColor } = req.body;
     if (!user || !title || !date) return res.status(400).json({ success: false, message: 'User, title, and date required.' });
     try {
-        // Always insert into calendar
-        const isFinancial = financial && amount && parseFloat(amount) > 0;
-        const calType = isFinancial ? (finType||type||'income') : (type||null);
         const r = await dbRun(
             'INSERT INTO vectraarchlegacy_calendar (username,title,date,is_financial,type,amount,event_color) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id',
-            [user, title, date, isFinancial?1:0, calType, amount||null, eventColor||null]
+            [user, title, date, financial?1:0, type||null, amount||null, eventColor||null]
         );
-        const calId = r.rows[0].id;
-
-        // If financial, ALSO insert into vectraarchlegacy_financial so it appears on Finances tab
-        if (isFinancial) {
-            const fType = finType || 'income'; // income or expense
-            const fRes = await dbRun(
-                'INSERT INTO vectraarchlegacy_financial (username,category,amount,type,date) VALUES ($1,$2,$3,$4,$5) RETURNING id',
-                [user, title, parseFloat(amount), fType, date.slice(0,10)]
-            );
-            await logTransaction(user, 'CREATE', 'financial', fRes.rows[0].id, user);
-        }
-
-        await logTransaction(user, 'CREATE', 'calendar', calId, user);
+        await logTransaction(user, 'CREATE', 'calendar', r.rows[0].id, user);
         const userData = await dbQuery('SELECT telegram_chat_id, email FROM vectraarchlegacy_users WHERE username = $1', [user]);
         const notifs = await dbAll('SELECT type, enabled FROM vectraarchlegacy_notifications WHERE username = $1', [user]);
-        const msg = `New event added: ${title} on ${date}${isFinancial ? ` (${finType||'income'}: ${amount})` : ''}`;
+        const msg = `New event added: ${title} on ${date}`;
         if (notifs.some(n => n.type === 'telegram' && n.enabled) && userData?.telegram_chat_id) sendTelegramMessage(userData.telegram_chat_id, msg);
         if (notifs.some(n => n.type === 'email' && n.enabled) && userData?.email) await sendEmailNotification(userData.email, 'New Calendar Event', msg);
         res.json({ success: true, message: 'Calendar event added successfully!' });
     } catch (e) {
-        console.error('[calendar POST]', e);
         res.status(500).json({ success: false, message: 'Database error adding calendar event.', error: e.message });
     }
 });

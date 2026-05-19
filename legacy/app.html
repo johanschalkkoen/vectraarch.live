@@ -931,35 +931,42 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
     saving: totalIncome * 0.20,
   }),[totalIncome]);
 
+  // Add/remove expense rows
+  const addRow    = () => setForm(p=>({...p, expenses:[...p.expenses,{category:'',amount:''}]}));
+  const removeRow = (i) => setForm(p=>({...p, expenses:p.expenses.filter((_,j)=>j!==i)}));
+  const updateRow = (i, field, val) => setForm(p=>({...p, expenses:p.expenses.map((r,j)=>j===i?{...r,[field]:val}:r)}));
+
   const handleSave = async()=>{
-    if(!form.expenses[0]?.category){ msg('Category name required.','err'); return; }
-    if(!form.income||parseFloat(form.income)<=0){ msg('Amount must be greater than 0.','err'); return; }
-    const expensesJson = JSON.stringify([{
-      category: form.expenses[0].category,
-      amount:   parseFloat(form.income),
-      type:     form.type
-    }]);
+    const validRows = form.expenses.filter(r=>r.category&&parseFloat(r.amount)>0);
+    if(validRows.length===0){ msg('Add at least one category with an amount.','err'); return; }
+    const total = validRows.reduce((s,r)=>s+parseFloat(r.amount),0);
+    const expJson = JSON.stringify(validRows.map(r=>({category:r.category,amount:parseFloat(r.amount),type:form.type})));
+    const dateVal = (form.date||now()).slice(0,7)+'-01';
     try {
-      if(editBudgetId) await axios.delete(`${API}/budget/${editBudgetId}`);
-      await axios.post(`${API}/budget`,{
-        user:     user.username,
-        income:   parseFloat(form.income),
-        expenses: expensesJson,
-        date:     (form.date||now()).slice(0,10)+'-01',
-        budget_type: form.type,
-      });
+      if(editBudgetId){
+        await axios.put(`${API}/budget/${editBudgetId}`,{
+          user:user.username, income:total, expenses:expJson,
+          date:dateVal, budget_type:form.type
+        });
+      } else {
+        await axios.post(`${API}/budget`,{
+          user:user.username, income:total, expenses:expJson,
+          date:dateVal, budget_type:form.type
+        });
+      }
       msg(editBudgetId?'Budget updated.':'Budget saved.');
       setShowForm(false); setEditBudgetId(null);
       setForm({category:'',income:'',type:'need',expenses:[{category:'',amount:''}],date:now()});
       fetchAll();
-    } catch(e){ msg(e.response?.data?.message||'Error.','err'); }
+    } catch(e){ msg(e.response?.data?.message||'Error: '+e.message,'err'); }
   };
 
   const startEditBudget = (b) => {
-    const cat = b.expenses?.[0]?.category||'';
-    const amt = b.expenses?.[0]?.amount||b.income||0;
     const typ = b.budget_type||b.expenses?.[0]?.type||'need';
-    setForm({category:cat,income:String(amt),type:typ,expenses:[{category:cat,amount:String(amt)}],date:(b.date||now()).slice(0,7)+'-01'});
+    const rows = b.expenses?.length>0
+      ? b.expenses.map(e=>({category:e.category||'',amount:String(e.amount||0)}))
+      : [{category:'',amount:''}];
+    setForm({category:'',income:'',type:typ,expenses:rows,date:(b.date||now()).slice(0,7)+'-01'});
     setEditBudgetId(b.id);
     setShowForm(true);
   };
@@ -1140,37 +1147,17 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
             <div className="modal-handle"/>
             <div className="modal-title">{editBudgetId?'Edit':'Add'} Budget Allocation</div>
 
-            {/* Category name */}
+            {/* Budget type */}
             <div className="form-field">
-              <label className="form-label">Category Name</label>
-              <input className="form-input" placeholder="e.g. Groceries, Rent, Netflix"
-                value={form.expenses[0]?.category||''}
-                onChange={e=>setForm(p=>({...p,category:e.target.value,expenses:[{...p.expenses[0],category:e.target.value}]}))}/>
-            </div>
-
-            {/* Planned amount */}
-            <div className="form-field">
-              <label className="form-label">Planned Amount (R)</label>
-              <input className="form-input" type="number" placeholder="e.g. 5000"
-                value={form.income}
-                onChange={e=>setForm(p=>({...p,income:e.target.value,expenses:[{...p.expenses[0],amount:e.target.value}]}))}/>
-            </div>
-
-            {/* Budget type — need/want/saving */}
-            <div className="form-field">
-              <label className="form-label">Category Type</label>
-              <div style={{display:'flex',flexDirection:'column',gap:8,paddingTop:4}}>
+              <label className="form-label">Type</label>
+              <div style={{display:'flex',gap:8}}>
                 {CAT_TYPES.map(ct=>(
                   <button key={ct.key} onClick={()=>setForm(p=>({...p,type:ct.key}))}
-                    style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',borderRadius:8,cursor:'pointer',
+                    style={{flex:1,padding:'8px 4px',borderRadius:6,cursor:'pointer',textAlign:'center',
                       border:`1px solid ${form.type===ct.key?ct.color:'var(--border2)'}`,
-                      background:form.type===ct.key?`${ct.color}15`:'transparent',textAlign:'left'}}>
-                    <div style={{width:10,height:10,borderRadius:2,background:ct.color,flexShrink:0}}/>
-                    <div>
-                      <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,color:form.type===ct.key?ct.color:'var(--text)'}}>{ct.label}</div>
-                      <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'var(--text3)'}}>{ct.desc}</div>
-                    </div>
-                    {form.type===ct.key&&<div style={{marginLeft:'auto',color:ct.color,fontSize:16}}>✓</div>}
+                      background:form.type===ct.key?`${ct.color}18`:'transparent'}}>
+                    <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:13,color:form.type===ct.key?ct.color:'var(--text3)'}}>{ct.label}</div>
+                    <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:'var(--text3)',marginTop:2}}>{ct.key==='need'?'50%':ct.key==='want'?'30%':'20%'}</div>
                   </button>
                 ))}
               </div>
@@ -1179,22 +1166,52 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
             {/* Month */}
             <div className="form-field">
               <label className="form-label">Month</label>
-              <select className="form-input" value={form.date.slice(0,7)}
-                onChange={e=>setForm(p=>({...p,date:e.target.value+'-01T00:00:00'}))}>
+              <select className="form-input" value={(form.date||now()).slice(0,7)}
+                onChange={e=>setForm(p=>({...p,date:e.target.value+'-01'}))}>
                 {MONTHS.map(m=><option key={m.v} value={`${new Date().getFullYear()}-${m.v}`}>{m.l} {new Date().getFullYear()}</option>)}
               </select>
             </div>
 
-            {/* 50/30/20 hint */}
+            {/* Multiple category rows */}
+            <div className="form-field">
+              <label className="form-label">
+                CATEGORIES
+                <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'var(--text3)',marginLeft:8}}>
+                  TOTAL: {fmtR(form.expenses.reduce((s,r)=>s+parseFloat(r.amount||0),0))}
+                </span>
+              </label>
+              {form.expenses.map((row,i)=>(
+                <div key={i} style={{display:'flex',gap:8,marginBottom:8,alignItems:'center'}}>
+                  <input className="form-input" placeholder="Category name (e.g. Rent)"
+                    style={{flex:2,marginBottom:0}}
+                    value={row.category}
+                    onChange={e=>updateRow(i,'category',e.target.value)}/>
+                  <input className="form-input" type="number" placeholder="Amount"
+                    style={{flex:1,marginBottom:0}}
+                    value={row.amount}
+                    onChange={e=>updateRow(i,'amount',e.target.value)}/>
+                  {form.expenses.length>1&&(
+                    <button onClick={()=>removeRow(i)}
+                      style={{width:32,height:32,borderRadius:4,background:'rgba(255,61,61,0.1)',border:'1px solid rgba(255,61,61,0.3)',color:'var(--red)',cursor:'pointer',fontWeight:700,flexShrink:0}}>×</button>
+                  )}
+                </div>
+              ))}
+              <button onClick={addRow}
+                style={{width:'100%',padding:'8px',borderRadius:4,border:`1px dashed ${tabColor}66`,background:`${tabColor}08`,color:tabColor,fontFamily:"'DM Mono',monospace",fontSize:10,letterSpacing:'0.1em',cursor:'pointer',marginTop:4}}>
+                + ADD CATEGORY
+              </button>
+            </div>
+
+            {/* 50/30/20 suggestion */}
             {totalIncome>0&&(
               <div style={{background:'var(--bg3)',borderRadius:6,padding:'10px 12px',marginBottom:12,border:'1px solid var(--border)'}}>
-                <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'var(--text3)',marginBottom:4}}>50/30/20 SUGGESTION</div>
-                <div style={{display:'flex',gap:12}}>
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'var(--text3)',marginBottom:6}}>50/30/20 SUGGESTION FOR {fmtR(totalIncome)} INCOME</div>
+                <div style={{display:'flex',gap:8}}>
                   {CAT_TYPES.map(ct=>(
-                    <button key={ct.key} onClick={()=>setForm(p=>({...p,type:ct.key,income:String(Math.round(rule[ct.key])),expenses:[{...p.expenses[0],amount:String(Math.round(rule[ct.key]))}]}))}
+                    <button key={ct.key} onClick={()=>setForm(p=>({...p,type:ct.key}))}
                       style={{flex:1,padding:'6px 4px',borderRadius:4,border:`1px solid ${ct.color}55`,background:`${ct.color}10`,cursor:'pointer',textAlign:'center'}}>
-                      <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:ct.color,letterSpacing:'0.08em'}}>{ct.label}</div>
-                      <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:11,color:ct.color}}>{fmtR(Math.round(rule[ct.key]))}</div>
+                      <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:ct.color}}>{ct.label}</div>
+                      <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:12,color:ct.color}}>{fmtR(Math.round(rule[ct.key]))}</div>
                     </button>
                   ))}
                 </div>
