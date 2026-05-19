@@ -483,23 +483,143 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
 
           {/* ══ OVERVIEW SECTION ══ */}
           {activeSection==='overview'&&(<>
-            <div className="section-label" style={{padding:'12px 16px 4px'}}>SUMMARY <span style={{color:tabColor,fontSize:14}}>·</span> {monthLabel.toUpperCase()} 2026</div>
-            <div className="summary-card">
-              <div className="summary-grid">
-                <div>
-                  <div className="summary-item-label">Income</div>
-                  <div className="summary-item-value income">{fmtR(totals.inc)}</div>
-                </div>
-                <div>
-                  <div className="summary-item-label">Expenses</div>
-                  <div className="summary-item-value expense">{fmtR(totals.exp)}</div>
-                </div>
-                <div>
-                  <div className="summary-item-label">Net</div>
-                  <div className={`summary-item-value ${totals.net>=0?'net-pos':'net-neg'}`}>{fmtR(totals.net)}</div>
-                </div>
+
+            {/* ── Dashboard Widget ── */}
+            <div style={{margin:'8px 16px 0',background:'#0d0d0b',border:'1px solid rgba(255,255,255,0.08)',borderRadius:12,overflow:'hidden'}}>
+
+              {/* Row 1: Income / Expenses / Net */}
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:0,borderBottom:'1px solid rgba(255,255,255,0.07)'}}>
+                {[
+                  {label:'INCOME',   value:totals.inc, color:'#00e676'},
+                  {label:'EXPENSES', value:totals.exp, color:'#ff3b3b'},
+                  {label:'NET',      value:totals.net, color:totals.net>=0?'#00e676':'#ff3b3b'},
+                ].map((s,i)=>(
+                  <div key={s.label} style={{padding:'14px 14px 12px',borderRight:i<2?'1px solid rgba(255,255,255,0.07)':'none'}}>
+                    <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.18em',color:'rgba(255,255,255,0.35)',marginBottom:5}}>{s.label}</div>
+                    <div style={{fontFamily:"'DM Mono',monospace",fontWeight:500,fontSize:13,color:s.color,letterSpacing:'0.04em',lineHeight:1}}>{fmtR(s.value)}</div>
+                  </div>
+                ))}
               </div>
+
+              {/* Row 2: Daily Net area chart */}
+              {(()=>{
+                const year = new Date().getFullYear();
+                const daysInMonth = new Date(year, parseInt(selectedMonth,10), 0).getDate();
+                // Accumulate daily running net for selected month
+                const dailyNet = [];
+                let running = 0;
+                for(let d=1;d<=daysInMonth;d++){
+                  const dayStr = `${year}-${selectedMonth}-${String(d).padStart(2,'0')}`;
+                  const dayItems = filtered.filter(i=>(i.date||'').startsWith(dayStr));
+                  dayItems.forEach(i=>{ running += i.type==='income'?parseFloat(i.amount||0):-parseFloat(i.amount||0); });
+                  dailyNet.push(running);
+                }
+                const minV = Math.min(...dailyNet,0);
+                const maxV = Math.max(...dailyNet,1);
+                const range = maxV-minV||1;
+                const W=400, H=68, PAD=8;
+                const pts = dailyNet.map((v,i)=>{
+                  const x = PAD + (i/(daysInMonth-1||1))*(W-PAD*2);
+                  const y = PAD + (1-(v-minV)/range)*(H-PAD*2);
+                  return `${x},${y}`;
+                });
+                const polyline = pts.join(' ');
+                const areaClose = `${W-PAD},${H} ${PAD},${H}`;
+                const lastVal = dailyNet[dailyNet.length-1]||0;
+                return (
+                  <div style={{position:'relative',borderBottom:'1px solid rgba(255,255,255,0.07)'}}>
+                    <div style={{position:'absolute',top:10,left:14,fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.14em',color:'rgba(255,255,255,0.35)',zIndex:2}}>
+                      DAILY NET · {monthLabel.toUpperCase()}
+                    </div>
+                    <div style={{position:'absolute',top:10,right:14,fontFamily:"'DM Mono',monospace",fontSize:9,color:lastVal>=0?'#00e676':'#ff3b3b',zIndex:2,letterSpacing:'0.06em'}}>
+                      {lastVal>=0?'▲':'▼'} {fmtR(Math.abs(lastVal))}
+                    </div>
+                    <svg viewBox={`0 0 ${W} ${H}`} style={{width:'100%',height:80,display:'block'}} preserveAspectRatio="none">
+                      <defs>
+                        <linearGradient id="netGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#00e676" stopOpacity="0.45"/>
+                          <stop offset="100%" stopColor="#00e676" stopOpacity="0.03"/>
+                        </linearGradient>
+                      </defs>
+                      {/* Zero line */}
+                      {minV<0&&<line x1={PAD} x2={W-PAD} y1={PAD+(1-(0-minV)/range)*(H-PAD*2)} y2={PAD+(1-(0-minV)/range)*(H-PAD*2)} stroke="rgba(255,255,255,0.1)" strokeWidth="1" strokeDasharray="3,3"/>}
+                      {/* Area fill */}
+                      <polygon points={`${pts[0]} ${polyline} ${areaClose}`} fill="url(#netGrad)"/>
+                      {/* Line */}
+                      <polyline points={polyline} fill="none" stroke="#00e676" strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round"/>
+                      {/* End dot */}
+                      {pts.length>0&&<circle cx={pts[pts.length-1].split(',')[0]} cy={pts[pts.length-1].split(',')[1]} r="3" fill="#00e676" filter="url(#glow)"/>}
+                      <defs><filter id="glow"><feGaussianBlur stdDeviation="2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+                    </svg>
+                  </div>
+                );
+              })()}
+
+              {/* Row 3: Donut spend + Category bars */}
+              {(()=>{
+                // Top categories
+                const expItems = filtered.filter(i=>i.type==='expense');
+                const catMap = {};
+                expItems.forEach(i=>{ const k=(i.category||'OTHER').toUpperCase(); catMap[k]=(catMap[k]||0)+parseFloat(i.amount||0); });
+                const cats = Object.entries(catMap).sort((a,b)=>b[1]-a[1]).slice(0,5);
+                const CAT_COLORS = ['#448aff','#ff3b3b','#ffd600','#00e676','#e040fb'];
+
+                // SVG donut
+                const R=38, r=24, CX=50, CY=50;
+                const total = cats.reduce((s,[,v])=>s+v,0)||1;
+                let cumAngle = -Math.PI/2;
+                const slices = cats.map(([cat,val],i)=>{
+                  const angle = (val/total)*2*Math.PI;
+                  const x1=CX+R*Math.cos(cumAngle), y1=CY+R*Math.sin(cumAngle);
+                  cumAngle+=angle;
+                  const x2=CX+R*Math.cos(cumAngle), y2=CY+R*Math.sin(cumAngle);
+                  const xi1=CX+r*Math.cos(cumAngle-angle), yi1=CY+r*Math.sin(cumAngle-angle);
+                  const xi2=CX+r*Math.cos(cumAngle), yi2=CY+r*Math.sin(cumAngle);
+                  const large=angle>Math.PI?1:0;
+                  const d=`M${x1.toFixed(2)},${y1.toFixed(2)} A${R},${R} 0 ${large},1 ${x2.toFixed(2)},${y2.toFixed(2)} L${xi2.toFixed(2)},${yi2.toFixed(2)} A${r},${r} 0 ${large},0 ${xi1.toFixed(2)},${yi1.toFixed(2)} Z`;
+                  return {d, color:CAT_COLORS[i%CAT_COLORS.length]};
+                });
+
+                return (
+                  <div style={{display:'flex',alignItems:'center',gap:0,padding:'12px 14px'}}>
+                    {/* Donut */}
+                    <div style={{flexShrink:0,position:'relative',width:100,height:100}}>
+                      <svg viewBox="0 0 100 100" width="100" height="100">
+                        {slices.length>0
+                          ? slices.map((s,i)=><path key={i} d={s.d} fill={s.color}/>)
+                          : <circle cx="50" cy="50" r="38" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="14"/>
+                        }
+                      </svg>
+                      <div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',pointerEvents:'none'}}>
+                        <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,letterSpacing:'0.1em',color:'rgba(255,255,255,0.4)',marginBottom:2}}>SPEND</div>
+                        <div style={{fontFamily:"'DM Mono',monospace",fontWeight:500,fontSize:10,color:'#ff3b3b',lineHeight:1,textAlign:'center'}}>{fmtR(totals.exp)}</div>
+                      </div>
+                    </div>
+                    {/* Category list */}
+                    <div style={{flex:1,display:'flex',flexDirection:'column',gap:7,paddingLeft:12}}>
+                      {cats.length===0
+                        ? <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'rgba(255,255,255,0.25)',letterSpacing:'0.1em'}}>NO EXPENSES YET</div>
+                        : cats.map(([cat,val],i)=>{
+                            const pct = total>0?(val/total)*100:0;
+                            return (
+                              <div key={cat}>
+                                <div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}>
+                                  <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.08em',color:'rgba(255,255,255,0.6)'}}>{cat}</span>
+                                  <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'rgba(255,255,255,0.5)',letterSpacing:'0.04em'}}>{Math.round(val).toLocaleString('en-ZA')}</span>
+                                </div>
+                                <div style={{height:3,background:'rgba(255,255,255,0.08)',borderRadius:2}}>
+                                  <div style={{height:'100%',width:`${pct}%`,background:CAT_COLORS[i%CAT_COLORS.length],borderRadius:2,transition:'width 0.4s'}}/>
+                                </div>
+                              </div>
+                            );
+                          })
+                      }
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
+            {/* end dashboard widget */}
 
             <SearchBar value={search} onChange={setSearch} placeholder="Search transactions..." tabColor={tabColor}/>
 
