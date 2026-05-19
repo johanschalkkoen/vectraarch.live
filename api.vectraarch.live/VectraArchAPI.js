@@ -13,7 +13,7 @@
  * Services authenticate with a shared API key in the X-API-Key header.
  */
 
-require('dotenv').config({ path: '/var/www/api.vectraarch.live/.env' });
+require('dotenv').config();
 
 const express = require('express');
 const { Pool } = require('pg');
