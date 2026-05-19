@@ -1,0 +1,53 @@
+root@vectraarch:/var/www# nginx -T | grep "server_name"
+2026/05/19 20:56:55 [warn] 2889962#2889962: protocol options redefined for [::]:443 in /etc/nginx/sites-enabled/vectraarch.live:8
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+    server_name localhost;
+    server_name api.vectraarch.live;
+    server_name api.vectraarch.live;
+    server_name auth.vectraarch.live;
+    server_name auth.vectraarch.live;
+    server_name conduit.vectraarch.live;
+    server_name conduit.vectraarch.live;
+    server_name forge.vectraarch.live;
+    server_name forge.vectraarch.live;
+    server_name legacy.vectraarch.live;
+    server_name legacy.vectraarch.live;
+    server_name vectraarch.live;
+    server_name vectraarch.live;
+root@vectraarch:/var/www# certbot certificates
+Saving debug log to /var/log/letsencrypt/letsencrypt.log
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Found the following certs:
+  Certificate Name: api.vectraarch.live
+    Serial Number: 5eb25900796d6fcfbf2606d5abec305deae
+    Key Type: ECDSA
+    Domains: api.vectraarch.live
+    Expiry Date: 2026-08-17 16:41:05+00:00 (VALID: 89 days)
+    Certificate Path: /etc/letsencrypt/live/api.vectraarch.live/fullchain.pem
+    Private Key Path: /etc/letsencrypt/live/api.vectraarch.live/privkey.pem
+  Certificate Name: auth.vectraarch.live
+    Serial Number: 51f895a06c996bfd69f80a6cbc0b4310482
+    Key Type: ECDSA
+    Domains: auth.vectraarch.live
+    Expiry Date: 2026-08-17 17:57:28+00:00 (VALID: 89 days)
+    Certificate Path: /etc/letsencrypt/live/auth.vectraarch.live/fullchain.pem
+    Private Key Path: /etc/letsencrypt/live/auth.vectraarch.live/privkey.pem
+  Certificate Name: legacy.vectraarch.live
+    Serial Number: 6a4a75cdbeee54b051e8e61dad17a5b2ea4
+    Key Type: ECDSA
+    Domains: legacy.vectraarch.live conduit.vectraarch.live forge.vectraarch.live
+    Expiry Date: 2026-08-17 17:43:51+00:00 (VALID: 89 days)
+    Certificate Path: /etc/letsencrypt/live/legacy.vectraarch.live/fullchain.pem
+    Private Key Path: /etc/letsencrypt/live/legacy.vectraarch.live/privkey.pem
+  Certificate Name: vectraarch.live
+    Serial Number: 56d45404b8a8741ff4dc012b86f4847f091
+    Key Type: ECDSA
+    Domains: vectraarch.live
+    Expiry Date: 2026-07-29 19:41:57+00:00 (VALID: 71 days)
+    Certificate Path: /etc/letsencrypt/live/vectraarch.live/fullchain.pem
+    Private Key Path: /etc/letsencrypt/live/vectraarch.live/privkey.pem
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+root@vectraarch:/var/www#
+
