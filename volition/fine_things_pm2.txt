@@ -11,9 +11,15 @@ root@vectraarch:/var/www/vectraarch.live# pm2 list
 root@vectraarch:/var/www/vectraarch.live# pm2 show 9 | grep "script path"
 │ script path       │ /var/www/vectraarch.live/conduit/conduit-server.js │
 root@vectraarch:/var/www/vectraarch.live# pm2 jlist | jq -r '.[] | .pm2_env.pm_exec_path'
+
 /var/www/vectraarch.live/forge/server.js
+
 /var/www/vectraarch.live/conduit/conduit-server.js
 /var/www/vectraarch.live/legacy/server.js
-/var/www/vectraarch.live/api/contact-proxy.js
-/var/www/vectraarch.live/api/identity-server.js
+
+/var/www/vectraarch.live/api/VectraArchCOMS.js
+/var/www/vectraarch.live/api/VectraArchAPI.js
+
 root@vectraarch:/var/www/vectraarch.live#
+
+
