@@ -539,13 +539,31 @@ app.delete('/api/financial/:id', async (req, res) => {
 });
 
 // ── BUDGET ────────────────────────────────────────────────────────────────────
+// IMPORTANT: expenses column is jsonb in PostgreSQL.
+// node-pg auto-parses jsonb on SELECT (no JSON.parse needed).
+// On INSERT/UPDATE pass the JS array directly — node-pg serialises it correctly.
+// Passing JSON.stringify(arr) to a jsonb column causes a type error.
+
 app.get('/api/budget', async (req, res) => {
     const { user } = req.query;
     if (!user) return res.status(400).json({ success: false, message: 'User required.' });
     try {
-        const rows = await dbAll('SELECT id, username AS user, income, expenses, date, COALESCE(budget_type,\'need\') AS budget_type FROM vectraarchlegacy_budget WHERE username = $1 ORDER BY date DESC', [user]);
-        res.json(rows);
+        const rows = await dbAll(
+            "SELECT id, username AS \"user\", income, expenses, date, COALESCE(budget_type,'need') AS budget_type FROM vectraarchlegacy_budget WHERE username = $1 ORDER BY date DESC",
+            [user]
+        );
+        // expenses is jsonb — pg driver already returns a parsed JS array, no JSON.parse needed.
+        // Normalise to array defensively in case of legacy text rows.
+        const data = rows.map(r => ({
+            ...r,
+            expenses: Array.isArray(r.expenses)
+                ? r.expenses
+                : (typeof r.expenses === 'string' ? JSON.parse(r.expenses || '[]') : []),
+        }));
+        // Return { success, data } — frontend reads r.data.data || r.data
+        res.json({ success: true, data });
     } catch (e) {
+        console.error('[budget GET]', e.message);
         res.status(500).json({ success: false, message: 'Database error fetching budget.', error: e.message });
     }
 });
@@ -554,7 +572,7 @@ app.post('/api/budget', async (req, res) => {
     const { user, income, expenses, date, budget_type } = req.body;
     if (!user || !date) return res.status(400).json({ success: false, message: 'User and date required.' });
 
-    // Parse expenses — accept string or array
+    // Normalise expenses to a JS array (frontend may send JSON string or array)
     let expArr = [];
     try {
         const raw = expenses || '[]';
@@ -562,33 +580,21 @@ app.post('/api/budget', async (req, res) => {
         if (!Array.isArray(expArr)) expArr = [];
     } catch { expArr = []; }
 
-    if (expArr.length === 0) return res.status(400).json({ success: false, message: 'At least one expense category required.' });
+    if (expArr.length === 0) {
+        return res.status(400).json({ success: false, message: 'At least one expense category required.' });
+    }
 
     const totalPlanned = expArr.reduce((s, e) => s + parseFloat(e.amount || 0), 0);
-    const incomeVal = parseFloat(income) || totalPlanned;
-    const expJson = JSON.stringify(expArr);
-    const budType = budget_type || expArr[0]?.type || 'need';
-    const dateVal = String(date).slice(0,10);
+    const incomeVal    = parseFloat(income) || totalPlanned;
+    const budType      = budget_type || expArr[0]?.type || 'need';
+    const dateVal      = String(date).slice(0, 10);
 
     try {
-        // Check if budget_type column exists
-        const colCheck = await pool.query(
-            "SELECT column_name FROM information_schema.columns WHERE table_name='vectraarchlegacy_budget' AND column_name='budget_type'"
+        // Pass expArr (JS array) directly — pg serialises it into jsonb correctly.
+        const r = await dbRun(
+            'INSERT INTO vectraarchlegacy_budget (username, income, expenses, date, budget_type) VALUES ($1,$2,$3,$4,$5) RETURNING id',
+            [user, incomeVal, expArr, dateVal, budType]
         );
-        const hasBudgetType = colCheck.rows.length > 0;
-
-        let r;
-        if (hasBudgetType) {
-            r = await dbRun(
-                'INSERT INTO vectraarchlegacy_budget (username,income,expenses,date,budget_type) VALUES ($1,$2,$3,$4,$5) RETURNING id',
-                [user, incomeVal, expJson, dateVal, budType]
-            );
-        } else {
-            r = await dbRun(
-                'INSERT INTO vectraarchlegacy_budget (username,income,expenses,date) VALUES ($1,$2,$3,$4) RETURNING id',
-                [user, incomeVal, expJson, dateVal]
-            );
-        }
         await logTransaction(user, 'CREATE', 'budget', r.rows[0].id, user);
         res.json({ success: true, message: 'Budget saved!', id: r.rows[0].id });
     } catch (e) {
@@ -601,31 +607,37 @@ app.put('/api/budget/:id', async (req, res) => {
     const { id } = req.params;
     const { user, income, expenses, date, budget_type } = req.body;
     if (!user || !date) return res.status(400).json({ success: false, message: 'User and date required.' });
+
     let expArr = [];
-    try { const raw = expenses||'[]'; expArr = typeof raw==='string'?JSON.parse(raw):raw; if(!Array.isArray(expArr)) expArr=[]; } catch { expArr=[]; }
-    const totalPlanned = expArr.reduce((s,e)=>s+parseFloat(e.amount||0),0);
-    const incomeVal = parseFloat(income)||totalPlanned;
-    const expJson = JSON.stringify(expArr);
-    const budType = budget_type || expArr[0]?.type || 'need';
-    const dateVal = String(date).slice(0,10);
+    try {
+        const raw = expenses || '[]';
+        expArr = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        if (!Array.isArray(expArr)) expArr = [];
+    } catch { expArr = []; }
+
+    const totalPlanned = expArr.reduce((s, e) => s + parseFloat(e.amount || 0), 0);
+    const incomeVal    = parseFloat(income) || totalPlanned;
+    const budType      = budget_type || expArr[0]?.type || 'need';
+    const dateVal      = String(date).slice(0, 10);
+
     try {
         const row = await dbQuery('SELECT id FROM vectraarchlegacy_budget WHERE id=$1 AND username=$2', [id, user]);
         if (!row) return res.status(404).json({ success: false, message: 'Budget not found.' });
-        const colCheck = await pool.query("SELECT column_name FROM information_schema.columns WHERE table_name='vectraarchlegacy_budget' AND column_name='budget_type'");
-        const hasBudgetType = colCheck.rows.length > 0;
-        if (hasBudgetType) {
-            await dbTransaction([
-                { sql: 'UPDATE vectraarchlegacy_budget SET income=$1,expenses=$2,date=$3,budget_type=$4 WHERE id=$5', params:[incomeVal,expJson,dateVal,budType,id] },
-                { sql: 'INSERT INTO vectraarchlegacy_transaction_history (username,action,table_name,record_id,modified_by,modified_at) VALUES ($1,$2,$3,$4,$5,$6)', params:[user,'UPDATE','budget',id,user,new Date().toISOString()] }
-            ]);
-        } else {
-            await dbTransaction([
-                { sql: 'UPDATE vectraarchlegacy_budget SET income=$1,expenses=$2,date=$3 WHERE id=$4', params:[incomeVal,expJson,dateVal,id] },
-                { sql: 'INSERT INTO vectraarchlegacy_transaction_history (username,action,table_name,record_id,modified_by,modified_at) VALUES ($1,$2,$3,$4,$5,$6)', params:[user,'UPDATE','budget',id,user,new Date().toISOString()] }
-            ]);
-        }
+
+        // Pass expArr (JS array) directly into jsonb column
+        await dbTransaction([
+            {
+                sql: 'UPDATE vectraarchlegacy_budget SET income=$1, expenses=$2, date=$3, budget_type=$4 WHERE id=$5',
+                params: [incomeVal, expArr, dateVal, budType, id],
+            },
+            {
+                sql: 'INSERT INTO vectraarchlegacy_transaction_history (username,action,table_name,record_id,modified_by,modified_at) VALUES ($1,$2,$3,$4,$5,$6)',
+                params: [user, 'UPDATE', 'budget', id, user, new Date().toISOString()],
+            },
+        ]);
         res.json({ success: true, message: 'Budget updated!' });
     } catch (e) {
+        console.error('[budget PUT]', e.message);
         res.status(500).json({ success: false, message: 'Database error: ' + e.message });
     }
 });
@@ -637,7 +649,10 @@ app.delete('/api/budget/:id', async (req, res) => {
         if (!row) return res.status(404).json({ success: false, message: 'Budget not found.' });
         await dbTransaction([
             { sql: 'DELETE FROM vectraarchlegacy_budget WHERE id=$1', params: [id] },
-            { sql: 'INSERT INTO vectraarchlegacy_transaction_history (username,action,table_name,record_id,modified_by,modified_at) VALUES ($1,$2,$3,$4,$5,$6)', params: [row.username,'DELETE','budget',id,row.username,new Date().toISOString()] }
+            {
+                sql: 'INSERT INTO vectraarchlegacy_transaction_history (username,action,table_name,record_id,modified_by,modified_at) VALUES ($1,$2,$3,$4,$5,$6)',
+                params: [row.username, 'DELETE', 'budget', id, row.username, new Date().toISOString()],
+            },
         ]);
         res.json({ success: true, message: 'Budget item deleted successfully!' });
     } catch (e) {
