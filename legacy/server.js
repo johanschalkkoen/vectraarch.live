@@ -539,11 +539,6 @@ app.delete('/api/financial/:id', async (req, res) => {
 });
 
 // ── BUDGET ────────────────────────────────────────────────────────────────────
-// IMPORTANT: expenses column is jsonb in PostgreSQL.
-// node-pg auto-parses jsonb on SELECT (no JSON.parse needed).
-// On INSERT/UPDATE pass the JS array directly — node-pg serialises it correctly.
-// Passing JSON.stringify(arr) to a jsonb column causes a type error.
-
 app.get('/api/budget', async (req, res) => {
     const { user } = req.query;
     if (!user) return res.status(400).json({ success: false, message: 'User required.' });
@@ -552,15 +547,11 @@ app.get('/api/budget', async (req, res) => {
             "SELECT id, username AS \"user\", income, expenses, TO_CHAR(date, 'YYYY-MM-DD') AS date, COALESCE(budget_type,'need') AS budget_type FROM vectraarchlegacy_budget WHERE username = $1 ORDER BY date DESC",
             [user]
         );
-        // expenses is jsonb — pg driver already returns a parsed JS array, no JSON.parse needed.
-        // Normalise to array defensively in case of legacy text rows.
         const data = rows.map(r => ({
             ...r,
-            expenses: Array.isArray(r.expenses)
-                ? r.expenses
+            expenses: Array.isArray(r.expenses) ? r.expenses
                 : (typeof r.expenses === 'string' ? JSON.parse(r.expenses || '[]') : []),
         }));
-        // Return { success, data } — frontend reads r.data.data || r.data
         res.json({ success: true, data });
     } catch (e) {
         console.error('[budget GET]', e.message);
@@ -571,28 +562,17 @@ app.get('/api/budget', async (req, res) => {
 app.post('/api/budget', async (req, res) => {
     const { user, income, expenses, date, budget_type } = req.body;
     if (!user || !date) return res.status(400).json({ success: false, message: 'User and date required.' });
-
-    // Normalise expenses to a JS array (frontend may send JSON string or array)
     let expArr = [];
-    try {
-        const raw = expenses || '[]';
-        expArr = typeof raw === 'string' ? JSON.parse(raw) : raw;
-        if (!Array.isArray(expArr)) expArr = [];
-    } catch { expArr = []; }
-
-    if (expArr.length === 0) {
-        return res.status(400).json({ success: false, message: 'At least one expense category required.' });
-    }
-
+    try { const raw = expenses || '[]'; expArr = typeof raw === 'string' ? JSON.parse(raw) : raw; if (!Array.isArray(expArr)) expArr = []; } catch { expArr = []; }
+    if (expArr.length === 0) return res.status(400).json({ success: false, message: 'At least one expense category required.' });
     const totalPlanned = expArr.reduce((s, e) => s + parseFloat(e.amount || 0), 0);
-    const incomeVal    = parseFloat(income) || totalPlanned;
-    const budType      = budget_type || expArr[0]?.type || 'need';
-    const dateVal      = String(date).slice(0, 10);
-
+    const incomeVal = parseFloat(income) || totalPlanned;
+    const budType = budget_type || expArr[0]?.type || 'need';
+    const dateVal = String(date).slice(0, 10);
     try {
-        // Pass expArr (JS array) directly — pg serialises it into jsonb correctly.
+        // Pass expArr (JS array) directly — pg serialises it into jsonb correctly
         const r = await dbRun(
-            'INSERT INTO vectraarchlegacy_budget (username, income, expenses, date, budget_type) VALUES ($1,$2,$3,$4,$5) RETURNING id',
+            'INSERT INTO vectraarchlegacy_budget (username,income,expenses,date,budget_type) VALUES ($1,$2,$3,$4,$5) RETURNING id',
             [user, incomeVal, expArr, dateVal, budType]
         );
         await logTransaction(user, 'CREATE', 'budget', r.rows[0].id, user);
@@ -607,37 +587,22 @@ app.put('/api/budget/:id', async (req, res) => {
     const { id } = req.params;
     const { user, income, expenses, date, budget_type } = req.body;
     if (!user || !date) return res.status(400).json({ success: false, message: 'User and date required.' });
-
     let expArr = [];
-    try {
-        const raw = expenses || '[]';
-        expArr = typeof raw === 'string' ? JSON.parse(raw) : raw;
-        if (!Array.isArray(expArr)) expArr = [];
-    } catch { expArr = []; }
-
-    const totalPlanned = expArr.reduce((s, e) => s + parseFloat(e.amount || 0), 0);
-    const incomeVal    = parseFloat(income) || totalPlanned;
-    const budType      = budget_type || expArr[0]?.type || 'need';
-    const dateVal      = String(date).slice(0, 10);
-
+    try { const raw = expenses||'[]'; expArr = typeof raw==='string'?JSON.parse(raw):raw; if(!Array.isArray(expArr)) expArr=[]; } catch { expArr=[]; }
+    const totalPlanned = expArr.reduce((s,e)=>s+parseFloat(e.amount||0),0);
+    const incomeVal = parseFloat(income)||totalPlanned;
+    const budType = budget_type || expArr[0]?.type || 'need';
+    const dateVal = String(date).slice(0, 10);
     try {
         const row = await dbQuery('SELECT id FROM vectraarchlegacy_budget WHERE id=$1 AND username=$2', [id, user]);
         if (!row) return res.status(404).json({ success: false, message: 'Budget not found.' });
-
-        // Pass expArr (JS array) directly into jsonb column
+        // Pass expArr directly — pg handles jsonb serialisation
         await dbTransaction([
-            {
-                sql: 'UPDATE vectraarchlegacy_budget SET income=$1, expenses=$2, date=$3, budget_type=$4 WHERE id=$5',
-                params: [incomeVal, expArr, dateVal, budType, id],
-            },
-            {
-                sql: 'INSERT INTO vectraarchlegacy_transaction_history (username,action,table_name,record_id,modified_by,modified_at) VALUES ($1,$2,$3,$4,$5,$6)',
-                params: [user, 'UPDATE', 'budget', id, user, new Date().toISOString()],
-            },
+            { sql: 'UPDATE vectraarchlegacy_budget SET income=$1,expenses=$2,date=$3,budget_type=$4 WHERE id=$5', params:[incomeVal,expArr,dateVal,budType,id] },
+            { sql: 'INSERT INTO vectraarchlegacy_transaction_history (username,action,table_name,record_id,modified_by,modified_at) VALUES ($1,$2,$3,$4,$5,$6)', params:[user,'UPDATE','budget',id,user,new Date().toISOString()] }
         ]);
         res.json({ success: true, message: 'Budget updated!' });
     } catch (e) {
-        console.error('[budget PUT]', e.message);
         res.status(500).json({ success: false, message: 'Database error: ' + e.message });
     }
 });
@@ -649,10 +614,7 @@ app.delete('/api/budget/:id', async (req, res) => {
         if (!row) return res.status(404).json({ success: false, message: 'Budget not found.' });
         await dbTransaction([
             { sql: 'DELETE FROM vectraarchlegacy_budget WHERE id=$1', params: [id] },
-            {
-                sql: 'INSERT INTO vectraarchlegacy_transaction_history (username,action,table_name,record_id,modified_by,modified_at) VALUES ($1,$2,$3,$4,$5,$6)',
-                params: [row.username, 'DELETE', 'budget', id, row.username, new Date().toISOString()],
-            },
+            { sql: 'INSERT INTO vectraarchlegacy_transaction_history (username,action,table_name,record_id,modified_by,modified_at) VALUES ($1,$2,$3,$4,$5,$6)', params: [row.username,'DELETE','budget',id,row.username,new Date().toISOString()] }
         ]);
         res.json({ success: true, message: 'Budget item deleted successfully!' });
     } catch (e) {
@@ -676,21 +638,34 @@ app.get('/api/calendar', async (req, res) => {
 });
 
 app.post('/api/calendar', async (req, res) => {
-    const { user, title, date, financial, type, amount, eventColor } = req.body;
+    const { user, title, date, financial, type, amount, eventColor, finType } = req.body;
     if (!user || !title || !date) return res.status(400).json({ success: false, message: 'User, title, and date required.' });
     try {
+        const isFinancial = !!(financial && amount && parseFloat(amount) > 0);
+        const calType = isFinancial ? (finType || type || 'income') : (type || null);
         const r = await dbRun(
             'INSERT INTO vectraarchlegacy_calendar (username,title,date,is_financial,type,amount,event_color) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id',
-            [user, title, date, financial?1:0, type||null, amount||null, eventColor||null]
+            [user, title, date, isFinancial ? 1 : 0, calType, amount || null, eventColor || null]
         );
-        await logTransaction(user, 'CREATE', 'calendar', r.rows[0].id, user);
+        const calId = r.rows[0].id;
+        // When marked financial, also write to vectraarchlegacy_financial so it appears on Finances tab
+        if (isFinancial) {
+            const fType = finType || type || 'income';
+            const fRes = await dbRun(
+                'INSERT INTO vectraarchlegacy_financial (username,category,amount,type,date) VALUES ($1,$2,$3,$4,$5) RETURNING id',
+                [user, title, parseFloat(amount), fType, date.slice(0, 10)]
+            );
+            await logTransaction(user, 'CREATE', 'financial', fRes.rows[0].id, user);
+        }
+        await logTransaction(user, 'CREATE', 'calendar', calId, user);
         const userData = await dbQuery('SELECT telegram_chat_id, email FROM vectraarchlegacy_users WHERE username = $1', [user]);
         const notifs = await dbAll('SELECT type, enabled FROM vectraarchlegacy_notifications WHERE username = $1', [user]);
-        const msg = `New event added: ${title} on ${date}`;
+        const msg = `New event: ${title} on ${date}${isFinancial ? ` (${finType||type||'income'}: R${amount})` : ''}`;
         if (notifs.some(n => n.type === 'telegram' && n.enabled) && userData?.telegram_chat_id) sendTelegramMessage(userData.telegram_chat_id, msg);
         if (notifs.some(n => n.type === 'email' && n.enabled) && userData?.email) await sendEmailNotification(userData.email, 'New Calendar Event', msg);
         res.json({ success: true, message: 'Calendar event added successfully!' });
     } catch (e) {
+        console.error('[calendar POST]', e);
         res.status(500).json({ success: false, message: 'Database error adding calendar event.', error: e.message });
     }
 });
@@ -698,12 +673,20 @@ app.post('/api/calendar', async (req, res) => {
 app.delete('/api/calendar/:id', async (req, res) => {
     const { id } = req.params;
     try {
-        const row = await dbQuery('SELECT id, username FROM vectraarchlegacy_calendar WHERE id=$1', [id]);
+        const row = await dbQuery('SELECT id, username, title, is_financial, amount, type, date FROM vectraarchlegacy_calendar WHERE id=$1', [id]);
         if (!row) return res.status(404).json({ success: false, message: 'Calendar event not found.' });
-        await dbTransaction([
+        const queries = [
             { sql: 'DELETE FROM vectraarchlegacy_calendar WHERE id=$1', params: [id] },
             { sql: 'INSERT INTO vectraarchlegacy_transaction_history (username,action,table_name,record_id,modified_by,modified_at) VALUES ($1,$2,$3,$4,$5,$6)', params: [row.username,'DELETE','calendar',id,row.username,new Date().toISOString()] }
-        ]);
+        ];
+        // If this was a financial event, also delete the matching financial record
+        if (row.is_financial && row.amount) {
+            queries.push({
+                sql: "DELETE FROM vectraarchlegacy_financial WHERE username=$1 AND category=$2 AND amount=$3 AND type=$4 AND TO_CHAR(date,'YYYY-MM-DD')=TO_CHAR($5::date,'YYYY-MM-DD')",
+                params: [row.username, row.title, row.amount, row.type, row.date]
+            });
+        }
+        await dbTransaction(queries);
         res.json({ success: true, message: 'Calendar event deleted successfully!' });
     } catch (e) {
         res.status(500).json({ success: false, message: 'Database error deleting calendar event.', error: e.message });
