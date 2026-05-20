@@ -512,17 +512,23 @@ app.get(BASE + '/', isAuth, async (req, res) => {
   const userRow  = await pool.query('SELECT twofa_secret FROM users WHERE id=$1', [req.session.conduitUser.id]);
   const has2FA   = !!userRow.rows[0]?.twofa_secret;
 
-  // All published books with author name and last announcement time
-  const books = await pool.query(`
-    SELECT b.id, b.title, u.name AS author_name,
-           (SELECT created FROM conduit_log
-            WHERE payload LIKE '%' || b.id || '%' AND event='announcement'
-            ORDER BY created DESC LIMIT 1) AS last_announced
+  // All published books with author name (from VectraArchForge)
+  const books = await forgePool.query(`
+    SELECT b.id, b.title, u.name AS author_name
     FROM books b
     JOIN users u ON b.owner_id = u.id
     WHERE b.published = true
     ORDER BY u.name ASC, b.title ASC
   `);
+
+  // Last announcement per book (from VectraArchConduit log)
+  const announcements = await pool.query(
+    `SELECT payload, MAX(created) AS last_announced FROM conduit_log
+     WHERE event='announcement' GROUP BY payload`
+  );
+  const announcedMap = {};
+  announcements.rows.forEach(r => { announcedMap[r.payload] = r.last_announced; });
+  books.rows.forEach(b => { b.last_announced = announcedMap[b.id] || null; });
 
   // Last 20 log events
   const logs = await pool.query(
@@ -705,7 +711,7 @@ app.get(BASE + '/users', isAuth, async (req, res) => {
   const flash = req.session.flash; delete req.session.flash;
 
   // ── Forge users ──
-  const result = await pool.query(`
+  const result = await forgePool.query(`
     SELECT id, name, type, role, status, logins, last_login,
            (twofa_secret IS NOT NULL) AS twofa_enabled,
            CASE WHEN type='Manual' THEN COALESCE(email,'[No email set]') ELSE email END AS display_email
@@ -981,7 +987,7 @@ app.post(BASE + '/users/add', isAuth, async (req, res) => {
     return res.redirect(BASE + '/users');
   }
   const newId = 'm_' + Date.now();
-  await pool.query(
+  await forgePool.query(
     'INSERT INTO users (id,name,email,password,type,role,status,logins) VALUES ($1,$2,$3,$4,$5,$6,$7,0)',
     [newId, name, email||null, password, 'Manual', role==='admin'?'admin':'user', 'enabled']
   );
@@ -995,13 +1001,13 @@ app.post(BASE + '/users/edit/:id', isAuth, async (req, res) => {
   const uid = req.params.id;
   const { name, role, email, password } = req.body;
   if (!name) { req.session.flash={type:'err',msg:'Name required'}; return res.redirect(BASE+'/users'); }
-  await pool.query('UPDATE users SET name=$1,role=$2 WHERE id=$3',
+  await forgePool.query('UPDATE users SET name=$1,role=$2 WHERE id=$3',
     [name, role==='admin'?'admin':'user', uid]);
   if (email !== undefined) {
-    await pool.query("UPDATE users SET email=$1 WHERE id=$2 AND type='Manual'", [email||null, uid]);
+    await forgePool.query("UPDATE users SET email=$1 WHERE id=$2 AND type='Manual'", [email||null, uid]);
   }
   if (password && password.trim()) {
-    await pool.query("UPDATE users SET password=$1 WHERE id=$2 AND type='Manual'", [password.trim(), uid]);
+    await forgePool.query("UPDATE users SET password=$1 WHERE id=$2 AND type='Manual'", [password.trim(), uid]);
   }
   await pool.query('INSERT INTO conduit_log (event,payload,status) VALUES ($1,$2,$3)',
     ['user_edit', `id:${uid} name:${name}`, 'ok']);
@@ -1012,7 +1018,7 @@ app.post(BASE + '/users/edit/:id', isAuth, async (req, res) => {
 app.post(BASE + '/users/toggle/:id', isAuth, async (req, res) => {
   const uid    = req.params.id;
   const status = req.body.status === 'disabled' ? 'disabled' : 'enabled';
-  await pool.query('UPDATE users SET status=$1 WHERE id=$2', [status, uid]);
+  await forgePool.query('UPDATE users SET status=$1 WHERE id=$2', [status, uid]);
   await pool.query('INSERT INTO conduit_log (event,payload,status) VALUES ($1,$2,$3)',
     ['user_toggle', `id:${uid} status:${status}`, 'ok']);
   req.session.flash = { type:'ok', msg:`✓ User ${status}` };
@@ -1020,7 +1026,7 @@ app.post(BASE + '/users/toggle/:id', isAuth, async (req, res) => {
 });
 
 app.post(BASE + '/users/reset-2fa/:id', isAuth, async (req, res) => {
-  await pool.query('UPDATE users SET twofa_secret=NULL WHERE id=$1', [req.params.id]);
+  await forgePool.query('UPDATE users SET twofa_secret=NULL WHERE id=$1', [req.params.id]);
   await pool.query('INSERT INTO conduit_log (event,payload,status) VALUES ($1,$2,$3)',
     ['user_reset_2fa', `id:${req.params.id}`, 'ok']);
   req.session.flash = { type:'ok', msg:'✓ 2FA reset' };
@@ -1033,9 +1039,9 @@ app.post(BASE + '/users/delete/:id', isAuth, async (req, res) => {
     req.session.flash = { type:'err', msg:'Cannot delete your own account' };
     return res.redirect(BASE + '/users');
   }
-  const u = await pool.query('SELECT name FROM users WHERE id=$1', [uid]);
+  const u = await forgePool.query('SELECT name FROM users WHERE id=$1', [uid]);
   const name = u.rows[0]?.name || uid;
-  await pool.query('DELETE FROM users WHERE id=$1', [uid]);
+  await forgePool.query('DELETE FROM users WHERE id=$1', [uid]);
   await pool.query('INSERT INTO conduit_log (event,payload,status) VALUES ($1,$2,$3)',
     ['user_delete', `id:${uid} name:${name}`, 'ok']);
   req.session.flash = { type:'ok', msg:`✓ User "${name}" deleted from bookforge` };
