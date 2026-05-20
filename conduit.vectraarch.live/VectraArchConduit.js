@@ -22,7 +22,7 @@ const qrcode   = require('qrcode');
 const app  = express();
 const PORT = 3100;
 const HOST = '127.0.0.1';
-const BASE = '/conduit';
+const BASE = '';
 
 const TELEGRAM_TOKEN   = process.env.TELEGRAM_TOKEN   || '8767176406:AAEMhPAuQw5dFPEMcLEru1ZkqFT5ijk8YCk';
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || '8783471876';
