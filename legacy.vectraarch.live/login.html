@@ -58,7 +58,7 @@
 
     <button class="auth-submit" id="submit-btn" onclick="doLogin()">Authenticate ↗</button>
 
-    <a href="https://vectraarch.live/foundation/" class="auth-back">← Back to Foundation</a>
+    <a href="https://forge.vectraarch.live/" class="auth-back">← Back to Forge</a>
   </div>
 </div>
 
@@ -70,7 +70,7 @@
       if (!raw) return;
       var user = JSON.parse(raw);
       if (user && user.username && user.success !== false) {
-        window.location.replace('/legacy/app.html');
+        window.location.replace('/app.html');
       }
     } catch (e) { localStorage.removeItem('user'); }
   })();
@@ -96,7 +96,7 @@
       btn.textContent = 'Verifying...';
       btn.disabled    = true;
       try {
-        var r2 = await fetch('/legacy/api/verify-2fa', {
+        var r2 = await fetch('/api/verify-2fa', {
           method:  'POST',
           headers: { 'Content-Type': 'application/json' },
           body:    JSON.stringify({ username: pendingUsername, token: twofa })
@@ -105,7 +105,7 @@
         if (r2.ok && d2.success) {
           // Store exactly as the existing app does
           localStorage.setItem('user', JSON.stringify(d2));
-          window.location.replace('/legacy/app.html');
+          window.location.replace('/app.html');
         } else {
           errEl.textContent   = '⚠ ' + (d2.message || 'Invalid code.');
           errEl.style.display = 'block';
@@ -132,7 +132,7 @@
     btn.disabled    = true;
 
     try {
-      var res  = await fetch('/legacy/api/login', {
+      var res  = await fetch('/api/login', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ username, password })
@@ -159,7 +159,7 @@
 
       // Success — store exactly as the existing app does
       localStorage.setItem('user', JSON.stringify(data));
-      window.location.replace('/legacy/app.html');
+      window.location.replace('/app.html');
 
     } catch (e) {
       errEl.textContent   = '⚠ Connection error — try again.';

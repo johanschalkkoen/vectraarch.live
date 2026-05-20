@@ -7,7 +7,7 @@
 // object, which contains at minimum { username, success: true }.
 // No separate token — username presence is the auth signal.
 (function () {
-  var LOGIN = '/legacy/login.html';
+  var LOGIN = '/login.html';
   if (window.location.pathname.endsWith('login.html')) return;
   try {
     var raw = localStorage.getItem('user');
