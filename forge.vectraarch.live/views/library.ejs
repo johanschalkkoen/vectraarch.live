@@ -42,6 +42,24 @@
             </form>
         </div>
 
+        <!-- ── IDENTITY BRIDGE BAR ── -->
+        <div style="flex:0 0 auto;padding:10px 32px;border-bottom:1px solid var(--border);background:var(--bg);display:flex;align-items:center;gap:16px;">
+          <span class="section-label" style="white-space:nowrap;">§ Identity Bridge</span>
+          <div id="id-status" style="flex:1;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.1em;color:var(--text-dim);">
+            <% if (identityLink) { %>
+              <span style="color:var(--accent);">↔ Legacy: <strong><%= identityLink.legacy_username %></strong></span>
+              <span style="color:var(--text-dim);margin-left:12px;">linked <%= new Date(identityLink.linked_at).toLocaleDateString() %></span>
+            <% } else { %>
+              <span style="color:var(--text-dim);">Not linked to a Legacy account</span>
+            <% } %>
+          </div>
+          <% if (identityLink) { %>
+            <button onclick="unlinkLegacy()" class="nav-item-btn" style="color:var(--red);border-color:var(--red);min-width:80px;" onmouseover="this.style.background='rgba(184,64,64,0.08)'" onmouseout="this.style.background='transparent'">Unlink</button>
+          <% } else { %>
+            <button onclick="document.getElementById('id-modal').style.display='flex'" class="nav-item-btn" style="min-width:120px;" onmouseover="this.style.background='rgba(0,255,65,0.08)'" onmouseout="this.style.background='transparent'">Link Legacy ↗</button>
+          <% } %>
+        </div>
+
         <!-- ── BOOK GRID ── -->
         <div style="flex:1;overflow-y:auto;padding:32px;position:relative;z-index:1;">
 
@@ -268,6 +286,62 @@
         }
         .export-btn:hover { border-color: var(--accent2); color: var(--accent2); background: rgba(0,179,44,0.05); }
     </style>
+
+<!-- ── IDENTITY MODAL ── -->
+<div id="id-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.85);backdrop-filter:blur(6px);align-items:center;justify-content:center;" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--bg2);border:1px solid var(--border2);padding:48px;max-width:440px;width:90%;position:relative;">
+    <div style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.25em;text-transform:uppercase;color:var(--accent);margin-bottom:8px;">§ Identity Bridge · Link</div>
+    <div style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:26px;letter-spacing:0.06em;text-transform:uppercase;color:var(--text);margin-bottom:8px;">Link Legacy Account</div>
+    <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text-dim);margin-bottom:32px;">Enter your Legacy credentials to connect both identities.</div>
+    <div id="id-msg" style="display:none;padding:12px 16px;margin-bottom:20px;font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.08em;"></div>
+    <div style="display:flex;flex-direction:column;gap:16px;margin-bottom:28px;">
+      <div>
+        <div style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:var(--text-dim);margin-bottom:6px;">Legacy Username</div>
+        <input id="id-user" type="text" placeholder="username" autocomplete="off" style="width:100%;background:transparent;border:none;border-bottom:1px solid var(--border2);padding:10px 0;font-family:'DM Mono',monospace;font-size:12px;color:var(--text);outline:none;"/>
+      </div>
+      <div>
+        <div style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:var(--text-dim);margin-bottom:6px;">Legacy Password</div>
+        <input id="id-pass" type="password" placeholder="········" autocomplete="current-password" style="width:100%;background:transparent;border:none;border-bottom:1px solid var(--border2);padding:10px 0;font-family:'DM Mono',monospace;font-size:12px;color:var(--text);outline:none;"/>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button id="id-btn" onclick="linkLegacy()" class="btn-primary" style="flex:1;height:42px;">Link ↗</button>
+      <button onclick="document.getElementById('id-modal').style.display='none'" class="btn-secondary" style="height:42px;padding:0 20px;">Cancel</button>
+    </div>
+  </div>
+</div>
+<script>
+async function linkLegacy() {
+  const user = document.getElementById('id-user').value.trim();
+  const pass = document.getElementById('id-pass').value;
+  const msg  = document.getElementById('id-msg');
+  const btn  = document.getElementById('id-btn');
+  if (!user || !pass) { showIdMsg('⚠ Both fields required.', 'var(--red)'); return; }
+  btn.textContent = 'Linking...'; btn.disabled = true;
+  try {
+    const r = await fetch('/identity/link-legacy', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ legacy_username: user, legacy_password: pass })
+    });
+    const d = await r.json();
+    if (d.ok) { showIdMsg('✓ Linked — reloading…', 'var(--accent)'); setTimeout(() => location.reload(), 1200); }
+    else { showIdMsg('⚠ ' + (d.error || d.message || 'Failed.'), 'var(--red)'); btn.textContent = 'Link ↗'; btn.disabled = false; }
+  } catch { showIdMsg('⚠ Connection error.', 'var(--red)'); btn.textContent = 'Link ↗'; btn.disabled = false; }
+}
+async function unlinkLegacy() {
+  if (!confirm('Unlink your Legacy account?')) return;
+  const r = await fetch('/identity/unlink-legacy', { method: 'DELETE' });
+  const d = await r.json();
+  if (d.ok) location.reload();
+  else alert('Error: ' + (d.error || d.message));
+}
+function showIdMsg(text, color) {
+  const m = document.getElementById('id-msg');
+  m.textContent = text; m.style.color = color;
+  m.style.background = color === 'var(--accent)' ? 'rgba(0,255,65,0.06)' : 'rgba(184,64,64,0.10)';
+  m.style.border = '1px solid ' + color; m.style.display = 'block';
+}
+</script>
 
 <!-- ── CONTACT OVERLAY ── -->
 <div id="forge-contact-overlay" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.85);backdrop-filter:blur(6px);align-items:center;justify-content:center;" onclick="if(event.target===this)this.classList.remove('open')">

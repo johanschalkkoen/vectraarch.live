@@ -340,9 +340,10 @@ function layout(title, activeTab, body) {
 <nav>
   <a href="${BASE}/" class="nav-logo">Vectra<span>&nbsp;</span>Arch · Conduit</a>
   <div class="nav-tabs">
-    <a href="${BASE}/"      class="nav-tab ${activeTab==='dashboard'?'active':''}">Dashboard</a>
-    <a href="${BASE}/sites" class="nav-tab ${activeTab==='sites'?'active':''}">Observatory</a>
-    <a href="${BASE}/users" class="nav-tab ${activeTab==='users'?'active':''}">Users</a>
+    <a href="${BASE}/"          class="nav-tab ${activeTab==='dashboard'?'active':''}">Dashboard</a>
+    <a href="${BASE}/sites"     class="nav-tab ${activeTab==='sites'?'active':''}">Observatory</a>
+    <a href="${BASE}/users"     class="nav-tab ${activeTab==='users'?'active':''}">Users</a>
+    <a href="${BASE}/identity"  class="nav-tab ${activeTab==='identity'?'active':''}">Identity</a>
   </div>
   <div class="nav-right">
     <div class="nav-status">HUB · LIVE</div>
@@ -1187,6 +1188,157 @@ app.post(BASE + '/users/legacy/revoke-access', isAuth, async (req, res) => {
     req.session.flash = { type:'err', msg:`Error: ${e.message}` };
   }
   res.redirect(BASE + '/users');
+});
+
+// ── IDENTITY ─────────────────────────────────────────────────────────────────
+app.get(BASE + '/identity', isAuth, async (req, res) => {
+  const flash = req.session.flash; delete req.session.flash;
+
+  let links = [], total = 0;
+  try {
+    const countRes = await apiPool.query('SELECT COUNT(*) AS n FROM identity_links');
+    total = parseInt(countRes.rows[0].n);
+    const r = await apiPool.query('SELECT * FROM identity_links ORDER BY linked_at DESC');
+    links = r.rows;
+    for (const link of links) {
+      try { const fr = await forgePool.query('SELECT name FROM users WHERE id=$1', [link.forge_user_id]); link.forge_name = fr.rows[0]?.name || null; } catch { link.forge_name = null; }
+      try { const lr = await legacyPool.query('SELECT display_name FROM vectraarchlegacy_users WHERE username=$1', [link.legacy_username]); link.legacy_display_name = lr.rows[0]?.display_name || null; } catch { link.legacy_display_name = null; }
+    }
+  } catch(e) { console.error('[conduit] identity list error:', e.message); }
+
+  let forgeUsers = [], legacyUsers = [], auditRows = [];
+  try { const r = await forgePool.query('SELECT id, name, type FROM users ORDER BY name ASC'); forgeUsers = r.rows; } catch {}
+  try { const r = await legacyPool.query('SELECT username, display_name FROM vectraarchlegacy_users ORDER BY username ASC'); legacyUsers = r.rows; } catch {}
+  try { const r = await apiPool.query('SELECT * FROM identity_audit ORDER BY performed_at DESC LIMIT 20'); auditRows = r.rows; } catch {}
+
+  const linkRows = links.map(l => `
+    <tr>
+      <td><div style="color:var(--text);font-size:12px;">${esc(l.legacy_username)}</div>
+        ${l.legacy_display_name ? `<div style="color:var(--dim);font-size:10px;">${esc(l.legacy_display_name)}</div>` : ''}</td>
+      <td style="color:var(--dim);font-size:16px;text-align:center;">↔</td>
+      <td><div style="color:var(--text);font-size:12px;">${esc(l.forge_name||l.forge_user_id)}</div>
+        <div style="color:var(--dim);font-size:9px;letter-spacing:0.08em;">${esc(l.forge_user_id)}</div></td>
+      <td style="font-size:10px;color:var(--dim)">${new Date(l.linked_at).toLocaleString('en-ZA')}</td>
+      <td style="font-size:10px;color:var(--dim)">${esc(l.linked_by||'—')}</td>
+      <td><form method="POST" action="${BASE}/identity/unlink/${encodeURIComponent(l.id)}" style="display:inline;">
+        <button class="btn danger" style="padding:4px 10px;font-size:9px;" type="submit"
+          onclick="return confirm('Unlink ${esc(l.legacy_username)} ↔ ${esc(l.forge_name||l.forge_user_id)}?')">Unlink</button>
+      </form></td>
+    </tr>`).join('');
+
+  const auditTableRows = auditRows.map(a => `
+    <tr>
+      <td style="font-size:10px;">${new Date(a.performed_at).toLocaleString('en-ZA')}</td>
+      <td><span class="badge ${a.action==='LINK'?'ok':'err'}">${esc(a.action)}</span></td>
+      <td style="font-size:11px;color:var(--text)">${esc(a.legacy_username||'—')}</td>
+      <td style="font-size:11px;color:var(--text)">${esc(a.forge_user_id||'—')}</td>
+      <td style="font-size:10px;color:var(--dim)">${esc(a.performed_by||'—')}</td>
+    </tr>`).join('');
+
+  const legacyOpts = legacyUsers.map(u => `<option value="${esc(u.username)}">${esc(u.display_name||u.username)} (${esc(u.username)})</option>`).join('');
+  const forgeOpts  = forgeUsers.map(u  => `<option value="${esc(u.id)}">${esc(u.name)} [${esc(u.type)}]</option>`).join('');
+
+  const body = `
+    <div class="page-title">Identity</div>
+    <div class="page-sub">§ Identity Bridge · Legacy ↔ Forge · ${total} Links</div>
+    ${flash?`<div class="alert ${flash.type}">${esc(flash.msg)}</div>`:''}
+
+    <div class="stat-row">
+      <div class="stat-cell"><div class="stat-num">${total}</div><div class="stat-label">Linked Identities</div></div>
+      <div class="stat-cell"><div class="stat-num">${legacyUsers.length}</div><div class="stat-label">Legacy Users</div></div>
+      <div class="stat-cell"><div class="stat-num">${forgeUsers.length}</div><div class="stat-label">Forge Users</div></div>
+      <div class="stat-cell"><div class="stat-num">${legacyUsers.length - total}</div><div class="stat-label">Unlinked Legacy</div></div>
+    </div>
+
+    <div class="section">
+      <div class="section-hdr"><span class="sh-num">01</span><span class="sh-title">Create Identity Link · Legacy ↔ Forge</span><div class="sh-line"></div></div>
+      <div class="form-wrap" style="padding:24px 32px;">
+        <form method="POST" action="${BASE}/identity/link">
+          <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:16px;align-items:end;">
+            <div class="form-group" style="margin:0;"><label class="form-label">Legacy Username <span class="req">*</span></label>
+              <select class="form-select" name="legacy_username" required>
+                <option value="">— Select Legacy user —</option>${legacyOpts}
+              </select></div>
+            <div class="form-group" style="margin:0;"><label class="form-label">Forge User <span class="req">*</span></label>
+              <select class="form-select" name="forge_user_id" required>
+                <option value="">— Select Forge user —</option>${forgeOpts}
+              </select></div>
+            <button class="btn primary" type="submit" style="padding:10px 20px;">Link ↗</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-hdr"><span class="sh-num">02</span><span class="sh-title">Identity Links · ${total} Total</span><div class="sh-line"></div></div>
+      ${links.length === 0
+        ? '<div style="padding:32px;background:var(--bg2);color:var(--dim);text-align:center;letter-spacing:0.1em;">No identity links configured</div>'
+        : `<table><thead><tr><th>Legacy User</th><th></th><th>Forge User</th><th>Linked At</th><th>Linked By</th><th>Action</th></tr></thead><tbody>${linkRows}</tbody></table>`}
+    </div>
+
+    <div class="section">
+      <div class="section-hdr"><span class="sh-num">03</span><span class="sh-title">Audit Log · Last 20</span><div class="sh-line"></div></div>
+      ${auditRows.length === 0
+        ? '<div style="padding:24px;background:var(--bg2);color:var(--dim);text-align:center;letter-spacing:0.1em;font-size:10px;">No audit events</div>'
+        : `<table><thead><tr><th>Time</th><th>Action</th><th>Legacy</th><th>Forge ID</th><th>Performed By</th></tr></thead><tbody>${auditTableRows}</tbody></table>`}
+    </div>`;
+
+  res.send(layout('Identity', 'identity', body));
+});
+
+app.post(BASE + '/identity/link', isAuth, async (req, res) => {
+  const { legacy_username, forge_user_id } = req.body;
+  if (!legacy_username || !forge_user_id) {
+    req.session.flash = { type:'err', msg:'Both Legacy username and Forge user are required.' };
+    return res.redirect(BASE + '/identity');
+  }
+  try {
+    const legacyRow = await legacyPool.query('SELECT username FROM vectraarchlegacy_users WHERE username=$1', [legacy_username]);
+    if (!legacyRow.rows[0]) {
+      req.session.flash = { type:'err', msg:`Legacy user '${legacy_username}' not found.` };
+      return res.redirect(BASE + '/identity');
+    }
+    const forgeRow = await forgePool.query('SELECT id, name FROM users WHERE id=$1', [forge_user_id]);
+    if (!forgeRow.rows[0]) {
+      req.session.flash = { type:'err', msg:`Forge user '${forge_user_id}' not found.` };
+      return res.redirect(BASE + '/identity');
+    }
+    await apiPool.query(`
+      INSERT INTO identity_links (legacy_username, forge_user_id, linked_by)
+      VALUES ($1, $2, $3)
+      ON CONFLICT (legacy_username) DO UPDATE
+        SET forge_user_id=$2, linked_at=NOW(), linked_by=$3
+    `, [legacy_username, forge_user_id, req.session.conduitUser.name]);
+    await apiPool.query(
+      'INSERT INTO identity_audit (action,legacy_username,forge_user_id,performed_by,detail) VALUES ($1,$2,$3,$4,$5)',
+      ['LINK', legacy_username, forge_user_id, req.session.conduitUser.name, `via Conduit: Forge name: ${forgeRow.rows[0].name}`]
+    );
+    req.session.flash = { type:'ok', msg:`✓ Linked: ${legacy_username} ↔ ${forgeRow.rows[0].name}` };
+  } catch(e) {
+    req.session.flash = { type:'err', msg:`Error: ${e.message}` };
+  }
+  res.redirect(BASE + '/identity');
+});
+
+app.post(BASE + '/identity/unlink/:id', isAuth, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const row = await apiPool.query('SELECT * FROM identity_links WHERE id=$1', [id]);
+    if (!row.rows[0]) {
+      req.session.flash = { type:'err', msg:'Link not found.' };
+      return res.redirect(BASE + '/identity');
+    }
+    const link = row.rows[0];
+    await apiPool.query('DELETE FROM identity_links WHERE id=$1', [id]);
+    await apiPool.query(
+      'INSERT INTO identity_audit (action,legacy_username,forge_user_id,performed_by) VALUES ($1,$2,$3,$4)',
+      ['UNLINK', link.legacy_username, link.forge_user_id, req.session.conduitUser.name]
+    );
+    req.session.flash = { type:'ok', msg:`✓ Unlinked: ${link.legacy_username} ↔ ${link.forge_user_id}` };
+  } catch(e) {
+    req.session.flash = { type:'err', msg:`Error: ${e.message}` };
+  }
+  res.redirect(BASE + '/identity');
 });
 
 // ── START ─────────────────────────────────────────────────────────────────────

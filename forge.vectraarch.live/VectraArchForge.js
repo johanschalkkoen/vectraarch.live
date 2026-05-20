@@ -95,6 +95,32 @@ app.get('/login', (req, res) => {
     res.render('login');
 });
 
+// ── INTERNAL HTTP HELPER ──────────────────────────────────────────────────
+function internalReq(port, method, path, body, extraHeaders = {}) {
+    return new Promise(resolve => {
+        const bodyStr = body ? JSON.stringify(body) : null;
+        const req = require('http').request({
+            hostname: '127.0.0.1', port, path, method,
+            headers: {
+                'Content-Type': 'application/json',
+                ...(bodyStr ? { 'Content-Length': Buffer.byteLength(bodyStr) } : {}),
+                ...extraHeaders
+            }
+        }, res => {
+            let d = '';
+            res.on('data', c => d += c);
+            res.on('end', () => {
+                try { resolve({ status: res.statusCode, body: JSON.parse(d) }); }
+                catch  { resolve({ status: res.statusCode, body: {} }); }
+            });
+        });
+        req.on('error', () => resolve({ status: 503, body: {} }));
+        if (bodyStr) req.write(bodyStr);
+        req.end();
+    });
+}
+const IDENTITY_HEADERS = () => ({ 'X-API-Key': process.env.IDENTITY_API_KEY });
+
 // ── MAIN ROUTE ────────────────────────────────────────────────────────────
 app.get('/', isAuth, async (req, res) => {
     try {
@@ -122,9 +148,16 @@ app.get('/', isAuth, async (req, res) => {
                                 FROM users ORDER BY last_login DESC NULLS LAST`)
             : { rows: [] };
 
+        let identityLink = null;
+        try {
+            const ir = await internalReq(3200, 'GET', `/api/identity/resolve?forge_user_id=${encodeURIComponent(uid)}`, null, IDENTITY_HEADERS());
+            if (ir.status === 200 && ir.body.linked) identityLink = ir.body.link;
+        } catch {}
+
         res.render('library', {
             books: books.rows, users: users.rows,
-            isAdmin: root, is2FAEnabled, userName, userId: uid
+            isAdmin: root, is2FAEnabled, userName, userId: uid,
+            identityLink
         });
     } catch (e) { console.error(e); res.status(500).send('System Error'); }
 });
@@ -794,5 +827,50 @@ app.post('/book/:id/delete/:category/:entryId', isAuth, async (req, res) => {
     await pool.query('DELETE FROM entries WHERE id=$1 AND book_id=$2', [req.params.entryId, req.params.id]);
     res.redirect(BASE + '/book/' + req.params.id);
 });
+
+app.post('/api/forge', (req, res) => {
+    const body = JSON.stringify(req.body);
+    const proxyReq = require('http').request(
+        { hostname: '127.0.0.1', port: 3099, path: '/forge', method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) } },
+        proxyRes => {
+            let data = '';
+            proxyRes.on('data', c => data += c);
+            proxyRes.on('end', () => {
+                try { res.status(proxyRes.statusCode).json(JSON.parse(data)); }
+                catch { res.status(502).json({ ok: false, error: 'Bad gateway' }); }
+            });
+        }
+    );
+    proxyReq.on('error', () => res.status(502).json({ ok: false, error: 'Contact service unavailable' }));
+    proxyReq.write(body);
+    proxyReq.end();
+});
+
+// ── IDENTITY BRIDGE ───────────────────────────────────────────────────────
+app.post('/identity/link-legacy', isAuth, async (req, res) => {
+    const { legacy_username, legacy_password } = req.body;
+    const uid  = getCurrentID(req);
+    const name = (await pool.query('SELECT name FROM users WHERE id=$1', [uid])).rows[0]?.name || uid;
+    if (!legacy_username || !legacy_password)
+        return res.json({ ok: false, error: 'Username and password required.' });
+    const lr = await internalReq(3300, 'POST', '/api/login', { username: legacy_username, password: legacy_password });
+    if (!lr.body?.success)
+        return res.json({ ok: false, error: 'Invalid Legacy credentials.' });
+    if (lr.body?.requires2FA)
+        return res.json({ ok: false, error: 'Legacy account has 2FA — ask an admin to link via Conduit.' });
+    const ir = await internalReq(3200, 'POST', '/api/identity/link',
+        { legacy_username, forge_user_id: uid, linked_by: name }, IDENTITY_HEADERS());
+    res.json({ ok: ir.status < 300, ...ir.body });
+});
+
+app.delete('/identity/unlink-legacy', isAuth, async (req, res) => {
+    const uid  = getCurrentID(req);
+    const name = (await pool.query('SELECT name FROM users WHERE id=$1', [uid])).rows[0]?.name || uid;
+    const ir = await internalReq(3200, 'DELETE', '/api/identity/link',
+        { forge_user_id: uid, unlinked_by: name }, IDENTITY_HEADERS());
+    res.json({ ok: ir.status < 300, ...ir.body });
+});
+
 
 app.listen(PORT, HOST, () => console.log('Book Forge Hub Online'));

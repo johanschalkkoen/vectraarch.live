@@ -3481,6 +3481,7 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
   const toggleBmiWarning = () => setShowBmiWarning(p=>{ const n=!p; try{localStorage.setItem('legacyBmiWarning',String(n));}catch{} return n; });
   const [picFile, setPicFile]               = useState(null);
   const [partnerLinked, setPartnerLinked]   = useState(false);
+  const [forgeLink, setForgeLink]           = useState(null);
   const [alert, setAlert]                   = useState({msg:'',type:''});
   const fileInputRef = useRef();
 
@@ -3525,6 +3526,13 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
         }
       }).catch(()=>{});
   },[partner?.username]);
+
+  // Fetch Forge identity link status
+  useEffect(()=>{
+    axios.get(`${API}/identity/resolve`,{params:{legacy_username:user.username}})
+      .then(r=>{ setForgeLink(r.data.linked ? r.data.link : null); })
+      .catch(()=>setForgeLink(null));
+  },[user.username]);
 
   // Profile picture file selection
   const handlePicChange = (e) => {
@@ -3600,6 +3608,19 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
               {form.gender&&<span className={`profile-user-badge ${form.gender.toLowerCase()}`} style={{marginTop:6,display:'inline-block'}}>{form.gender.toUpperCase()}</span>}
             </div>
             {picFile&&<div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--green)',letterSpacing:'0.1em'}}>NEW PHOTO — SAVE TO APPLY</div>}
+          </div>
+
+          {/* ── Forge Identity Link ── */}
+          <div style={{background:'var(--bg2)',border:`1px solid ${forgeLink?'rgba(0,230,118,0.25)':'var(--border2)'}`,borderRadius:6,padding:'14px 16px',marginBottom:12}}>
+            <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.18em',textTransform:'uppercase',color:forgeLink?'var(--green)':'var(--text3)',marginBottom:6}}>§ FORGE IDENTITY LINK</div>
+            {forgeLink
+              ? <div style={{fontFamily:"'DM Mono',monospace",fontSize:11,color:'var(--text2)',lineHeight:1.6}}>
+                  <span style={{color:'var(--green)'}}>✓ Linked</span> · Forge account: <strong style={{color:'var(--text)'}}>{forgeLink.forge_name||forgeLink.forge_user_id}</strong>
+                </div>
+              : <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',lineHeight:1.6}}>
+                  Not linked to a Forge account. Link via <strong style={{color:'var(--text2)'}}>forge.vectraarch.live</strong> → Library → Link Legacy
+                </div>
+            }
           </div>
 
           {/* ── Account Details ── */}
