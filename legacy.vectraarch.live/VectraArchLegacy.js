@@ -26,6 +26,12 @@ const HOST = '127.0.0.1';
 
 app.use(cors());
 app.use(express.json());
+app.use((req, res, next) => {
+    if (req.url === '/legacy' || req.url.startsWith('/legacy/')) {
+        req.url = req.url.slice('/legacy'.length) || '/';
+    }
+    next();
+});
 app.use('/images', express.static(path.join(__dirname, 'images')));
 app.get('/',           (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 app.get('/login.html', (req, res) => res.sendFile(path.join(__dirname, 'login.html')));
