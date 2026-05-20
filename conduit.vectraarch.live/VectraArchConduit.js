@@ -32,22 +32,20 @@ const FOUNDATION_URL   = BASE + '/login';
 const WWW_ROOT         = '/var/www/vectraarch.live';
 
 // ── DATABASE ──────────────────────────────────────────────────────────────────
-// Connects to bookforge — same DB as VectraArchForge (shared users/books tables)
-const pool = new Pool({
-  user:     process.env.DB_USER,
-  host:     process.env.DB_HOST     || 'localhost',
-  database: process.env.DB_NAME,
-  password: process.env.DB_PASSWORD,
-  port:     parseInt(process.env.DB_PORT || '5432'),
-});
+const H = process.env.DB_HOST || 'localhost';
+const P = parseInt(process.env.DB_PORT || '5432');
 
-// Read-only connection to VectraArchLegacy — same credentials, different DB
-const legacyPool = new Pool({
-  user:     process.env.DB_USER,
-  host:     process.env.DB_HOST     || 'localhost',
-  database: 'VectraArchLegacy',
-  password: process.env.DB_PASSWORD,
-  port:     parseInt(process.env.DB_PORT || '5432'),
+const pool = new Pool({       // VectraArchConduit — own DB (admin users, conduit_log)
+  user: process.env.DB_USER, host: H, database: process.env.DB_NAME, password: process.env.DB_PASSWORD, port: P,
+});
+const forgePool = new Pool({  // VectraArchForge — forge users, books
+  user: process.env.FORGE_DB_USER, host: H, database: process.env.FORGE_DB_NAME, password: process.env.FORGE_DB_PASSWORD, port: P,
+});
+const apiPool = new Pool({    // VectraArchAPI — API keys, tokens
+  user: process.env.API_DB_USER, host: H, database: process.env.API_DB_NAME, password: process.env.API_DB_PASSWORD, port: P,
+});
+const legacyPool = new Pool({ // VectraArchLegacy — legacy users, keys
+  user: process.env.LEGACY_DB_USER, host: H, database: process.env.LEGACY_DB_NAME, password: process.env.LEGACY_DB_PASSWORD, port: P,
 });
 
 // ── MIDDLEWARE ────────────────────────────────────────────────────────────────
@@ -70,6 +68,16 @@ function isAuth(req, res, next) {
 
 // ── DB SETUP ──────────────────────────────────────────────────────────────────
 async function setupDB() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS users (
+      id       TEXT PRIMARY KEY,
+      name     TEXT NOT NULL UNIQUE,
+      password TEXT NOT NULL,
+      role     TEXT NOT NULL DEFAULT 'admin',
+      twofa_secret TEXT,
+      created  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
   await pool.query(`
     CREATE TABLE IF NOT EXISTS conduit_log (
       id      SERIAL PRIMARY KEY,
