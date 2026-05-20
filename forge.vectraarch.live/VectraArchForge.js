@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 const express = require('express'),
       path = require('path'),
       passport = require('passport'),
@@ -88,8 +88,13 @@ const isAuth = (req, res, n) => {
         if (req.session.needs2FA) return res.redirect(BASE + '/auth/2fa');
         return n();
     }
-    res.redirect('https://vectraarch.live/foundation/');
+    res.redirect(BASE + '/login');
 };
+
+app.get('/login', (req, res) => {
+    if (req.isAuthenticated() || req.session.manualLogin) return res.redirect(BASE + '/');
+    res.render('login');
+});
 
 // ── MAIN ROUTE ────────────────────────────────────────────────────────────
 app.get('/', isAuth, async (req, res) => {
