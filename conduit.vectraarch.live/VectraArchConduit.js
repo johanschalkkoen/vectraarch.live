@@ -28,7 +28,7 @@ const TELEGRAM_TOKEN   = process.env.TELEGRAM_TOKEN   || '8767176406:AAEMhPAuQw5
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || '8783471876';
 const PRESS_URL        = 'https://vectraarch.live/press';
 const FORGE_URL        = 'https://vectraarch.live/forge';
-const FOUNDATION_URL   = 'https://vectraarch.live/foundation/';
+const FOUNDATION_URL   = BASE + '/login';
 const WWW_ROOT         = '/var/www/vectraarch.live';
 
 // ── DATABASE ──────────────────────────────────────────────────────────────────
