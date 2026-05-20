@@ -14,7 +14,7 @@ const express = require('express'),
       Epub = require('epub-gen-memory').default;
 
 const app = express(), PORT = 3000, HOST = '127.0.0.1';
-const BASE = '/forge'; // All internal redirects use this prefix
+const BASE = '';
 
 const PRESS_ROOT = '/var/www/vectraarch.live/press';
 
@@ -36,8 +36,7 @@ const pool = new Pool({
 
 app.set('trust proxy', 1);
 app.use((req, res, next) => {
-  // Strip /forge prefix so routes work as-is
-  if (req.url.startsWith('/forge')) {
+  if (req.url === '/forge' || req.url.startsWith('/forge/')) {
     req.url = req.url.slice('/forge'.length) || '/';
   }
   next();
@@ -53,8 +52,7 @@ app.use(passport.session());
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'ejs');
 app.use(express.static(path.join(__dirname, 'public')));
-app.get('/forge/forge.css', (req, res) => res.sendFile(path.join(__dirname, 'forge.css')));
-app.get('/forge.css',       (req, res) => res.sendFile(path.join(__dirname, 'forge.css')));
+app.get('/forge.css', (req, res) => res.sendFile(path.join(__dirname, 'forge.css')));
 
 const getCurrentID = (req) => req.session.manualUser || (req.user ? req.user.id : null);
 
@@ -689,7 +687,7 @@ app.post('/auth/2fa/setup', isAuth, async (req, res) => {
         await pool.query('UPDATE users SET twofa_secret=$1 WHERE id=$2', [req.session.tempSecret, getCurrentID(req)]);
         delete req.session.tempSecret;
         res.redirect(BASE + '/');
-    } else { res.redirect('https://vectraarch.live/foundation/'); }
+    } else { res.redirect('https://forge.vectraarch.live/'); }
 });
 
 app.get('/auth/2fa', (req, res) => {
@@ -731,7 +729,7 @@ app.post('/auth/manual', async (req, res) => {
             [new Date().toLocaleString('en-ZA'), u.rows[0].id]);
         return res.redirect(BASE + '/');
     }
-    res.redirect('https://vectraarch.live/foundation/');
+    res.redirect('https://forge.vectraarch.live/');
 });
 
 app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
@@ -742,7 +740,7 @@ app.get('/auth/google/callback', passport.authenticate('google', { failureRedire
         res.redirect(BASE + '/');
     });
 });
-app.get('/logout', (req, res) => { req.session.destroy(); res.redirect('https://vectraarch.live/foundation/'); });
+app.get('/logout', (req, res) => { req.session.destroy(); res.redirect('https://forge.vectraarch.live/'); });
 
 // ── BOOKS ─────────────────────────────────────────────────────────────────
 
