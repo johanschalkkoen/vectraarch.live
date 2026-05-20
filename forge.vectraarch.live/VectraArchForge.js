@@ -795,4 +795,23 @@ app.post('/book/:id/delete/:category/:entryId', isAuth, async (req, res) => {
     res.redirect(BASE + '/book/' + req.params.id);
 });
 
+app.post('/api/forge', (req, res) => {
+    const body = JSON.stringify(req.body);
+    const proxyReq = require('http').request(
+        { hostname: '127.0.0.1', port: 3099, path: '/forge', method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) } },
+        proxyRes => {
+            let data = '';
+            proxyRes.on('data', c => data += c);
+            proxyRes.on('end', () => {
+                try { res.status(proxyRes.statusCode).json(JSON.parse(data)); }
+                catch { res.status(502).json({ ok: false, error: 'Bad gateway' }); }
+            });
+        }
+    );
+    proxyReq.on('error', () => res.status(502).json({ ok: false, error: 'Contact service unavailable' }));
+    proxyReq.write(body);
+    proxyReq.end();
+});
+
 app.listen(PORT, HOST, () => console.log('Book Forge Hub Online'));
