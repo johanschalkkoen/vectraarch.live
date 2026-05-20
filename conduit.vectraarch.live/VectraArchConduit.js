@@ -70,13 +70,22 @@ function isAuth(req, res, next) {
 async function setupDB() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
-      id       TEXT PRIMARY KEY,
-      name     TEXT NOT NULL UNIQUE,
-      password TEXT NOT NULL,
-      role     TEXT NOT NULL DEFAULT 'admin',
+      id           TEXT PRIMARY KEY,
+      name         TEXT NOT NULL UNIQUE,
+      password     TEXT NOT NULL,
+      role         TEXT NOT NULL DEFAULT 'admin',
+      status       TEXT NOT NULL DEFAULT 'enabled',
       twofa_secret TEXT,
-      created  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      logins       INTEGER NOT NULL DEFAULT 0,
+      last_login   TEXT,
+      created      TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
+  `);
+  await pool.query(`
+    ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'enabled',
+      ADD COLUMN IF NOT EXISTS logins INTEGER NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS last_login TEXT
   `);
   await pool.query(`
     CREATE TABLE IF NOT EXISTS conduit_log (
@@ -422,7 +431,7 @@ app.post(BASE + '/login', async (req, res) => {
   const { cid, ak } = req.body;
   try {
     const r = await pool.query(
-      `SELECT * FROM users WHERE LOWER(name)=LOWER($1) AND password=$2 AND role='admin'`,
+      `SELECT * FROM public.users WHERE LOWER(name)=LOWER($1) AND password=$2 AND role='admin' AND status='enabled'`,
       [cid||'', ak||'']
     );
     if (r.rows[0]?.status === 'enabled') {
