@@ -36,6 +36,7 @@ app.use((req, res, next) => {
 app.use('/shared', express.static(path.join(__dirname, '..', 'vectraarch.live', 'shared')));
 app.use('/images', express.static(path.join(__dirname, 'images')));
 app.get('/',               (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
+app.get('/app.html',       (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 app.get('/login.html',     (req, res) => res.sendFile(path.join(__dirname, 'login.html')));
 app.get('/auth-guard.js',  (req, res) => res.sendFile(path.join(__dirname, 'VectraArchLegacyAuthGuard.js')));
 
