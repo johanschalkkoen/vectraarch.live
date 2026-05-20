@@ -13,7 +13,7 @@
  * Services authenticate with a shared API key in the X-API-Key header.
  */
 
-require('dotenv').config();
+require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 
 const express = require('express');
 const { Pool } = require('pg');
