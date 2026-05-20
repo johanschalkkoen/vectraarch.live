@@ -28,13 +28,16 @@ app.use(cors());
 app.use(express.json());
 app.use((req, res, next) => {
     if (req.url === '/legacy' || req.url.startsWith('/legacy/')) {
-        req.url = req.url.slice('/legacy'.length) || '/';
+        const code = req.method === 'GET' ? 301 : 307;
+        return res.redirect(code, req.url.slice('/legacy'.length) || '/');
     }
     next();
 });
+app.use('/shared', express.static(path.join(__dirname, '..', 'vectraarch.live', 'shared')));
 app.use('/images', express.static(path.join(__dirname, 'images')));
-app.get('/',           (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
-app.get('/login.html', (req, res) => res.sendFile(path.join(__dirname, 'login.html')));
+app.get('/',               (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
+app.get('/login.html',     (req, res) => res.sendFile(path.join(__dirname, 'login.html')));
+app.get('/auth-guard.js',  (req, res) => res.sendFile(path.join(__dirname, 'VectraArchLegacyAuthGuard.js')));
 
 // ── DATABASE ──────────────────────────────────────────────────────────────────
 const pool = new Pool({

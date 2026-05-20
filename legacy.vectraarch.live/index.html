@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=DM+Mono:wght@300;400;500&family=Barlow+Condensed:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
-  <script src="/legacy/auth-guard.js"></script>
+  <script src="/auth-guard.js"></script>
   <link rel="stylesheet" href="/shared/legacy.css"/>
 </head>
 <body>
@@ -25,8 +25,8 @@
 const { useState, useEffect, useRef, useCallback, useMemo } = React;
 
 /* ── CONSTANTS ── */
-const API = '/legacy/api';
-const DP = '/var/www/vectraarch.live/legacy/images/placeholder_image.png';
+const API = '/api';
+const DP = '/images/placeholder_image.png';
 const MONTHS = Array.from({length:12},(_,i)=>({v:(i+1).toString().padStart(2,'0'),l:new Date(2026,i,1).toLocaleString('default',{month:'long'})}));
 const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
 const fmtR = n => `R${parseFloat(n||0).toLocaleString('en-ZA',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
@@ -4005,7 +4005,7 @@ const App = () => {
   const handleLogout = useCallback(()=>{
     localStorage.removeItem('user');
     localStorage.removeItem('legacySharingConfig');
-    window.location.href = '/legacy/login.html';
+    window.location.href = '/login.html';
   },[]);
 
   // Persist sharingConfig to localStorage whenever it changes
@@ -4081,7 +4081,7 @@ const App = () => {
         }).catch(()=>{});
       } catch { setError('Invalid session'); }
     } else {
-      window.location.href='/legacy/login.html';
+      window.location.href='/login.html';
     }
   },[]);
 
