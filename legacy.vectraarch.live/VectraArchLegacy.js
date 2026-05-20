@@ -7,6 +7,7 @@
  */
 
 const express    = require('express');
+const path       = require('path');
 const { Pool }   = require('pg');
 const bcrypt     = require('bcrypt');
 const cors       = require('cors');
@@ -14,14 +15,20 @@ const https      = require('https');
 const http       = require('http');
 const fs         = require('fs');
 const nodemailer = require('nodemailer');
-const otplib     = require('otplib');
+const { authenticator } = require('otplib');
 const QRCode     = require('qrcode');
 
-require('dotenv').config({ path: '/var/www/vectraarch.live/forge/.env' });
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 
-const app = express();
+const app  = express();
+const PORT = 3300;
+const HOST = '127.0.0.1';
+
 app.use(cors());
 app.use(express.json());
+app.use('/images', express.static(path.join(__dirname, 'images')));
+app.get('/',           (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
+app.get('/login.html', (req, res) => res.sendFile(path.join(__dirname, 'login.html')));
 
 // ── DATABASE ──────────────────────────────────────────────────────────────────
 const pool = new Pool({
@@ -991,7 +998,7 @@ app.post('/api/verify-2fa', async (req, res) => {
     try {
         const row = await dbQuery('SELECT * FROM vectraarchlegacy_users WHERE username = $1', [username]);
         if (!row || !row.twofa_secret) return res.status(400).json({ success: false, message: '2FA not configured.' });
-        const valid = otplib.verify({ token, secret: row.twofa_secret });
+        const valid = authenticator.verify({ token, secret: row.twofa_secret });
         if (!valid) return res.status(401).json({ success: false, message: 'Invalid authentication code.' });
         res.json({ success: true, ...mapUser(row) });
     } catch (e) {
@@ -1006,8 +1013,8 @@ app.get('/api/2fa/setup', async (req, res) => {
         const row = await dbQuery('SELECT twofa_secret FROM vectraarchlegacy_users WHERE username = $1', [username]);
         if (!row) return res.status(404).json({ success: false, message: 'User not found.' });
         if (row.twofa_secret) return res.status(400).json({ success: false, message: '2FA already configured.' });
-        const secret = otplib.generateSecret();
-        const otpauth = otplib.generateURI({ secret, label: username, issuer: 'VectraArch Legacy' });
+        const secret = authenticator.generateSecret();
+        const otpauth = authenticator.keyuri(username, 'VectraArch Legacy', secret);
         const qrCode = await QRCode.toDataURL(otpauth);
         res.json({ success: true, secret, qrCode });
     } catch (e) {
@@ -1019,7 +1026,7 @@ app.post('/api/2fa/setup', async (req, res) => {
     const { username, secret, token } = req.body;
     if (!username || !secret || !token) return res.status(400).json({ success: false, message: 'Username, secret, and token required.' });
     try {
-        const valid = otplib.verify({ token, secret });
+        const valid = authenticator.verify({ token, secret });
         if (!valid) return res.status(401).json({ success: false, message: 'Invalid code. Please try again.' });
         await dbRun('UPDATE vectraarchlegacy_users SET twofa_secret=$1 WHERE username=$2', [secret, username]);
         res.json({ success: true, message: '2FA enabled successfully.' });
@@ -1034,7 +1041,7 @@ app.post('/api/2fa/disable', async (req, res) => {
     try {
         const row = await dbQuery('SELECT twofa_secret FROM vectraarchlegacy_users WHERE username = $1', [username]);
         if (!row || !row.twofa_secret) return res.status(400).json({ success: false, message: '2FA not configured.' });
-        const valid = otplib.verify({ token, secret: row.twofa_secret });
+        const valid = authenticator.verify({ token, secret: row.twofa_secret });
         if (!valid) return res.status(401).json({ success: false, message: 'Invalid code.' });
         await dbRun('UPDATE vectraarchlegacy_users SET twofa_secret=NULL WHERE username=$1', [username]);
         res.json({ success: true, message: '2FA disabled successfully.' });
@@ -1101,16 +1108,4 @@ app.get('/api/identity/health', async (req, res) => {
     await forwardToIdentity('GET', '/api/identity/health', null, res);
 });
 
-// ── HTTPS SERVER ──────────────────────────────────────────────────────────────
-const httpsOptions = {
-    key:  fs.readFileSync('/etc/letsencrypt/live/vectraarch.live/privkey.pem'),
-    cert: fs.readFileSync('/etc/letsencrypt/live/vectraarch.live/fullchain.pem')
-};
-const httpsServer = https.createServer(httpsOptions, app);
-httpsServer.listen(8443, () => console.log('HTTPS Server running on port 8443'));
-
-const httpServer = http.createServer((req, res) => {
-    res.writeHead(301, { Location: `https://${req.headers.host}${req.url}` });
-    res.end();
-});
-httpServer.listen(1000, () => console.log('HTTP Server running on port 1000'));
+app.listen(PORT, HOST, () => console.log('VectraArch Legacy online · port ' + PORT));
