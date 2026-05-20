@@ -159,19 +159,21 @@ nav {
 .nav-links {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 8px;
 }
 .nav-links a {
   font-family: 'DM Mono', monospace;
   font-size: 9px;
-  letter-spacing: 0.2em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--text-dim);
+  color: var(--text-muted);
   text-decoration: none;
-  transition: color 0.2s;
+  border: 1px solid var(--border2);
+  padding: 6px 12px;
+  transition: border-color 0.2s, color 0.2s;
   white-space: nowrap;
 }
-.nav-links a:hover { color: var(--accent); }
+.nav-links a:hover { border-color: var(--accent); color: var(--accent); }
 
 /* ── TERMINAL PATH HERO ── */
 .terminal-path-hero {
