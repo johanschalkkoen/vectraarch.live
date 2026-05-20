@@ -13,6 +13,7 @@ const pm2 = require('pm2');
 const express  = require('express');
 const session  = require('express-session');
 const https    = require('https');
+const http     = require('http');
 const fs       = require('fs');
 const path     = require('path');
 const { Pool } = require('pg');
@@ -177,6 +178,40 @@ function postTelegram(text) {
 function siteIndexPath(sub) { return path.join(WWW_ROOT, sub||'', 'index.html'); }
 function siteLastModified(sub) {
   try { return fs.statSync(siteIndexPath(sub)).mtime.toLocaleString('en-ZA'); } catch { return '—'; }
+}
+
+// Internal port/path for Node.js services — checked live on each Observatory load
+const SITE_HEALTH_TARGETS = {
+  conduit:  { port: 3100, path: '/login'                  },
+  forge:    { port: 3000, path: '/login'                  },
+  legacy:   { port: 3300, path: '/'                       },
+  api:      { port: 3200, path: '/api/identity/health'    },
+  bo7:      null,
+};
+
+async function checkSiteHealth(site) {
+  if (site.type === 'static' || site.type === 'generated') {
+    const exists = fs.existsSync(siteIndexPath(site.subdomain));
+    return { ok: exists, status: exists ? 'FILE OK' : 'MISSING', ms: 0, source: 'fs' };
+  }
+  const target = SITE_HEALTH_TARGETS[site.subdomain];
+  if (!target) return { ok: null, status: '—', ms: 0, source: 'none' };
+  return new Promise(resolve => {
+    const start = Date.now();
+    const req = http.request(
+      { hostname: '127.0.0.1', port: target.port, path: target.path, method: 'GET', timeout: 2000 },
+      res => { res.resume(); resolve({ ok: res.statusCode < 400, status: res.statusCode, ms: Date.now() - start, source: 'http' }); }
+    );
+    req.on('error', () => resolve({ ok: false, status: 0, ms: Date.now() - start, source: 'http' }));
+    req.on('timeout', () => { req.destroy(); resolve({ ok: false, status: 'T/O', ms: 2000, source: 'http' }); });
+    req.end();
+  });
+}
+
+function liveRouteCount() {
+  let n = 0;
+  try { app._router?.stack?.forEach(l => { if (l.route) n += Object.keys(l.route.methods).filter(m => m !== '_all').length; }); } catch {}
+  return n;
 }
 
 // ── PM2 ───────────────────────────────────────────────────────────────────────
@@ -504,7 +539,8 @@ app.post(BASE + '/auth/2fa/disable', isAuth, async (req, res) => {
 
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
 app.get(BASE + '/', isAuth, async (req, res) => {
-  const flash = req.session.flash; delete req.session.flash;
+  const flash     = req.session.flash; delete req.session.flash;
+  const fetchedAt = new Date().toLocaleString('en-ZA');
 
   // Check 2FA status for current user
   const userRow  = await pool.query('SELECT twofa_secret FROM users WHERE id=$1', [req.session.conduitUser.id]);
@@ -559,7 +595,7 @@ app.get(BASE + '/', isAuth, async (req, res) => {
 
   const body = `
     <div class="page-title">Conduit</div>
-    <div class="page-sub">§ Automation &amp; Social Hub · bookforge DB · VectraArch</div>
+    <div class="page-sub">§ Automation &amp; Social Hub · live · fetched ${esc(fetchedAt)}</div>
     ${flash?`<div class="alert ${flash.type}">${esc(flash.msg)}</div>`:''}
 
     <div class="stat-row">
@@ -604,7 +640,14 @@ app.get(BASE + '/', isAuth, async (req, res) => {
       ${logs.rows.length === 0
         ? '<div style="padding:32px;background:var(--bg2);color:var(--dim);text-align:center;letter-spacing:0.1em;">No events logged yet</div>'
         : `<table><thead><tr><th>Time</th><th>Event</th><th>Payload</th><th>Status</th></tr></thead><tbody>${logRows}</tbody></table>`}
-    </div>`;
+    </div>
+    <script>
+      setTimeout(() => location.reload(), 60000);
+      let s=60; const cd=document.createElement('div');
+      cd.style.cssText='position:fixed;bottom:16px;right:16px;font-family:"DM Mono",monospace;font-size:9px;letter-spacing:0.14em;color:rgba(255,255,255,0.25);z-index:999;';
+      document.body.appendChild(cd);
+      setInterval(()=>{s--;cd.textContent='AUTO-REFRESH IN '+s+'s';if(s<=0)s=60;},1000);
+    </script>`;
 
   res.send(layout('Dashboard', 'dashboard', body));
 });
@@ -634,8 +677,21 @@ app.post(BASE + '/log/clear', isAuth, async (req, res) => {
 
 // ── OBSERVATORY ───────────────────────────────────────────────────────────────
 app.get(BASE + '/sites', isAuth, async (req, res) => {
-  const flash    = req.session.flash; delete req.session.flash;
-  const pm2List  = await getPM2List();
+  const flash = req.session.flash; delete req.session.flash;
+  const checkedAt = new Date().toLocaleString('en-ZA');
+
+  // Fetch everything in parallel
+  const [pm2List, siteHealthResults] = await Promise.all([
+    getPM2List(),
+    Promise.all(KNOWN_SITES.map(s => checkSiteHealth(s))),
+  ]);
+
+  const conduitRoutes = liveRouteCount();
+  const totalEndpoints = API_REGISTRY.length + conduitRoutes;
+
+  const sitesWithHealth = KNOWN_SITES.map((s, i) => ({ ...s, health: siteHealthResults[i] }));
+  const healthyCount   = sitesWithHealth.filter(s => s.health.ok !== false).length;
+  const pm2Online      = pm2List.filter(p => p.status === 'online').length;
 
   const pm2Rows = pm2List.map(p => `
     <tr>
@@ -648,17 +704,24 @@ app.get(BASE + '/sites', isAuth, async (req, res) => {
       <td style="font-size:10px;color:var(--dim)">${p.cpu}%</td>
     </tr>`).join('');
 
-  const siteRows = KNOWN_SITES.map(s => {
+  const siteRows = sitesWithHealth.map(s => {
+    const h   = s.health;
     const lm  = siteLastModified(s.subdomain);
-    const url = `https://vectraarch.live${s.path||'/'+s.subdomain+'/'}`;
+    const url = `https://${s.subdomain?s.subdomain+'.':''}vectraarch.live${s.subdomain?'':s.path}`;
     const typeBadge = s.type==='static'    ? `<span class="badge ok">Static</span>`
                     : s.type==='node'      ? `<span class="badge info">Node.js</span>`
                     : s.type==='generated' ? `<span class="badge warn">Auto-gen</span>`
                     : `<span class="badge info">${esc(s.type)}</span>`;
+    const healthBadge = h.ok === null
+      ? `<span class="badge info" style="font-size:8px;">—</span>`
+      : h.ok
+        ? `<span class="badge ok" style="font-size:8px;">${esc(String(h.status))}${h.ms?` · ${h.ms}ms`:''}</span>`
+        : `<span class="badge err" style="font-size:8px;">${esc(String(h.status)||'ERR')}</span>`;
     return `<tr>
-      <td><a href="${esc(url)}" target="_blank" style="color:var(--accent);text-decoration:none;">vectraarch.live${esc(s.path||'/'+s.subdomain+'/')} ↗</a></td>
+      <td><a href="${esc(url)}" target="_blank" style="color:var(--accent);text-decoration:none;">${esc(url.replace('https://',''))} ↗</a></td>
       <td style="color:var(--text)">${esc(s.label)}</td>
       <td>${typeBadge}</td>
+      <td>${healthBadge}</td>
       <td style="color:var(--dim);font-size:11px;">${esc(s.purpose)}</td>
       <td style="font-size:10px;color:var(--dim)">${esc(lm)}</td>
     </tr>`;
@@ -681,25 +744,45 @@ app.get(BASE + '/sites', isAuth, async (req, res) => {
 
   const body = `
     <div class="page-title">Observatory</div>
-    <div class="page-sub">§ Constellation Map · ${KNOWN_SITES.length} Sites · ${API_REGISTRY.length} Endpoints</div>
+    <div class="page-sub">§ Constellation Map · checked ${esc(checkedAt)}</div>
     ${flash?`<div class="alert ${flash.type}">${esc(flash.msg)}</div>`:''}
 
+    <div class="stat-row">
+      <div class="stat-cell"><div class="stat-num">${KNOWN_SITES.length}</div><div class="stat-label">Total Sites</div></div>
+      <div class="stat-cell"><div class="stat-num">${healthyCount}</div><div class="stat-label">Sites Healthy</div></div>
+      <div class="stat-cell"><div class="stat-num">${pm2Online}</div><div class="stat-label">PM2 Online</div></div>
+      <div class="stat-cell"><div class="stat-num">${conduitRoutes}</div><div class="stat-label">Conduit Routes Live</div></div>
+    </div>
+
     <div class="section">
-      <div class="section-hdr"><span class="sh-num">01</span><span class="sh-title">PM2 Processes · Live Status</span><div class="sh-line"></div></div>
+      <div class="section-hdr">
+        <span class="sh-num">01</span><span class="sh-title">PM2 Processes · Live · ${pm2List.length} processes</span><div class="sh-line"></div>
+        <a href="${BASE}/sites" class="btn" style="margin-left:auto;padding:5px 14px;font-size:9px;">Refresh ↺</a>
+      </div>
       ${pm2List.length===0
         ? '<div style="padding:24px;background:var(--bg2);color:var(--dim);text-align:center;letter-spacing:0.1em;font-size:10px;">PM2 data unavailable</div>'
         : `<table><thead><tr><th>Name</th><th>Status</th><th>PID</th><th>Uptime</th><th>Restarts</th><th>Memory</th><th>CPU</th></tr></thead><tbody>${pm2Rows}</tbody></table>`}
     </div>
 
     <div class="section">
-      <div class="section-hdr"><span class="sh-num">02</span><span class="sh-title">Constellation · ${KNOWN_SITES.length} Sites</span><div class="sh-line"></div></div>
-      <table><thead><tr><th>Path</th><th>Label</th><th>Type</th><th>Purpose</th><th>Last Modified</th></tr></thead><tbody>${siteRows}</tbody></table>
+      <div class="section-hdr"><span class="sh-num">02</span><span class="sh-title">Constellation · ${KNOWN_SITES.length} Sites · ${healthyCount} healthy</span><div class="sh-line"></div></div>
+      <table><thead><tr><th>URL</th><th>Label</th><th>Type</th><th>Health</th><th>Purpose</th><th>File Modified</th></tr></thead><tbody>${siteRows}</tbody></table>
     </div>
 
     <div class="section">
-      <div class="section-hdr"><span class="sh-num">03</span><span class="sh-title">API Registry · ${API_REGISTRY.length} Endpoints</span><div class="sh-line"></div></div>
+      <div class="section-hdr"><span class="sh-num">03</span><span class="sh-title">API Registry · ${API_REGISTRY.length} documented · ${conduitRoutes} Conduit routes live</span><div class="sh-line"></div></div>
       ${apiSections}
-    </div>`;
+    </div>
+    <script>
+      // Auto-refresh every 60 seconds
+      setTimeout(() => location.reload(), 60000);
+      // Countdown display
+      let s = 60;
+      const cd = document.createElement('div');
+      cd.style.cssText = 'position:fixed;bottom:16px;right:16px;font-family:"DM Mono",monospace;font-size:9px;letter-spacing:0.14em;color:rgba(255,255,255,0.25);z-index:999;';
+      document.body.appendChild(cd);
+      setInterval(() => { s--; cd.textContent = 'AUTO-REFRESH IN ' + s + 's'; if(s<=0)s=60; }, 1000);
+    </script>`;
 
   res.send(layout('Observatory', 'sites', body));
 });
@@ -972,7 +1055,14 @@ app.get(BASE + '/users', isAuth, async (req, res) => {
       </div>
     </div>
 
-    <script>function toggleEdit(id){var el=document.getElementById('edit-'+id);el.style.display=el.style.display==='none'?'block':'none';}</script>`;
+    <script>
+      function toggleEdit(id){var el=document.getElementById('edit-'+id);el.style.display=el.style.display==='none'?'block':'none';}
+      setTimeout(()=>location.reload(),60000);
+      let s=60; const cd=document.createElement('div');
+      cd.style.cssText='position:fixed;bottom:16px;right:16px;font-family:"DM Mono",monospace;font-size:9px;letter-spacing:0.14em;color:rgba(255,255,255,0.25);z-index:999;';
+      document.body.appendChild(cd);
+      setInterval(()=>{s--;cd.textContent='AUTO-REFRESH IN '+s+'s';if(s<=0)s=60;},1000);
+    </script>`;
 
   res.send(layout('Users', 'users', body));
 });
@@ -1281,7 +1371,14 @@ app.get(BASE + '/identity', isAuth, async (req, res) => {
       ${auditRows.length === 0
         ? '<div style="padding:24px;background:var(--bg2);color:var(--dim);text-align:center;letter-spacing:0.1em;font-size:10px;">No audit events</div>'
         : `<table><thead><tr><th>Time</th><th>Action</th><th>Legacy</th><th>Forge ID</th><th>Performed By</th></tr></thead><tbody>${auditTableRows}</tbody></table>`}
-    </div>`;
+    </div>
+    <script>
+      setTimeout(()=>location.reload(),60000);
+      let s=60; const cd=document.createElement('div');
+      cd.style.cssText='position:fixed;bottom:16px;right:16px;font-family:"DM Mono",monospace;font-size:9px;letter-spacing:0.14em;color:rgba(255,255,255,0.25);z-index:999;';
+      document.body.appendChild(cd);
+      setInterval(()=>{s--;cd.textContent='AUTO-REFRESH IN '+s+'s';if(s<=0)s=60;},1000);
+    </script>`;
 
   res.send(layout('Identity', 'identity', body));
 });
