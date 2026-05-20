@@ -155,6 +155,24 @@ nav {
   color: var(--text-muted);
 }
 
+/* ── NAV SECTION LINKS ── */
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.nav-links a {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  text-decoration: none;
+  transition: color 0.2s;
+  white-space: nowrap;
+}
+.nav-links a:hover { color: var(--accent); }
+
 /* ── TERMINAL PATH HERO ── */
 .terminal-path-hero {
   position: relative;
@@ -297,6 +315,7 @@ nav {
   position: relative;
   z-index: 1;
   padding: 80px 40px;
+  scroll-margin-top: 72px;
   border-top: 1px solid var(--border);
 }
 .section-header {
@@ -686,6 +705,7 @@ footer {
 /* ── RESPONSIVE ── */
 @media (max-width: 960px) {
   nav { padding: 0 20px; }
+  .nav-links { display: none; }
   .terminal-path-hero,
   .hero,
   .section,
