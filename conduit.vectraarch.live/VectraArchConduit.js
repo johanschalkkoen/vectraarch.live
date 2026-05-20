@@ -418,12 +418,9 @@ async function twoFASetupPage(qr, secret, err) {
 </div></body></html>`;
 }
 
-// ── ROOT REDIRECT ─────────────────────────────────────────────────────────────
-app.get('/', (req, res) => res.redirect(req.session.conduitUser ? BASE + '/' : BASE + '/login'));
-
 // ── AUTH ROUTES ───────────────────────────────────────────────────────────────
-app.get(BASE + '/login', (req, res) => {
-  if (req.session.conduitUser) return res.redirect(BASE + '/');
+app.get('/login', (req, res) => {
+  if (req.session.conduitUser) return res.redirect('/');
   res.send(loginPage());
 });
 
