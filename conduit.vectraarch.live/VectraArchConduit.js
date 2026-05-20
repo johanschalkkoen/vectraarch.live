@@ -28,7 +28,7 @@ const TELEGRAM_TOKEN   = process.env.TELEGRAM_TOKEN   || '8767176406:AAEMhPAuQw5
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || '8783471876';
 const PRESS_URL        = 'https://vectraarch.live/press';
 const FORGE_URL        = 'https://vectraarch.live/forge';
-const FOUNDATION_URL   = BASE + '/login';
+const FOUNDATION_URL   = 'https://forge.vectraarch.live/';
 const WWW_ROOT         = '/var/www/vectraarch.live';
 
 // ── DATABASE ──────────────────────────────────────────────────────────────────
@@ -61,8 +61,8 @@ app.use(session({
 
 // ── AUTH GUARD ────────────────────────────────────────────────────────────────
 function isAuth(req, res, next) {
-  if (!req.session.conduitUser) return res.redirect(FOUNDATION_URL);
-  if (req.session.needs2FA)     return res.redirect(BASE + '/auth/2fa');
+  if (!req.session.conduitUser) return res.redirect('/login');
+  if (req.session.needs2FA)     return res.redirect('/auth/2fa');
   next();
 }
 
@@ -371,7 +371,7 @@ function loginPage(err) {
       <button class="auth-submit" type="submit">Authenticate ↗</button>
       ${err?`<div class="auth-error">⚠ ${esc(err)}</div>`:''}
     </form>
-    <a href="${FOUNDATION_URL}" class="auth-back">← Back to Foundation</a>
+    <a href="${FOUNDATION_URL}" class="auth-back">← Back to Forge</a>
   </div>
 </div></body></html>`;
 }
@@ -391,7 +391,7 @@ function twoFAVerifyPage(err) {
       <div class="auth-field"><label class="auth-label">Authentication Code</label><input class="auth-input auth-input-code" name="token" type="text" placeholder="000000" maxlength="6" autocomplete="one-time-code" required autofocus/></div>
       <button class="auth-submit" type="submit">Verify ↗</button>
     </form>
-    <a href="${FOUNDATION_URL}" class="auth-back">← Back to Foundation</a>
+    <a href="${FOUNDATION_URL}" class="auth-back">← Back to Forge</a>
   </div>
 </div></body></html>`;
 }
@@ -455,13 +455,13 @@ app.get(BASE + '/logout', (req, res) => {
 
 // ── 2FA ROUTES ────────────────────────────────────────────────────────────────
 app.get(BASE + '/auth/2fa', (req, res) => {
-  if (!req.session.conduitUser) return res.redirect(FOUNDATION_URL);
-  if (!req.session.needs2FA)    return res.redirect(BASE + '/');
+  if (!req.session.conduitUser) return res.redirect('/login');
+  if (!req.session.needs2FA)    return res.redirect('/');
   res.send(twoFAVerifyPage());
 });
 
 app.post(BASE + '/auth/2fa', async (req, res) => {
-  if (!req.session.conduitUser) return res.redirect(FOUNDATION_URL);
+  if (!req.session.conduitUser) return res.redirect('/login');
   const u = await pool.query('SELECT twofa_secret FROM users WHERE id=$1', [req.session.conduitUser.id]);
   const secret = u.rows[0]?.twofa_secret;
   if (!secret) { delete req.session.needs2FA; return res.redirect(BASE + '/'); }
