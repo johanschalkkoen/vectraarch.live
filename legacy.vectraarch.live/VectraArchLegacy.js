@@ -450,6 +450,50 @@ app.post('/api/revoke-access', requireAdmin, async (req, res) => {
     }
 });
 
+// ── SELF-SERVICE SHARING ──────────────────────────────────────────────────────
+// Get list of viewers who can currently see the current user's data
+app.get('/api/my-shares', async (req, res) => {
+    const { username } = req.query;
+    if (!username) return res.status(400).json({ success: false, message: 'Username required.' });
+    try {
+        const rows = await dbAll('SELECT viewer FROM vectraarchlegacy_access WHERE target = $1', [username]);
+        res.json({ success: true, viewers: rows.map(r => r.viewer) });
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
+// Grant a partner access to the current user's data (viewer=partner, target=self)
+app.post('/api/share-self', async (req, res) => {
+    const { username, partner } = req.body;
+    if (!username || !partner) return res.status(400).json({ success: false, message: 'Username and partner required.' });
+    if (username === partner) return res.status(400).json({ success: false, message: 'Cannot share with yourself.' });
+    try {
+        const uRow = await dbQuery('SELECT username FROM vectraarchlegacy_users WHERE username = $1', [username]);
+        if (!uRow) return res.status(404).json({ success: false, message: 'User not found.' });
+        const pRow = await dbQuery('SELECT username FROM vectraarchlegacy_users WHERE username = $1', [partner]);
+        if (!pRow) return res.status(404).json({ success: false, message: 'Partner not found.' });
+        await dbRun('INSERT INTO vectraarchlegacy_access (viewer,target) VALUES ($1,$2) ON CONFLICT DO NOTHING', [partner, username]);
+        await logTransaction(username, 'SHARE_SELF', 'access', null, username);
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
+// Revoke a partner's access to the current user's data
+app.post('/api/unshare-self', async (req, res) => {
+    const { username, partner } = req.body;
+    if (!username || !partner) return res.status(400).json({ success: false, message: 'Username and partner required.' });
+    try {
+        await dbRun('DELETE FROM vectraarchlegacy_access WHERE viewer=$1 AND target=$2', [partner, username]);
+        await logTransaction(username, 'UNSHARE_SELF', 'access', null, username);
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
 // ── NOTIFICATIONS ─────────────────────────────────────────────────────────────
 app.get('/api/notifications', async (req, res) => {
     const { username } = req.query;
