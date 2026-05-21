@@ -1834,6 +1834,7 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
   const [editing, setEditing]             = useState(false);
   const [draftIncome, setDraftIncome]     = useState('');
   const [draftAllocs, setDraftAllocs]     = useState(DEFAULT_BUDGET_ALLOCATIONS.map(a=>({category:a.category,amount:'',type:a.type})));
+  const [draftTargets, setDraftTargets]   = useState({need:50,saving:30,want:20,sav:0});
   const [saving, setSaving]               = useState(false);
   const [confirmDel, setConfirmDel]       = useState(false);
   const [alert, setAlert]                 = useState({msg:'',type:''});
@@ -1900,6 +1901,38 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
     }));
   },[editing, draftAllocs, budgetEntry]);
 
+  const effectiveTargets = useMemo(()=>{
+    const saved = budgetEntry?.section_targets||{};
+    const r={};
+    BUDGET_SECTIONS.forEach(s=>{ r[s.key]=(saved[s.key]!=null)?parseFloat(saved[s.key]):s.targetPct; });
+    return r;
+  },[budgetEntry]);
+
+  const updateSectionTarget = (key, rawVal) => {
+    const newPct = Math.max(0, Math.min(100, parseInt(rawVal,10)||0));
+    const otherKeys = BUDGET_SECTIONS.map(s=>s.key).filter(k=>k!==key);
+    const otherTotal = otherKeys.reduce((s,k)=>s+(draftTargets[k]||0),0);
+    const remaining = 100 - newPct;
+    const updated = {...draftTargets,[key]:newPct};
+    if(remaining<=0){
+      otherKeys.forEach(k=>{ updated[k]=0; });
+    } else if(otherTotal===0){
+      const eq = Math.floor(remaining/otherKeys.length);
+      const leftover = remaining - eq*otherKeys.length;
+      otherKeys.forEach((k,i)=>{ updated[k]=eq+(i===0?leftover:0); });
+    } else {
+      const scaled = otherKeys.map(k=>({k, pct:Math.round((draftTargets[k]||0)/otherTotal*remaining)}));
+      const scaledSum = scaled.reduce((s,x)=>s+x.pct,0);
+      const diff = remaining - scaledSum;
+      if(diff!==0&&scaled.length>0){
+        const maxIdx = scaled.reduce((mi,x,i,a)=>x.pct>a[mi].pct?i:mi,0);
+        scaled[maxIdx].pct = Math.max(0, scaled[maxIdx].pct+diff);
+      }
+      scaled.forEach(({k,pct})=>{ updated[k]=Math.max(0,pct); });
+    }
+    setDraftTargets(updated);
+  };
+
   const getActual = (catName) => {
     const lc = catName.toLowerCase();
     return monthFinances
@@ -1923,6 +1956,10 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
         }));
     setDraftIncome(String(budgetEntry?.income||''));
     setDraftAllocs(allocs);
+    const saved=budgetEntry?.section_targets||{};
+    const initT={};
+    BUDGET_SECTIONS.forEach(s=>{ initT[s.key]=(saved[s.key]!=null)?parseFloat(saved[s.key]):s.targetPct; });
+    setDraftTargets(initT);
     setEditing(true);
   };
 
@@ -1947,12 +1984,14 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
           user:user.username, income:inc,
           expenses:JSON.stringify(expArr),
           date:dateVal, budget_type:'need',
+          section_targets:draftTargets,
         });
       } else {
         await axios.post(`${API}/budget`,{
           user:user.username, income:inc,
           expenses:JSON.stringify(expArr),
           date:dateVal, budget_type:'need',
+          section_targets:draftTargets,
         });
       }
       msg(budgetEntry?'Budget updated.':'Budget saved.');
@@ -1992,7 +2031,16 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
             React.createElement('div', {style:{display:'flex',alignItems:'center',gap:10}},
               React.createElement('div', {style:{width:10,height:10,borderRadius:2,background:sec.color}}),
               React.createElement('span', {style:{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:15,color:sec.color,letterSpacing:'0.1em'}}, sec.label),
-              React.createElement('span', {style:{fontFamily:"'DM Mono',monospace",fontSize:9,color:sec.color,opacity:0.6}}, `TARGET ${sec.targetPct}%`)
+              React.createElement('div', {style:{display:'flex',alignItems:'center',gap:3}},
+                React.createElement('input', {type:'number',min:0,max:100,step:1,
+                  value:draftTargets[sec.key]??sec.targetPct,
+                  onChange:e=>updateSectionTarget(sec.key,e.target.value),
+                  onClick:e=>e.stopPropagation(),
+                  style:{width:38,textAlign:'right',fontSize:10,fontFamily:"'DM Mono',monospace",
+                    padding:'2px 4px',background:'rgba(255,255,255,0.08)',border:`1px solid ${sec.color}66`,
+                    color:sec.color,borderRadius:3,margin:0,MozAppearance:'textfield'}}),
+                React.createElement('span',{style:{fontFamily:"'DM Mono',monospace",fontSize:9,color:sec.color,opacity:0.7}},'% TARGET')
+              )
             ),
             React.createElement('div', {style:{textAlign:'right'}},
               React.createElement('span', {style:{fontFamily:"'DM Mono',monospace",fontSize:10,color:sec.color}}, fmtR(editPlanned)),
@@ -2045,7 +2093,7 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
           React.createElement('div', {style:{display:'flex',alignItems:'center',gap:10}},
             React.createElement('div', {style:{width:10,height:10,borderRadius:2,background:sec.color}}),
             React.createElement('span', {style:{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:15,color:sec.color,letterSpacing:'0.1em'}}, sec.label),
-            React.createElement('span', {style:{fontFamily:"'DM Mono',monospace",fontSize:9,color:'rgba(255,255,255,0.28)'}}, `TARGET ${sec.targetPct}%`)
+            React.createElement('span', {style:{fontFamily:"'DM Mono',monospace",fontSize:9,color:'rgba(255,255,255,0.28)'}}, `TARGET ${effectiveTargets[sec.key]??sec.targetPct}%`)
           ),
           React.createElement('div', {style:{textAlign:'right'}},
             React.createElement('div', {style:{fontFamily:"'DM Mono',monospace",fontSize:10,color:sec.color}}, incomeVal>0?fmtR(plannedTotal):'—'),
@@ -2165,7 +2213,7 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
                       <div key={sec.key} style={{flex:1,padding:'8px 10px',borderRadius:8,background:`${sec.color}0f`,border:`1px solid ${sec.color}33`,textAlign:'center'}}>
                         <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:sec.color,letterSpacing:'0.08em',marginBottom:3}}>{sec.label.split(' ')[0]}</div>
                         <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:13,color:sec.color}}>{fmtR(secAmt)}</div>
-                        <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:'rgba(255,255,255,0.25)',marginTop:2}}>{sec.targetPct}%</div>
+                        <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:'rgba(255,255,255,0.25)',marginTop:2}}>{effectiveTargets[sec.key]??sec.targetPct}%</div>
                       </div>
                     );
                   })}
@@ -2199,6 +2247,31 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
               </>
             )}
           </div>
+
+          {/* ── Section target % summary (edit mode only) ── */}
+          {editing&&(()=>{
+            const total = BUDGET_SECTIONS.reduce((s,sec)=>s+(draftTargets[sec.key]||0),0);
+            const ok = total===100;
+            return (
+              <div style={{marginBottom:14,padding:'8px 12px',borderRadius:8,
+                background:ok?'rgba(0,230,118,0.07)':'rgba(255,214,0,0.07)',
+                border:`1px solid ${ok?'rgba(0,230,118,0.25)':'rgba(255,214,0,0.3)'}`}}>
+                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6}}>
+                  <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.12em',color:'rgba(255,255,255,0.4)'}}>SECTION TARGETS</span>
+                  <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:600,
+                    color:ok?'#00e676':'#ffd600'}}>{ok?`✓ ${total}%`:`⚠ ${total}% — must equal 100%`}</span>
+                </div>
+                <div style={{display:'flex',gap:6}}>
+                  {BUDGET_SECTIONS.map(sec=>(
+                    <div key={sec.key} style={{flex:1,textAlign:'center',padding:'4px 0',borderRadius:5,background:`${sec.color}0f`,border:`1px solid ${sec.color}33`}}>
+                      <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:sec.color,fontWeight:600}}>{draftTargets[sec.key]??sec.targetPct}%</div>
+                      <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:9,color:'rgba(255,255,255,0.4)',marginTop:1}}>{sec.label.split(' ')[0]}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* ── Three allocation sections ── */}
           {BUDGET_SECTIONS.map(sec => renderSection(sec))}
