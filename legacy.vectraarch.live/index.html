@@ -2135,6 +2135,146 @@ const gymFormatDetail = w => {
   return `${sets} × ${reps} reps @ ${weight} kg`;
 };
 
+
+const GymUserCard = ({uname, workouts, user, partner, partners, tabColor, selectedMonth}) => {
+  const [view, setView] = useState('weekly');
+  const owner = getOwner(uname, user, partner, partners);
+  const oc = owner?.eventColor || tabColor || '#ff3b3b';
+  const selYear = new Date().getFullYear();
+  const selMonthIdx = parseInt(selectedMonth,10)-1;
+  const isCurrentMonth = selectedMonth===String(new Date().getMonth()+1).padStart(2,'0');
+  const daysInMonth = new Date(selYear, selMonthIdx+1, 0).getDate();
+  const todayStr = new Date().toLocaleDateString('en-CA');
+  const todayDayIdx = (new Date().getDay()+6)%7;
+  const todayDayNum = new Date().getDate();
+  const uWorkouts = workouts.filter(w=>String(w.userKey)===String(uname));
+  const monthWorkouts = uWorkouts.filter(w=>(w.date||'').slice(5,7)===selectedMonth);
+  const todayWorkouts = uWorkouts.filter(w=>(w.date||'').slice(0,10)===todayStr);
+  const weekLoad = DAYS.map(day=>monthWorkouts.filter(w=>w.day===day).length);
+  const maxWeekLoad = Math.max(...weekLoad,1);
+  const monthDailyLoad = Array.from({length:daysInMonth},(_,i)=>{
+    const ds=`${selYear}-${selectedMonth}-${String(i+1).padStart(2,'0')}`;
+    return monthWorkouts.filter(w=>(w.date||'').slice(0,10)===ds).length;
+  });
+  const maxDayLoad = Math.max(...monthDailyLoad,1);
+  const TYPE_COLORS = {strength:oc,cardio:'#ff9800',mobility:'#00e676'};
+  const typeCount = sub => {const r={strength:0,cardio:0,mobility:0};sub.forEach(w=>{const t=gymGetType(w.exercise||'');r[t]=(r[t]||0)+1;});return r;};
+  const monthTypes = typeCount(monthWorkouts);
+  const todayTypes = typeCount(todayWorkouts);
+  const vBtn = (v,l) => (
+    <button key={v} onClick={()=>setView(v)} style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.12em',padding:'4px 10px',borderRadius:4,cursor:'pointer',border:`1px solid ${view===v?oc:oc+'33'}`,background:view===v?`${oc}22`:'transparent',color:view===v?oc:'rgba(255,255,255,0.35)'}}>{l}</button>
+  );
+  return (
+    <div style={{background:'#0d0d0b',border:`1px solid ${oc}33`,borderRadius:12,padding:'14px 16px',borderLeft:`3px solid ${oc}`}}>
+      <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
+        <ItemAvatar username={uname} user={user} partner={partner} partners={partners} size={36}/>
+        <div style={{flex:1}}>
+          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:16,color:oc,letterSpacing:'0.06em',textTransform:'uppercase'}}>
+            {(owner?.displayName||(owner?.firstName&&owner?.lastName?`${owner.firstName} ${owner.lastName}`:null)||uname).toUpperCase()}
+          </div>
+          <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'rgba(255,255,255,0.3)',letterSpacing:'0.1em',marginTop:2}}>{monthWorkouts.length} EXERCISES THIS MONTH</div>
+        </div>
+        <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:1}}>
+          {Object.entries(monthTypes).filter(([,c])=>c>0).map(([t,c])=>(
+            <span key={t} style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:TYPE_COLORS[t],letterSpacing:'0.08em'}}>{c} {t.slice(0,3).toUpperCase()}</span>
+          ))}
+        </div>
+      </div>
+      <div style={{display:'flex',gap:4,marginBottom:14}}>{vBtn('daily','DAILY')}{vBtn('weekly','WEEKLY')}{vBtn('monthly','MONTHLY')}</div>
+      {view==='daily'&&(
+        <div>
+          <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.12em',color:'rgba(255,255,255,0.3)',marginBottom:8}}>
+            TODAY · {isCurrentMonth?`${todayWorkouts.length} EXERCISES`:'VIEW CURRENT MONTH FOR TODAY'}
+          </div>
+          {!isCurrentMonth?(
+            <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'rgba(255,255,255,0.2)',padding:'8px 0',textAlign:'center'}}>Switch to current month to see today.</div>
+          ):todayWorkouts.length===0?(
+            <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'rgba(255,255,255,0.2)',padding:'12px 0',textAlign:'center'}}>No workouts logged today.</div>
+          ):(
+            <>
+              <div style={{display:'flex',gap:8,marginBottom:10}}>
+                {Object.entries(todayTypes).filter(([,c])=>c>0).map(([t,c])=>(
+                  <div key={t} style={{flex:1}}>
+                    <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:TYPE_COLORS[t],letterSpacing:'0.08em',marginBottom:3}}>{t.toUpperCase()}</div>
+                    <div style={{height:3,background:'rgba(255,255,255,0.07)',borderRadius:2}}><div style={{height:'100%',width:`${(c/todayWorkouts.length)*100}%`,background:TYPE_COLORS[t],borderRadius:2}}/></div>
+                    <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:TYPE_COLORS[t],marginTop:2}}>{c}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{display:'flex',flexDirection:'column',gap:4}}>
+                {todayWorkouts.map((w,i)=>{
+                  const t=gymGetType(w.exercise||'');
+                  return (
+                    <div key={i} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'7px 10px',background:'rgba(255,255,255,0.04)',borderRadius:6,borderLeft:`2px solid ${TYPE_COLORS[t]}`}}>
+                      <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:13,color:'rgba(255,255,255,0.85)',letterSpacing:'0.04em'}}>{(w.exercise||'').toUpperCase()}</div>
+                      <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'rgba(255,255,255,0.4)'}}>{w.sets}×{w.reps}{w.weight&&w.weight!=='0'?` @${w.weight}`:''}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+      {view==='weekly'&&(
+        <div>
+          <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.12em',color:'rgba(255,255,255,0.3)',marginBottom:8}}>EXERCISES PER DAY OF WEEK</div>
+          <div style={{display:'flex',alignItems:'flex-end',gap:3,height:74}}>
+            {DAYS.map((dayName,di)=>{
+              const cnt=weekLoad[di];
+              const barH=(cnt/maxWeekLoad)*60;
+              const isCur=isCurrentMonth&&di===todayDayIdx;
+              return (
+                <div key={dayName} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:2}}>
+                  {cnt>0&&<div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:isCur?oc:'rgba(255,255,255,0.5)'}}>{cnt}</div>}
+                  <div style={{width:'100%',flex:1,display:'flex',alignItems:'flex-end',justifyContent:'center'}}>
+                    <div style={{width:'100%',height:Math.max(barH,cnt>0?5:2),background:cnt>0?(isCur?oc:`${oc}88`):'rgba(255,255,255,0.05)',borderRadius:'3px 3px 0 0',boxShadow:cnt>0&&isCur?`0 0 8px ${oc}88`:'none',transition:'height 0.3s'}}/>
+                  </div>
+                  <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:isCur?oc:'rgba(255,255,255,0.25)',letterSpacing:'0.04em'}}>{dayName.slice(0,2).toUpperCase()}</div>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{display:'flex',gap:8,marginTop:10}}>
+            {[['strength','STR'],['cardio','CAR'],['mobility','MOB']].map(([t,l])=>{
+              const c=monthTypes[t]||0;
+              const pct=monthWorkouts.length>0?(c/monthWorkouts.length)*100:0;
+              return c>0&&(
+                <div key={t} style={{flex:1}}>
+                  <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:TYPE_COLORS[t],letterSpacing:'0.1em',marginBottom:2}}>{l} {c}</div>
+                  <div style={{height:3,background:'rgba(255,255,255,0.07)',borderRadius:2}}><div style={{height:'100%',width:`${pct}%`,background:TYPE_COLORS[t],borderRadius:2}}/></div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      {view==='monthly'&&(
+        <div>
+          <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.12em',color:'rgba(255,255,255,0.3)',marginBottom:8}}>EXERCISES PER DAY · {daysInMonth} DAYS</div>
+          <div style={{display:'flex',alignItems:'flex-end',gap:1,height:74}}>
+            {monthDailyLoad.map((cnt,i)=>{
+              const barH=(cnt/maxDayLoad)*62;
+              const isCur=isCurrentMonth&&i+1===todayDayNum;
+              const showLbl=i===0||i===6||i===13||i===20||i===27||i===daysInMonth-1;
+              return (
+                <div key={i} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center'}}>
+                  <div style={{width:'100%',height:62,display:'flex',alignItems:'flex-end'}}><div style={{width:'100%',height:Math.max(barH,cnt>0?3:1),background:cnt>0?(isCur?oc:`${oc}77`):'rgba(255,255,255,0.04)',borderRadius:'2px 2px 0 0',transition:'height 0.3s'}}/></div>
+                  <div style={{fontFamily:"'DM Mono',monospace",fontSize:5,color:showLbl?'rgba(255,255,255,0.25)':'transparent',lineHeight:1.4}}>{i+1}</div>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{display:'flex',justifyContent:'space-between',marginTop:4}}>
+            <span style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:'rgba(255,255,255,0.3)',letterSpacing:'0.08em'}}>TOTAL {monthWorkouts.length} EX</span>
+            <span style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:oc,letterSpacing:'0.08em'}}>{monthWorkouts.length>0?`~${Math.round(monthWorkouts.length/daysInMonth*7)}/WK AVG`:''}</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const GymPage = ({user, partner, partners=[], activePartners=[], permittedPartners=[], selfVisible=true, isShared, tabSelected, onToggleUser, tabColor='#ff3b3b'}) => {
   const [search, setSearch] = useState('');
   const [actionWorkout, setActionWorkout] = useState(null);
@@ -2220,131 +2360,11 @@ const GymPage = ({user, partner, partners=[], activePartners=[], permittedPartne
           {(()=>{
             const visUsers = [...(selfVisible?[user.username]:[]), ...(activePartners||[]).map(p=>p.username)];
             if(visUsers.length===0) return null;
-
-            // Derive the selected month's year and reference date
-            const selYear = new Date().getFullYear();
-            const selMonthIdx = parseInt(selectedMonth,10)-1; // 0-indexed
-            // "Anchor" date = last day of selected month (so we look back 4 weeks from there)
-            const anchorDate = new Date(selYear, selMonthIdx+1, 0); // last day of month
-            anchorDate.setHours(23,59,59,999);
-
-            // Week containing anchorDate (Mon-based)
-            const getWeekStartFromAnchor = (weeksAgo) => {
-              const d = new Date(anchorDate);
-              d.setDate(d.getDate() - ((d.getDay()+6)%7) - weeksAgo*7); // back to Mon
-              d.setHours(0,0,0,0);
-              return d;
-            };
-
-            // "This week" = week containing last day of selected month
-            const thisWeekStart = getWeekStartFromAnchor(0);
-            const thisWeekEnd = new Date(thisWeekStart); thisWeekEnd.setDate(thisWeekStart.getDate()+6); thisWeekEnd.setHours(23,59,59,999);
-
             return (
               <div style={{display:'flex',flexDirection:'column',gap:10,margin:'4px 0 16px'}}>
-                {visUsers.map(uname=>{
-                  const owner = getOwner(uname, user, partner, partners);
-                  const oc = owner?.eventColor || '#00e676';
-                  // Filter workouts to selected month
-                  const uWorkouts = workouts.filter(w=>String(w.userKey)===String(uname)&&(w.date||'').slice(5,7)===selectedMonth);
-                  const allUWorkouts = workouts.filter(w=>String(w.userKey)===String(uname));
-
-                  // Weekly load: exercises per day of the week within selected month
-                  const weekLoad = DAYS.map((dayName) => {
-                    return uWorkouts.filter(w => w.day===dayName).length;
-                  });
-
-                  // 4-week trend: look at last 4 weeks relative to anchor date
-                  const weekTotals = [3,2,1,0].map(weeksAgo => {
-                    const ws = getWeekStartFromAnchor(weeksAgo);
-                    const we = new Date(ws); we.setDate(ws.getDate()+6); we.setHours(23,59,59,999);
-                    return allUWorkouts.filter(w=>{
-                      if(!w.date) return false;
-                      const d = new Date(w.date);
-                      return d>=ws && d<=we;
-                    }).length;
-                  });
-
-                  const thisWeekTotal = uWorkouts.length;
-                  const maxLoad = Math.max(...weekLoad, 1);
-                  const maxTrend = Math.max(...weekTotals, 1);
-
-                  const SW=200, SH=44, SPAD=6;
-                  const trendPts = weekTotals.map((v,i)=>{
-                    const x = SPAD + (i/(weekTotals.length-1||1))*(SW-SPAD*2);
-                    const y = SPAD + (1-(v/maxTrend))*(SH-SPAD*2);
-                    return `${x.toFixed(1)},${y.toFixed(1)}`;
-                  });
-
-                  return (
-                    <div key={uname} style={{background:'#0d0d0b',border:`1px solid ${oc}33`,borderRadius:12,padding:'14px 16px',borderLeft:`3px solid ${oc}`}}>
-                      {/* Header: avatar + name + weekly count */}
-                      <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14}}>
-                        <ItemAvatar username={uname} user={user} partner={partner} partners={partners} size={36}/>
-                        <div style={{flex:1}}>
-                          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:16,color:oc,letterSpacing:'0.06em',textTransform:'uppercase'}}>
-                            {(owner?.displayName||(owner?.firstName&&owner?.lastName?`${owner.firstName} ${owner.lastName}`:null)||uname).toUpperCase()}
-                          </div>
-                        </div>
-                        <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'rgba(255,255,255,0.4)',letterSpacing:'0.1em'}}>
-                          <span style={{color:oc,fontWeight:600}}>{thisWeekTotal}</span> EX/WK
-                        </div>
-                      </div>
-
-                      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
-                        {/* Weekly load bar chart */}
-                        <div>
-                          <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.16em',color:'rgba(255,255,255,0.3)',marginBottom:8}}>WEEKLY LOAD</div>
-                          <div style={{display:'flex',alignItems:'flex-end',gap:4,height:48}}>
-                            {DAYS.map((dayName,di)=>{
-                              const cnt = weekLoad[di];
-                              const barH = maxLoad>0?(cnt/maxLoad)*40:0;
-                              const isToday = di === (anchorDate.getDay()+6)%7;
-                              return (
-                                <div key={dayName} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:3}}>
-                                  <div style={{width:'100%',height:40,display:'flex',alignItems:'flex-end',justifyContent:'center'}}>
-                                    <div style={{
-                                      width:'100%', height:Math.max(barH,cnt>0?6:0),
-                                      background:cnt>0?oc:'rgba(255,255,255,0.06)',
-                                      borderRadius:'3px 3px 0 0',
-                                      boxShadow:cnt>0?`0 0 8px ${oc}66`:'none',
-                                      transition:'height 0.3s',
-                                      minHeight:cnt>0?6:3,
-                                    }}/>
-                                  </div>
-                                  <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:isToday?oc:'rgba(255,255,255,0.25)',letterSpacing:'0.04em'}}>
-                                    {dayName[0]}
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-
-                        {/* 4-week trend sparkline */}
-                        <div>
-                          <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.16em',color:'rgba(255,255,255,0.3)',marginBottom:8}}>4-WEEK TREND</div>
-                          <svg viewBox={`0 0 ${SW} ${SH}`} style={{width:'100%',height:48,display:'block'}} preserveAspectRatio="none">
-                            <defs>
-                              <linearGradient id={`gymGrad_${uname}`} x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor={oc} stopOpacity="0.3"/>
-                                <stop offset="100%" stopColor={oc} stopOpacity="0.02"/>
-                              </linearGradient>
-                            </defs>
-                            {weekTotals.some(v=>v>0)&&(
-                              <polygon points={`${trendPts[0]} ${trendPts.join(' ')} ${SW-SPAD},${SH} ${SPAD},${SH}`} fill={`url(#gymGrad_${uname})`}/>
-                            )}
-                            <polyline points={trendPts.join(' ')} fill="none" stroke={oc} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round"/>
-                            {trendPts.map((p,i)=>{
-                              const [x,y]=p.split(',');
-                              return <circle key={i} cx={x} cy={y} r={i===trendPts.length-1?3.5:2} fill={oc} opacity={i===trendPts.length-1?1:0.6}/>;
-                            })}
-                          </svg>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+                {visUsers.map(uname=>(
+                  <GymUserCard key={uname} uname={uname} workouts={workouts} user={user} partner={partner} partners={partners} tabColor={tabColor} selectedMonth={selectedMonth}/>
+                ))}
               </div>
             );
           })()}
@@ -2537,6 +2557,189 @@ const MEAL_OPTIONS = [
   { label:'Custom', options:[{value:'__custom__',label:'Custom meal...',cal:0}]}
 ];
 
+
+const _calcTDEE = (u) => {
+  const w=parseFloat(u?.weight),h=parseFloat(u?.height);
+  if(!w||!h) return null;
+  const age=u.dob?Math.floor((new Date()-new Date(u.dob))/31557600000):30;
+  const isFem=(u?.gender||'').toLowerCase()==='female';
+  return Math.round((isFem?10*w+6.25*h-5*age-161:10*w+6.25*h-5*age+5)*1.4);
+};
+
+const MealUserCard = ({uname, meals, user, partner, partners, tabColor, selectedMonth}) => {
+  const [view, setView] = useState('weekly');
+  const owner = getOwner(uname, user, partner, partners);
+  const oc = owner?.eventColor || tabColor || '#d67bff';
+  const selYear = new Date().getFullYear();
+  const selMonthIdx = parseInt(selectedMonth,10)-1;
+  const isCurrentMonth = selectedMonth===String(new Date().getMonth()+1).padStart(2,'0');
+  const daysInMonth = new Date(selYear, selMonthIdx+1, 0).getDate();
+  const daysElapsed = isCurrentMonth ? new Date().getDate() : daysInMonth;
+  const todayStr = new Date().toLocaleDateString('en-CA');
+  const todayDayName = new Date().toLocaleDateString('en-US',{weekday:'long'});
+  const todayDayIdx = (new Date().getDay()+6)%7;
+  const todayDayNum = new Date().getDate();
+  const ownerFull = uname===user.username ? user : (partners.find(p=>p.username===uname)||owner||{});
+  const tdee = _calcTDEE(ownerFull)||2000;
+  const uMeals = meals.filter(m=>String(m.userKey)===String(uname));
+  const monthMeals = uMeals.filter(m=>(m.date||'').slice(5,7)===selectedMonth);
+  const todayMeals = uMeals.filter(m=>(m.date||'').slice(0,10)===todayStr||(m.day===todayDayName&&isCurrentMonth));
+  const todayCal = Math.round(todayMeals.reduce((s,m)=>s+parseFloat(m.calories||0),0));
+  const monthCal = Math.round(monthMeals.reduce((s,m)=>s+parseFloat(m.calories||0),0));
+  const monthTarget = tdee*daysElapsed;
+  const MEAL_TYPES = ['breakfast','lunch','dinner','snack'];
+  const MT_COLORS = {breakfast:'#ff9800',lunch:'#00e676',dinner:'#448aff',snack:oc};
+  // Weekly kcal: Mon-Sun
+  const weekStart = new Date(); weekStart.setDate(new Date().getDate()-(new Date().getDay()+6)%7); weekStart.setHours(0,0,0,0);
+  const weekDayKcal = DAYS.map((dayName,di)=>{
+    const dayDate=new Date(weekStart); dayDate.setDate(weekStart.getDate()+di);
+    const ds=dayDate.toLocaleDateString('en-CA');
+    return uMeals.filter(m=>{
+      const d=m.date?m.date.slice(0,10):''; const sd=m.day||(m.date?new Date(m.date).toLocaleDateString('en-US',{weekday:'long'}):'');
+      return d===ds||sd===dayName;
+    }).reduce((s,m)=>s+parseFloat(m.calories||0),0);
+  });
+  const maxWeekKcal = Math.max(...weekDayKcal, tdee, 1);
+  // Monthly daily kcal
+  const monthDailyKcal = Array.from({length:daysInMonth},(_,i)=>{
+    const ds=`${selYear}-${selectedMonth}-${String(i+1).padStart(2,'0')}`;
+    return monthMeals.filter(m=>(m.date||'').slice(0,10)===ds).reduce((s,m)=>s+parseFloat(m.calories||0),0);
+  });
+  const maxMonthKcal = Math.max(...monthDailyKcal, tdee, 1);
+  const vBtn = (v,l) => (
+    <button key={v} onClick={()=>setView(v)} style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.12em',padding:'4px 10px',borderRadius:4,cursor:'pointer',border:`1px solid ${view===v?oc:oc+'33'}`,background:view===v?`${oc}22`:'transparent',color:view===v?oc:'rgba(255,255,255,0.35)'}}>{l}</button>
+  );
+  const tdeeRatio = monthTarget>0?monthCal/monthTarget:0;
+  const tdeeColor = tdeeRatio>1.1?'#ff3b3b':tdeeRatio>0.9?'#00e676':oc;
+  return (
+    <div style={{background:'#0d0d0b',border:`1px solid ${oc}33`,borderRadius:12,padding:'14px 16px',borderLeft:`3px solid ${oc}`}}>
+      <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
+        <ItemAvatar username={uname} user={user} partner={partner} partners={partners} size={36}/>
+        <div style={{flex:1}}>
+          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:16,color:oc,letterSpacing:'0.06em',textTransform:'uppercase'}}>
+            {(owner?.displayName||(owner?.firstName&&owner?.lastName?`${owner.firstName} ${owner.lastName}`:null)||uname).toUpperCase()}
+          </div>
+          <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'rgba(255,255,255,0.3)',letterSpacing:'0.1em',marginTop:2}}>{monthMeals.length} MEALS LOGGED</div>
+        </div>
+        <div style={{textAlign:'right'}}>
+          <div style={{fontFamily:"'DM Mono',monospace",fontSize:11,color:tdeeColor,fontWeight:600}}>{monthCal.toLocaleString()}</div>
+          <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:'rgba(255,255,255,0.3)',letterSpacing:'0.08em'}}>/ {monthTarget.toLocaleString()} KCAL</div>
+        </div>
+      </div>
+      {/* Month kcal progress bar */}
+      <div style={{height:4,background:'rgba(255,255,255,0.07)',borderRadius:2,overflow:'hidden',marginBottom:14}}>
+        <div style={{height:'100%',width:`${Math.min(tdeeRatio,1)*100}%`,background:tdeeColor,borderRadius:2,transition:'width 0.4s',boxShadow:`0 0 6px ${tdeeColor}66`}}/>
+      </div>
+      <div style={{display:'flex',gap:4,marginBottom:14}}>{vBtn('daily','DAILY')}{vBtn('weekly','WEEKLY')}{vBtn('monthly','MONTHLY')}</div>
+      {view==='daily'&&(
+        <div>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:8}}>
+            <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.12em',color:'rgba(255,255,255,0.3)'}}>TODAY{isCurrentMonth?'':' (VIEW CURRENT MONTH)'}</div>
+            {isCurrentMonth&&<div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:todayCal>tdee?'#ff3b3b':oc,fontWeight:600}}>{todayCal} / {tdee} KCAL</div>}
+          </div>
+          {!isCurrentMonth?(
+            <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'rgba(255,255,255,0.2)',padding:'8px 0',textAlign:'center'}}>Switch to current month to see today.</div>
+          ):(
+            <>
+              <div style={{height:4,background:'rgba(255,255,255,0.07)',borderRadius:2,overflow:'hidden',marginBottom:12}}>
+                <div style={{height:'100%',width:`${Math.min(todayCal/tdee,1)*100}%`,background:todayCal>tdee?'#ff3b3b':oc,borderRadius:2,transition:'width 0.4s'}}/>
+              </div>
+              {MEAL_TYPES.map(mt=>{
+                const mtMeals=todayMeals.filter(m=>(m.mealType||'').toLowerCase()===mt);
+                const mtCal=Math.round(mtMeals.reduce((s,m)=>s+parseFloat(m.calories||0),0));
+                const mtColor=MT_COLORS[mt];
+                return mtMeals.length>0&&(
+                  <div key={mt} style={{marginBottom:8}}>
+                    <div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}>
+                      <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:mtColor,letterSpacing:'0.1em',textTransform:'uppercase'}}>{mt}</span>
+                      <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'rgba(255,255,255,0.5)'}}>{mtCal} kcal</span>
+                    </div>
+                    {mtMeals.map((m,i)=>(
+                      <div key={i} style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:12,color:'rgba(255,255,255,0.6)',paddingLeft:8,letterSpacing:'0.03em',borderLeft:`2px solid ${mtColor}55`}}>
+                        {(m.description||m.name||'').toUpperCase()} <span style={{color:'rgba(255,255,255,0.35)',fontSize:10}}>{parseFloat(m.calories||0)} KCAL</span>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+              {todayMeals.length===0&&<div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'rgba(255,255,255,0.2)',padding:'8px 0',textAlign:'center'}}>No meals logged today.</div>}
+            </>
+          )}
+        </div>
+      )}
+      {view==='weekly'&&(
+        <div>
+          <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}>
+            <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.12em',color:'rgba(255,255,255,0.3)'}}>DAILY KCAL THIS WEEK</div>
+            <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:'rgba(255,255,255,0.35)',letterSpacing:'0.08em'}}>TARGET {tdee.toLocaleString()}/DAY</div>
+          </div>
+          <div style={{display:'flex',alignItems:'flex-end',gap:3,height:74,position:'relative'}}>
+            {/* TDEE target line */}
+            <div style={{position:'absolute',left:0,right:0,bottom:`${(tdee/maxWeekKcal)*60}px`,height:1,background:`rgba(255,255,255,0.15)`,zIndex:1,borderTop:'1px dashed rgba(255,255,255,0.2)'}}/>
+            {DAYS.map((dayName,di)=>{
+              const kcal=weekDayKcal[di];
+              const barH=maxWeekKcal>0?(kcal/maxWeekKcal)*60:0;
+              const isCur=isCurrentMonth&&di===todayDayIdx;
+              const isOver=kcal>tdee;
+              const barColor=kcal>0?(isOver?'#ff3b3b':(isCur?oc:`${oc}88`)):'rgba(255,255,255,0.05)';
+              return (
+                <div key={dayName} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:2}}>
+                  {kcal>0&&<div style={{fontFamily:"'DM Mono',monospace",fontSize:6,color:isOver?'#ff3b3b':(isCur?oc:'rgba(255,255,255,0.4)')}}>{Math.round(kcal/100)/10}k</div>}
+                  <div style={{width:'100%',flex:1,display:'flex',alignItems:'flex-end',justifyContent:'center'}}>
+                    <div style={{width:'100%',height:Math.max(barH,kcal>0?5:2),background:barColor,borderRadius:'3px 3px 0 0',boxShadow:kcal>0&&isCur?`0 0 8px ${oc}88`:'none',transition:'height 0.3s'}}/>
+                  </div>
+                  <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:isCur?oc:'rgba(255,255,255,0.25)',letterSpacing:'0.04em'}}>{dayName.slice(0,2).toUpperCase()}</div>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{display:'flex',gap:8,marginTop:10}}>
+            {MEAL_TYPES.map(mt=>{
+              const mtCal=Math.round(monthMeals.filter(m=>(m.mealType||'').toLowerCase()===mt).reduce((s,m)=>s+parseFloat(m.calories||0),0));
+              const pct=monthCal>0?(mtCal/monthCal)*100:0;
+              return mtCal>0&&(
+                <div key={mt} style={{flex:1}}>
+                  <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:MT_COLORS[mt],letterSpacing:'0.08em',marginBottom:2}}>{mt.slice(0,4).toUpperCase()}</div>
+                  <div style={{height:3,background:'rgba(255,255,255,0.07)',borderRadius:2}}><div style={{height:'100%',width:`${pct}%`,background:MT_COLORS[mt],borderRadius:2}}/></div>
+                  <div style={{fontFamily:"'DM Mono',monospace",fontSize:6,color:'rgba(255,255,255,0.3)',marginTop:1}}>{Math.round(pct)}%</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      {view==='monthly'&&(
+        <div>
+          <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}>
+            <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.12em',color:'rgba(255,255,255,0.3)'}}>DAILY KCAL · {daysInMonth} DAYS</div>
+            <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:'rgba(255,255,255,0.35)',letterSpacing:'0.08em'}}>TARGET {tdee.toLocaleString()}/DAY</div>
+          </div>
+          <div style={{display:'flex',alignItems:'flex-end',gap:1,height:74,position:'relative'}}>
+            <div style={{position:'absolute',left:0,right:0,bottom:`${(tdee/maxMonthKcal)*62}px`,height:1,borderTop:'1px dashed rgba(255,255,255,0.2)',zIndex:1}}/>
+            {monthDailyKcal.map((kcal,i)=>{
+              const barH=maxMonthKcal>0?(kcal/maxMonthKcal)*62:0;
+              const isCur=isCurrentMonth&&i+1===todayDayNum;
+              const isOver=kcal>tdee&&kcal>0;
+              const barColor=kcal>0?(isOver?'#ff3b3b':(isCur?oc:`${oc}77`)):'rgba(255,255,255,0.04)';
+              const showLbl=i===0||i===6||i===13||i===20||i===27||i===daysInMonth-1;
+              return (
+                <div key={i} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center'}}>
+                  <div style={{width:'100%',height:62,display:'flex',alignItems:'flex-end'}}><div style={{width:'100%',height:Math.max(barH,kcal>0?3:1),background:barColor,borderRadius:'2px 2px 0 0',transition:'height 0.3s'}}/></div>
+                  <div style={{fontFamily:"'DM Mono',monospace",fontSize:5,color:showLbl?'rgba(255,255,255,0.25)':'transparent',lineHeight:1.4}}>{i+1}</div>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{display:'flex',justifyContent:'space-between',marginTop:4}}>
+            <span style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:'rgba(255,255,255,0.3)',letterSpacing:'0.08em'}}>AVG {monthMeals.length>0?Math.round(monthCal/daysElapsed).toLocaleString():0} KCAL/DAY</span>
+            <span style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:tdeeColor,letterSpacing:'0.08em'}}>{Math.round(tdeeRatio*100)}% OF TARGET</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPartners=[], selfVisible=true, isShared, tabSelected, onToggleUser, tabColor='#d67bff'}) => {
   const [search, setSearch] = useState('');
   const [actionMeal, setActionMeal] = useState(null);
@@ -2669,165 +2872,11 @@ const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPart
           {(()=>{
             const visUsers=[...(selfVisible?[user.username]:[]),...(activePartners||[]).map(p=>p.username)];
             if(visUsers.length===0) return null;
-
-            // Anchor to selected month
-            const selYear = new Date().getFullYear();
-            const selMonthIdx = parseInt(selectedMonth,10)-1;
-            const isCurrentMonth = selectedMonth===String(new Date().getMonth()+1).padStart(2,'0');
-            // "Active day" = today if current month, else last day of selected month
-            const activeDate = isCurrentMonth ? new Date() : new Date(selYear, selMonthIdx+1, 0);
-            const activeDateStr = activeDate.toLocaleDateString('en-CA');
-            const activeDayName = activeDate.toLocaleDateString('en-US',{weekday:'long'});
-            const activeDayIdx = (activeDate.getDay()+6)%7;
-            // Days elapsed in selected month (full month if past, days so far if current)
-            const daysElapsed = isCurrentMonth ? new Date().getDate() : new Date(selYear, selMonthIdx+1, 0).getDate();
-            // Week containing active date
-            const weekStart = new Date(activeDate);
-            weekStart.setDate(activeDate.getDate()-(activeDate.getDay()+6)%7);
-            weekStart.setHours(0,0,0,0);
-
-            // Ring component — shows overflow state when val > target (red + real %)
-            const Ring = ({val, target, color, label, unit}) => {
-              const ratio = target>0?val/target:0;
-              const isOver = ratio>1;
-              // Ring fills to 100% visually; overflow state changes color and shows real %
-              const pct = Math.min(ratio, 1);
-              const ringColor = isOver ? '#ff4d4d' : color;
-              const R=28, stroke=4, norm=2*Math.PI*R;
-              const dash = pct*norm;
-              return (
-                <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4}}>
-                  <div style={{position:'relative',width:62,height:62}}>
-                    <svg viewBox="0 0 62 62" width="62" height="62">
-                      <circle cx="31" cy="31" r={R} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth={stroke}/>
-                      <circle cx="31" cy="31" r={R} fill="none" stroke={ringColor} strokeWidth={stroke}
-                        strokeDasharray={`${dash.toFixed(2)} ${norm.toFixed(2)}`}
-                        strokeLinecap="round" transform="rotate(-90 31 31)"
-                        style={{filter:`drop-shadow(0 0 ${isOver?6:4}px ${ringColor}${isOver?'cc':'99'})`,transition:'stroke-dasharray 0.5s'}}/>
-                    </svg>
-                    <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center'}}>
-                      <span style={{fontFamily:"'DM Mono',monospace",fontWeight:600,fontSize:isOver?9:11,color:ringColor,lineHeight:1}}>
-                        {isOver?`${Math.round(ratio*100)}%`:`${Math.round(pct*100)}%`}
-                      </span>
-                    </div>
-                  </div>
-                  <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,fontWeight:600,letterSpacing:'0.12em',color:ringColor,textAlign:'center'}}>{label}</div>
-                  <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:'rgba(255,255,255,0.45)',textAlign:'center'}}>{unit}</div>
-                </div>
-              );
-            };
-
             return (
               <div style={{display:'flex',flexDirection:'column',gap:10,margin:'4px 0 16px'}}>
-                {visUsers.map(uname=>{
-                  const owner = getOwner(uname, user, partner, partners);
-                  const oc = owner?.eventColor||'#ffd600';
-                  const uMeals = meals.filter(m=>String(m.userKey)===String(uname));
-                  // Meals for the "active day" within selected month
-                  const activeDayMeals = uMeals.filter(m=>{
-                    const d=m.date?m.date.slice(0,10):'';
-                    const sd=m.day||(m.date?new Date(m.date).toLocaleDateString('en-US',{weekday:'long'}):'');
-                    return d===activeDateStr||sd===activeDayName;
-                  });
-                  const todayCal = Math.round(activeDayMeals.reduce((s,m)=>s+parseFloat(m.calories||0),0));
-
-                  // Also compute total for the whole selected month for rings
-                  const monthMeals = uMeals.filter(m=>(m.date||'').slice(5,7)===selectedMonth);
-                  const monthCal = Math.round(monthMeals.reduce((s,m)=>s+parseFloat(m.calories||0),0));
-                  // Use month total for rings, day total for header
-                  const ringCal = monthCal;
-
-                  // TDEE for this user — scale to days elapsed so rings compare month-to-date vs monthly budget
-                  const ownerFull = uname===user.username ? user : (partners.find(p=>p.username===uname)||owner);
-                  const uTDEE = getTDEE(ownerFull||{})||2000;
-                  const kcalTarget = uTDEE * daysElapsed;
-                  const protTarget = Math.round(kcalTarget*0.075);
-                  const carbTarget = Math.round(kcalTarget*0.05);
-                  const fatTarget  = Math.round(kcalTarget*0.028);
-                  // Rings use month total vs monthly budget
-                  const todayProt  = Math.round(ringCal*0.075);
-                  const todayCarb  = Math.round(ringCal*0.05);
-                  const todayFat   = Math.round(ringCal*0.028);
-
-                  // Weekly kcal bars: 7 days of the week containing the anchor date
-                  const weekDayKcal = DAYS.map((dayName,di)=>{
-                    const dayDate = new Date(weekStart);
-                    dayDate.setDate(weekStart.getDate()+di);
-                    const ds = dayDate.toLocaleDateString('en-CA');
-                    return uMeals.filter(m=>{
-                      const d=m.date?m.date.slice(0,10):'';
-                      const sd=m.day||(m.date?new Date(m.date).toLocaleDateString('en-US',{weekday:'long'}):'');
-                      return d===ds||sd===dayName;
-                    }).reduce((s,m)=>s+parseFloat(m.calories||0),0);
-                  });
-                  const maxKcal = Math.max(...weekDayKcal, kcalTarget, 1);
-
-                  const macros = [
-                    {label:'KCAL', val:ringCal,    target:kcalTarget, unit:`${ringCal}/${kcalTarget}`},
-                    {label:'PROT', val:todayProt,  target:protTarget,  unit:`${todayProt}/${protTarget}g`},
-                    {label:'CARB', val:todayCarb,  target:carbTarget,  unit:`${todayCarb}/${carbTarget}g`},
-                    {label:'FAT',  val:todayFat,   target:fatTarget,   unit:`${todayFat}/${fatTarget}g`},
-                  ];
-
-                  return (
-                    <div key={uname} style={{background:'#0d0d0b',border:`1px solid ${oc}33`,borderRadius:12,overflow:'hidden',borderLeft:`3px solid ${oc}`}}>
-
-                      {/* Header */}
-                      <div style={{display:'flex',alignItems:'center',gap:10,padding:'12px 14px 10px',borderBottom:'1px solid rgba(255,255,255,0.06)'}}>
-                        <ItemAvatar username={uname} user={user} partner={partner} partners={partners} size={36}/>
-                        <div style={{flex:1}}>
-                          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:16,color:oc,letterSpacing:'0.06em',textTransform:'uppercase'}}>
-                            {(owner?.displayName||(owner?.firstName&&owner?.lastName?`${owner.firstName} ${owner.lastName}`:null)||uname).toUpperCase()}
-                          </div>
-                        </div>
-                        <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'rgba(255,255,255,0.55)',letterSpacing:'0.1em'}}>
-                          <span style={{color:oc,fontWeight:600}}>{ringCal.toLocaleString()}</span> kcal
-                        </div>
-                      </div>
-
-                      {/* 4 rings */}
-                      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',padding:'14px 8px 10px',borderBottom:'1px solid rgba(255,255,255,0.06)'}}>
-                        {macros.map(m=>(
-                          <Ring key={m.label} val={m.val} target={m.target} color={oc} label={m.label} unit={m.unit}/>
-                        ))}
-                      </div>
-
-                      {/* Weekly kcal bars */}
-                      <div style={{padding:'10px 14px 12px'}}>
-                        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
-                          <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.14em',color:'rgba(255,255,255,0.48)'}}>WEEKLY KCAL TREND</div>
-                          <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:oc,letterSpacing:'0.06em'}}>{ringCal.toLocaleString()} kcal {isCurrentMonth?'today':'this period'}</div>
-                        </div>
-                        <div style={{display:'flex',alignItems:'flex-end',gap:3,height:48}}>
-                          {DAYS.map((dayName,di)=>{
-                            const kcal = weekDayKcal[di];
-                            const barH = maxKcal>0?(kcal/maxKcal)*40:0;
-                            const isToday = di===activeDayIdx;
-                            const hasData = kcal>0;
-                            return (
-                              <div key={dayName} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:3}}>
-                                <div style={{width:'100%',height:40,display:'flex',alignItems:'flex-end'}}>
-                                  <div style={{
-                                    width:'100%',height:Math.max(hasData?barH:2,hasData?5:2),
-                                    background:hasData?oc:'rgba(255,255,255,0.05)',
-                                    borderRadius:'3px 3px 0 0',
-                                    boxShadow:hasData&&isToday?`0 0 8px ${oc}88`:'none',
-                                    opacity:isToday?1:hasData?0.7:0.25,
-                                    transition:'height 0.3s',
-                                  }}/>
-                                </div>
-                                <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:isToday?oc:'rgba(255,255,255,0.40)',letterSpacing:'0.04em'}}>
-                                  {dayName[0]}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                    </div>
-                  );
-                })}
+                {visUsers.map(uname=>(
+                  <MealUserCard key={uname} uname={uname} meals={meals} user={user} partner={partner} partners={partners} tabColor={tabColor} selectedMonth={selectedMonth}/>
+                ))}
               </div>
             );
           })()}
