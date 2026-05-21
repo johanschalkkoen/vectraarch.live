@@ -428,6 +428,35 @@ const EMMA_ROUTINES = {
 
 const ROUTINE_MAP = {johank:JOHAN_ROUTINES, sarahk:SARAH_ROUTINES, liamk:LIAM_ROUTINES, emmak:EMMA_ROUTINES};
 
+// Human-readable exercise names
+const EX_LABEL = {
+  bench_press:'Flat Barbell Bench Press', incline_press:'Incline Barbell Press',
+  decline_press:'Decline Press', db_flyes:'Dumbbell Chest Flyes',
+  cable_cross:'Cable Crossover', chest_dips:'Weighted Chest Dips',
+  deadlift:'Conventional Deadlift', barbell_row:'Pendlay Row',
+  pull_ups:'Pull-ups (Weighted)', lat_pulldown:'Lat Pulldown',
+  cable_row:'Seated Cable Row', tbar_row:'T-Bar Row',
+  squat:'Barbell Back Squat', leg_press:'Leg Press',
+  rdl:'Romanian Deadlift', leg_curl:'Hamstring Curl',
+  leg_ext:'Leg Extension', calf_raise:'Standing Calf Raise',
+  ohp:'Overhead Press', db_shoulder:'Seated DB Press',
+  lat_raise:'Lateral Raise', front_raise:'Front Raise',
+  face_pull:'Cable Face Pull', shrugs:'Barbell Shrugs',
+  bb_curl:'Barbell Curl', db_curl:'Dumbbell Curl',
+  hammer_curl:'Hammer Curl', tri_pushdown:'Tricep Pushdown',
+  skulls:'Skull Crushers', tri_dips:'Tricep Dips',
+  treadmill:'Treadmill Run', cycling:'Stationary Bike',
+  hiit:'HIIT Circuit', jump_rope:'Jump Rope',
+  rowing:'Rowing Machine', stairmaster:'Stairmaster',
+  plank:'Plank', crunches:'Weighted Crunches',
+  russian_twist:'Russian Twist', leg_raise:'Hanging Leg Raise',
+  ab_wheel:'Ab Wheel Rollout', cable_crunch:'Cable Crunch',
+  yoga:'Yoga Flow', pilates:'Pilates',
+  foam_roll:'Foam Rolling', hip_stretch:'Hip Flexor Stretch',
+  shoulder_mob:'Shoulder Mobility', ham_stretch:'Hamstring Stretch',
+  burpees:'Burpees',
+};
+
 async function seedGym() {
   const months = [[2026,1],[2026,2],[2026,3],[2026,4],[2026,5]];
   for (const [y,m] of months) {
@@ -438,9 +467,10 @@ async function seedGym() {
         const dow = dayOfWeek(dateStr);
         if (!routines[dow]) continue;
         for (const ex of routines[dow]) {
+          const exName = EX_LABEL[ex.e] || ex.e;
           await run(
             `INSERT INTO vectraarchlegacy_gymworkout(username,day,exercise,sets,reps,weight,date) VALUES($1,$2,$3,$4,$5,$6,$7)`,
-            [user, dow, ex.e, ex.s, ex.r, ex.w, dateStr]
+            [user, dow, exName, ex.s, ex.r, ex.w, dateStr]
           );
         }
       }
@@ -477,17 +507,44 @@ const MEAL_PLANS = {
   },
 };
 
-// Calorie lookup (approximate)
-const CAL_MAP = {
-  eggs_toast:480, oats_berries:420, greek_parfait:350, protein_pancakes:460,
-  overnight_oats:390, smoothie_bowl:380, avo_toast:410, cereal:380, pb_toast:420,
-  chicken_bowl:620, tuna_wrap:520, beef_salad:560, quinoa_bowl:480, greek_salad:440,
-  turkey_sandwich:490, sushi_bowl:460, chicken_salad:420, chicken_wrap:480,
-  chicken_sub:580, mac_cheese:620, burger_fries:780,
-  salmon_veg:600, chicken_stirfry:650, lamb_chops:780, beef_steak:720,
-  prawn_pasta:680, chicken_schnitzel:650, pasta_bol:720,
-  protein_shake:220, mixed_nuts:180, apple_pb:210, protein_bar:240,
-  rice_cakes:190, berries:110, choc_milk:200, chips_dip:350,
+// Human-readable meal names and calories
+const MEAL_META = {
+  eggs_toast:       {name:'Scrambled Eggs on Rye Toast',      cal:480},
+  oats_berries:     {name:'Oats with Berries & Honey',        cal:420},
+  greek_parfait:    {name:'Greek Yogurt Parfait',             cal:350},
+  protein_pancakes: {name:'Protein Pancakes',                 cal:460},
+  overnight_oats:   {name:'Overnight Oats & Banana',          cal:390},
+  smoothie_bowl:    {name:'Açaí Smoothie Bowl',               cal:380},
+  avo_toast:        {name:'Avocado Toast & Poached Egg',      cal:410},
+  cereal:           {name:'Cereal with Full Cream Milk',      cal:380},
+  pb_toast:         {name:'Peanut Butter Toast',              cal:420},
+  chicken_bowl:     {name:'Grilled Chicken Rice Bowl',        cal:620},
+  tuna_wrap:        {name:'Tuna Salad Wrap',                  cal:520},
+  beef_salad:       {name:'Steak & Rocket Salad',             cal:560},
+  quinoa_bowl:      {name:'Quinoa Power Bowl',                cal:480},
+  greek_salad:      {name:'Greek Salad & Grilled Chicken',    cal:440},
+  turkey_sandwich:  {name:'Turkey & Avocado Sandwich',        cal:490},
+  sushi_bowl:       {name:'Sushi Bowl',                       cal:460},
+  chicken_salad:    {name:'Grilled Chicken Salad',            cal:420},
+  chicken_wrap:     {name:'Chicken Caesar Wrap',              cal:480},
+  chicken_sub:      {name:'Chicken Sub Roll',                 cal:580},
+  mac_cheese:       {name:'Mac & Cheese',                     cal:620},
+  burger_fries:     {name:'Cheeseburger & Fries',             cal:780},
+  salmon_veg:       {name:'Grilled Salmon & Roasted Veg',     cal:600},
+  chicken_stirfry:  {name:'Chicken Stir-fry & Brown Rice',    cal:650},
+  lamb_chops:       {name:'Lamb Chops & Sweet Potato',        cal:780},
+  beef_steak:       {name:'Sirloin Steak & Asparagus',        cal:720},
+  prawn_pasta:      {name:'Prawn Linguine',                   cal:680},
+  chicken_schnitzel:{name:'Chicken Schnitzel & Salad',        cal:650},
+  pasta_bol:        {name:'Pasta Bolognese',                  cal:720},
+  protein_shake:    {name:'Whey Protein Shake',               cal:220},
+  mixed_nuts:       {name:'Mixed Nuts',                       cal:180},
+  apple_pb:         {name:'Apple & Peanut Butter',            cal:210},
+  protein_bar:      {name:'Protein Bar',                      cal:240},
+  rice_cakes:       {name:'Rice Cakes & Hummus',              cal:190},
+  berries:          {name:'Mixed Berries',                    cal:110},
+  choc_milk:        {name:'Chocolate Milk',                   cal:200},
+  chips_dip:        {name:'Chips & Dip',                      cal:350},
 };
 
 async function seedMeals() {
@@ -507,10 +564,10 @@ async function seedMeals() {
         for (const mt of mealTypes) {
           const foods = plan[mt] || plan.snack;
           const foodKey = foods[di % foods.length];
-          const cal = CAL_MAP[foodKey] || 400;
+          const meta = MEAL_META[foodKey] || {name: foodKey, cal: 400};
           await run(
             `INSERT INTO vectraarchlegacy_mealplan(username,day,meal_type,description,calories,date) VALUES($1,$2,$3,$4,$5,$6)`,
-            [user, dow, mt, foodKey, cal, dateStr]
+            [user, dow, mt, meta.name, meta.cal, dateStr]
           );
         }
       }
