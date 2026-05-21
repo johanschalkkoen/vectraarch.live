@@ -1432,8 +1432,8 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
 
           {/* ── Legend inline — SVG icons matching tab icons ── */}
           <div style={{display:'flex',flexWrap:'wrap',gap:8,padding:'8px 12px 4px',borderTop:'1px solid var(--border)',marginTop:4}}>
-            {canSeeCycle&&!calUserIsMale&&<LegendItem color="#e91e8c" label="MENSTRUATION" icon={<svg viewBox="0 0 24 24" fill="#e91e8c" width="10" height="10"><path d="M12 2C12 2 5 10.5 5 15a7 7 0 0 0 14 0C19 10.5 12 2 12 2z"/></svg>}/>}
-            {canSeeCycle&&!calUserIsMale&&<LegendItem color="#1de9b6" label="OVULATION" icon={<svg viewBox="0 0 24 24" fill="none" stroke="#1de9b6" strokeWidth="2" width="10" height="10"><circle cx="12" cy="12" r="5"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/></svg>}/>}
+            {canSeeCycle&&<LegendItem color="#e91e8c" label="MENSTRUATION" icon={<svg viewBox="0 0 24 24" fill="#e91e8c" width="10" height="10"><path d="M12 2C12 2 5 10.5 5 15a7 7 0 0 0 14 0C19 10.5 12 2 12 2z"/></svg>}/>}
+            {canSeeCycle&&<LegendItem color="#1de9b6" label="OVULATION" icon={<svg viewBox="0 0 24 24" fill="none" stroke="#1de9b6" strokeWidth="2" width="10" height="10"><circle cx="12" cy="12" r="5"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/></svg>}/>}
             <LegendItem label="PERSONAL" icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="10" height="10"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>}/>
             <LegendItem label="WORK" icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="10" height="10"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>}/>
             <LegendItem label="HEALTH" icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="10" height="10"><path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/></svg>}/>
@@ -1463,13 +1463,13 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
             <div className="section-label" style={{padding:'4px 0 10px',borderBottom:'none'}}>
               EVENTS <span style={{color:tabColor}}>{selectedEvents.filter(e=>!e.isCycle&&!e.isFertile&&(!search||(e.title||'').toLowerCase().includes(search.toLowerCase()))).length}</span> RECORDS
             </div>
-            {canSeeCycle&&!calUserIsMale&&selectedEvents.some(e=>e.isCycle)&&(
+            {canSeeCycle&&selectedEvents.some(e=>e.isCycle)&&(
               <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',background:'rgba(233,30,140,0.1)',border:'1px solid rgba(233,30,140,0.25)',borderRadius:8,marginBottom:8}}>
                 <span style={{fontSize:16}}>🩸</span>
                 <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,color:'#e91e8c'}}>MENSTRUATION DAY</div>
               </div>
             )}
-            {canSeeCycle&&!calUserIsMale&&selectedEvents.some(e=>e.isFertile)&&(
+            {canSeeCycle&&selectedEvents.some(e=>e.isFertile)&&(
               <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',background:'rgba(29,233,182,0.08)',border:'1px solid rgba(29,233,182,0.25)',borderRadius:8,marginBottom:8}}>
                 <span style={{fontSize:16}}>🌿</span>
                 <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,color:'#1de9b6'}}>OVULATION WINDOW</div>
