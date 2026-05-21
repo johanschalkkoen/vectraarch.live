@@ -3887,23 +3887,27 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
       .catch(()=>{});
   },[partner?.username]);
 
-  // Profile picture file selection — compresses via canvas before upload
+  // Profile picture file selection — compresses to ≤80 KB base64 via canvas
   const handlePicChange = (e) => {
     const file = e.target.files[0];
     if(!file) return;
     if(file.size > 15*1024*1024){ msg('Image must be under 15 MB','err'); return; }
-    setPicFile(file);
     const reader = new FileReader();
     reader.onload = ev => {
       const img = new Image();
       img.onload = () => {
-        const MAX = 1200;
+        const MAX = 800;
         let w = img.width, h = img.height;
         if(w > MAX || h > MAX){ const r = Math.min(MAX/w, MAX/h); w = Math.round(w*r); h = Math.round(h*r); }
         const canvas = document.createElement('canvas');
         canvas.width = w; canvas.height = h;
         canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-        setPicPreview(canvas.toDataURL('image/jpeg', 0.82));
+        // Adaptive quality — step down until base64 fits comfortably under 80 KB
+        let out = canvas.toDataURL('image/jpeg', 0.78);
+        if(out.length > 80000) out = canvas.toDataURL('image/jpeg', 0.60);
+        if(out.length > 80000) out = canvas.toDataURL('image/jpeg', 0.45);
+        setPicPreview(out);
+        setPicFile(file); // set AFTER compression so Save always uses compressed version
       };
       img.src = ev.target.result;
     };
@@ -3914,11 +3918,9 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
   const handleSave = async() => {
     try {
       const displayName = form.firstName&&form.lastName ? `${form.firstName} ${form.lastName}` : (user.displayName||user.username);
-      // If a new picture was selected, convert to base64 and send
-      let profilePicUrl = user.profilePicUrl||DP;
-      if(picFile){
-        profilePicUrl = picPreview; // base64 data URL
-      }
+      // Only include profilePicUrl in the request when a NEW file was selected and compressed
+      // This prevents resending a potentially large existing base64 on every profile save
+      const newPic = picFile ? picPreview : undefined;
       await axios.post(`${API}/profile-pictures`,{
         username:    user.username,
         firstName:   form.firstName,
@@ -3932,9 +3934,11 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
         height:      form.height||undefined,
         eventColor:  selectedColor,
         currency:    form.currency||'ZAR',
-        profilePicUrl: profilePicUrl !== DP ? profilePicUrl : undefined,
+        profilePicUrl: newPic,
       });
-      const updated = {...user,...form,displayName,eventColor:selectedColor,currency:form.currency||'ZAR',profilePicUrl:profilePicUrl!==DP?profilePicUrl:user.profilePicUrl,gender:form.gender,dob:form.dob,weight:form.weight,height:form.height};
+      const updated = {...user,...form,displayName,eventColor:selectedColor,currency:form.currency||'ZAR',
+        profilePicUrl: newPic || user.profilePicUrl,
+        gender:form.gender,dob:form.dob,weight:form.weight,height:form.height};
       setUser(updated);
       localStorage.setItem('user',JSON.stringify(updated));
       setPicFile(null);

@@ -354,7 +354,9 @@ app.post('/api/profile-pictures', async (req, res) => {
         if (!exists) return res.status(404).json({ success: false, message: 'User not found.' });
         await dbRun(`
             UPDATE vectraarchlegacy_users SET
-                first_name=$1, last_name=$2, profile_pic_url=$3, email=$4, phone=$5, address=$6,
+                first_name=$1, last_name=$2,
+                profile_pic_url=COALESCE($3::text, profile_pic_url),
+                email=$4, phone=$5, address=$6,
                 event_color=$7, gender=$8, telegram_chat_id=$9, display_name=$10,
                 bio=$11, pronouns=$12, theme=$13, activity_status=$14, last_active=$15
             WHERE username=$16`,
