@@ -520,13 +520,8 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
 
   return (
     <div className="page-outer">
-      <div className="top-bar"><span className="top-eyebrow"><span style={{color:user?.eventColor||'#00e676'}}>§ VECTRA ARCH</span> · LEGACY · FINANCIAL</span></div>
       <div className="page-scroll">
         <div className="page-inner">
-          <div className="page-head">
-            <div className="page-title">FINANCES</div>
-            <div className="page-sub">{isShared?'COMBINED HOUSEHOLD TOTALS':'INCOME · EXPENSES · NET TOTAL'}</div>
-          </div>
 
           <UserRow user={user} partner={partner} partners={partners} activePartners={activePartners} permittedPartners={permittedPartners} selfVisible={selfVisible} tabSelected={tabSelected} isShared={isShared} onToggleUser={onToggleUser}/>
           <MonthNav selectedMonth={selectedMonth} setSelectedMonth={setSelectedMonth} tabColor={tabColor}/>
@@ -1351,15 +1346,8 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
 
   return (
     <div className="page-outer">
-      <div className="top-bar">
-        <span className="top-eyebrow"><span style={{color:user?.eventColor||'#00e676'}}>§ VECTRA ARCH</span> · LEGACY · CALENDAR</span>
-      </div>
       <div className="page-scroll">
-        <div className="page-inner" style={{padding:0}}>
-          <div className="page-head">
-            <div className="page-title">CALENDAR</div>
-            <div className="page-sub">EVENTS · CYCLE · SCHEDULE</div>
-          </div>
+        <div className="page-inner" style={{paddingLeft:16,paddingRight:16,paddingTop:0,paddingBottom:0}}>
           <UserRow user={user} partner={partner} partners={partners} activePartners={activePartners} permittedPartners={permittedPartners} selfVisible={selfVisible} tabSelected={tabSelected} isShared={isShared} onToggleUser={onToggleUser}/>
           <Alert {...alert}/>
           <SearchBar value={search} onChange={setSearch} placeholder="Search events..." tabColor={tabColor}/>
@@ -1918,13 +1906,8 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
 
   return (
     <div className="page-outer">
-      <div className="top-bar"><span className="top-eyebrow"><span style={{color:user?.eventColor||'#00e676'}}>§ VECTRA ARCH</span> · LEGACY · FINANCIAL</span></div>
       <div className="page-scroll">
         <div className="page-inner">
-          <div className="page-head">
-            <div className="page-title">BUDGET</div>
-            <div className="page-sub">MONTHLY ALLOCATION · PLANNED vs ACTUAL</div>
-          </div>
           <UserRow user={user} partner={partner} partners={partners} activePartners={activePartners} permittedPartners={permittedPartners} selfVisible={selfVisible} tabSelected={tabSelected} isShared={isShared} onToggleUser={onToggleUser}/>
           <MonthNav selectedMonth={selectedMonth} setSelectedMonth={m=>{
             const curM=parseInt(selectedMonth,10),newM=parseInt(m,10);
@@ -2345,13 +2328,8 @@ const GymPage = ({user, partner, partners=[], activePartners=[], permittedPartne
 
   return (
     <div className="page-outer">
-      <div className="top-bar"><span className="top-eyebrow"><span style={{color:user?.eventColor||'#00e676'}}>§ VECTRA ARCH</span> · LEGACY · GYM</span></div>
       <div className="page-scroll">
         <div className="page-inner">
-          <div className="page-head">
-            <div className="page-title">GYM WORKOUT</div>
-            <div className="page-sub">EXERCISES · STRENGTH · WEEKLY PLAN</div>
-          </div>
           <UserRow user={user} partner={partner} partners={partners} activePartners={activePartners} permittedPartners={permittedPartners} selfVisible={selfVisible} tabSelected={tabSelected} isShared={isShared} onToggleUser={onToggleUser}/>
           <MonthNav selectedMonth={selectedMonth} setSelectedMonth={setSelectedMonth} tabColor={tabColor}/>
           <Alert {...alert}/>
@@ -2854,13 +2832,8 @@ const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPart
 
   return (
     <div className="page-outer">
-      <div className="top-bar"><span className="top-eyebrow"><span style={{color:user?.eventColor||'#00e676'}}>§ VECTRA ARCH</span> · LEGACY · NUTRITION</span></div>
       <div className="page-scroll">
         <div className="page-inner">
-          <div className="page-head">
-            <div className="page-title">MEAL PLAN</div>
-            <div className="page-sub">MACROS · DAILY FOOD LOG</div>
-          </div>
           <UserRow user={user} partner={partner} partners={partners} activePartners={activePartners} permittedPartners={permittedPartners} selfVisible={selfVisible} tabSelected={tabSelected} isShared={isShared} onToggleUser={onToggleUser}/>
           <MonthNav selectedMonth={selectedMonth} setSelectedMonth={setSelectedMonth} tabColor={tabColor}/>
           <SearchBar value={search} onChange={setSearch} placeholder="Search meals..." tabColor={tabColor}/>
@@ -3233,13 +3206,8 @@ const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPart
 
   return (
     <div className="page-outer">
-      <div className="top-bar"><span className="top-eyebrow"><span style={{color:user?.eventColor||'#00e676'}}>§ VECTRA ARCH</span> · LEGACY · HEALTH</span></div>
       <div className="page-scroll">
         <div className="page-inner">
-          <div className="page-head">
-            <div className="page-title">CYCLE TRACKER</div>
-            <div className="page-sub">PERIOD · OVULATION · FERTILITY</div>
-          </div>
           <UserRow user={user} partner={partner} partners={partners} activePartners={activePartners} permittedPartners={permittedPartners} selfVisible={selfVisible} tabSelected={tabSelected} isShared={isShared} onToggleUser={onToggleUser}/>
           <Alert {...alert}/>
           <MonthNav selectedMonth={selectedMonth} setSelectedMonth={setSelectedMonth} tabColor={tabColor}/>
@@ -3770,13 +3738,8 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
 
   return (
     <div className="page-outer">
-      <div className="top-bar"><span className="top-eyebrow"><span style={{color:user?.eventColor||'#00e676'}}>§ VECTRA ARCH</span> · LEGACY · PROFILE</span></div>
       <div className="page-scroll">
         <div className="page-inner">
-          <div className="page-head">
-            <div className="page-title">PROFILE</div>
-            <div className="page-sub">ACCOUNT · SHARING · PREFERENCES</div>
-          </div>
           <Alert {...alert}/>
 
           {/* ── Profile picture + name card ── */}
@@ -4071,13 +4034,8 @@ const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
 
   return (
     <div className="page-outer">
-      <div className="top-bar"><span className="top-eyebrow"><span style={{color:user?.eventColor||'#00e676'}}>§ VECTRA ARCH</span> · LEGACY · ADMIN</span></div>
       <div className="page-scroll">
         <div className="page-inner">
-          <div className="page-head">
-            <div className="page-title">ADMIN PANEL</div>
-            <div className="page-sub">USER MANAGEMENT · ACCESS CONTROL</div>
-          </div>
           <Alert {...alert}/>
 
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
@@ -4176,8 +4134,6 @@ const ALL_TABS = [
   {id:'gym',      label:'GYM',      color:'#ff3b3b'},
   {id:'meals',    label:'MEALS',    color:'#d67bff'},
   {id:'cycle',    label:'CYCLE',    color:'#e91e8c', cycleOnly:true},
-  {id:'profile',  label:'PROFILE',  color:'#b06aff'},
-  {id:'admin',    label:'ADMIN',    color:'#ff9800', adminOnly:true},
 ];
 
 const App = () => {
@@ -4336,8 +4292,44 @@ const App = () => {
     return true;
   });
 
+  const TAB_INFO = {
+    calendar: {title:'CALENDAR',     sub:'EVENTS · CYCLE · SCHEDULE'},
+    budget:   {title:'BUDGET',       sub:'MONTHLY ALLOCATION · PLANNED vs ACTUAL'},
+    finances: {title:'FINANCES',     sub: isShared?'COMBINED HOUSEHOLD TOTALS':'INCOME · EXPENSES · NET TOTAL'},
+    gym:      {title:'GYM',          sub:'EXERCISES · STRENGTH · WEEKLY PLAN'},
+    meals:    {title:'MEALS',        sub:'MACROS · DAILY FOOD LOG'},
+    cycle:    {title:'CYCLE TRACKER',sub:'PERIOD · OVULATION · FERTILITY'},
+    profile:  {title:'PROFILE',      sub:'ACCOUNT · SHARING · PREFERENCES'},
+    admin:    {title:'ADMIN PANEL',  sub:'USER MANAGEMENT · ACCESS CONTROL'},
+  };
+  const pageInfo = TAB_INFO[activeTab]||{title:'',sub:''};
+
   return (
     <div className="app-shell">
+      <div className="top-bar">
+        <div style={{display:'flex',alignItems:'center',gap:8,flex:1,minWidth:0}}>
+          <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.18em',color:tabColor,flexShrink:0,fontWeight:500}}>§ VECTRA ARCH</span>
+          <span style={{color:'rgba(255,255,255,0.12)',flexShrink:0}}>·</span>
+          <div style={{minWidth:0,flex:1,overflow:'hidden'}}>
+            <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:17,letterSpacing:'0.04em',textTransform:'uppercase',color:'var(--text)',lineHeight:1,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{pageInfo.title}</div>
+            <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,letterSpacing:'0.14em',textTransform:'uppercase',color:'var(--text3)',lineHeight:1.2,marginTop:2,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{pageInfo.sub}</div>
+          </div>
+        </div>
+        <div style={{display:'flex',alignItems:'center',gap:4,flexShrink:0,marginLeft:8}}>
+          <button onClick={()=>setActiveTab('profile')} title="Profile" style={{display:'flex',flexDirection:'column',alignItems:'center',gap:2,padding:'4px 8px',border:`1px solid ${activeTab==='profile'?'#b06aff':'rgba(255,255,255,0.1)'}`,borderRadius:4,background:activeTab==='profile'?'rgba(176,106,255,0.14)':'transparent',color:activeTab==='profile'?'#b06aff':'rgba(255,255,255,0.4)',cursor:'pointer',transition:'all 0.15s'}}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="16" height="16"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <span style={{fontFamily:"'DM Mono',monospace",fontSize:7,letterSpacing:'0.1em',textTransform:'uppercase'}}>PROFILE</span>
+          </button>
+          {isAdmin&&<button onClick={()=>setActiveTab('admin')} title="Admin" style={{display:'flex',flexDirection:'column',alignItems:'center',gap:2,padding:'4px 8px',border:`1px solid ${activeTab==='admin'?'#ff9800':'rgba(255,255,255,0.1)'}`,borderRadius:4,background:activeTab==='admin'?'rgba(255,152,0,0.14)':'transparent',color:activeTab==='admin'?'#ff9800':'rgba(255,255,255,0.4)',cursor:'pointer',transition:'all 0.15s'}}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="16" height="16"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            <span style={{fontFamily:"'DM Mono',monospace",fontSize:7,letterSpacing:'0.1em',textTransform:'uppercase'}}>ADMIN</span>
+          </button>}
+          <button onClick={handleLogout} title="Sign out" style={{display:'flex',flexDirection:'column',alignItems:'center',gap:2,padding:'4px 10px',border:'none',borderLeft:'1px solid rgba(255,255,255,0.08)',borderRadius:0,background:'transparent',color:'var(--pink)',cursor:'pointer',marginLeft:2}}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="16" height="16"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            <span style={{fontFamily:"'DM Mono',monospace",fontSize:7,letterSpacing:'0.1em',textTransform:'uppercase'}}>OUT</span>
+          </button>
+        </div>
+      </div>
       <div style={{flex:1,overflow:'hidden',minHeight:0}}>
         {activeTab==='finances'&&<FinancesPage {...sharedProps}/>}
         {activeTab==='calendar'&&<CalendarPage {...sharedProps}/>}
@@ -4358,10 +4350,7 @@ const App = () => {
             <span className="tab-label">{t.label}</span>
           </button>
         ))}
-        <button className="tab-btn-logout" onClick={handleLogout} title="Sign out">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="20" height="20"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-          <span style={{fontFamily:"'DM Mono',monospace",fontSize:'7px',letterSpacing:'0.1em',textTransform:'uppercase'}}>OUT</span>
-        </button>
+
       </div>
     </div>
   );

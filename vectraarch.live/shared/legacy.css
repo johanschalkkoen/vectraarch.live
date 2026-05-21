@@ -301,7 +301,7 @@ body::before { display: none; }
 .page-outer { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
 
 /* ── TOP BAR ── */
-.top-bar { flex-shrink: 0; height: var(--top-h); display: flex; align-items: center; padding: 0 16px; border-bottom: 1px solid var(--border); background: var(--bg); }
+.top-bar { flex-shrink: 0; min-height: var(--top-h); display: flex; align-items: center; padding: 0 12px; border-bottom: 1px solid var(--border); background: var(--bg); gap: 8px; }
 .top-eyebrow { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--text3); }
 
 /* ── PAGE SCROLL ── */
@@ -314,7 +314,7 @@ body::before { display: none; }
 .page-sub   { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--text3); margin-top: 4px; }
 
 /* ── USER CHIP ── */
-.user-row { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.user-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; position: sticky; top: 0; z-index: 10; background: var(--bg); padding: 10px 0 10px; margin-bottom: 8px; border-bottom: 1px solid var(--border); }
 .user-chip { display: flex; align-items: center; gap: 8px; background: var(--bg3); border: 1px solid var(--border2); border-radius: 4px; padding: 6px 10px; min-width: 0; }
 .user-chip-avatar { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
 .user-chip-name { font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; }
