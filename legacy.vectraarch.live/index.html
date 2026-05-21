@@ -326,6 +326,13 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
     return Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([cat,amt])=>({cat,amt,pct:totals.exp>0?((amt/totals.exp)*100):0}));
   },[filtered,totals.exp]);
 
+  // Budget categories for the current user's budget this month (used in transaction form)
+  const budgetCategories = useMemo(()=>{
+    const period = `${new Date().getFullYear()}-${selectedMonth}`;
+    const bud = budgets.find(b=>(b.user===user.username||!b.user)&&(b.date||'').startsWith(period));
+    return bud?.expenses||[];
+  },[budgets, user.username, selectedMonth]);
+
   // ── CRUD handlers ──
   const handleSave = async () => {
     if(!form.category||!form.amount){msg('Fill all fields.','err');return;}
@@ -883,8 +890,34 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
             <div className="modal-handle"/>
             <div className="modal-title">{editId?"Edit":"Add"} Transaction</div>
             <div className="form-field">
-              <label className="form-label">Category</label>
-              <input className="form-input" placeholder="e.g. Groceries" value={form.category} onChange={e=>setForm(p=>({...p,category:e.target.value}))}/>
+              <label className="form-label">
+                Category
+                {budgetCategories.length>0&&form.type==='expense'&&(
+                  <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:tabColor,marginLeft:8,letterSpacing:'0.08em'}}>FROM BUDGET</span>
+                )}
+              </label>
+              <input className="form-input"
+                list={`fin-budget-cats-${user.username}`}
+                placeholder={form.type==='expense'&&budgetCategories.length>0?'Select or type category':'e.g. Salary, Freelance'}
+                value={form.category}
+                onChange={e=>setForm(p=>({...p,category:e.target.value}))}/>
+              {form.type==='expense'&&budgetCategories.length>0&&(
+                <datalist id={`fin-budget-cats-${user.username}`}>
+                  {budgetCategories.map(c=><option key={c.category} value={c.category}/>)}
+                </datalist>
+              )}
+              {form.type==='expense'&&budgetCategories.length>0&&!form.category&&(
+                <div style={{display:'flex',flexWrap:'wrap',gap:4,marginTop:8}}>
+                  {budgetCategories.map(c=>(
+                    <button key={c.category} type="button"
+                      onClick={()=>setForm(p=>({...p,category:c.category}))}
+                      style={{padding:'4px 10px',borderRadius:20,border:`1px solid ${tabColor}44`,background:`${tabColor}10`,
+                        color:tabColor,fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.06em',cursor:'pointer',whiteSpace:'nowrap'}}>
+                      {c.category}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             <div className="form-field">
               <label className="form-label">Amount (ZAR)</label>
@@ -1457,6 +1490,12 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
 
   const selectedPeriod = `${selectedYear}-${selectedMonth}`;
   const monthLabel = MONTHS.find(m=>m.v===selectedMonth)?.l||'';
+  // Which user's budget to display: own if selfVisible (or fallback), sole partner if only they're selected
+  const viewUser = (!selfVisible&&(activePartners||[]).length===1)
+    ? activePartners[0].username : user.username;
+  const canEdit  = viewUser===user.username;
+  const viewPartner = viewUser!==user.username
+    ? [...(partners||[]),...(permittedPartners||[])].find(p=>p.username===viewUser)||null : null;
 
   const fetchAll = useCallback(async()=>{
     const users=[...(selfVisible?[user.username]:[]),...(activePartners||[]).map(p=>p.username)];
@@ -1484,12 +1523,12 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
   useEffect(()=>{ fetchAll(); },[fetchAll]);
 
   const budgetEntry = useMemo(()=>
-    allBudgets.find(b=>(b.user===user.username||!b.user)&&(b.date||'').startsWith(selectedPeriod))||null
-  ,[allBudgets, user.username, selectedPeriod]);
+    allBudgets.find(b=>b.user===viewUser&&(b.date||'').startsWith(selectedPeriod))||null
+  ,[allBudgets, viewUser, selectedPeriod]);
 
   const monthFinances = useMemo(()=>
-    finances.filter(f=>(f.date||'').startsWith(selectedPeriod))
-  ,[finances, selectedPeriod]);
+    finances.filter(f=>(f.user===viewUser||(!f.user&&viewUser===user.username))&&(f.date||'').startsWith(selectedPeriod))
+  ,[finances, viewUser, user.username, selectedPeriod]);
 
   const incomeVal = parseFloat(editing ? draftIncome : (budgetEntry?.income||''))||0;
 
@@ -1753,9 +1792,13 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
               </>
             ) : incomeVal>0 ? (
               <>
-                <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.2em',color:'rgba(255,255,255,0.35)',marginBottom:6}}>MONTHLY NET INCOME</div>
-                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:38,color:'rgba(255,255,255,0.95)',letterSpacing:'0.01em',lineHeight:1,marginBottom:4}}>{fmtR(incomeVal)}</div>
-                <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'rgba(255,255,255,0.35)',marginBottom:16}}>Your income after tax and deductions</div>
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.2em',color:'rgba(255,255,255,0.35)',marginBottom:6}}>
+                  MONTHLY NET INCOME{viewPartner?` · ${(viewPartner.displayName||viewPartner.username||'').toUpperCase()}`:''}
+                </div>
+                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:38,color:viewPartner?viewPartner.eventColor||tabColor:'rgba(255,255,255,0.95)',letterSpacing:'0.01em',lineHeight:1,marginBottom:4}}>{fmtR(incomeVal)}</div>
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'rgba(255,255,255,0.35)',marginBottom:16}}>
+                  {viewPartner?`${(viewPartner.displayName||viewPartner.username||'Partner')}'s income after tax and deductions`:'Your income after tax and deductions'}
+                </div>
                 <div style={{display:'flex',gap:8,marginBottom:16}}>
                   {BUDGET_SECTIONS.map(sec=>{
                     const secAllocs=allocations.filter(a=>a.type===sec.key);
@@ -1769,7 +1812,7 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
                     );
                   })}
                 </div>
-                <div style={{display:'flex',gap:8}}>
+                {canEdit&&<div style={{display:'flex',gap:8}}>
                   <button onClick={startEdit}
                     style={{flex:1,padding:'10px',borderRadius:8,background:'rgba(255,255,255,0.06)',color:'rgba(255,255,255,0.8)',border:'1px solid rgba(255,255,255,0.12)',fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:13,letterSpacing:'0.1em',cursor:'pointer'}}>
                     EDIT BUDGET
@@ -1778,17 +1821,23 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
                     style={{padding:'10px 14px',borderRadius:8,background:'rgba(255,61,61,0.08)',color:'rgba(255,61,61,0.7)',border:'1px solid rgba(255,61,61,0.2)',fontFamily:"'DM Mono',monospace",fontSize:10,cursor:'pointer'}}>
                     DELETE
                   </button>
-                </div>
+                </div>}
               </>
             ) : (
               <>
-                <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.2em',color:'rgba(255,255,255,0.35)',marginBottom:6}}>MONTHLY NET INCOME</div>
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.2em',color:'rgba(255,255,255,0.35)',marginBottom:6}}>
+                  MONTHLY NET INCOME{viewPartner?` · ${(viewPartner.displayName||viewPartner.username||'').toUpperCase()}`:''}
+                </div>
                 <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:28,color:'rgba(255,255,255,0.25)',letterSpacing:'0.01em',lineHeight:1,marginBottom:4}}>NOT SET</div>
-                <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'rgba(255,255,255,0.3)',marginBottom:16}}>No budget configured for {monthLabel} {selectedYear}</div>
-                <button onClick={startEdit}
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'rgba(255,255,255,0.3)',marginBottom:16}}>
+                  {viewPartner
+                    ?`${(viewPartner.displayName||viewPartner.username||'Partner')} has no budget for ${monthLabel} ${selectedYear}`
+                    :`No budget configured for ${monthLabel} ${selectedYear}`}
+                </div>
+                {canEdit&&<button onClick={startEdit}
                   style={{width:'100%',padding:'12px',borderRadius:8,background:tabColor,color:'#000',border:'none',fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:15,letterSpacing:'0.12em',cursor:'pointer'}}>
                   SET UP BUDGET ↗
-                </button>
+                </button>}
               </>
             )}
           </div>
