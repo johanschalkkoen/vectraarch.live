@@ -272,7 +272,7 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
   const [savingsForm, setSavingsForm] = useState({name:'',target:'',saved:'',color:tabColor,deadline:''});
   const [editSavingsIdx, setEditSavingsIdx] = useState(null);
   const [editRecurringIdx, setEditRecurringIdx] = useState(null);
-  const [expandedFinGroups, setExpandedFinGroups] = useState(new Set(['need','saving','want','uncat','income']));
+  const [expandedFinGroups, setExpandedFinGroups] = useState(new Set());
   const toggleFinGroup = (key) => setExpandedFinGroups(prev=>{const n=new Set(prev);n.has(key)?n.delete(key):n.add(key);return n;});
 
   const msg = (m,t='ok') => { setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
@@ -2766,7 +2766,7 @@ const MealUserCard = ({uname, meals, user, partner, partners, tabColor, selected
                         <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:MT_COLORS[mt],letterSpacing:'0.1em',marginBottom:3,marginTop:6}}>{mt.toUpperCase()}</div>
                         {mtMeals.map((m,i)=>(
                           <div key={i} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'6px 10px',background:'rgba(255,255,255,0.04)',borderRadius:6,borderLeft:`2px solid ${MT_COLORS[mt]}`,marginBottom:2}}>
-                            <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:13,color:'rgba(255,255,255,0.85)',letterSpacing:'0.04em'}}>{(m.meal||m.name||'').toUpperCase()}</div>
+                            <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:13,color:'rgba(255,255,255,0.85)',letterSpacing:'0.04em'}}>{(m.description||m.name||'').toUpperCase()}</div>
                             <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'rgba(255,255,255,0.4)'}}>{parseFloat(m.calories||0).toLocaleString()} KCAL</div>
                           </div>
                         ))}
