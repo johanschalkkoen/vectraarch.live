@@ -9,7 +9,7 @@
   },
   "homepage": "https://vectraarch.live",
   "type": "module",
-  "main": "dist-electron/main.js",
+  "main": "electron/main.js",
   "scripts": {
     "dev": "vite",
     "dev:web": "ELECTRON_NO_LAUNCH=1 vite",
