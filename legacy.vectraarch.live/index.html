@@ -272,6 +272,8 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
   const [savingsForm, setSavingsForm] = useState({name:'',target:'',saved:'',color:tabColor,deadline:''});
   const [editSavingsIdx, setEditSavingsIdx] = useState(null);
   const [editRecurringIdx, setEditRecurringIdx] = useState(null);
+  const [expandedFinGroups, setExpandedFinGroups] = useState(new Set(['need','saving','want','uncat','income']));
+  const toggleFinGroup = (key) => setExpandedFinGroups(prev=>{const n=new Set(prev);n.has(key)?n.delete(key):n.add(key);return n;});
 
   const msg = (m,t='ok') => { setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
 
@@ -777,17 +779,21 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
               if(!groups.length) return <div className="no-events"><div className="no-events-text">No transactions for {monthLabel}</div></div>;
               return groups.map(grp=>{
                 const grpTotal = grp.items.reduce((s,i)=>s+parseFloat(i.amount||0),0);
+                const isOpen = expandedFinGroups.has(grp.key);
                 return (
-                  <div key={grp.key} style={{marginBottom:8}}>
-                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 16px 6px'}}>
+                  <div key={grp.key} style={{marginBottom:8,borderLeft:`2px solid ${grp.color}22`,paddingLeft:0}}>
+                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 16px 6px',cursor:'pointer',userSelect:'none'}} onClick={()=>toggleFinGroup(grp.key)}>
                       <div style={{display:'flex',alignItems:'center',gap:6}}>
                         <div style={{width:6,height:6,borderRadius:1,background:grp.color,flexShrink:0}}/>
                         <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.14em',color:grp.color,fontWeight:600}}>{grp.label}</span>
                         <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'rgba(255,255,255,0.25)'}}>{grp.items.length}</span>
                       </div>
-                      <span style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:grp.color,fontWeight:500}}>{fmtR(grpTotal)}</span>
+                      <div style={{display:'flex',alignItems:'center',gap:10}}>
+                        <span style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:grp.color,fontWeight:500}}>{fmtR(grpTotal)}</span>
+                        <span style={{color:'rgba(255,255,255,0.3)',fontSize:10}}>{isOpen?'▲':'▼'}</span>
+                      </div>
                     </div>
-                    <div className="item-list">
+                    {isOpen&&<div className="item-list">
                       {grp.items.map(item=>{
                         const finOwner = getOwner(item.user||item.username, user, partner, partners);
                         const oc = finOwner?.eventColor||'#00e676';
@@ -814,7 +820,7 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
                           </div>
                         );
                       })}
-                    </div>
+                    </div>}
                   </div>
                 );
               });
@@ -2611,15 +2617,26 @@ const MealUserCard = ({uname, meals, user, partner, partners, tabColor, selected
   const monthMeals = uMeals.filter(m=>(m.date||'').slice(5,7)===selectedMonth);
   const todayMeals = (()=>{
     const byDate = uMeals.filter(m=>m.date&&m.date.slice(0,10)===todayStr);
-    if(byDate.length>0) return byDate;
-    // Fall back to most recent occurrence of today's weekday within selected month
-    const sameDayMonth = uMeals.filter(m=>{
+    // Most-recent same-weekday pool (planner base plan)
+    const sameDayPool = uMeals.filter(m=>{
       const sd=m.day||(m.date?new Date(m.date).toLocaleDateString('en-US',{weekday:'long'}):'');
       return sd===todayDayName&&(m.date||'').slice(5,7)===selectedMonth;
     }).sort((a,b)=>new Date(b.date||0)-new Date(a.date||0));
-    if(!sameDayMonth.length) return [];
-    const recentDate=(sameDayMonth[0].date||'').slice(0,10);
-    return recentDate?sameDayMonth.filter(m=>(m.date||'').slice(0,10)===recentDate):sameDayMonth;
+    if(byDate.length===0){
+      if(!sameDayPool.length) return [];
+      const recentDate=(sameDayPool[0].date||'').slice(0,10);
+      return recentDate?sameDayPool.filter(m=>(m.date||'').slice(0,10)===recentDate):sameDayPool;
+    }
+    // Today has some meals — fill any missing meal types from the most recent plan batch per type
+    const todayTypes=new Set(byDate.map(m=>(m.mealType||'').toLowerCase()));
+    const extras=['breakfast','lunch','dinner','snack'].flatMap(mt=>{
+      if(todayTypes.has(mt)) return [];
+      const pool=sameDayPool.filter(m=>(m.mealType||'').toLowerCase()===mt);
+      if(!pool.length) return [];
+      const latestDate=(pool[0].date||'').slice(0,10);
+      return latestDate?pool.filter(m=>(m.date||'').slice(0,10)===latestDate):pool;
+    });
+    return [...byDate,...extras];
   })();
   const todayCal = Math.round(todayMeals.reduce((s,m)=>s+parseFloat(m.calories||0),0));
   const monthCal = Math.round(monthMeals.reduce((s,m)=>s+parseFloat(m.calories||0),0));
