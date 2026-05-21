@@ -32,6 +32,7 @@ const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sun
 const fmtR = n => `R${parseFloat(n||0).toLocaleString('en-ZA',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
 const fmtDate = d => { if(!d)return'—'; const dt=new Date(d); return isNaN(dt)?'—':dt.toLocaleDateString('en-ZA',{year:'numeric',month:'2-digit',day:'2-digit'}); };
 const fmtDateTime = d => { if(!d)return'—'; const dt=new Date(d); return isNaN(dt)?'—':dt.toLocaleString('en-ZA',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).replace(',',''); };
+const fmtTime = d => { if(!d)return''; const dt=new Date(d); if(isNaN(dt))return''; const h=dt.getHours(),m=dt.getMinutes(); if(h===0&&m===0)return''; return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`; };
 const now = () => { const n=new Date(); n.setMinutes(n.getMinutes()-n.getTimezoneOffset()); return n.toISOString().slice(0,19); };
 const todayISO = () => new Date().toISOString().slice(0,10);
 // Bidirectional fuzzy match: "RENT" matches "Rent / Bond" and vice-versa
@@ -299,23 +300,14 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
     return latest||null;
   },[budgets, user.username, selectedMonth]);
 
-  // Virtual items derived from budget — baseline income + expense allocations
+  // Virtual items derived from budget — only income; expenses come from actual Finance entries
   const budgetVirtualItems = useMemo(()=>{
     if(!monthBudgetEntry) return [];
     const yr = new Date().getFullYear();
     const dateStr = `${yr}-${selectedMonth}-01T00:00:00`;
-    const virtuals = [];
     const income = parseFloat(monthBudgetEntry.income||0);
-    if(income>0){
-      virtuals.push({id:'bvirt_income',virtual:true,type:'income',category:'Budget Income',amount:income,date:dateStr,user:user.username});
-    }
-    (monthBudgetEntry.expenses||[]).forEach(e=>{
-      const amt = parseFloat(e.amount||0);
-      if(amt>0){
-        virtuals.push({id:`bvirt_${e.category}`,virtual:true,type:'expense',category:e.category,amount:amt,date:dateStr,user:user.username,budgetType:e.type});
-      }
-    });
-    return virtuals;
+    if(!income) return [];
+    return [{id:'bvirt_income',virtual:true,type:'income',category:'Budget Income',amount:income,date:dateStr,user:user.username}];
   },[monthBudgetEntry, selectedMonth, user.username]);
 
   // ── Current month filtered items ──
@@ -1238,6 +1230,8 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
   const [confirmDelCal, setConfirmDelCal] = useState(null);
   const [actionCalEvent, setActionCalEvent] = useState(null);
   const [editCalId, setEditCalId] = useState(null);
+  const [expandedCalGroups, setExpandedCalGroups] = useState(new Set(['events']));
+  const toggleCalGroup = (key) => setExpandedCalGroups(prev=>{ const n=new Set(prev); n.has(key)?n.delete(key):n.add(key); return n; });
   const msg = (m,t='ok')=>{ setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
 
   const calUserIsMale    = (user.gender||'').toLowerCase()==='male';
@@ -1478,69 +1472,117 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
 
           </div>
 
-          {/* ── Events list ── */}
-          <div style={{padding:'0 16px'}}>
-            <div className="section-label" style={{padding:'4px 0 10px',borderBottom:'none'}}>
-              EVENTS <span style={{color:tabColor}}>{selectedEvents.filter(e=>!e.isCycle&&!e.isFertile&&(!search||(e.title||'').toLowerCase().includes(search.toLowerCase()))).length}</span> RECORDS
-            </div>
-            {canSeeCycle&&selectedEvents.some(e=>e.isCycle)&&(
-              <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',background:'rgba(233,30,140,0.1)',border:'1px solid rgba(233,30,140,0.25)',borderRadius:8,marginBottom:8}}>
-                <span style={{fontSize:16}}>🩸</span>
-                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,color:'#e91e8c'}}>MENSTRUATION DAY</div>
-              </div>
-            )}
-            {canSeeCycle&&selectedEvents.some(e=>e.isFertile)&&(
-              <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',background:'rgba(29,233,182,0.08)',border:'1px solid rgba(29,233,182,0.25)',borderRadius:8,marginBottom:8}}>
-                <span style={{fontSize:16}}>🌿</span>
-                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,color:'#1de9b6'}}>OVULATION WINDOW</div>
-              </div>
-            )}
-            {selectedEvents.filter(e=>!e.isCycle&&!e.isFertile&&(!search||(e.title||'').toLowerCase().includes(search.toLowerCase()))).length===0&&!selectedEvents.some(e=>e.isCycle||e.isFertile)&&(
-              <div style={{textAlign:'center',padding:'24px 0',color:'var(--text3)',fontFamily:"'DM Mono',monospace",fontSize:10,letterSpacing:'0.1em'}}>
-                NO EVENTS
-              </div>
-            )}
-            {selectedEvents.filter(e=>!e.isCycle&&!e.isFertile&&(!search||(e.title||'').toLowerCase().includes(search.toLowerCase())||(e.type||'').toLowerCase().includes(search.toLowerCase()))).map(e=>{
+          {/* ── Events list — grouped & collapsible ── */}
+          {(()=>{
+            const visEvts = selectedEvents.filter(e=>!e.isCycle&&!e.isFertile&&(!search||(e.title||'').toLowerCase().includes(search.toLowerCase())||(e.type||'').toLowerCase().includes(search.toLowerCase())));
+            const normalEvts  = visEvts.filter(e=>!(e.financial||e.is_financial||e.financial==='1'||e.is_financial===1));
+            const finExpEvts  = visEvts.filter(e=>(e.financial||e.is_financial||e.financial==='1'||e.is_financial===1)&&e.type==='expense');
+            const finIncEvts  = visEvts.filter(e=>(e.financial||e.is_financial||e.financial==='1'||e.is_financial===1)&&e.type!=='expense');
+
+            const renderCard = (e, showTime=false) => {
               const calOwner = getOwner(e.user||e.username,user,partner,partners);
               const coc      = calOwner?.eventColor||e.eventColor||e.event_color||'var(--yellow)';
               const isOwn    = (e.user||e.username)===user.username;
               const icon     = getEventIcon(e);
               const isFin    = e.financial||e.is_financial||e.financial==='1'||e.is_financial===1;
-              const badgeColor = isFin ? (e.type==='expense'?'var(--red)':'var(--green)') : coc;
-              const timeStr = fmtDate(e.date);
+              const timeVal  = fmtTime(e.date);
               return (
-                <div key={e.id} className="meal-card" style={{marginBottom:8,borderLeft:`3px solid ${coc}`,cursor:isOwn?'pointer':'default'}}
+                <div key={e.id} className="meal-card" style={{marginBottom:8,borderLeft:`3px solid ${coc}`,cursor:isOwn?'pointer':'default',display:'flex',alignItems:'stretch',padding:0,overflow:'hidden'}}
                   onClick={()=>isOwn&&setActionCalEvent(e)}>
-                  {/* Top row: avatar + icon badge + owner name — same as gym/budget */}
-                  <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
-                    <ItemAvatar username={e.user||e.username} user={user} partner={partner} partners={partners} size={36}/>
-                    <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:600,letterSpacing:'0.12em',
-                      padding:'3px 8px',borderRadius:3,textTransform:'uppercase',flexShrink:0,
-                      background: isFin?(e.type==='expense'?'rgba(255,61,61,0.15)':'rgba(0,230,118,0.15)'):`${coc}20`,
-                      color:      isFin?(e.type==='expense'?'var(--red)':'var(--green)'):coc,
-                      border:     isFin?(e.type==='expense'?'1px solid rgba(255,61,61,0.4)':'1px solid rgba(0,230,118,0.4)'):`1px solid ${coc}55`}}>
-                      <span style={{display:'inline-flex',alignItems:'center',gap:4,verticalAlign:'middle'}}>
-                        {icon}
-                        {isFin?(e.type==='expense'?'EXPENSE':'INCOME'):(e.type||'personal').toUpperCase()}
+                  {/* iPhone-style time column for normal events */}
+                  {showTime&&(
+                    <div style={{minWidth:46,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',background:'rgba(255,255,255,0.03)',borderRight:'1px solid var(--border)',padding:'8px 4px',flexShrink:0}}>
+                      {timeVal
+                        ? <><div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:18,color:coc,lineHeight:1}}>{timeVal.slice(0,5).split(':')[0]}</div>
+                            <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'var(--text3)',letterSpacing:'0.05em'}}>{timeVal.split(':')[1]}</div></>
+                        : <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:'var(--text3)',letterSpacing:'0.05em',textAlign:'center'}}>ALL{'\n'}DAY</div>
+                      }
+                    </div>
+                  )}
+                  <div style={{flex:1,padding:'10px 12px'}}>
+                    <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
+                      <ItemAvatar username={e.user||e.username} user={user} partner={partner} partners={partners} size={30}/>
+                      <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:600,letterSpacing:'0.12em',
+                        padding:'2px 7px',borderRadius:3,textTransform:'uppercase',flexShrink:0,
+                        background: isFin?(e.type==='expense'?'rgba(255,61,61,0.15)':'rgba(0,230,118,0.15)'):`${coc}20`,
+                        color:      isFin?(e.type==='expense'?'var(--red)':'var(--green)'):coc,
+                        border:     isFin?(e.type==='expense'?'1px solid rgba(255,61,61,0.4)':'1px solid rgba(0,230,118,0.4)'):`1px solid ${coc}55`}}>
+                        <span style={{display:'inline-flex',alignItems:'center',gap:4,verticalAlign:'middle'}}>{icon}
+                          {isFin?(e.type==='expense'?'EXPENSE':'INCOME'):(e.type||'personal').toUpperCase()}
+                        </span>
                       </span>
-                    </span>
-                    {calOwner&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:coc,letterSpacing:'0.08em'}}>
-                      {(calOwner.displayName||(calOwner.firstName&&calOwner.lastName?`${calOwner.firstName} ${calOwner.lastName}`:null)||calOwner.username||'').toUpperCase()}
-                    </span>}
+                      {calOwner&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:coc,letterSpacing:'0.08em'}}>
+                        {(calOwner.displayName||(calOwner.firstName&&calOwner.lastName?`${calOwner.firstName} ${calOwner.lastName}`:null)||calOwner.username||'').toUpperCase()}
+                      </span>}
+                      {isOwn&&<span style={{color:'var(--text3)',fontSize:12,marginLeft:'auto'}}>›</span>}
+                    </div>
+                    <div className="meal-name" style={{marginBottom:4}}>{(e.title||'Untitled').toUpperCase()}</div>
+                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                      <div className="meal-note">{fmtDate(e.date)}</div>
+                      {e.amount&&<div style={{fontFamily:"'DM Mono',monospace",fontSize:13,fontWeight:600,
+                        color:e.type==='expense'?'var(--red)':'var(--green)'}}>{fmtR(e.amount)}</div>}
+                    </div>
                   </div>
-                  {/* Title */}
-                  <div className="meal-name" style={{marginBottom:6}}>{(e.title||'Untitled').toUpperCase()}</div>
-                  {/* Time + amount row */}
-                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-                    <div className="meal-note">{timeStr}</div>
-                    {e.amount&&<div style={{fontFamily:"'DM Mono',monospace",fontSize:13,fontWeight:600,
-                      color:e.type==='expense'?'var(--red)':'var(--green)'}}>{fmtR(e.amount)}</div>}
-                  </div>
-                  {isOwn&&<span style={{color:'var(--text3)',fontSize:12,marginLeft:'auto',flexShrink:0}}>›</span>}
                 </div>
               );
-            })}
-          </div>
+            };
+
+            const GroupHeader = ({groupKey, label, count, color, defaultOpen=false}) => {
+              const isOpen = expandedCalGroups.has(groupKey);
+              return (
+                <div onClick={()=>toggleCalGroup(groupKey)} style={{display:'flex',alignItems:'center',justifyContent:'space-between',
+                  padding:'8px 16px',cursor:'pointer',background:'var(--bg2)',borderRadius:6,marginBottom:isOpen?6:8,
+                  border:'1px solid var(--border)'}}>
+                  <div style={{display:'flex',alignItems:'center',gap:8}}>
+                    <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:700,letterSpacing:'0.15em',color:color||tabColor}}>{label}</span>
+                    <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)',letterSpacing:'0.1em'}}>{count} EVENT{count!==1?'S':''}</span>
+                  </div>
+                  <span style={{color:'var(--text3)',fontSize:11,fontFamily:"'DM Mono',monospace"}}>{isOpen?'▲':'▼'}</span>
+                </div>
+              );
+            };
+
+            return (
+              <div style={{padding:'0 16px'}}>
+                {canSeeCycle&&selectedEvents.some(e=>e.isCycle)&&(
+                  <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',background:'rgba(233,30,140,0.1)',border:'1px solid rgba(233,30,140,0.25)',borderRadius:8,marginBottom:8}}>
+                    <span style={{fontSize:16}}>🩸</span>
+                    <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,color:'#e91e8c'}}>MENSTRUATION DAY</div>
+                  </div>
+                )}
+                {canSeeCycle&&selectedEvents.some(e=>e.isFertile)&&(
+                  <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',background:'rgba(29,233,182,0.08)',border:'1px solid rgba(29,233,182,0.25)',borderRadius:8,marginBottom:8}}>
+                    <span style={{fontSize:16}}>🌿</span>
+                    <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,color:'#1de9b6'}}>OVULATION WINDOW</div>
+                  </div>
+                )}
+                {visEvts.length===0&&!selectedEvents.some(e=>e.isCycle||e.isFertile)&&(
+                  <div style={{textAlign:'center',padding:'24px 0',color:'var(--text3)',fontFamily:"'DM Mono',monospace",fontSize:10,letterSpacing:'0.1em'}}>NO EVENTS</div>
+                )}
+                {/* Normal events — expanded by default, time shown */}
+                {normalEvts.length>0&&(
+                  <>
+                    <GroupHeader groupKey="events" label="EVENTS" count={normalEvts.length} color={tabColor}/>
+                    {expandedCalGroups.has('events')&&normalEvts.map(e=>renderCard(e,true))}
+                  </>
+                )}
+                {/* Finance expenses — collapsed by default */}
+                {finExpEvts.length>0&&(
+                  <>
+                    <GroupHeader groupKey="finexp" label="FINANCE EXPENSES" count={finExpEvts.length} color="var(--red)"/>
+                    {expandedCalGroups.has('finexp')&&finExpEvts.map(e=>renderCard(e,false))}
+                  </>
+                )}
+                {/* Finance income — collapsed by default */}
+                {finIncEvts.length>0&&(
+                  <>
+                    <GroupHeader groupKey="fininc" label="FINANCE INCOME" count={finIncEvts.length} color="var(--green)"/>
+                    {expandedCalGroups.has('fininc')&&finIncEvts.map(e=>renderCard(e,false))}
+                  </>
+                )}
+              </div>
+            );
+          })()}
 
           <div style={{height:'80px'}}/>
         </div>
@@ -3647,36 +3689,35 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
     setPicPreview(user.profilePicUrl||DP);
   },[user.username]);
 
-  // Load partner access link status — populate sharingConfig per partner
+  // Load which partners can currently see MY data (outgoing grants)
+  const [myGrants, setMyGrants] = useState([]);
   useEffect(()=>{
     if(!partner) return;
-    axios.get(`${API}/get-access`,{params:{viewer:user.username,adminUsername:user.username}})
-      .then(r=>{
-        if(r.data.success){
-          const allPartners2=partners.length>0?partners:[partner];
-          allPartners2.forEach(p=>{
-            const linked=(r.data.accessList||[]).some(a=>a.viewer===user.username&&a.target===p.username);
-            if(linked){
-              setSharingConfig(prev=>{
-                // Merge: keep existing per-item choices, add missing items as true
-                const existing=prev[p.username]||{};
-                const merged=Object.fromEntries(sharingItems.map(i=>[i,existing[i]!==undefined?existing[i]:true]));
-                return {...prev,[p.username]:merged};
-              });
-            }
-          });
-        }
-      }).catch(()=>{});
+    axios.get(`${API}/my-shares`,{params:{username:user.username}})
+      .then(r=>{ if(r.data.success) setMyGrants(r.data.viewers||[]); })
+      .catch(()=>{});
   },[partner?.username]);
 
-  // Profile picture file selection
+  // Profile picture file selection — compresses via canvas before upload
   const handlePicChange = (e) => {
     const file = e.target.files[0];
     if(!file) return;
-    if(file.size > 2*1024*1024){ msg('Image must be under 2 MB','err'); return; }
+    if(file.size > 15*1024*1024){ msg('Image must be under 15 MB','err'); return; }
     setPicFile(file);
     const reader = new FileReader();
-    reader.onload = ev => setPicPreview(ev.target.result);
+    reader.onload = ev => {
+      const img = new Image();
+      img.onload = () => {
+        const MAX = 1200;
+        let w = img.width, h = img.height;
+        if(w > MAX || h > MAX){ const r = Math.min(MAX/w, MAX/h); w = Math.round(w*r); h = Math.round(h*r); }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        setPicPreview(canvas.toDataURL('image/jpeg', 0.82));
+      };
+      img.src = ev.target.result;
+    };
     reader.readAsDataURL(file);
   };
 
@@ -3922,12 +3963,12 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
           {(partners.length>0?partners:partner?[partner]:[]).length>0&&(
             <div className="partner-sharing-card" style={{marginTop:8}}>
               <div className="profile-section-title">§ PARTNER SHARING</div>
-              <div className="partner-hint" style={{marginBottom:12}}>Enable shared view per section. Each partner is controlled independently.</div>
+              <div className="partner-hint" style={{marginBottom:12}}>Control which partners can see YOUR data. Each partner is managed independently.</div>
 
               {(partners.length>0?partners:[partner]).map((p,pi)=>{
                 const pun    = p.username;
                 const pCfg   = sharingConfig[pun] || {};
-                const pAll   = sharingItems.every(i=>pCfg[i]);
+                const pAll   = myGrants.includes(pun);
 
                 const toggleItem = (item) => setSharingConfig(prev=>({
                   ...prev,
@@ -3936,15 +3977,19 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
 
                 const shareAll = async() => {
                   const next = !pAll;
-                  setSharingConfig(prev=>({
-                    ...prev,
-                    [pun]: Object.fromEntries(sharingItems.map(i=>[i,next]))
-                  }));
                   try {
-                    if(next) await axios.post(`${API}/grant-access`,{viewer:user.username,target:pun,adminUsername:user.username});
-                    else     await axios.post(`${API}/revoke-access`,{viewer:user.username,target:pun,adminUsername:user.username});
-                    msg(next?`Sharing enabled with ${pun}.`:`Sharing disabled with ${pun}.`);
-                  } catch {}
+                    if(next){
+                      await axios.post(`${API}/share-self`,{username:user.username,partner:pun});
+                      setMyGrants(prev=>[...prev.filter(x=>x!==pun),pun]);
+                      setSharingConfig(prev=>({...prev,[pun]:Object.fromEntries(sharingItems.map(i=>[i,true]))}));
+                      msg(`${pun} can now see your data.`);
+                    } else {
+                      await axios.post(`${API}/unshare-self`,{username:user.username,partner:pun});
+                      setMyGrants(prev=>prev.filter(x=>x!==pun));
+                      setSharingConfig(prev=>({...prev,[pun]:Object.fromEntries(sharingItems.map(i=>[i,false]))}));
+                      msg(`Sharing with ${pun} revoked.`);
+                    }
+                  } catch { msg('Error updating sharing.','err'); }
                 };
 
                 return (
