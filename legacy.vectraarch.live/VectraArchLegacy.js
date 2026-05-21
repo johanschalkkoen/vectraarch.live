@@ -69,6 +69,50 @@ async function ensureSchema() {
         `CREATE INDEX IF NOT EXISTS idx_budget_username ON vectraarchlegacy_budget(username)`,
         `CREATE INDEX IF NOT EXISTS idx_budget_date ON vectraarchlegacy_budget(date)`,
         `ALTER TABLE vectraarchlegacy_budget ADD COLUMN IF NOT EXISTS section_targets JSONB DEFAULT '{}'`,
+        // ── Setup wizard: new user profile columns ──
+        `ALTER TABLE vectraarchlegacy_users ADD COLUMN IF NOT EXISTS date_of_birth TEXT`,
+        `ALTER TABLE vectraarchlegacy_users ADD COLUMN IF NOT EXISTS accent_color TEXT DEFAULT '#00ff41'`,
+        `ALTER TABLE vectraarchlegacy_users ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'individual'`,
+        `ALTER TABLE vectraarchlegacy_users ADD COLUMN IF NOT EXISTS height_cm NUMERIC`,
+        `ALTER TABLE vectraarchlegacy_users ADD COLUMN IF NOT EXISTS weight_kg NUMERIC`,
+        // ── Family tables ──
+        `CREATE TABLE IF NOT EXISTS vectraarchlegacy_families (
+            id              SERIAL PRIMARY KEY,
+            family_name     TEXT NOT NULL,
+            admin_username  TEXT NOT NULL,
+            currency        TEXT NOT NULL DEFAULT 'ZAR',
+            timezone        TEXT NOT NULL DEFAULT 'Africa/Johannesburg',
+            member_count    INT NOT NULL DEFAULT 1,
+            enabled_modules TEXT NOT NULL DEFAULT 'fin,cal,bud,gym,eat,cyc',
+            created_at      TIMESTAMPTZ DEFAULT NOW()
+        )`,
+        `CREATE INDEX IF NOT EXISTS idx_families_admin ON vectraarchlegacy_families(admin_username)`,
+        `CREATE TABLE IF NOT EXISTS vectraarchlegacy_family_members (
+            id            SERIAL PRIMARY KEY,
+            family_id     INT NOT NULL,
+            username      TEXT,
+            member_type   TEXT NOT NULL DEFAULT 'other',
+            name          TEXT NOT NULL,
+            sex           TEXT,
+            date_of_birth TEXT,
+            accent_color  TEXT DEFAULT '#00ff41',
+            invite_email  TEXT,
+            invite_cell   TEXT,
+            invite_sent   BOOLEAN DEFAULT FALSE,
+            invite_token  TEXT,
+            created_at    TIMESTAMPTZ DEFAULT NOW()
+        )`,
+        `CREATE INDEX IF NOT EXISTS idx_fam_members_fid ON vectraarchlegacy_family_members(family_id)`,
+        `CREATE TABLE IF NOT EXISTS vectraarchlegacy_module_access (
+            id              SERIAL PRIMARY KEY,
+            family_id       INT NOT NULL,
+            owner_username  TEXT NOT NULL,
+            member_id       INT NOT NULL,
+            module          TEXT NOT NULL,
+            enabled         BOOLEAN NOT NULL DEFAULT TRUE,
+            UNIQUE(family_id, owner_username, member_id, module)
+        )`,
+        `CREATE INDEX IF NOT EXISTS idx_mod_access_owner ON vectraarchlegacy_module_access(family_id, owner_username)`,
     ];
     for (const sql of migrations) {
         try { await pool.query(sql); } catch (e) { console.error('[schema]', e.message); }
@@ -128,6 +172,11 @@ function mapUser(row) {
         theme:            row.theme             || 'dark',
         activityStatus:   !!row.activity_status,
         lastActive:       row.last_active       || '',
+        dateOfBirth:      row.date_of_birth     || '',
+        accentColor:      row.accent_color      || '#00ff41',
+        role:             row.role              || 'individual',
+        heightCm:         row.height_cm         || null,
+        weightKg:         row.weight_kg         || null,
     };
 }
 
@@ -1184,6 +1233,148 @@ app.delete('/api/identity/link', async (req, res) => {
 
 app.get('/api/identity/health', async (req, res) => {
     await forwardToIdentity('GET', '/api/identity/health', null, res);
+});
+
+// ── SETUP WIZARD ──────────────────────────────────────────────────────────────
+app.get('/setup',      (req, res) => res.sendFile(path.join(__dirname, 'setup.html')));
+app.get('/setup.html', (req, res) => res.sendFile(path.join(__dirname, 'setup.html')));
+
+app.get('/api/check-username', async (req, res) => {
+    const { username } = req.query;
+    if (!username || username.length < 3) return res.json({ available: false });
+    const clean = username.toLowerCase().replace(/[^a-z0-9._-]/g, '');
+    if (clean !== username.toLowerCase()) return res.json({ available: false, reason: 'invalid' });
+    try {
+        const row = await dbQuery('SELECT username FROM vectraarchlegacy_users WHERE username = $1', [clean]);
+        res.json({ available: !row });
+    } catch (e) {
+        res.status(500).json({ available: false });
+    }
+});
+
+app.post('/api/setup', async (req, res) => {
+    const { profile, family, members, moduleAccess, enabledModules } = req.body;
+
+    if (!profile?.username || !profile?.password || !profile?.email) {
+        return res.status(400).json({ success: false, message: 'Profile, username, and password are required.' });
+    }
+    const username = profile.username.toLowerCase().trim();
+    if (username.length < 3) {
+        return res.status(400).json({ success: false, message: 'Username must be at least 3 characters.' });
+    }
+    if (!profile.password || profile.password.length < 6) {
+        return res.status(400).json({ success: false, message: 'Password must be at least 6 characters.' });
+    }
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        const existing = await client.query(
+            'SELECT username FROM vectraarchlegacy_users WHERE username = $1', [username]
+        );
+        if (existing.rows.length > 0) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ success: false, message: 'Username already taken.' });
+        }
+
+        const hash = await bcrypt.hash(profile.password, 10);
+        const displayName = `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || username;
+
+        await client.query(`
+            INSERT INTO vectraarchlegacy_users
+                (username, password_hash, first_name, last_name, display_name,
+                 email, phone, gender, date_of_birth, accent_color,
+                 role, height_cm, weight_kg, is_admin, event_color, theme)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,0,'#2dd4bf','dark')`,
+            [username, hash,
+             profile.firstName || null, profile.lastName || null, displayName,
+             profile.email || null, profile.cellNumber || null,
+             profile.gender || null, profile.dateOfBirth || null,
+             profile.accentColor || '#00ff41',
+             profile.role || 'individual',
+             profile.heightCm ? parseFloat(profile.heightCm) : null,
+             profile.weightKg ? parseFloat(profile.weightKg) : null]
+        );
+
+        let familyId = null;
+        if (profile.role !== 'individual' && family?.familyName) {
+            const famRes = await client.query(`
+                INSERT INTO vectraarchlegacy_families
+                    (family_name, admin_username, currency, timezone, member_count, enabled_modules)
+                VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
+                [family.familyName, username,
+                 family.currency || 'ZAR',
+                 family.timezone || 'Africa/Johannesburg',
+                 family.memberCount || 1,
+                 Array.isArray(enabledModules) ? enabledModules.join(',') : 'fin,cal,bud,gym,eat,cyc']
+            );
+            familyId = famRes.rows[0].id;
+        } else if (enabledModules?.length > 0) {
+            // Individual — store a solo family record for module prefs
+            const famRes = await client.query(`
+                INSERT INTO vectraarchlegacy_families
+                    (family_name, admin_username, currency, timezone, member_count, enabled_modules)
+                VALUES ($1,$2,$3,$4,1,$5) RETURNING id`,
+                [displayName + "'s Hub", username,
+                 family?.currency || 'ZAR',
+                 family?.timezone || 'Africa/Johannesburg',
+                 enabledModules.join(',')]
+            );
+            familyId = famRes.rows[0].id;
+        }
+
+        const memberIdMap = {};
+        if (familyId && Array.isArray(members) && members.length > 0) {
+            for (let i = 0; i < members.length; i++) {
+                const m = members[i];
+                const token = require('crypto').randomBytes(24).toString('hex');
+                const memRes = await client.query(`
+                    INSERT INTO vectraarchlegacy_family_members
+                        (family_id, member_type, name, sex, date_of_birth,
+                         accent_color, invite_email, invite_cell, invite_sent, invite_token)
+                    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id`,
+                    [familyId, m.type || 'other', m.name || 'Member',
+                     m.sex || null, m.dateOfBirth || null,
+                     m.accentColor || '#00ff41',
+                     m.inviteEmail || null, m.inviteCell || null,
+                     !!(m.sendInvite && m.inviteEmail), token]
+                );
+                memberIdMap[i] = memRes.rows[0].id;
+            }
+        }
+
+        if (familyId && moduleAccess && Object.keys(moduleAccess).length > 0) {
+            for (const [idxStr, mods] of Object.entries(moduleAccess)) {
+                const idx = parseInt(idxStr, 10);
+                const memberId = memberIdMap[idx];
+                if (!memberId) continue;
+                for (const [mod, enabled] of Object.entries(mods)) {
+                    await client.query(`
+                        INSERT INTO vectraarchlegacy_module_access
+                            (family_id, owner_username, member_id, module, enabled)
+                        VALUES ($1,$2,$3,$4,$5)
+                        ON CONFLICT (family_id, owner_username, member_id, module)
+                        DO UPDATE SET enabled = EXCLUDED.enabled`,
+                        [familyId, username, memberId, mod, !!enabled]
+                    );
+                }
+            }
+        }
+
+        await client.query('COMMIT');
+        await logTransaction(username, 'SETUP_COMPLETE', 'users', null, username);
+
+        const userRow = await dbQuery('SELECT * FROM vectraarchlegacy_users WHERE username = $1', [username]);
+        res.json({ success: true, ...mapUser(userRow) });
+
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error('[setup]', err.message);
+        res.status(500).json({ success: false, message: 'Setup failed.', error: err.message });
+    } finally {
+        client.release();
+    }
 });
 
 app.listen(PORT, HOST, () => console.log('VectraArch Legacy online · port ' + PORT));
