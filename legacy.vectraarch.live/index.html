@@ -792,7 +792,7 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
                         const finOwner = getOwner(item.user||item.username, user, partner, partners);
                         const oc = finOwner?.eventColor||'#00e676';
                         const isIncome = item.type==='income';
-                        const borderColor = grp.isIncome ? oc : grp.color;
+                        const borderColor = oc;
                         return (
                           <div key={item.id} className="meal-card" style={{marginBottom:6,borderLeft:`3px solid ${borderColor}`,cursor:(item.user||item.username)===user.username?'pointer':'default'}}
                             onClick={()=>(item.user||item.username)===user.username&&setActionItem(item)}>
