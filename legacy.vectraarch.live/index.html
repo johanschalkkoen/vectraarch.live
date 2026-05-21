@@ -34,6 +34,13 @@ const fmtDate = d => { if(!d)return'—'; const dt=new Date(d); return isNaN(dt)
 const fmtDateTime = d => { if(!d)return'—'; const dt=new Date(d); return isNaN(dt)?'—':dt.toLocaleString('en-ZA',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).replace(',',''); };
 const now = () => { const n=new Date(); n.setMinutes(n.getMinutes()-n.getTimezoneOffset()); return n.toISOString().slice(0,19); };
 const todayISO = () => new Date().toISOString().slice(0,10);
+// Bidirectional fuzzy match: "RENT" matches "Rent / Bond" and vice-versa
+const catMatch = (transCat, budgCat) => {
+  const t = (transCat||'').toLowerCase().trim();
+  const b = (budgCat||'').toLowerCase().trim();
+  if(!t||!b) return false;
+  return t===b || t.includes(b) || b.includes(t);
+};
 
 /* ── TAB ICONS (SVG inline) ── */
 const Icons = {
@@ -655,7 +662,7 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
                     const cats = budgetCategories.filter(c=>c.type===sec.key);
                     if(!cats.length) return null;
                     const planned = cats.reduce((s,c)=>s+parseFloat(c.amount||0),0);
-                    const actual  = monthExp.filter(t=>cats.some(c=>c.category===(t.category||'')))
+                    const actual  = monthExp.filter(t=>cats.some(c=>catMatch(t.category,c.category)))
                                            .reduce((s,t)=>s+parseFloat(t.amount||0),0);
                     const over    = actual>planned&&planned>0;
                     const fill    = planned>0?Math.min(actual/planned,1):0;
@@ -677,7 +684,7 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
                         </div>
                         <div style={{display:'flex',flexWrap:'wrap',gap:3,marginTop:5}}>
                           {cats.map(c=>{
-                            const catAct=monthExp.filter(t=>(t.category||'')===c.category).reduce((s,t)=>s+parseFloat(t.amount||0),0);
+                            const catAct=monthExp.filter(t=>catMatch(t.category,c.category)).reduce((s,t)=>s+parseFloat(t.amount||0),0);
                             return catAct>0&&(
                               <span key={c.category} style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:'rgba(255,255,255,0.4)',padding:'2px 6px',borderRadius:3,background:'rgba(255,255,255,0.05)'}}>
                                 {c.category}: {fmtR(catAct)}
@@ -706,7 +713,7 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
                     if(!cats.length) return null;
                     return cats.map(c=>{
                       const planned   = parseFloat(c.amount||0);
-                      const actual    = monthExp.filter(t=>(t.category||'')===c.category).reduce((s,t)=>s+parseFloat(t.amount||0),0);
+                      const actual    = monthExp.filter(t=>catMatch(t.category,c.category)).reduce((s,t)=>s+parseFloat(t.amount||0),0);
                       const remaining = planned - actual;
                       const fill      = planned>0?Math.min(actual/planned,1):0;
                       const over      = actual>planned&&planned>0;
@@ -1698,7 +1705,7 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
   const getActual = (catName) => {
     const lc = catName.toLowerCase();
     return monthFinances
-      .filter(f=>f.type==='expense'&&(f.category||'').toLowerCase().includes(lc))
+      .filter(f=>f.type==='expense'&&catMatch(f.category,catName))
       .reduce((s,f)=>s+parseFloat(f.amount||0),0);
   };
 
