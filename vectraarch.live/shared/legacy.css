@@ -301,7 +301,7 @@ body::before { display: none; }
 .page-outer { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
 
 /* ── TOP BAR ── */
-.top-bar { flex-shrink: 0; min-height: var(--top-h); display: flex; align-items: center; padding: 0 12px; border-bottom: 1px solid var(--border); background: var(--bg); gap: 8px; }
+.top-bar { flex-shrink: 0; height: var(--top-h); display: flex; align-items: center; padding: 0 12px; border-bottom: 1px solid var(--border); background: var(--bg); gap: 8px; overflow: hidden; }
 .top-eyebrow { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--text3); }
 
 /* ── PAGE SCROLL ── */
