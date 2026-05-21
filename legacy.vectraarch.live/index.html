@@ -2555,6 +2555,8 @@ const _calcTDEE = (u) => {
 
 const MealUserCard = ({uname, meals, user, partner, partners, tabColor, selectedMonth}) => {
   const [view, setView] = useState('weekly');
+  const [editTarget, setEditTarget] = useState(false);
+  const [customTarget, setCustomTarget] = useState(()=>{const s=localStorage.getItem('calTarget_'+uname);return s?parseInt(s):null;});
   const owner = getOwner(uname, user, partner, partners);
   const oc = owner?.eventColor || tabColor || '#d67bff';
   const selYear = new Date().getFullYear();
@@ -2567,10 +2569,10 @@ const MealUserCard = ({uname, meals, user, partner, partners, tabColor, selected
   const todayDayIdx = (new Date().getDay()+6)%7;
   const todayDayNum = new Date().getDate();
   const ownerFull = uname===user.username ? user : (partners.find(p=>p.username===uname)||owner||{});
-  const tdee = _calcTDEE(ownerFull)||2000;
+  const tdee = customTarget || _calcTDEE(ownerFull) || 2000;
   const uMeals = meals.filter(m=>String(m.userKey)===String(uname));
   const monthMeals = uMeals.filter(m=>(m.date||'').slice(5,7)===selectedMonth);
-  const todayMeals = uMeals.filter(m=>(m.date||'').slice(0,10)===todayStr||(m.day===todayDayName&&isCurrentMonth));
+  const todayMeals = uMeals.filter(m=>{if(m.date) return m.date.slice(0,10)===todayStr; return m.day===todayDayName&&isCurrentMonth;});
   const todayCal = Math.round(todayMeals.reduce((s,m)=>s+parseFloat(m.calories||0),0));
   const monthCal = Math.round(monthMeals.reduce((s,m)=>s+parseFloat(m.calories||0),0));
   const monthTarget = tdee*daysElapsed;
@@ -2620,9 +2622,22 @@ const MealUserCard = ({uname, meals, user, partner, partners, tabColor, selected
       <div style={{display:'flex',gap:4,marginBottom:14}}>{vBtn('daily','DAILY')}{vBtn('weekly','WEEKLY')}{vBtn('monthly','MONTHLY')}</div>
       {view==='daily'&&(
         <div>
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:8}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
             <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.12em',color:'rgba(255,255,255,0.3)'}}>TODAY{isCurrentMonth?'':' (VIEW CURRENT MONTH)'}</div>
-            {isCurrentMonth&&<div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:todayCal>tdee?'#ff3b3b':oc,fontWeight:600}}>{todayCal} / {tdee} KCAL</div>}
+            {isCurrentMonth&&(
+              <div style={{display:'flex',alignItems:'center',gap:6}}>
+                <span style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:todayCal>tdee?'#ff3b3b':oc,fontWeight:600}}>{todayCal.toLocaleString()}</span>
+                <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'rgba(255,255,255,0.25)'}}>/</span>
+                {editTarget
+                  ? <input autoFocus type="number" defaultValue={tdee}
+                      style={{width:60,fontFamily:"'DM Mono',monospace",fontSize:9,background:'rgba(255,255,255,0.07)',border:`1px solid ${oc}66`,borderRadius:4,color:oc,padding:'2px 6px',textAlign:'center'}}
+                      onBlur={e=>{const v=parseInt(e.target.value)||2000;setCustomTarget(v);localStorage.setItem('calTarget_'+uname,String(v));setEditTarget(false);}}
+                      onKeyDown={e=>{if(e.key==='Enter'){e.target.blur();}if(e.key==='Escape')setEditTarget(false);}}/>
+                  : <span onClick={()=>setEditTarget(true)} title="Tap to set target"
+                      style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'rgba(255,255,255,0.4)',cursor:'pointer',borderBottom:'1px dashed rgba(255,255,255,0.2)',letterSpacing:'0.06em'}}>{tdee.toLocaleString()} KCAL ✎</span>
+                }
+              </div>
+            )}
           </div>
           {!isCurrentMonth?(
             <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'rgba(255,255,255,0.2)',padding:'8px 0',textAlign:'center'}}>Switch to current month to see today.</div>
@@ -2631,24 +2646,29 @@ const MealUserCard = ({uname, meals, user, partner, partners, tabColor, selected
               <div style={{height:4,background:'rgba(255,255,255,0.07)',borderRadius:2,overflow:'hidden',marginBottom:12}}>
                 <div style={{height:'100%',width:`${Math.min(todayCal/tdee,1)*100}%`,background:oc,borderRadius:2,transition:'width 0.4s'}}/>
               </div>
-              {MEAL_TYPES.map(mt=>{
-                const mtMeals=todayMeals.filter(m=>(m.mealType||'').toLowerCase()===mt);
-                const mtCal=Math.round(mtMeals.reduce((s,m)=>s+parseFloat(m.calories||0),0));
-                const mtColor=MT_COLORS[mt];
-                return mtMeals.length>0&&(
-                  <div key={mt} style={{marginBottom:8}}>
-                    <div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}>
-                      <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:mtColor,letterSpacing:'0.1em',textTransform:'uppercase'}}>{mt}</span>
-                      <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'rgba(255,255,255,0.5)'}}>{mtCal} kcal</span>
-                    </div>
-                    {mtMeals.map((m,i)=>(
-                      <div key={i} style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:12,color:'rgba(255,255,255,0.6)',paddingLeft:8,letterSpacing:'0.03em',borderLeft:`2px solid ${mtColor}55`}}>
-                        {(m.description||m.name||'').toUpperCase()} <span style={{color:'rgba(255,255,255,0.35)',fontSize:10}}>{parseFloat(m.calories||0)} KCAL</span>
-                      </div>
-                    ))}
+              {(()=>{
+                const mtKcals=MEAL_TYPES.map(mt=>Math.round(todayMeals.filter(m=>(m.mealType||'').toLowerCase()===mt).reduce((s,m)=>s+parseFloat(m.calories||0),0)));
+                const maxMt=Math.max(...mtKcals,1);
+                return (
+                  <div style={{display:'flex',alignItems:'flex-end',gap:3,height:74,position:'relative'}}>
+                    <div style={{position:'absolute',left:0,right:0,bottom:`${(tdee/4/maxMt)*60}px`,height:1,borderTop:'1px dashed rgba(255,255,255,0.12)',zIndex:1}}/>
+                    {MEAL_TYPES.map((mt,mi)=>{
+                      const mtCal=mtKcals[mi];
+                      const barH=maxMt>0?(mtCal/maxMt)*60:0;
+                      const mtColor=MT_COLORS[mt];
+                      return (
+                        <div key={mt} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:2}}>
+                          {mtCal>0&&<div style={{fontFamily:"'DM Mono',monospace",fontSize:6,color:mtColor,letterSpacing:'0.04em'}}>{mtCal>999?`${Math.round(mtCal/100)/10}k`:mtCal}</div>}
+                          <div style={{width:'100%',flex:1,display:'flex',alignItems:'flex-end',justifyContent:'center'}}>
+                            <div style={{width:'100%',height:Math.max(barH,mtCal>0?5:2),background:mtCal>0?mtColor:'rgba(255,255,255,0.05)',borderRadius:'3px 3px 0 0',transition:'height 0.3s'}}/>
+                          </div>
+                          <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:mtCal>0?mtColor:'rgba(255,255,255,0.2)',letterSpacing:'0.04em'}}>{mt.slice(0,4).toUpperCase()}</div>
+                        </div>
+                      );
+                    })}
                   </div>
                 );
-              })}
+              })()}
               {todayMeals.length===0&&<div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'rgba(255,255,255,0.2)',padding:'8px 0',textAlign:'center'}}>No meals logged today.</div>}
             </>
           )}
