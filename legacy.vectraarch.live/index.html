@@ -2137,11 +2137,20 @@ const GymUserCard = ({uname, workouts, user, partner, partners, tabColor, select
   const isCurrentMonth = selectedMonth===String(new Date().getMonth()+1).padStart(2,'0');
   const daysInMonth = new Date(selYear, selMonthIdx+1, 0).getDate();
   const todayStr = new Date().toLocaleDateString('en-CA');
+  const todayDayName = new Date().toLocaleDateString('en-US',{weekday:'long'});
   const todayDayIdx = (new Date().getDay()+6)%7;
   const todayDayNum = new Date().getDate();
   const uWorkouts = workouts.filter(w=>String(w.userKey)===String(uname));
   const monthWorkouts = uWorkouts.filter(w=>(w.date||'').slice(5,7)===selectedMonth);
-  const todayWorkouts = uWorkouts.filter(w=>(w.date||'').slice(0,10)===todayStr);
+  const todayWorkouts = (()=>{
+    const byDate=uWorkouts.filter(w=>w.date&&w.date.slice(0,10)===todayStr);
+    if(byDate.length>0) return byDate;
+    const sameDayPool=uWorkouts.filter(w=>(w.day||'')===todayDayName&&(w.date||'').slice(5,7)===selectedMonth)
+      .sort((a,b)=>new Date(b.date||0)-new Date(a.date||0));
+    if(!sameDayPool.length) return [];
+    const top=(sameDayPool[0].date||'').slice(0,10);
+    return top?sameDayPool.filter(w=>(w.date||'').slice(0,10)===top):sameDayPool;
+  })();
   const weekLoad = DAYS.map(day=>monthWorkouts.filter(w=>w.day===day).length);
   const maxWeekLoad = Math.max(...weekLoad,1);
   const monthDailyLoad = Array.from({length:daysInMonth},(_,i)=>{
@@ -2409,7 +2418,7 @@ const GymPage = ({user, partner, partners=[], activePartners=[], permittedPartne
           <div style={{height:'80px'}}/>
         </div>
       </div>
-      <button className="fab" style={{background:tabColor,boxShadow:`0 4px 20px ${tabColor}55`}} onClick={()=>setShowForm(true)}>+ ADD EXERCISE</button>
+      <button className="fab" style={{background:tabColor,boxShadow:`0 4px 20px ${tabColor}55`}} onClick={()=>{setForm(p=>({...p,day:_todayDayGym,date:now()}));setShowForm(true);}}>+ ADD EXERCISE</button>
       <ActionSheet open={!!actionWorkout} title={actionWorkout?.exercise} tabColor={tabColor}
         onEdit={()=>startEditWorkout(actionWorkout)}
         onDelete={()=>setConfirmDelGym(actionWorkout?.id)}
@@ -2596,21 +2605,35 @@ const MealUserCard = ({uname, meals, user, partner, partners, tabColor, selected
   const monthTarget = tdee*daysElapsed;
   const MEAL_TYPES = ['breakfast','lunch','dinner','snack'];
   const MT_COLORS = {breakfast:'#ff9800',lunch:'#00e676',dinner:'#448aff',snack:oc};
-  // Weekly kcal: Mon-Sun
+  // Pre-compute: for each weekday, most-recent batch of meals in selected month
+  // (planner stores meals by day name, not necessarily by today's exact date)
+  const _planByDay = {};
+  DAYS.forEach(dayName=>{
+    const pool=uMeals.filter(m=>{
+      const sd=m.day||(m.date?new Date(m.date).toLocaleDateString('en-US',{weekday:'long'}):'');
+      return sd===dayName&&(m.date||'').slice(5,7)===selectedMonth;
+    }).sort((a,b)=>new Date(b.date||0)-new Date(a.date||0));
+    if(!pool.length){_planByDay[dayName]=0;return;}
+    const top=(pool[0].date||'').slice(0,10);
+    _planByDay[dayName]=(top?pool.filter(m=>(m.date||'').slice(0,10)===top):pool)
+      .reduce((s,m)=>s+parseFloat(m.calories||0),0);
+  });
+  // Weekly kcal: Mon-Sun (exact date first, fall back to plan)
   const weekStart = new Date(); weekStart.setDate(new Date().getDate()-(new Date().getDay()+6)%7); weekStart.setHours(0,0,0,0);
   const weekDayKcal = DAYS.map((dayName,di)=>{
     const dayDate=new Date(weekStart); dayDate.setDate(weekStart.getDate()+di);
     const ds=dayDate.toLocaleDateString('en-CA');
-    return uMeals.filter(m=>{
-      if(m.date) return m.date.slice(0,10)===ds;
-      return (m.day||'')===dayName;
-    }).reduce((s,m)=>s+parseFloat(m.calories||0),0);
+    const byDate=uMeals.filter(m=>m.date&&m.date.slice(0,10)===ds);
+    return byDate.length>0 ? byDate.reduce((s,m)=>s+parseFloat(m.calories||0),0) : (_planByDay[dayName]||0);
   });
   const maxWeekKcal = Math.max(...weekDayKcal, tdee, 1);
-  // Monthly daily kcal
+  // Monthly daily kcal (exact date first, fall back to plan for that weekday)
   const monthDailyKcal = Array.from({length:daysInMonth},(_,i)=>{
     const ds=`${selYear}-${selectedMonth}-${String(i+1).padStart(2,'0')}`;
-    return monthMeals.filter(m=>(m.date||'').slice(0,10)===ds).reduce((s,m)=>s+parseFloat(m.calories||0),0);
+    const byDate=monthMeals.filter(m=>(m.date||'').slice(0,10)===ds);
+    if(byDate.length>0) return byDate.reduce((s,m)=>s+parseFloat(m.calories||0),0);
+    const dow=new Date(selYear,selMonthIdx,i+1).toLocaleDateString('en-US',{weekday:'long'});
+    return _planByDay[dow]||0;
   });
   const maxMonthKcal = Math.max(...monthDailyKcal, tdee, 1);
   const vBtn = (v,l) => (
@@ -3028,7 +3051,7 @@ const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPart
           <div style={{height:'80px'}}/>
         </div>
       </div>
-      <button className="fab" style={{background:tabColor,boxShadow:`0 4px 20px ${tabColor}55`}} onClick={()=>setShowForm(true)}>+ ADD MEAL</button>
+      <button className="fab" style={{background:tabColor,boxShadow:`0 4px 20px ${tabColor}55`}} onClick={()=>{setForm(p=>({...p,date:now()}));setShowForm(true);}}>+ ADD MEAL</button>
       <ActionSheet open={!!actionMeal} title={actionMeal?.description||actionMeal?.name} tabColor={tabColor}
         onEdit={()=>startEditMeal(actionMeal)}
         onDelete={()=>setConfirmDelMeal(actionMeal?.id)}
