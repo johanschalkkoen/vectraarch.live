@@ -29,7 +29,16 @@ const API = '/api';
 const DP = '/images/placeholder_image.png';
 const MONTHS = Array.from({length:12},(_,i)=>({v:(i+1).toString().padStart(2,'0'),l:new Date(2026,i,1).toLocaleString('default',{month:'long'})}));
 const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
-const fmtR = n => `R${parseFloat(n||0).toLocaleString('en-ZA',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
+let _appCurrency = 'ZAR';
+const CURRENCIES = {
+  ZAR:{symbol:'R',    locale:'en-ZA'},
+  USD:{symbol:'$',    locale:'en-US'},
+  EUR:{symbol:'€',    locale:'de-DE'},
+  GBP:{symbol:'£',    locale:'en-GB'},
+  NGN:{symbol:'₦',    locale:'en-NG'},
+  KES:{symbol:'KSh ', locale:'en-KE'},
+};
+const fmtR = n => { const c=CURRENCIES[_appCurrency]||CURRENCIES.ZAR; return `${c.symbol}${parseFloat(n||0).toLocaleString(c.locale,{minimumFractionDigits:2,maximumFractionDigits:2})}`; };
 const fmtDate = d => { if(!d)return'—'; const dt=new Date(d); return isNaN(dt)?'—':dt.toLocaleDateString('en-ZA',{year:'numeric',month:'2-digit',day:'2-digit'}); };
 const fmtDateTime = d => { if(!d)return'—'; const dt=new Date(d); return isNaN(dt)?'—':dt.toLocaleString('en-ZA',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).replace(',',''); };
 const now = () => { const n=new Date(); n.setMinutes(n.getMinutes()-n.getTimezoneOffset()); return n.toISOString().slice(0,19); };
@@ -3131,6 +3140,8 @@ const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPart
   const [alert, setAlert] = useState({msg:'',type:''});
 
   const SYMPTOMS = ['Nausea','Pain','Cramps','Headache','Bloating','Mood swings','Fatigue'];
+  const [cycleConsent, setCycleConsent] = useState(()=>localStorage.getItem(`cycleConsent_${user.username}`)==='granted');
+  const revokeConsent = () => { localStorage.removeItem(`cycleConsent_${user.username}`); setCycleConsent(false); };
   const msg = (m,t='ok')=>{ setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
 
   const isMale = (user.gender||'').toLowerCase()==='male';
@@ -3209,9 +3220,28 @@ const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPart
       <div className="page-scroll">
         <div className="page-inner">
           <UserRow user={user} partner={partner} partners={partners} activePartners={activePartners} permittedPartners={permittedPartners} selfVisible={selfVisible} tabSelected={tabSelected} isShared={isShared} onToggleUser={onToggleUser}/>
-          <Alert {...alert}/>
-          <MonthNav selectedMonth={selectedMonth} setSelectedMonth={setSelectedMonth} tabColor={tabColor}/>
-          <SearchBar value={search} onChange={setSearch} placeholder="Search cycles..." tabColor={tabColor}/>
+          {/* ── Health data consent gate ── */}
+          {!isMale&&!cycleConsent&&(
+            <div style={{background:'var(--bg2)',border:'1px solid rgba(233,30,140,0.3)',borderRadius:8,padding:'24px 20px',margin:'16px 0',textAlign:'center'}}>
+              <div style={{fontSize:28,marginBottom:12,opacity:0.7}}>🩺</div>
+              <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:20,letterSpacing:'0.04em',color:'var(--pink)',marginBottom:8}}>HEALTH DATA CONSENT</div>
+              <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',lineHeight:1.7,marginBottom:20,maxWidth:320,margin:'0 auto 20px'}}>
+                This module records sensitive health data including menstrual cycles, symptoms, and fertility markers.
+                This data is stored securely and never shared with third parties without your explicit consent.
+                You may revoke consent at any time from your Profile settings.
+              </div>
+              <button onClick={()=>{localStorage.setItem(`cycleConsent_${user.username}`,'granted');setCycleConsent(true);}}
+                style={{background:'var(--pink)',color:'#fff',border:'none',borderRadius:6,padding:'12px 24px',fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:15,letterSpacing:'0.08em',cursor:'pointer',display:'block',width:'100%',marginBottom:8}}>
+                I CONSENT — ENABLE CYCLE TRACKING
+              </button>
+              <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'var(--text3)',letterSpacing:'0.1em',marginTop:8}}>
+                By consenting you agree to our Privacy Policy and Terms of Service.
+              </div>
+            </div>
+          )}
+          {(isMale||cycleConsent)&&<Alert {...alert}/>}
+          {(isMale||cycleConsent)&&<MonthNav selectedMonth={selectedMonth} setSelectedMonth={setSelectedMonth} tabColor={tabColor}/>}
+          {(isMale||cycleConsent)&&<SearchBar value={search} onChange={setSearch} placeholder="Search cycles..." tabColor={tabColor}/>}
 
           {/* One section per user */}
           {allUsers.map((u,ui)=>{
@@ -3648,7 +3678,9 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
   const [alert, setAlert]                   = useState({msg:'',type:''});
   const fileInputRef = useRef();
 
-  const COLORS = ['#00e676','#ff3b3b','#448aff','#ffd600','#e91e8c','#e040fb'];
+  const COLORS = ['#00e676','#ff3b3b','#448aff','#ffd600','#e91e8c','#e040fb','#ff9800','#00bcd4','#b06aff','#1de9b6'];
+  const [showPrivacy, setShowPrivacy] = useState(false);
+  const [showTerms, setShowTerms]     = useState(false);
   const msg = (m,t='ok') => { setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
   const sharingItems = ['Finances','Calendar','Budget','Gym','Meals','Cycle'];
 
@@ -3663,6 +3695,7 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
       dob:       user.dob||'',
       weight:    user.weight||'',
       height:    user.height||'',
+      currency:  user.currency||'ZAR',
     });
     setSelectedColor(user.eventColor||'#00e676');
     setPicPreview(user.profilePicUrl||DP);
@@ -3722,9 +3755,10 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
         weight:      form.weight||undefined,
         height:      form.height||undefined,
         eventColor:  selectedColor,
+        currency:    form.currency||'ZAR',
         profilePicUrl: profilePicUrl !== DP ? profilePicUrl : undefined,
       });
-      const updated = {...user,...form,displayName,eventColor:selectedColor,profilePicUrl:profilePicUrl!==DP?profilePicUrl:user.profilePicUrl,gender:form.gender,dob:form.dob,weight:form.weight,height:form.height};
+      const updated = {...user,...form,displayName,eventColor:selectedColor,currency:form.currency||'ZAR',profilePicUrl:profilePicUrl!==DP?profilePicUrl:user.profilePicUrl,gender:form.gender,dob:form.dob,weight:form.weight,height:form.height};
       setUser(updated);
       localStorage.setItem('user',JSON.stringify(updated));
       setPicFile(null);
@@ -3919,14 +3953,71 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
             <div className="profile-section-title">§ EVENT COLOR</div>
             <div style={{padding:'12px 14px',fontFamily:"'DM Mono',monospace",fontSize:'10px',color:'var(--text3)'}}>Your personal event color for the calendar</div>
             <div className="color-palette">
-              {COLORS.map(col=>(
-                <div key={col} className={`color-swatch ${selectedColor===col?'selected':''}`}
-                  style={{background:col}} onClick={()=>setSelectedColor(col)}/>
-              ))}
+              {COLORS.map(col=>{
+                const takenBy = (partners.length>0?partners:partner?[partner]:[]).find(p=>p.eventColor===col);
+                const isTaken = !!takenBy && col!==selectedColor;
+                return (
+                  <div key={col}
+                    className={`color-swatch ${selectedColor===col?'selected':''}`}
+                    style={{background:col,opacity:isTaken?0.2:1,cursor:isTaken?'not-allowed':'pointer',position:'relative'}}
+                    title={isTaken?`In use by ${takenBy.displayName||takenBy.username}`:''}
+                    onClick={()=>!isTaken&&setSelectedColor(col)}/>
+                );
+              })}
             </div>
           </div>
 
+          {/* ── Currency ── */}
+          <div className="profile-section">
+            <div className="profile-section-title">§ CURRENCY</div>
+            <div className="profile-field">
+              <div className="profile-field-label">Display Currency</div>
+              <select className="profile-field-input" style={{background:'transparent',border:'none',outline:'none',color:'var(--text)',fontFamily:"'DM Mono',monospace",fontSize:13,width:'100%',cursor:'pointer'}}
+                value={form.currency||'ZAR'} onChange={e=>setForm(p=>({...p,currency:e.target.value}))}>
+                <option value="ZAR">ZAR — South African Rand (R)</option>
+                <option value="USD">USD — US Dollar ($)</option>
+                <option value="EUR">EUR — Euro (€)</option>
+                <option value="GBP">GBP — British Pound (£)</option>
+                <option value="NGN">NGN — Nigerian Naira (₦)</option>
+                <option value="KES">KES — Kenyan Shilling (KSh)</option>
+              </select>
+            </div>
+          </div>
+
+          {/* ── Health data consent ── */}
+          {(user.gender||'').toLowerCase()==='female'&&(
+            <div className="profile-section">
+              <div className="profile-section-title">§ HEALTH DATA</div>
+              <div className="profile-field" style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                <div>
+                  <div className="profile-field-label">Cycle Tracking Consent</div>
+                  <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:localStorage.getItem(`cycleConsent_${user.username}`)==='granted'?'var(--green)':'var(--text3)'}}>
+                    {localStorage.getItem(`cycleConsent_${user.username}`)==='granted'?'✓ CONSENTED':'NOT CONSENTED'}
+                  </div>
+                </div>
+                {localStorage.getItem(`cycleConsent_${user.username}`)==='granted'&&(
+                  <button onClick={()=>{localStorage.removeItem(`cycleConsent_${user.username}`);setAlert({msg:'Consent revoked. Cycle data processing stopped.',type:'ok'});setTimeout(()=>setAlert({msg:'',type:''}),4000);}}
+                    style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.12em',textTransform:'uppercase',padding:'7px 12px',border:'1px solid var(--red)',color:'var(--red)',borderRadius:4,background:'transparent',cursor:'pointer'}}>
+                    REVOKE
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           <button className="save-btn" onClick={handleSave}>SAVE CHANGES</button>
+
+          {/* ── Legal ── */}
+          <div style={{display:'flex',gap:8,marginTop:16,marginBottom:8}}>
+            <button onClick={()=>setShowPrivacy(true)}
+              style={{flex:1,fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.12em',textTransform:'uppercase',padding:'10px',border:'1px solid var(--border2)',color:'var(--text3)',borderRadius:4,background:'transparent',cursor:'pointer'}}>
+              PRIVACY POLICY
+            </button>
+            <button onClick={()=>setShowTerms(true)}
+              style={{flex:1,fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.12em',textTransform:'uppercase',padding:'10px',border:'1px solid var(--border2)',color:'var(--text3)',borderRadius:4,background:'transparent',cursor:'pointer'}}>
+              TERMS OF SERVICE
+            </button>
+          </div>
 
           {/* ── Partner sharing — moved to bottom ── */}
           {(partners.length===0&&!partner)&&(
@@ -4123,6 +4214,62 @@ const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
           <div style={{height:'32px'}}/>
         </div>
       </div>
+
+      {/* ── Privacy Policy Modal ── */}
+      {showPrivacy&&(
+        <div className="modal-overlay" onClick={()=>setShowPrivacy(false)}>
+          <div className="modal-sheet" onClick={e=>e.stopPropagation()} style={{maxHeight:'85vh'}}>
+            <div className="modal-handle"/>
+            <div className="modal-title">PRIVACY POLICY</div>
+            <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',lineHeight:1.8,letterSpacing:'0.04em'}}>
+              <div style={{color:'var(--pink)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:8}}>§ DATA COLLECTED</div>
+              We collect profile data (name, email, gender, date of birth, physical stats), financial records (income, expenses), calendar events, workout logs, meal entries, and — with your explicit consent — menstrual cycle and health data.
+              <div style={{color:'var(--pink)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>§ HOW WE USE YOUR DATA</div>
+              Your data is used solely to provide the features of this application. We do not sell, rent, or share your personal data with third parties for marketing purposes.
+              <div style={{color:'var(--pink)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>§ SHARING</div>
+              You control which data categories are shared with linked partners via the Sharing settings in your Profile. Shared data is visible only to users you explicitly link.
+              <div style={{color:'var(--pink)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>§ STORAGE &amp; SECURITY</div>
+              Data is stored on secured servers. Passwords are hashed and never stored in plain text. All data transmission uses HTTPS encryption.
+              <div style={{color:'var(--pink)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>§ YOUR RIGHTS</div>
+              You have the right to access, correct, export, and delete your personal data at any time. To request full data deletion, contact your system administrator. Health data consent can be revoked instantly from your Profile settings, which immediately stops processing of that data category.
+              <div style={{color:'var(--pink)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>§ HEALTH DATA</div>
+              Cycle and health data is only collected with your explicit, granular consent (separate from general Terms). You may revoke this consent at any time. Revoking consent stops further processing; contact admin to request scrubbing of existing health records.
+              <div style={{color:'var(--pink)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>§ CONTACT</div>
+              For privacy concerns or data requests: admin@vectraarch.live
+              <div style={{color:'var(--text3)',fontSize:8,marginTop:16}}>Last updated: May 2026 · Vectra Arch Legacy</div>
+            </div>
+            <button onClick={()=>setShowPrivacy(false)} style={{width:'100%',padding:'13px',background:'var(--bg3)',border:'1px solid var(--border2)',borderRadius:6,fontFamily:"'DM Mono',monospace",fontSize:10,letterSpacing:'0.14em',color:'var(--text2)',cursor:'pointer',marginTop:20}}>CLOSE</button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Terms of Service Modal ── */}
+      {showTerms&&(
+        <div className="modal-overlay" onClick={()=>setShowTerms(false)}>
+          <div className="modal-sheet" onClick={e=>e.stopPropagation()} style={{maxHeight:'85vh'}}>
+            <div className="modal-handle"/>
+            <div className="modal-title">TERMS OF SERVICE</div>
+            <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',lineHeight:1.8,letterSpacing:'0.04em'}}>
+              <div style={{color:'var(--green)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:8}}>§ ACCEPTANCE</div>
+              By using Vectra Arch Legacy, you agree to these Terms. If you do not agree, do not use the application.
+              <div style={{color:'var(--green)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>§ PERMITTED USE</div>
+              This application is provided for personal household financial tracking, health monitoring, and lifestyle management. You agree not to use it for commercial data collection, illegal purposes, or to harm other users.
+              <div style={{color:'var(--green)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>§ ACCOUNT RESPONSIBILITY</div>
+              You are responsible for maintaining the confidentiality of your credentials. You accept full responsibility for all activity that occurs under your account.
+              <div style={{color:'var(--green)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>§ HEALTH DATA &amp; CONSENT</div>
+              Health and cycle data recording requires separate, explicit opt-in consent. This consent is not bundled into acceptance of these Terms. You may withdraw consent at any time via Profile → Health Data settings.
+              <div style={{color:'var(--green)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>§ DATA ACCURACY</div>
+              You are responsible for the accuracy of data you enter. Financial and health data is for personal reference only and does not constitute professional financial or medical advice.
+              <div style={{color:'var(--green)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>§ LIMITATION OF LIABILITY</div>
+              Vectra Arch provides this application "as is." We are not liable for data loss, financial decisions made based on app data, or health outcomes.
+              <div style={{color:'var(--green)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>§ CHANGES TO TERMS</div>
+              We reserve the right to update these Terms. Continued use after changes constitutes acceptance of the updated Terms.
+              <div style={{color:'var(--text3)',fontSize:8,marginTop:16}}>Effective: May 2026 · Vectra Arch Legacy · South Africa</div>
+            </div>
+            <button onClick={()=>setShowTerms(false)} style={{width:'100%',padding:'13px',background:'var(--bg3)',border:'1px solid var(--border2)',borderRadius:6,fontFamily:"'DM Mono',monospace",fontSize:10,letterSpacing:'0.14em',color:'var(--text2)',cursor:'pointer',marginTop:20}}>CLOSE</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -4159,6 +4306,9 @@ const App = () => {
     localStorage.removeItem('legacySharingConfig');
     window.location.href = '/login.html';
   },[]);
+
+  // Sync currency preference to module-level fmtR var
+  useEffect(()=>{ if(user?.currency&&CURRENCIES[user.currency]) _appCurrency=user.currency; },[user?.currency]);
 
   // Persist sharingConfig to localStorage whenever it changes
   useEffect(()=>{
