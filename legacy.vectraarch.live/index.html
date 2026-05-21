@@ -1624,7 +1624,7 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
             };
 
             return (
-              <div style={{padding:'0 16px'}}>
+              <>
                 {canSeeCycle&&selectedEvents.some(e=>e.isCycle)&&(
                   <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',background:'rgba(233,30,140,0.1)',border:'1px solid rgba(233,30,140,0.25)',borderRadius:8,marginBottom:8}}>
                     <span style={{fontSize:16}}>🩸</span>
@@ -1687,7 +1687,7 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
                     {expandedCalGroups.has('fininc')&&finIncEvts.map(e=>renderCard(e,false))}
                   </div>
                 )}
-              </div>
+              </>
             );
           })()}
 
