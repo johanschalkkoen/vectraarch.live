@@ -114,8 +114,8 @@ const UserRow = ({user, partner, partners=[], activePartners=[], permittedPartne
 const Alert = ({msg,type}) => msg ? <div className={`alert ${type||'ok'}`}>{msg}</div> : null;
 
 // ── Shared month navigator — matches calendar header style ──
-const MonthNav = ({selectedMonth, setSelectedMonth, tabColor='#00e676', label=''}) => {
-  const year  = new Date().getFullYear();
+const MonthNav = ({selectedMonth, setSelectedMonth, tabColor='#00e676', label='', year: yearProp, onGoToday}) => {
+  const year  = yearProp ?? new Date().getFullYear();
   const mIdx  = parseInt(selectedMonth,10) - 1;
   const mName = new Date(year, mIdx, 1).toLocaleString('default',{month:'long'}).toUpperCase();
   const prev  = () => {
@@ -126,7 +126,7 @@ const MonthNav = ({selectedMonth, setSelectedMonth, tabColor='#00e676', label=''
     const n = parseInt(selectedMonth,10) + 1;
     setSelectedMonth(n > 12 ? '01' : String(n).padStart(2,'0'));
   };
-  const goNow = () => setSelectedMonth(String(new Date().getMonth()+1).padStart(2,'0'));
+  const goNow = () => { setSelectedMonth(String(new Date().getMonth()+1).padStart(2,'0')); if(onGoToday) onGoToday(); };
   return (
     <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 16px 4px'}}>
       <button onClick={prev} style={{width:32,height:32,borderRadius:'50%',background:'var(--bg3)',border:'none',color:'var(--text)',fontSize:18,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>‹</button>
@@ -1425,6 +1425,7 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
 const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPartners=[], selfVisible=true, isShared, tabSelected, onToggleUser, tabColor='#ffd600'}) => {
   const [search, setSearch]             = useState('');
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()+1).padStart(2,'0'));
+  const [selectedYear, setSelectedYear]   = useState(new Date().getFullYear());
   const [budgets, setBudgets]           = useState([]);
   const [finances, setFinances]         = useState([]);
   const [showForm, setShowForm]         = useState(false);
@@ -1434,12 +1435,16 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
   const [alert, setAlert]               = useState({msg:'',type:''});
 
   // Budget form: name, planned amount, category type (need/want/saving)
-  const curMonth = String(new Date().getMonth()+1).padStart(2,'0');
-  const [form, setForm] = useState({
+  const blankForm = useCallback(()=>({
     category:'', income:'', manualIncome:'', type:'need',
     expenses:[{category:'',amount:''}],
-    date:`${new Date().getFullYear()}-${curMonth}-01`
-  });
+    date:`${selectedYear}-${selectedMonth}-01`
+  }),[selectedMonth, selectedYear]);
+  const [form, setForm] = useState(()=>({
+    category:'', income:'', manualIncome:'', type:'need',
+    expenses:[{category:'',amount:''}],
+    date:`${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}-01`
+  }));
 
   const msg = (m,t='ok')=>{ setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
 
@@ -1476,10 +1481,11 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
 
   // ── Computed values ──
   const monthLabel = MONTHS.find(m=>m.v===selectedMonth)?.l||'';
+  const selectedPeriod = `${selectedYear}-${selectedMonth}`;
 
   const monthFinances = useMemo(()=>
-    finances.filter(f=>(f.date||'').slice(5,7)===selectedMonth)
-  ,[finances, selectedMonth]);
+    finances.filter(f=>(f.date||'').startsWith(selectedPeriod))
+  ,[finances, selectedPeriod]);
 
   const totalIncome  = useMemo(()=>monthFinances.filter(f=>f.type==='income').reduce((s,f)=>s+parseFloat(f.amount||0),0),[monthFinances]);
   const totalExpense = useMemo(()=>monthFinances.filter(f=>f.type==='expense').reduce((s,f)=>s+parseFloat(f.amount||0),0),[monthFinances]);
@@ -1487,8 +1493,8 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
 
   const monthBudgets = useMemo(()=>{
     const users=[...(selfVisible?[user.username]:[]),...(activePartners||[]).map(p=>p.username)];
-    return budgets.filter(b=>(b.date||'').slice(5,7)===selectedMonth && users.includes(b.user||user.username));
-  },[budgets, selectedMonth, selfVisible, JSON.stringify((activePartners||[]).map(p=>p.username))]);
+    return budgets.filter(b=>(b.date||'').startsWith(selectedPeriod) && users.includes(b.user||user.username));
+  },[budgets, selectedPeriod, selfVisible, JSON.stringify((activePartners||[]).map(p=>p.username))]);
 
   const filteredBudgets = useMemo(()=>
     monthBudgets.filter(b=>!search||(b.expenses[0]?.category||'').toLowerCase().includes(search.toLowerCase()))
@@ -1542,7 +1548,7 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
       }
       msg(editBudgetId?'Budget updated.':'Budget saved.');
       setShowForm(false); setEditBudgetId(null);
-      setForm({category:'',income:'',manualIncome:'',type:'need',expenses:[{category:'',amount:''}],date:`${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}-01`});
+      setForm(blankForm());
       fetchAll();
     } catch(e){ msg(e.response?.data?.message||'Error: '+e.message,'err'); }
   };
@@ -1575,7 +1581,12 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
             <div className="page-sub">50/30/20 · PLANNED vs ACTUAL · VARIANCE</div>
           </div>
           <UserRow user={user} partner={partner} partners={partners} activePartners={activePartners} permittedPartners={permittedPartners} selfVisible={selfVisible} tabSelected={tabSelected} isShared={isShared} onToggleUser={onToggleUser}/>
-          <MonthNav selectedMonth={selectedMonth} setSelectedMonth={setSelectedMonth} tabColor={tabColor}/>
+          <MonthNav selectedMonth={selectedMonth} setSelectedMonth={m=>{
+            const curM=parseInt(selectedMonth,10), newM=parseInt(m,10);
+            if(curM===12&&newM===1) setSelectedYear(y=>y+1);
+            else if(curM===1&&newM===12) setSelectedYear(y=>y-1);
+            setSelectedMonth(m);
+          }} tabColor={tabColor} year={selectedYear} onGoToday={()=>setSelectedYear(new Date().getFullYear())}/>
           <SearchBar value={search} onChange={setSearch} placeholder="Search budget categories..." tabColor={tabColor}/>
           <Alert {...alert}/>
 
@@ -1669,8 +1680,8 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
 
             {/* Row 3: Net trend sparkline — last 6 months */}
             {(()=>{
-              const selY=new Date().getFullYear(), selM=parseInt(selectedMonth,10)-1;
-              const anchor=new Date(selY,selM,1);
+              const today=new Date();
+              const anchor=new Date(today.getFullYear(),today.getMonth(),1);
               const months6=[];
               for(let i=5;i>=0;i--){
                 const d=new Date(anchor.getFullYear(),anchor.getMonth()-i,1);
@@ -1795,7 +1806,7 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
           <div style={{height:'80px'}}/>
         </div>
       </div>
-      <button className="fab" style={{background:tabColor,boxShadow:`0 4px 20px ${tabColor}55`}} onClick={()=>setShowForm(true)}>+ ADD BUDGET</button>
+      <button className="fab" style={{background:tabColor,boxShadow:`0 4px 20px ${tabColor}55`}} onClick={()=>{setForm(blankForm());setEditBudgetId(null);setShowForm(true);}}>+ ADD BUDGET</button>
       <ActionSheet open={!!actionBudget} title={actionBudget?.expenses?.[0]?.category} tabColor={tabColor}
         onEdit={()=>startEditBudget(actionBudget)}
         onDelete={()=>setConfirmDelBud(actionBudget?.id)}
@@ -1806,7 +1817,7 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
 
       {/* ── Add / Edit Budget Modal ── */}
       {showForm&&(
-        <div className="modal-overlay" onClick={()=>setShowForm(false)}>
+        <div className="modal-overlay" onClick={()=>{setShowForm(false);setEditBudgetId(null);setForm(blankForm());}}>
           <div className="modal-sheet" style={{"--page-color":tabColor}} onClick={e=>e.stopPropagation()}>
             <div className="modal-handle"/>
             <div className="modal-title">{editBudgetId?'Edit':'Add'} Budget Allocation</div>
@@ -1815,9 +1826,12 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
             <div className="form-field">
               <label className="form-label">Month</label>
               <select className="form-input"
-                value={`${new Date().getFullYear()}-${(form.date||'').slice(5,7)||String(new Date().getMonth()+1).padStart(2,'0')}`}
+                value={(form.date||'').slice(0,7)}
                 onChange={e=>setForm(p=>({...p,date:e.target.value+'-01'}))}>
-                {MONTHS.map(m=><option key={m.v} value={`${new Date().getFullYear()}-${m.v}`}>{m.l} {new Date().getFullYear()}</option>)}
+                {[-1,0,1].flatMap(yo=>MONTHS.map(m=>{
+                  const y=selectedYear+yo;
+                  return <option key={`${y}-${m.v}`} value={`${y}-${m.v}`}>{m.l} {y}</option>;
+                }))}
               </select>
             </div>
 
@@ -1918,7 +1932,7 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
             <button className="form-submit" style={{background:tabColor,color:'#000'}} onClick={handleSave}>
               {editBudgetId?'UPDATE':'SAVE'} ALLOCATION
             </button>
-            <button className="form-cancel" onClick={()=>{setShowForm(false);setEditBudgetId(null);setForm({category:'',income:'',manualIncome:'',type:'need',expenses:[{category:'',amount:''}],date:`${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}-01`});}}>Cancel</button>
+            <button className="form-cancel" onClick={()=>{setShowForm(false);setEditBudgetId(null);setForm(blankForm());}}>Cancel</button>
           </div>
         </div>
       )}
