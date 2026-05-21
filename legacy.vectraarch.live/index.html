@@ -758,10 +758,19 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
                 const isIncome=item.type==='income';
                 const BSEC2 = typeof BUDGET_SECTIONS!=='undefined'?BUDGET_SECTIONS:[];
                 const secColor = isVirtual ? (item.budgetType ? (BSEC2.find(s=>s.key===item.budgetType)?.color||'#448aff') : '#00e676') : oc;
+                // Find which budget section this transaction belongs to
+                const itemSec = !isVirtual&&!isIncome ? (()=>{
+                  const budCat = budgetCategories.find(c=>catMatch(item.category,c.category));
+                  if(budCat) return BSEC2.find(s=>s.key===budCat.type)||null;
+                  const cat=(item.category||'').toLowerCase();
+                  if(cat.startsWith('other')) return BSEC2.find(s=>cat.includes(s.label.toLowerCase()))||null;
+                  return null;
+                })() : null;
+                const cardColor = itemSec ? itemSec.color : oc;
                 return (
-                  <div key={item.id} className="meal-card" style={{marginBottom:8,borderLeft:`3px ${isVirtual?'dashed':'solid'} ${isVirtual?secColor:oc}`,cursor:(!isVirtual&&(item.user||item.username)===user.username)?'pointer':'default',opacity:isVirtual?0.78:1}}
+                  <div key={item.id} className="meal-card" style={{marginBottom:8,borderLeft:`3px solid ${isVirtual?secColor:cardColor}`,cursor:(!isVirtual&&(item.user||item.username)===user.username)?'pointer':'default',opacity:isVirtual?0.78:1}}
                     onClick={()=>!isVirtual&&(item.user||item.username)===user.username&&setActionItem(item)}>
-                    <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
+                    <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:8,flexWrap:'wrap'}}>
                       {isVirtual
                         ? <div style={{width:36,height:36,borderRadius:'50%',background:`${secColor}15`,border:`1px dashed ${secColor}44`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
                             <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:secColor,fontWeight:700}}>B</span>
@@ -772,6 +781,7 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
                         ? <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:600,letterSpacing:'0.12em',padding:'3px 8px',borderRadius:3,flexShrink:0,background:`${secColor}15`,color:secColor,border:`1px dashed ${secColor}55`}}>BUDGET</span>
                         : <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:600,letterSpacing:'0.12em',padding:'3px 8px',borderRadius:3,textTransform:'uppercase',flexShrink:0,background:isIncome?'rgba(0,230,118,0.15)':'rgba(255,61,61,0.15)',color:isIncome?'var(--green)':'var(--red)',border:`1px solid ${isIncome?'rgba(0,230,118,0.3)':'rgba(255,61,61,0.3)'}`}}>{(item.type||'expense').toUpperCase()}</span>
                       }
+                      {itemSec&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.1em',padding:'2px 7px',borderRadius:3,background:`${itemSec.color}15`,color:itemSec.color,border:`1px solid ${itemSec.color}33`,flexShrink:0}}>{itemSec.label}</span>}
                       {isVirtual&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'rgba(255,255,255,0.3)',letterSpacing:'0.08em'}}>PLANNED</span>}
                       {!isVirtual&&finOwner&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:oc,letterSpacing:'0.08em'}}>{(finOwner.displayName||finOwner.username||'').toUpperCase()}</span>}
                     </div>
