@@ -2570,14 +2570,20 @@ const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPart
             const activeDateStr = activeDate.toLocaleDateString('en-CA');
             const activeDayName = activeDate.toLocaleDateString('en-US',{weekday:'long'});
             const activeDayIdx = (activeDate.getDay()+6)%7;
+            // Days elapsed in selected month (full month if past, days so far if current)
+            const daysElapsed = isCurrentMonth ? new Date().getDate() : new Date(selYear, selMonthIdx+1, 0).getDate();
             // Week containing active date
             const weekStart = new Date(activeDate);
             weekStart.setDate(activeDate.getDate()-(activeDate.getDay()+6)%7);
             weekStart.setHours(0,0,0,0);
 
-            // Ring component — uses user's eventColor for all 4 rings, label in white
+            // Ring component — shows overflow state when val > target (red + real %)
             const Ring = ({val, target, color, label, unit}) => {
-              const pct = target>0?Math.min(val/target,1):0;
+              const ratio = target>0?val/target:0;
+              const isOver = ratio>1;
+              // Ring fills to 100% visually; overflow state changes color and shows real %
+              const pct = Math.min(ratio, 1);
+              const ringColor = isOver ? '#ff4d4d' : color;
               const R=28, stroke=4, norm=2*Math.PI*R;
               const dash = pct*norm;
               return (
@@ -2585,17 +2591,19 @@ const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPart
                   <div style={{position:'relative',width:62,height:62}}>
                     <svg viewBox="0 0 62 62" width="62" height="62">
                       <circle cx="31" cy="31" r={R} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth={stroke}/>
-                      <circle cx="31" cy="31" r={R} fill="none" stroke={color} strokeWidth={stroke}
+                      <circle cx="31" cy="31" r={R} fill="none" stroke={ringColor} strokeWidth={stroke}
                         strokeDasharray={`${dash.toFixed(2)} ${norm.toFixed(2)}`}
                         strokeLinecap="round" transform="rotate(-90 31 31)"
-                        style={{filter:`drop-shadow(0 0 4px ${color}99)`,transition:'stroke-dasharray 0.5s'}}/>
+                        style={{filter:`drop-shadow(0 0 ${isOver?6:4}px ${ringColor}${isOver?'cc':'99'})`,transition:'stroke-dasharray 0.5s'}}/>
                     </svg>
                     <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center'}}>
-                      <span style={{fontFamily:"'DM Mono',monospace",fontWeight:600,fontSize:11,color,lineHeight:1}}>{Math.round(pct*100)}%</span>
+                      <span style={{fontFamily:"'DM Mono',monospace",fontWeight:600,fontSize:isOver?9:11,color:ringColor,lineHeight:1}}>
+                        {isOver?`${Math.round(ratio*100)}%`:`${Math.round(pct*100)}%`}
+                      </span>
                     </div>
                   </div>
-                  <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,fontWeight:600,letterSpacing:'0.12em',color,textAlign:'center'}}>{label}</div>
-                  <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:'rgba(255,255,255,0.28)',textAlign:'center'}}>{unit}</div>
+                  <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,fontWeight:600,letterSpacing:'0.12em',color:ringColor,textAlign:'center'}}>{label}</div>
+                  <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:'rgba(255,255,255,0.45)',textAlign:'center'}}>{unit}</div>
                 </div>
               );
             };
@@ -2620,14 +2628,14 @@ const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPart
                   // Use month total for rings, day total for header
                   const ringCal = monthCal;
 
-                  // TDEE for this user
+                  // TDEE for this user — scale to days elapsed so rings compare month-to-date vs monthly budget
                   const ownerFull = uname===user.username ? user : (partners.find(p=>p.username===uname)||owner);
                   const uTDEE = getTDEE(ownerFull||{})||2000;
-                  const kcalTarget = uTDEE;
+                  const kcalTarget = uTDEE * daysElapsed;
                   const protTarget = Math.round(kcalTarget*0.075);
                   const carbTarget = Math.round(kcalTarget*0.05);
                   const fatTarget  = Math.round(kcalTarget*0.028);
-                  // Rings use month total
+                  // Rings use month total vs monthly budget
                   const todayProt  = Math.round(ringCal*0.075);
                   const todayCarb  = Math.round(ringCal*0.05);
                   const todayFat   = Math.round(ringCal*0.028);
@@ -2663,7 +2671,7 @@ const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPart
                             {(owner?.displayName||(owner?.firstName&&owner?.lastName?`${owner.firstName} ${owner.lastName}`:null)||uname).toUpperCase()}
                           </div>
                         </div>
-                        <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'rgba(255,255,255,0.35)',letterSpacing:'0.1em'}}>
+                        <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'rgba(255,255,255,0.55)',letterSpacing:'0.1em'}}>
                           <span style={{color:oc,fontWeight:600}}>{ringCal.toLocaleString()}</span> kcal
                         </div>
                       </div>
@@ -2678,7 +2686,7 @@ const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPart
                       {/* Weekly kcal bars */}
                       <div style={{padding:'10px 14px 12px'}}>
                         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
-                          <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.14em',color:'rgba(255,255,255,0.28)'}}>WEEKLY KCAL TREND</div>
+                          <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.14em',color:'rgba(255,255,255,0.48)'}}>WEEKLY KCAL TREND</div>
                           <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:oc,letterSpacing:'0.06em'}}>{ringCal.toLocaleString()} kcal {isCurrentMonth?'today':'this period'}</div>
                         </div>
                         <div style={{display:'flex',alignItems:'flex-end',gap:3,height:48}}>
@@ -2699,7 +2707,7 @@ const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPart
                                     transition:'height 0.3s',
                                   }}/>
                                 </div>
-                                <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:isToday?oc:'rgba(255,255,255,0.22)',letterSpacing:'0.04em'}}>
+                                <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:isToday?oc:'rgba(255,255,255,0.40)',letterSpacing:'0.04em'}}>
                                   {dayName[0]}
                                 </div>
                               </div>
@@ -2946,16 +2954,32 @@ const PhaseWheel = ({dayOfCycle=1, cycleLength=28, accentColor='#e91e8c'}) => {
     : dayOfCycle<fertStart           ? 'FOLLICULAR'
     : dayOfCycle<=(fertStart+ovDays) ? 'OVULATION'
     : 'LUTEAL';
+  const phaseColor = phase==='MENSTRUATION'?'#e91e8c':phase==='OVULATION'?'#1de9b6':'#8a8f99';
   return (
     <svg width={S} height={S} viewBox={`0 0 ${S} ${S}`}>
-      {segs.map((seg,i)=><path key={i} d={arc(seg.sa,seg.ea)} fill={seg.color} opacity="0.9"/>)}
+      <defs>
+        <filter id="phaseGlow">
+          <feGaussianBlur stdDeviation="3" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+      {segs.map((seg,i)=>{
+        const isActive = seg.name===phase;
+        const activeFill = seg.color==="#2a2d32" ? '#4a5060' : seg.color;
+        return (
+          <path key={i} d={arc(seg.sa,seg.ea)}
+            fill={isActive ? activeFill : seg.color}
+            opacity={isActive ? '1' : '0.35'}
+            filter={isActive ? 'url(#phaseGlow)' : undefined}/>
+        );
+      })}
       {dayNums.map(({d,x,y})=>d!==dayOfCycle&&(
         <text key={d} x={x} y={y} textAnchor="middle" dominantBaseline="middle"
-          fill="rgba(255,255,255,0.45)" fontFamily="'DM Mono',monospace" fontSize="8">{d}</text>
+          fill="rgba(255,255,255,0.55)" fontFamily="'DM Mono',monospace" fontSize="8">{d}</text>
       ))}
       <circle cx={cx} cy={cy} r={innerR-1} fill="#0d0e10"/>
       <text x={cx} y={cy-10} textAnchor="middle" fill="#f0f0f0" fontFamily="'Barlow Condensed',sans-serif" fontWeight="800" fontSize="22">DAY {dayOfCycle}</text>
-      <text x={cx} y={cy+10} textAnchor="middle" fill="#5a5f65" fontFamily="'DM Mono',monospace" fontSize="8" letterSpacing="0.1em">{phase} PHASE</text>
+      <text x={cx} y={cy+10} textAnchor="middle" fill={phaseColor} fontFamily="'DM Mono',monospace" fontSize="8" letterSpacing="0.1em">{phase} PHASE</text>
       <circle cx={cx+numR*Math.cos(curA)} cy={cy+numR*Math.sin(curA)} r="12" fill="white"/>
       <text x={cx+numR*Math.cos(curA)} y={cy+numR*Math.sin(curA)} textAnchor="middle" dominantBaseline="middle"
         fill="#0d0e10" fontFamily="'DM Mono',monospace" fontWeight="700" fontSize="9">{dayOfCycle}</text>
@@ -3146,7 +3170,7 @@ const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPart
                         {(owner.displayName||(owner.firstName&&owner.lastName?`${owner.firstName} ${owner.lastName}`:null)||owner.username||'').toUpperCase()}
                       </div>
                     </div>
-                    <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'rgba(255,255,255,0.35)',letterSpacing:'0.1em'}}>
+                    <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'rgba(255,255,255,0.55)',letterSpacing:'0.1em'}}>
                       <span style={{color:ac,fontWeight:600}}>{allUCycles.length}</span> CYCLE{allUCycles.length!==1?'S':''}
                     </div>
                   </div>
@@ -3172,25 +3196,25 @@ const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPart
                           </div>
                         );
                       })()}
-                      <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.12em',color:'rgba(255,255,255,0.4)',marginTop:6,textAlign:'center'}}>CONF</div>
-                      <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:'rgba(255,255,255,0.25)',textAlign:'center'}}>±1d</div>
+                      <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.12em',color:'rgba(255,255,255,0.58)',marginTop:6,textAlign:'center'}}>CONF</div>
+                      <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:'rgba(255,255,255,0.45)',textAlign:'center'}}>±1d</div>
                     </div>
 
                     {/* Predictions */}
                     <div style={{flex:1,padding:'14px 16px',display:'flex',flexDirection:'column',gap:8}}>
                       <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline'}}>
-                        <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.14em',color:'rgba(255,255,255,0.4)'}}>NEXT PERIOD</span>
+                        <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.14em',color:'rgba(255,255,255,0.58)'}}>NEXT PERIOD</span>
                         <span style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'#e91e8c',fontWeight:600}}>
                           {nextPeriodStr}{deltaDays!==null?' ±1d':''}
                         </span>
                       </div>
                       <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline'}}>
-                        <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.14em',color:'rgba(255,255,255,0.4)'}}>FERTILE WINDOW</span>
+                        <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.14em',color:'rgba(255,255,255,0.58)'}}>FERTILE WINDOW</span>
                         <span style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'#1de9b6',fontWeight:600}}>{fertile}</span>
                       </div>
                       <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline'}}>
-                        <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.14em',color:'rgba(255,255,255,0.4)'}}>BASIS</span>
-                        <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'rgba(255,255,255,0.35)'}}>
+                        <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.14em',color:'rgba(255,255,255,0.58)'}}>BASIS</span>
+                        <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'rgba(255,255,255,0.55)'}}>
                           {allUCycles.length} CYCLE{allUCycles.length!==1?'S':''} · σ {sigma}
                         </span>
                       </div>
@@ -3210,10 +3234,10 @@ const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPart
                         {label:'REGULARITY',  val:`${regularity}%`, target:'85%', delta:null, pct:regularity},
                       ].map((g,i)=>(
                         <div key={g.label} style={{padding:'10px 12px',borderRight:i<2?'1px solid rgba(255,255,255,0.06)':'none'}}>
-                          <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.12em',color:'rgba(255,255,255,0.3)',marginBottom:4}}>{g.label}</div>
+                          <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.12em',color:'rgba(255,255,255,0.50)',marginBottom:4}}>{g.label}</div>
                           <div style={{display:'flex',alignItems:'baseline',gap:4,marginBottom:4}}>
                             <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:16,color:ac}}>{g.val}</span>
-                            <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'rgba(255,255,255,0.25)'}}>{' / '}{g.target}</span>
+                            <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'rgba(255,255,255,0.45)'}}>{' / '}{g.target}</span>
                           </div>
                           <div style={{height:3,background:'rgba(255,255,255,0.07)',borderRadius:2,marginBottom:4,overflow:'hidden'}}>
                             <div style={{height:'100%',width:`${g.pct!==undefined?g.pct:Math.min(100,100-(Math.abs(g.delta||0)/5)*20)}%`,background:ac,borderRadius:2,transition:'width 0.4s'}}/>
@@ -3235,7 +3259,7 @@ const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPart
                 {/* ── Trends: phase breakdown + regularity ring ── */}
                 {allUCycles.length>0&&(
                   <div style={{background:'#0d0d0b',border:`1px solid rgba(255,255,255,0.07)`,borderRadius:12,padding:'12px 14px',marginBottom:10}}>
-                    <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.16em',color:'rgba(255,255,255,0.4)',marginBottom:12}}>
+                    <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.16em',color:'rgba(255,255,255,0.58)',marginBottom:12}}>
                       TRENDS · LAST {Math.min(allUCycles.length,6)} CYCLE{allUCycles.length!==1?'S':''}
                     </div>
                     <div style={{display:'flex',gap:12,alignItems:'center'}}>
@@ -3261,7 +3285,7 @@ const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPart
                                 {slices.map((s,i)=><path key={i} d={s.path} fill={s.color} opacity="0.9"/>)}
                               </svg>
                               <div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',pointerEvents:'none'}}>
-                                <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:'rgba(255,255,255,0.35)',letterSpacing:'0.1em'}}>PHASE</div>
+                                <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:'rgba(255,255,255,0.55)',letterSpacing:'0.1em'}}>PHASE</div>
                                 <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:11,color:ac,letterSpacing:'0.04em'}}>{cur}</div>
                               </div>
                             </div>
@@ -3337,7 +3361,7 @@ const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPart
                     {/* Cycle length sparkline */}
                     <div style={{background:'#0d0d0b',border:`1px solid rgba(255,255,255,0.07)`,borderRadius:12,padding:'12px 12px 10px'}}>
                       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
-                        <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.12em',color:'rgba(255,255,255,0.3)'}}>CYCLE LENGTH</div>
+                        <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.12em',color:'rgba(255,255,255,0.50)'}}>CYCLE LENGTH</div>
                         <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:ac,fontWeight:600}}>{avgLenAll}d</div>
                       </div>
                       {(()=>{
@@ -3364,13 +3388,13 @@ const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPart
                           </svg>
                         );
                       })()}
-                      <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:'rgba(255,255,255,0.2)',marginTop:4}}>last {sorted6.length} cycles</div>
+                      <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:'rgba(255,255,255,0.40)',marginTop:4}}>last {sorted6.length} cycles</div>
                     </div>
 
                     {/* Period duration bars */}
                     <div style={{background:'#0d0d0b',border:`1px solid rgba(255,255,255,0.07)`,borderRadius:12,padding:'12px 12px 10px'}}>
                       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
-                        <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.12em',color:'rgba(255,255,255,0.3)'}}>PERIOD DURATION</div>
+                        <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.12em',color:'rgba(255,255,255,0.50)'}}>PERIOD DURATION</div>
                         <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'#e91e8c',fontWeight:600}}>{avgDur}d</div>
                       </div>
                       <div style={{display:'flex',alignItems:'flex-end',gap:3,height:44}}>
