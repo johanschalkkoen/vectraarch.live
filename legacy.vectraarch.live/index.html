@@ -326,6 +326,13 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
     return Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([cat,amt])=>({cat,amt,pct:totals.exp>0?((amt/totals.exp)*100):0}));
   },[filtered,totals.exp]);
 
+  // Budget categories for the current user's budget this month (used in transaction form)
+  const budgetCategories = useMemo(()=>{
+    const period = `${new Date().getFullYear()}-${selectedMonth}`;
+    const bud = budgets.find(b=>(b.user===user.username||!b.user)&&(b.date||'').startsWith(period));
+    return bud?.expenses||[];
+  },[budgets, user.username, selectedMonth]);
+
   // ── CRUD handlers ──
   const handleSave = async () => {
     if(!form.category||!form.amount){msg('Fill all fields.','err');return;}
@@ -621,6 +628,63 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
             </div>
             {/* end dashboard widget */}
 
+            {/* ── Budget vs Actual summary (shown when budget exists) ── */}
+            {budgetCategories.length>0&&(()=>{
+              const monthExp = filtered.filter(i=>i.type==='expense');
+              const bud = budgets.find(b=>(b.user===user.username||!b.user)&&(b.date||'').startsWith(`${new Date().getFullYear()}-${selectedMonth}`));
+              const budIncome = parseFloat(bud?.income||0);
+              const actualIncome = filtered.filter(i=>i.type==='income').reduce((s,i)=>s+parseFloat(i.amount||0),0);
+              const BSEC = typeof BUDGET_SECTIONS!=='undefined'?BUDGET_SECTIONS:[];
+              return (
+                <div style={{margin:'8px 16px 0',background:'#0d0d0b',border:'1px solid rgba(255,255,255,0.08)',borderRadius:12,overflow:'hidden'}}>
+                  <div style={{padding:'10px 14px',borderBottom:'1px solid rgba(255,255,255,0.07)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                    <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:14,color:'rgba(255,255,255,0.8)',letterSpacing:'0.1em'}}>BUDGET vs ACTUAL</div>
+                    {budIncome>0&&<div style={{display:'flex',gap:12}}>
+                      {actualIncome>0&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'#00e676'}}>▲ {fmtR(actualIncome)} received</span>}
+                      <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'rgba(255,255,255,0.35)'}}>budget {fmtR(budIncome)}</span>
+                    </div>}
+                  </div>
+                  {BSEC.map(sec=>{
+                    const cats = budgetCategories.filter(c=>c.type===sec.key);
+                    if(!cats.length) return null;
+                    const planned = cats.reduce((s,c)=>s+parseFloat(c.amount||0),0);
+                    const actual  = monthExp.filter(t=>cats.some(c=>c.category===(t.category||'')))
+                                           .reduce((s,t)=>s+parseFloat(t.amount||0),0);
+                    const over    = actual>planned&&planned>0;
+                    const fill    = planned>0?Math.min(actual/planned,1):0;
+                    return (
+                      <div key={sec.key} style={{padding:'10px 14px',borderBottom:'1px solid rgba(255,255,255,0.05)'}}>
+                        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:5}}>
+                          <div style={{display:'flex',alignItems:'center',gap:6}}>
+                            <div style={{width:7,height:7,borderRadius:2,background:sec.color}}/>
+                            <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:13,color:sec.color,letterSpacing:'0.08em'}}>{sec.label}</span>
+                          </div>
+                          <div style={{fontFamily:"'DM Mono',monospace",fontSize:9}}>
+                            <span style={{color:over?'#ff3b3b':sec.color}}>{fmtR(actual)}</span>
+                            <span style={{color:'rgba(255,255,255,0.25)'}}> / </span>
+                            <span style={{color:'rgba(255,255,255,0.4)'}}>{fmtR(planned)}</span>
+                          </div>
+                        </div>
+                        <div style={{height:4,background:'rgba(255,255,255,0.06)',borderRadius:2,overflow:'hidden'}}>
+                          <div style={{height:'100%',width:`${fill*100}%`,background:over?'#ff3b3b':sec.color,borderRadius:2,transition:'width 0.4s',boxShadow:`0 0 4px ${over?'#ff3b3b':sec.color}55`}}/>
+                        </div>
+                        <div style={{display:'flex',flexWrap:'wrap',gap:3,marginTop:5}}>
+                          {cats.map(c=>{
+                            const catAct=monthExp.filter(t=>(t.category||'')===c.category).reduce((s,t)=>s+parseFloat(t.amount||0),0);
+                            return catAct>0&&(
+                              <span key={c.category} style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:'rgba(255,255,255,0.4)',padding:'2px 6px',borderRadius:3,background:'rgba(255,255,255,0.05)'}}>
+                                {c.category}: {fmtR(catAct)}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+
             <SearchBar value={search} onChange={setSearch} placeholder="Search transactions..." tabColor={tabColor}/>
 
             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'4px 16px 8px'}}>
@@ -882,19 +946,69 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
           <div className="modal-sheet" style={{"--page-color":tabColor||"var(--green)"}} onClick={e=>e.stopPropagation()}>
             <div className="modal-handle"/>
             <div className="modal-title">{editId?"Edit":"Add"} Transaction</div>
-            <div className="form-field">
-              <label className="form-label">Category</label>
-              <input className="form-input" placeholder="e.g. Groceries" value={form.category} onChange={e=>setForm(p=>({...p,category:e.target.value}))}/>
-            </div>
-            <div className="form-field">
-              <label className="form-label">Amount (ZAR)</label>
-              <input className="form-input" type="number" placeholder="0.00" value={form.amount} onChange={e=>setForm(p=>({...p,amount:e.target.value}))}/>
-            </div>
+
+            {/* Type first so category section updates immediately */}
             <div className="form-field">
               <label className="form-label">Type</label>
               <div className="type-toggle">
-                {['income','expense'].map(t=><button key={t} className={`type-toggle-btn ${form.type===t?'active':''}`} onClick={()=>setForm(p=>({...p,type:t}))}>{t.toUpperCase()}</button>)}
+                {['expense','income'].map(t=>(
+                  <button key={t} className={`type-toggle-btn ${form.type===t?'active':''}`}
+                    onClick={()=>setForm(p=>({...p,type:t,category:''}))}>
+                    {t.toUpperCase()}
+                  </button>
+                ))}
               </div>
+            </div>
+
+            {/* Category — sectioned by budget when expenses + budget exists */}
+            <div className="form-field">
+              <label className="form-label">Category</label>
+              {form.type==='expense'&&budgetCategories.length>0 ? (
+                <>
+                  {(typeof BUDGET_SECTIONS!=='undefined'?BUDGET_SECTIONS:[]).map(sec=>{
+                    const cats=budgetCategories.filter(c=>c.type===sec.key);
+                    if(!cats.length) return null;
+                    return (
+                      <div key={sec.key} style={{marginBottom:10}}>
+                        <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.14em',color:sec.color,marginBottom:5,display:'flex',alignItems:'center',gap:6}}>
+                          <div style={{width:6,height:6,borderRadius:1,background:sec.color}}/>
+                          {sec.label}
+                        </div>
+                        <div style={{display:'flex',flexWrap:'wrap',gap:5}}>
+                          {cats.map(c=>{
+                            const sel=form.category===c.category;
+                            return (
+                              <button key={c.category} type="button"
+                                onClick={()=>setForm(p=>({...p,category:c.category}))}
+                                style={{padding:'6px 12px',borderRadius:6,cursor:'pointer',
+                                  border:`1px solid ${sel?sec.color:sec.color+'55'}`,
+                                  background:sel?`${sec.color}22`:`${sec.color}0a`,
+                                  color:sel?sec.color:'rgba(255,255,255,0.65)',
+                                  fontFamily:"'Barlow Condensed',sans-serif",fontWeight:sel?700:500,fontSize:13,letterSpacing:'0.04em'}}>
+                                {c.category}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <input className="form-input" style={{marginTop:4}}
+                    placeholder="Or type a custom category"
+                    value={budgetCategories.some(c=>c.category===form.category)?'':form.category}
+                    onChange={e=>setForm(p=>({...p,category:e.target.value}))}/>
+                </>
+              ) : (
+                <input className="form-input"
+                  placeholder={form.type==='income'?'e.g. Salary, Freelance, Bonus':'e.g. Groceries'}
+                  value={form.category}
+                  onChange={e=>setForm(p=>({...p,category:e.target.value}))}/>
+              )}
+            </div>
+
+            <div className="form-field">
+              <label className="form-label">Amount (ZAR)</label>
+              <input className="form-input" type="number" placeholder="0.00" value={form.amount} onChange={e=>setForm(p=>({...p,amount:e.target.value}))} autoFocus={!form.category}/>
             </div>
             <div className="form-field">
               <label className="form-label">Date</label>
@@ -1448,7 +1562,7 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
   const [finances, setFinances]           = useState([]);
   const [editing, setEditing]             = useState(false);
   const [draftIncome, setDraftIncome]     = useState('');
-  const [draftAllocs, setDraftAllocs]     = useState(DEFAULT_BUDGET_ALLOCATIONS.map(a=>({...a})));
+  const [draftAllocs, setDraftAllocs]     = useState(DEFAULT_BUDGET_ALLOCATIONS.map(a=>({category:a.category,amount:'',type:a.type})));
   const [saving, setSaving]               = useState(false);
   const [confirmDel, setConfirmDel]       = useState(false);
   const [alert, setAlert]                 = useState({msg:'',type:''});
@@ -1457,6 +1571,12 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
 
   const selectedPeriod = `${selectedYear}-${selectedMonth}`;
   const monthLabel = MONTHS.find(m=>m.v===selectedMonth)?.l||'';
+  // Which user's budget to display: own if selfVisible (or fallback), sole partner if only they're selected
+  const viewUser = (!selfVisible&&(activePartners||[]).length===1)
+    ? activePartners[0].username : user.username;
+  const canEdit  = viewUser===user.username;
+  const viewPartner = viewUser!==user.username
+    ? [...(partners||[]),...(permittedPartners||[])].find(p=>p.username===viewUser)||null : null;
 
   const fetchAll = useCallback(async()=>{
     const users=[...(selfVisible?[user.username]:[]),...(activePartners||[]).map(p=>p.username)];
@@ -1484,14 +1604,17 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
   useEffect(()=>{ fetchAll(); },[fetchAll]);
 
   const budgetEntry = useMemo(()=>
-    allBudgets.find(b=>(b.user===user.username||!b.user)&&(b.date||'').startsWith(selectedPeriod))||null
-  ,[allBudgets, user.username, selectedPeriod]);
+    allBudgets.find(b=>b.user===viewUser&&(b.date||'').startsWith(selectedPeriod))||null
+  ,[allBudgets, viewUser, selectedPeriod]);
 
   const monthFinances = useMemo(()=>
-    finances.filter(f=>(f.date||'').startsWith(selectedPeriod))
-  ,[finances, selectedPeriod]);
+    finances.filter(f=>(f.user===viewUser||(!f.user&&viewUser===user.username))&&(f.date||'').startsWith(selectedPeriod))
+  ,[finances, viewUser, user.username, selectedPeriod]);
 
   const incomeVal = parseFloat(editing ? draftIncome : (budgetEntry?.income||''))||0;
+  const actualIncome = useMemo(()=>
+    monthFinances.filter(f=>f.type==='income').reduce((s,f)=>s+parseFloat(f.amount||0),0)
+  ,[monthFinances]);
 
   const allocations = useMemo(()=>{
     if(editing) return draftAllocs;
@@ -1514,13 +1637,18 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
 
   const startEdit = () => {
     const exps = budgetEntry?.expenses||[];
+    const inc  = parseFloat(budgetEntry?.income||'')||0;
     const allocs = exps.length>0
       ? exps.map(e=>({
-          category:e.category||'',
-          pct: e.pct!=null ? parseFloat(e.pct) : (budgetEntry?.income>0 ? Math.round((parseFloat(e.amount||0)/budgetEntry.income)*100) : 0),
-          type: e.type||'need',
+          category: e.category||'',
+          amount:   String(e.amount||''),
+          type:     e.type||'need',
         }))
-      : DEFAULT_BUDGET_ALLOCATIONS.map(a=>({...a}));
+      : DEFAULT_BUDGET_ALLOCATIONS.map(a=>({
+          category: a.category,
+          amount:   inc>0 ? String((inc*a.pct/100).toFixed(0)) : '',
+          type:     a.type,
+        }));
     setDraftIncome(String(budgetEntry?.income||''));
     setDraftAllocs(allocs);
     setEditing(true);
@@ -1531,15 +1659,15 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
   const handleSave = async () => {
     const inc = parseFloat(draftIncome)||0;
     if(inc<=0){ msg('Enter your monthly net income.','err'); return; }
-    const validAllocs = draftAllocs.filter(a=>a.category&&parseFloat(a.pct||0)>0);
-    if(validAllocs.length===0){ msg('Add at least one allocation.','err'); return; }
+    const validAllocs = draftAllocs.filter(a=>a.category&&parseFloat(a.amount||0)>0);
+    if(validAllocs.length===0){ msg('Add at least one category with an amount.','err'); return; }
     setSaving(true);
     try {
       const expArr = validAllocs.map(a=>({
-        category:a.category,
-        pct:parseFloat(a.pct),
-        amount:parseFloat(((inc*parseFloat(a.pct))/100).toFixed(2)),
-        type:a.type,
+        category: a.category,
+        amount:   parseFloat(parseFloat(a.amount).toFixed(2)),
+        pct:      parseFloat((parseFloat(a.amount)/inc*100).toFixed(2)),
+        type:     a.type,
       }));
       const dateVal = `${selectedYear}-${selectedMonth}-01`;
       if(budgetEntry){
@@ -1577,14 +1705,15 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
   const removeDraftAlloc = (i) =>
     setDraftAllocs(prev=>prev.filter((_,j)=>j!==i));
   const addDraftAlloc = (type) =>
-    setDraftAllocs(prev=>[...prev, {category:'', pct:0, type}]);
+    setDraftAllocs(prev=>[...prev, {category:'', amount:'', type}]);
 
-  const draftTotalPct = draftAllocs.reduce((s,a)=>s+parseFloat(a.pct||0),0);
+  const draftTotalAmount = draftAllocs.reduce((s,a)=>s+parseFloat(a.amount||0),0);
 
   const renderSection = (sec) => {
     if(editing){
       const editRows = draftAllocs.map((a,i)=>({...a,_i:i})).filter(a=>a.type===sec.key);
-      const editPlanned = editRows.reduce((s,a)=>s+(parseFloat(draftIncome||0)*parseFloat(a.pct||0)/100),0);
+      const editPlanned = editRows.reduce((s,a)=>s+parseFloat(a.amount||0),0);
+      const draftInc = parseFloat(draftIncome||0);
       return (
         React.createElement('div', {key:sec.key, style:{marginBottom:16,background:'#0d0d0b',border:`1px solid ${sec.color}44`,borderRadius:12,overflow:'hidden'}},
           React.createElement('div', {style:{padding:'12px 14px',borderBottom:`1px solid ${sec.color}22`,display:'flex',alignItems:'center',justifyContent:'space-between',background:`${sec.color}0d`}},
@@ -1593,27 +1722,36 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
               React.createElement('span', {style:{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:15,color:sec.color,letterSpacing:'0.1em'}}, sec.label),
               React.createElement('span', {style:{fontFamily:"'DM Mono',monospace",fontSize:9,color:sec.color,opacity:0.6}}, `TARGET ${sec.targetPct}%`)
             ),
-            React.createElement('span', {style:{fontFamily:"'DM Mono',monospace",fontSize:10,color:sec.color}}, fmtR(editPlanned))
+            React.createElement('div', {style:{textAlign:'right'}},
+              React.createElement('span', {style:{fontFamily:"'DM Mono',monospace",fontSize:10,color:sec.color}}, fmtR(editPlanned)),
+              draftInc>0&&React.createElement('div', {style:{fontFamily:"'DM Mono',monospace",fontSize:8,color:'rgba(255,255,255,0.3)'}},
+                `${(editPlanned/draftInc*100).toFixed(1)}% of income`
+              )
+            )
           ),
           React.createElement('div', {style:{padding:'8px 0'}},
-            React.createElement('div', {style:{display:'grid',gridTemplateColumns:'1fr 80px 32px',gap:8,padding:'4px 14px 6px',borderBottom:'1px solid rgba(255,255,255,0.05)'}},
+            React.createElement('div', {style:{display:'grid',gridTemplateColumns:'1fr 110px 32px',gap:8,padding:'4px 14px 6px',borderBottom:'1px solid rgba(255,255,255,0.05)'}},
               React.createElement('span', {style:{fontFamily:"'DM Mono',monospace",fontSize:7,color:'rgba(255,255,255,0.3)',letterSpacing:'0.12em'}}, 'CATEGORY'),
-              React.createElement('span', {style:{fontFamily:"'DM Mono',monospace",fontSize:7,color:'rgba(255,255,255,0.3)',letterSpacing:'0.12em'}}, '% OF INCOME'),
+              React.createElement('span', {style:{fontFamily:"'DM Mono',monospace",fontSize:7,color:'rgba(255,255,255,0.3)',letterSpacing:'0.12em'}}, 'AMOUNT (R)'),
               React.createElement('span', null)
             ),
-            editRows.map(a=>
-              React.createElement('div', {key:a._i, style:{display:'grid',gridTemplateColumns:'1fr 80px 32px',gap:8,padding:'6px 14px',alignItems:'center'}},
-                React.createElement('input', {className:'form-input', placeholder:'Category name', style:{margin:0,fontSize:11,padding:'5px 8px',height:32},
-                  value:a.category, onChange:e=>updateDraftAlloc(a._i,'category',e.target.value)}),
-                React.createElement('div', {style:{display:'flex',alignItems:'center',gap:4}},
-                  React.createElement('input', {className:'form-input', type:'number', min:0, max:100, style:{margin:0,fontSize:11,padding:'5px 6px',height:32,textAlign:'center'},
-                    value:a.pct, onChange:e=>updateDraftAlloc(a._i,'pct',e.target.value)}),
-                  React.createElement('span', {style:{fontFamily:"'DM Mono',monospace",fontSize:9,color:'rgba(255,255,255,0.4)',flexShrink:0}}, '%')
+            editRows.map(a=>{
+              const computedPct = draftInc>0&&parseFloat(a.amount||0)>0
+                ? (parseFloat(a.amount)/draftInc*100).toFixed(1)
+                : null;
+              return React.createElement('div', {key:a._i, style:{display:'grid',gridTemplateColumns:'1fr 110px 32px',gap:8,padding:'6px 14px',alignItems:'center'}},
+                React.createElement('div', null,
+                  React.createElement('input', {className:'form-input', placeholder:'Category name', style:{margin:0,fontSize:11,padding:'5px 8px',height:32,width:'100%'},
+                    value:a.category, onChange:e=>updateDraftAlloc(a._i,'category',e.target.value)}),
+                  computedPct&&React.createElement('div', {style:{fontFamily:"'DM Mono',monospace",fontSize:8,color:sec.color,marginTop:2,paddingLeft:2}}, `${computedPct}% of income`)
                 ),
+                React.createElement('input', {className:'form-input', type:'number', min:0, placeholder:'0',
+                  style:{margin:0,fontSize:13,padding:'5px 8px',height:32,textAlign:'right'},
+                  value:a.amount, onChange:e=>updateDraftAlloc(a._i,'amount',e.target.value)}),
                 React.createElement('button', {onClick:()=>removeDraftAlloc(a._i),
                   style:{width:28,height:28,borderRadius:4,background:'rgba(255,61,61,0.1)',border:'1px solid rgba(255,61,61,0.25)',color:'var(--red)',cursor:'pointer',fontWeight:700,fontSize:14,flexShrink:0}}, '×')
-              )
-            ),
+              );
+            }),
             React.createElement('div', {style:{padding:'4px 14px 8px'}},
               React.createElement('button', {onClick:()=>addDraftAlloc(sec.key),
                 style:{width:'100%',padding:'7px',borderRadius:6,border:`1px dashed ${sec.color}55`,background:`${sec.color}08`,color:sec.color,fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.1em',cursor:'pointer'}},
@@ -1706,14 +1844,25 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
                   onChange={e=>setDraftIncome(e.target.value)}
                   autoFocus/>
                 <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'rgba(255,255,255,0.3)',marginBottom:16}}>Your income after tax and deductions</div>
-                {draftTotalPct!==100&&(
-                  <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,padding:'6px 10px',marginBottom:12,borderRadius:6,
-                    color:draftTotalPct>100?'#ff3b3b':'#ffd600',
-                    background:draftTotalPct>100?'rgba(255,61,61,0.1)':'rgba(255,214,0,0.08)',
-                    border:`1px solid ${draftTotalPct>100?'rgba(255,61,61,0.3)':'rgba(255,214,0,0.2)'}`}}>
-                    ⚠ Allocations total {draftTotalPct.toFixed(0)}% — must equal 100%
-                  </div>
-                )}
+                {(()=>{
+                  const inc = parseFloat(draftIncome||0);
+                  const diff = draftTotalAmount - inc;
+                  if(!inc||draftTotalAmount===0) return null;
+                  const over = diff > 0;
+                  const pctUsed = inc>0 ? (draftTotalAmount/inc*100).toFixed(1) : 0;
+                  return (
+                    <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,padding:'6px 10px',marginBottom:12,borderRadius:6,
+                      color:over?'#ff3b3b':Math.abs(diff)<1?'#00e676':'#ffd600',
+                      background:over?'rgba(255,61,61,0.1)':Math.abs(diff)<1?'rgba(0,230,118,0.08)':'rgba(255,214,0,0.08)',
+                      border:`1px solid ${over?'rgba(255,61,61,0.3)':Math.abs(diff)<1?'rgba(0,230,118,0.25)':'rgba(255,214,0,0.2)'}`}}>
+                      {over
+                        ? `⚠ Over by ${fmtR(diff)} — total ${fmtR(draftTotalAmount)} exceeds income`
+                        : Math.abs(diff)<1
+                          ? `✓ Fully allocated — ${pctUsed}% of income`
+                          : `${fmtR(draftTotalAmount)} of ${fmtR(inc)} allocated (${pctUsed}%) — ${fmtR(-diff)} unallocated`}
+                    </div>
+                  );
+                })()}
                 <div style={{display:'flex',gap:8}}>
                   <button onClick={handleSave} disabled={saving}
                     style={{flex:1,padding:'11px',borderRadius:8,background:tabColor,color:'#000',border:'none',fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:14,letterSpacing:'0.12em',cursor:'pointer',opacity:saving?0.6:1}}>
@@ -1727,9 +1876,20 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
               </>
             ) : incomeVal>0 ? (
               <>
-                <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.2em',color:'rgba(255,255,255,0.35)',marginBottom:6}}>MONTHLY NET INCOME</div>
-                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:38,color:'rgba(255,255,255,0.95)',letterSpacing:'0.01em',lineHeight:1,marginBottom:4}}>{fmtR(incomeVal)}</div>
-                <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'rgba(255,255,255,0.35)',marginBottom:16}}>Your income after tax and deductions</div>
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.2em',color:'rgba(255,255,255,0.35)',marginBottom:6}}>
+                  MONTHLY NET INCOME{viewPartner?` · ${(viewPartner.displayName||viewPartner.username||'').toUpperCase()}`:''}
+                </div>
+                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:38,color:viewPartner?viewPartner.eventColor||tabColor:'rgba(255,255,255,0.95)',letterSpacing:'0.01em',lineHeight:1,marginBottom:4}}>{fmtR(incomeVal)}</div>
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'rgba(255,255,255,0.35)',marginBottom:actualIncome>0?6:16}}>
+                  {viewPartner?`${(viewPartner.displayName||viewPartner.username||'Partner')}'s income after tax and deductions`:'Your income after tax and deductions'}
+                </div>
+                {actualIncome>0&&(
+                  <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:14,padding:'7px 10px',borderRadius:6,background:'rgba(0,230,118,0.07)',border:'1px solid rgba(0,230,118,0.2)'}}>
+                    <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'rgba(255,255,255,0.4)',letterSpacing:'0.1em'}}>RECEIVED THIS MONTH</span>
+                    <span style={{fontFamily:"'DM Mono',monospace",fontSize:11,color:'#00e676',fontWeight:600,marginLeft:'auto'}}>{fmtR(actualIncome)}</span>
+                    <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:actualIncome>=incomeVal?'#00e676':'rgba(255,255,255,0.3)'}}>{incomeVal>0?`${Math.round(actualIncome/incomeVal*100)}%`:''}</span>
+                  </div>
+                )}
                 <div style={{display:'flex',gap:8,marginBottom:16}}>
                   {BUDGET_SECTIONS.map(sec=>{
                     const secAllocs=allocations.filter(a=>a.type===sec.key);
@@ -1743,7 +1903,7 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
                     );
                   })}
                 </div>
-                <div style={{display:'flex',gap:8}}>
+                {canEdit&&<div style={{display:'flex',gap:8}}>
                   <button onClick={startEdit}
                     style={{flex:1,padding:'10px',borderRadius:8,background:'rgba(255,255,255,0.06)',color:'rgba(255,255,255,0.8)',border:'1px solid rgba(255,255,255,0.12)',fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:13,letterSpacing:'0.1em',cursor:'pointer'}}>
                     EDIT BUDGET
@@ -1752,17 +1912,23 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
                     style={{padding:'10px 14px',borderRadius:8,background:'rgba(255,61,61,0.08)',color:'rgba(255,61,61,0.7)',border:'1px solid rgba(255,61,61,0.2)',fontFamily:"'DM Mono',monospace",fontSize:10,cursor:'pointer'}}>
                     DELETE
                   </button>
-                </div>
+                </div>}
               </>
             ) : (
               <>
-                <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.2em',color:'rgba(255,255,255,0.35)',marginBottom:6}}>MONTHLY NET INCOME</div>
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.2em',color:'rgba(255,255,255,0.35)',marginBottom:6}}>
+                  MONTHLY NET INCOME{viewPartner?` · ${(viewPartner.displayName||viewPartner.username||'').toUpperCase()}`:''}
+                </div>
                 <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:28,color:'rgba(255,255,255,0.25)',letterSpacing:'0.01em',lineHeight:1,marginBottom:4}}>NOT SET</div>
-                <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'rgba(255,255,255,0.3)',marginBottom:16}}>No budget configured for {monthLabel} {selectedYear}</div>
-                <button onClick={startEdit}
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'rgba(255,255,255,0.3)',marginBottom:16}}>
+                  {viewPartner
+                    ?`${(viewPartner.displayName||viewPartner.username||'Partner')} has no budget for ${monthLabel} ${selectedYear}`
+                    :`No budget configured for ${monthLabel} ${selectedYear}`}
+                </div>
+                {canEdit&&<button onClick={startEdit}
                   style={{width:'100%',padding:'12px',borderRadius:8,background:tabColor,color:'#000',border:'none',fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:15,letterSpacing:'0.12em',cursor:'pointer'}}>
                   SET UP BUDGET ↗
-                </button>
+                </button>}
               </>
             )}
           </div>
