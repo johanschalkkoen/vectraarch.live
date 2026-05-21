@@ -34,6 +34,13 @@ const fmtDate = d => { if(!d)return'—'; const dt=new Date(d); return isNaN(dt)
 const fmtDateTime = d => { if(!d)return'—'; const dt=new Date(d); return isNaN(dt)?'—':dt.toLocaleString('en-ZA',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).replace(',',''); };
 const now = () => { const n=new Date(); n.setMinutes(n.getMinutes()-n.getTimezoneOffset()); return n.toISOString().slice(0,19); };
 const todayISO = () => new Date().toISOString().slice(0,10);
+// Bidirectional fuzzy match: "RENT" matches "Rent / Bond" and vice-versa
+const catMatch = (transCat, budgCat) => {
+  const t = (transCat||'').toLowerCase().trim();
+  const b = (budgCat||'').toLowerCase().trim();
+  if(!t||!b) return false;
+  return t===b || t.includes(b) || b.includes(t);
+};
 
 /* ── TAB ICONS (SVG inline) ── */
 const Icons = {
@@ -279,14 +286,49 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
 
   useEffect(()=>{ fetchAll(); },[fetchAll]);
 
+  // Budget entry for current user for selected month (tries adjacent years)
+  const monthBudgetEntry = useMemo(()=>{
+    const yr = new Date().getFullYear();
+    for(const y of [yr, yr-1, yr+1]){
+      const period = `${y}-${selectedMonth}`;
+      const bud = budgets.find(b=>(b.user===user.username||!b.user)&&(b.date||'').startsWith(period));
+      if(bud) return bud;
+    }
+    const latest = [...budgets].filter(b=>b.user===user.username||!b.user)
+      .sort((a,b)=>new Date(b.date)-new Date(a.date))[0];
+    return latest||null;
+  },[budgets, user.username, selectedMonth]);
+
+  // Virtual items derived from budget — baseline income + expense allocations
+  const budgetVirtualItems = useMemo(()=>{
+    if(!monthBudgetEntry) return [];
+    const yr = new Date().getFullYear();
+    const dateStr = `${yr}-${selectedMonth}-01T00:00:00`;
+    const virtuals = [];
+    const income = parseFloat(monthBudgetEntry.income||0);
+    if(income>0){
+      virtuals.push({id:'bvirt_income',virtual:true,type:'income',category:'Budget Income',amount:income,date:dateStr,user:user.username});
+    }
+    (monthBudgetEntry.expenses||[]).forEach(e=>{
+      const amt = parseFloat(e.amount||0);
+      if(amt>0){
+        virtuals.push({id:`bvirt_${e.category}`,virtual:true,type:'expense',category:e.category,amount:amt,date:dateStr,user:user.username,budgetType:e.type});
+      }
+    });
+    return virtuals;
+  },[monthBudgetEntry, selectedMonth, user.username]);
+
   // ── Current month filtered items ──
   const filtered = useMemo(()=>{
     const users = [...(selfVisible?[user.username]:[]), ...(activePartners||[]).map(p=>p.username)];
-    if(users.length===0) return [];
-    let list = items.filter(i=>users.includes(i.user||i.username)&&(i.date||'').slice(5,7)===selectedMonth);
+    // Include virtual budget items whenever the current user's data is in view (via selfVisible or activePartners)
+    const selfInView = selfVisible || (activePartners||[]).some(p=>p.username===user.username);
+    let list = users.length>0 ? items.filter(i=>users.includes(i.user||i.username)&&(i.date||'').slice(5,7)===selectedMonth) : [];
     if(search) list = list.filter(i=>(i.category||'').toLowerCase().includes(search.toLowerCase()));
-    return [...list].sort((a,b)=>sortField==='amount'?parseFloat(b.amount)-parseFloat(a.amount):new Date(b.date)-new Date(a.date));
-  },[items,selectedMonth,search,sortField,user.username,selfVisible,JSON.stringify((activePartners||[]).map(p=>p.username))]);
+    const sorted = [...list].sort((a,b)=>sortField==='amount'?parseFloat(b.amount)-parseFloat(a.amount):new Date(b.date)-new Date(a.date));
+    const virtuals = selfInView&&!search ? budgetVirtualItems : [];
+    return [...virtuals, ...sorted];
+  },[items,selectedMonth,search,sortField,user.username,selfVisible,budgetVirtualItems,JSON.stringify((activePartners||[]).map(p=>p.username))]);
 
   const totals = useMemo(()=>{
     const inc = filtered.filter(i=>i.type==='income').reduce((s,i)=>s+parseFloat(i.amount||0),0);
@@ -326,11 +368,18 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
     return Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([cat,amt])=>({cat,amt,pct:totals.exp>0?((amt/totals.exp)*100):0}));
   },[filtered,totals.exp]);
 
-  // Budget categories for the current user's budget this month (used in transaction form)
+  // Budget categories for the current user's budget this month — try current year then adjacent years
   const budgetCategories = useMemo(()=>{
-    const period = `${new Date().getFullYear()}-${selectedMonth}`;
-    const bud = budgets.find(b=>(b.user===user.username||!b.user)&&(b.date||'').startsWith(period));
-    return bud?.expenses||[];
+    const yr = new Date().getFullYear();
+    for(const y of [yr, yr-1, yr+1]){
+      const period = `${y}-${selectedMonth}`;
+      const bud = budgets.find(b=>(b.user===user.username||!b.user)&&(b.date||'').startsWith(period));
+      if(bud?.expenses?.length) return bud.expenses;
+    }
+    // Fallback: newest budget entry for this user regardless of month
+    const latest = [...budgets].filter(b=>b.user===user.username||!b.user)
+      .sort((a,b)=>new Date(b.date)-new Date(a.date))[0];
+    return latest?.expenses||[];
   },[budgets, user.username, selectedMonth]);
 
   // ── CRUD handlers ──
@@ -630,10 +679,10 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
 
             {/* ── Budget vs Actual summary (shown when budget exists) ── */}
             {budgetCategories.length>0&&(()=>{
-              const monthExp = filtered.filter(i=>i.type==='expense');
+              const monthExp = filtered.filter(i=>i.type==='expense'&&!i.virtual);
               const bud = budgets.find(b=>(b.user===user.username||!b.user)&&(b.date||'').startsWith(`${new Date().getFullYear()}-${selectedMonth}`));
               const budIncome = parseFloat(bud?.income||0);
-              const actualIncome = filtered.filter(i=>i.type==='income').reduce((s,i)=>s+parseFloat(i.amount||0),0);
+              const actualIncome = filtered.filter(i=>i.type==='income'&&!i.virtual).reduce((s,i)=>s+parseFloat(i.amount||0),0);
               const BSEC = typeof BUDGET_SECTIONS!=='undefined'?BUDGET_SECTIONS:[];
               return (
                 <div style={{margin:'8px 16px 0',background:'#0d0d0b',border:'1px solid rgba(255,255,255,0.08)',borderRadius:12,overflow:'hidden'}}>
@@ -648,7 +697,7 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
                     const cats = budgetCategories.filter(c=>c.type===sec.key);
                     if(!cats.length) return null;
                     const planned = cats.reduce((s,c)=>s+parseFloat(c.amount||0),0);
-                    const actual  = monthExp.filter(t=>cats.some(c=>c.category===(t.category||'')))
+                    const actual  = monthExp.filter(t=>cats.some(c=>catMatch(t.category,c.category)))
                                            .reduce((s,t)=>s+parseFloat(t.amount||0),0);
                     const over    = actual>planned&&planned>0;
                     const fill    = planned>0?Math.min(actual/planned,1):0;
@@ -670,7 +719,7 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
                         </div>
                         <div style={{display:'flex',flexWrap:'wrap',gap:3,marginTop:5}}>
                           {cats.map(c=>{
-                            const catAct=monthExp.filter(t=>(t.category||'')===c.category).reduce((s,t)=>s+parseFloat(t.amount||0),0);
+                            const catAct=monthExp.filter(t=>catMatch(t.category,c.category)).reduce((s,t)=>s+parseFloat(t.amount||0),0);
                             return catAct>0&&(
                               <span key={c.category} style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:'rgba(255,255,255,0.4)',padding:'2px 6px',borderRadius:3,background:'rgba(255,255,255,0.05)'}}>
                                 {c.category}: {fmtR(catAct)}
@@ -685,10 +734,70 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
               );
             })()}
 
+            {/* ── Budget allocation cards — one per category ── */}
+            {budgetCategories.length>0&&(()=>{
+              const BSEC = typeof BUDGET_SECTIONS!=='undefined'?BUDGET_SECTIONS:[];
+              const monthExp = filtered.filter(i=>i.type==='expense'&&!i.virtual);
+              return (
+                <>
+                  <div className="section-label" style={{paddingTop:16}}>
+                    PLANNED ALLOCATIONS <span style={{color:tabColor}}>{budgetCategories.length}</span>
+                  </div>
+                  {BSEC.map(sec=>{
+                    const cats = budgetCategories.filter(c=>c.type===sec.key);
+                    if(!cats.length) return null;
+                    return cats.map(c=>{
+                      const planned   = parseFloat(c.amount||0);
+                      const actual    = monthExp.filter(t=>catMatch(t.category,c.category)).reduce((s,t)=>s+parseFloat(t.amount||0),0);
+                      const remaining = planned - actual;
+                      const fill      = planned>0?Math.min(actual/planned,1):0;
+                      const over      = actual>planned&&planned>0;
+                      return (
+                        <div key={c.category} className="meal-card" style={{marginBottom:6,borderLeft:`3px solid ${sec.color}`}}>
+                          <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
+                            <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,fontWeight:600,letterSpacing:'0.12em',
+                              padding:'2px 7px',borderRadius:3,background:`${sec.color}18`,color:sec.color,border:`1px solid ${sec.color}44`}}>
+                              PLANNED
+                            </span>
+                            <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'rgba(255,255,255,0.4)',letterSpacing:'0.08em'}}>
+                              {sec.label}
+                            </span>
+                          </div>
+                          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6}}>
+                            <div className="meal-name">{c.category.toUpperCase()}</div>
+                            <div style={{textAlign:'right'}}>
+                              <div style={{fontFamily:"'DM Mono',monospace",fontSize:13,color:over?'#ff3b3b':sec.color,fontWeight:600}}>{fmtR(planned)}</div>
+                              {actual>0&&<div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:over?'#ff3b3b':'rgba(255,255,255,0.4)'}}>
+                                {fmtR(actual)} spent
+                              </div>}
+                            </div>
+                          </div>
+                          {planned>0&&(
+                            <>
+                              <div style={{height:4,background:'rgba(255,255,255,0.07)',borderRadius:2,overflow:'hidden',marginBottom:4}}>
+                                <div style={{height:'100%',width:`${fill*100}%`,background:over?'#ff3b3b':sec.color,borderRadius:2,transition:'width 0.4s',boxShadow:`0 0 4px ${over?'#ff3b3b':sec.color}55`}}/>
+                              </div>
+                              <div style={{display:'flex',justifyContent:'space-between'}}>
+                                <span style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:'rgba(255,255,255,0.3)',letterSpacing:'0.08em'}}>{Math.round(fill*100)}% USED</span>
+                                <span style={{fontFamily:"'DM Mono',monospace",fontSize:7,letterSpacing:'0.08em',
+                                  color:over?'#ff3b3b':remaining<=0?'#00e676':'rgba(255,255,255,0.4)'}}>
+                                  {over?`${fmtR(-remaining)} OVER`:remaining<=0?'FULLY USED':`${fmtR(remaining)} LEFT`}
+                                </span>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      );
+                    });
+                  })}
+                </>
+              );
+            })()}
+
             <SearchBar value={search} onChange={setSearch} placeholder="Search transactions..." tabColor={tabColor}/>
 
             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'4px 16px 8px'}}>
-              <div className="section-label" style={{padding:0}}>ITEMS <span style={{color:tabColor}}>{filtered.length}</span></div>
+              <div className="section-label" style={{padding:0}}>ITEMS <span style={{color:tabColor}}>{filtered.filter(i=>!i.virtual).length}</span>{filtered.some(i=>i.virtual)&&<span style={{color:'rgba(255,255,255,0.3)',fontSize:9,marginLeft:6}}>+{filtered.filter(i=>i.virtual).length} BUDGET</span>}</div>
               <div style={{display:'flex',gap:6}}>
                 {['date','amount'].map(f=>(
                   <button key={f} onClick={()=>setSortField(f)} style={{...pillStyle(sortField===f?'_active':'_'),borderColor:sortField===f?tabColor:'rgba(255,255,255,0.1)',background:sortField===f?`${tabColor}18`:'transparent',color:sortField===f?tabColor:'var(--text3)'}}>
@@ -700,32 +809,44 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
 
             <div className="item-list">
               {filtered.map(item=>{
-                const finOwner=getOwner(item.user||item.username, user, partner, partners);
+                const isVirtual=!!item.virtual;
+                const finOwner=isVirtual?null:getOwner(item.user||item.username, user, partner, partners);
                 const oc = finOwner?.eventColor||'#00e676';
                 const isIncome=item.type==='income';
+                const BSEC2 = typeof BUDGET_SECTIONS!=='undefined'?BUDGET_SECTIONS:[];
+                const secColor = isVirtual ? (item.budgetType ? (BSEC2.find(s=>s.key===item.budgetType)?.color||'#448aff') : '#00e676') : oc;
                 return (
-                  <div key={item.id} className="meal-card" style={{marginBottom:8,borderLeft:`3px solid ${oc}`,cursor:(item.user||item.username)===user.username?'pointer':'default'}}
-                    onClick={()=>(item.user||item.username)===user.username&&setActionItem(item)}>
+                  <div key={item.id} className="meal-card" style={{marginBottom:8,borderLeft:`3px ${isVirtual?'dashed':'solid'} ${isVirtual?secColor:oc}`,cursor:(!isVirtual&&(item.user||item.username)===user.username)?'pointer':'default',opacity:isVirtual?0.78:1}}
+                    onClick={()=>!isVirtual&&(item.user||item.username)===user.username&&setActionItem(item)}>
                     <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
-                      <ItemAvatar username={item.user||item.username} user={user} partner={partner} partners={partners} size={36}/>
-                      <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:600,letterSpacing:'0.12em',padding:'3px 8px',borderRadius:3,textTransform:'uppercase',flexShrink:0,background:isIncome?'rgba(0,230,118,0.15)':'rgba(255,61,61,0.15)',color:isIncome?'var(--green)':'var(--red)',border:`1px solid ${isIncome?'rgba(0,230,118,0.3)':'rgba(255,61,61,0.3)'}`}}>{(item.type||'expense').toUpperCase()}</span>
-                      {finOwner&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:oc,letterSpacing:'0.08em'}}>{(finOwner.displayName||finOwner.username||'').toUpperCase()}</span>}
+                      {isVirtual
+                        ? <div style={{width:36,height:36,borderRadius:'50%',background:`${secColor}15`,border:`1px dashed ${secColor}44`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                            <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:secColor,fontWeight:700}}>B</span>
+                          </div>
+                        : <ItemAvatar username={item.user||item.username} user={user} partner={partner} partners={partners} size={36}/>
+                      }
+                      {isVirtual
+                        ? <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:600,letterSpacing:'0.12em',padding:'3px 8px',borderRadius:3,flexShrink:0,background:`${secColor}15`,color:secColor,border:`1px dashed ${secColor}55`}}>BUDGET</span>
+                        : <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:600,letterSpacing:'0.12em',padding:'3px 8px',borderRadius:3,textTransform:'uppercase',flexShrink:0,background:isIncome?'rgba(0,230,118,0.15)':'rgba(255,61,61,0.15)',color:isIncome?'var(--green)':'var(--red)',border:`1px solid ${isIncome?'rgba(0,230,118,0.3)':'rgba(255,61,61,0.3)'}`}}>{(item.type||'expense').toUpperCase()}</span>
+                      }
+                      {isVirtual&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'rgba(255,255,255,0.3)',letterSpacing:'0.08em'}}>PLANNED</span>}
+                      {!isVirtual&&finOwner&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:oc,letterSpacing:'0.08em'}}>{(finOwner.displayName||finOwner.username||'').toUpperCase()}</span>}
                     </div>
                     <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
                       <div>
                         <div className="meal-name">{(item.category||'').toUpperCase()}</div>
-                        <div className="meal-note" style={{marginTop:2}}>{fmtDate(item.date)}</div>
+                        <div className="meal-note" style={{marginTop:2}}>{isVirtual?'BUDGET ALLOCATION':fmtDate(item.date)}</div>
                       </div>
                       <div style={{display:'flex',alignItems:'center',gap:8}}>
                         <div className={`item-amount ${item.type}`}>{fmtR(item.amount)}</div>
-                        {(item.user||item.username)===user.username&&<span style={{color:'var(--text3)',fontSize:12}}>›</span>}
+                        {!isVirtual&&(item.user||item.username)===user.username&&<span style={{color:'var(--text3)',fontSize:12}}>›</span>}
                       </div>
                     </div>
                   </div>
                 );
               })}
             </div>
-            {filtered.length===0&&<div className="no-events"><div className="no-events-text">No transactions for {monthLabel}</div></div>}
+            {filtered.filter(i=>!i.virtual).length===0&&budgetVirtualItems.length===0&&<div className="no-events"><div className="no-events-text">No transactions for {monthLabel}</div></div>}
           </>)}
 
           {/* ══ TRENDS SECTION ══ */}
@@ -1631,7 +1752,7 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
   const getActual = (catName) => {
     const lc = catName.toLowerCase();
     return monthFinances
-      .filter(f=>f.type==='expense'&&(f.category||'').toLowerCase().includes(lc))
+      .filter(f=>f.type==='expense'&&catMatch(f.category,catName))
       .reduce((s,f)=>s+parseFloat(f.amount||0),0);
   };
 
