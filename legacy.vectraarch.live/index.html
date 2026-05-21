@@ -4300,7 +4300,7 @@ const App = () => {
     meals:    {title:'MEALS',        sub:'FOOD LOG'},
     cycle:    {title:'CYCLE TRACKER',sub:'PERIOD'},
     profile:  {title:'PROFILE',      sub:'ACCOUNT'},
-    admin:    {title:'ADMIN PANEL',  sub:'ACCESS MANAGEMENT'},
+    admin:    {title:'ADMIN PANEL',  sub:'MANAGEMENT'},
   };
   const pageInfo = TAB_INFO[activeTab]||{title:'',sub:''};
 
@@ -4331,14 +4331,14 @@ const App = () => {
         </div>
       </div>
       <div style={{flex:1,overflow:'hidden',minHeight:0}}>
-        {activeTab==='FIN'&&<FinancesPage {...sharedProps}/>}
-        {activeTab==='CAL'&&<CalendarPage {...sharedProps}/>}
-        {activeTab==='BUD'  &&<BudgetPage   {...sharedProps}/>}
+        {activeTab==='finances'&&<FinancesPage {...sharedProps}/>}
+        {activeTab==='calendar'&&<CalendarPage {...sharedProps}/>}
+        {activeTab==='budget'  &&<BudgetPage   {...sharedProps}/>}
         {activeTab==='gym'     &&<GymPage      {...sharedProps}/>}
-        {activeTab==='eat'   &&<MealsPage    {...sharedProps}/>}
-        {activeTab==='per'   &&<CyclePage    {...sharedProps}/>}
-        {activeTab==='me' &&<ProfilePage  user={user} setUser={setUser} partner={partner} setPartner={setPartner} partners={partners} sharingConfig={sharingConfig} setSharingConfig={setSharingConfig} onLogout={handleLogout} tabColor={tabColor}/>}
-        {activeTab==='adm'   &&isAdmin&&<AdminPage user={user} onLogout={handleLogout} tabColor={tabColor}/>}
+        {activeTab==='meals'   &&<MealsPage    {...sharedProps}/>}
+        {activeTab==='cycle'   &&<CyclePage    {...sharedProps}/>}
+        {activeTab==='profile' &&<ProfilePage  user={user} setUser={setUser} partner={partner} setPartner={setPartner} partners={partners} sharingConfig={sharingConfig} setSharingConfig={setSharingConfig} onLogout={handleLogout} tabColor={tabColor}/>}
+        {activeTab==='admin'   &&isAdmin&&<AdminPage user={user} onLogout={handleLogout} tabColor={tabColor}/>}
       </div>
       <div className="bottom-tabs">
         {visibleTabs.map(t=>(
