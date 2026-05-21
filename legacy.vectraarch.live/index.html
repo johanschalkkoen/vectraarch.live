@@ -321,12 +321,12 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
   // ── Current month filtered items ──
   const filtered = useMemo(()=>{
     const users = [...(selfVisible?[user.username]:[]), ...(activePartners||[]).map(p=>p.username)];
-    if(users.length===0) return [];
-    let list = items.filter(i=>users.includes(i.user||i.username)&&(i.date||'').slice(5,7)===selectedMonth);
+    // Include virtual budget items whenever the current user's data is in view (via selfVisible or activePartners)
+    const selfInView = selfVisible || (activePartners||[]).some(p=>p.username===user.username);
+    let list = users.length>0 ? items.filter(i=>users.includes(i.user||i.username)&&(i.date||'').slice(5,7)===selectedMonth) : [];
     if(search) list = list.filter(i=>(i.category||'').toLowerCase().includes(search.toLowerCase()));
     const sorted = [...list].sort((a,b)=>sortField==='amount'?parseFloat(b.amount)-parseFloat(a.amount):new Date(b.date)-new Date(a.date));
-    // Prepend budget virtual items as baseline (own user only, hidden during search)
-    const virtuals = selfVisible&&!search ? budgetVirtualItems : [];
+    const virtuals = selfInView&&!search ? budgetVirtualItems : [];
     return [...virtuals, ...sorted];
   },[items,selectedMonth,search,sortField,user.username,selfVisible,budgetVirtualItems,JSON.stringify((activePartners||[]).map(p=>p.username))]);
 
