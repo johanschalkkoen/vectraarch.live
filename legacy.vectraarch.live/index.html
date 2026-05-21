@@ -3862,7 +3862,7 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
   const handlePicChange = (e) => {
     const file = e.target.files[0];
     if(!file) return;
-    if(file.size > 2*1024*1024){ msg('Image must be under 2 MB','err'); return; }
+    if(file.size > 15*1024*1024){ msg('Image must be under 15 MB','err'); return; }
     setPicFile(file);
     const reader = new FileReader();
     reader.onload = ev => setPicPreview(ev.target.result);
