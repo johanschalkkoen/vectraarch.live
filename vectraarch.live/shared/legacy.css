@@ -274,7 +274,7 @@
   --orange:   #ff6d00;
   --cyan:     #00e5ff;
   --tab-h:    64px;
-  --top-h:    52px;
+  --top-h:    10px;
 }
 
 /* ── RESET & BASE ── */
@@ -303,24 +303,17 @@ body::before { display: none; }
 /* ── TOP BAR ── */
 .top-bar { 
   flex-shrink: 0; 
-  height: 18px;  /* was var(--top-h), now fixed small */
+  height: var(--top-h);
+  max-height: var(--top-h);
   display: flex; 
   align-items: center; 
-  padding: 0 6px; 
+  padding: 0 8px; 
   border-bottom: 1px solid var(--border); 
   background: var(--bg); 
   gap: 6px; 
-  overflow: hidden; 
+  overflow: hidden;  /* THIS is what stops content pushing height open */
 }
-
-.top-eyebrow { 
-  font-family: 'DM Mono', monospace; 
-  font-size: 7px;  /* down from 9px */
-  letter-spacing: 0.12em;  /* tightened */
-  text-transform: uppercase; 
-  color: var(--text3); 
-  line-height: 1;
-}
+.top-eyebrow { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--text3); }
 
 /* ── PAGE SCROLL ── */
 .page-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; }
