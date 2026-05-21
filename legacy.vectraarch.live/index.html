@@ -1448,7 +1448,7 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
   const [finances, setFinances]           = useState([]);
   const [editing, setEditing]             = useState(false);
   const [draftIncome, setDraftIncome]     = useState('');
-  const [draftAllocs, setDraftAllocs]     = useState(DEFAULT_BUDGET_ALLOCATIONS.map(a=>({...a})));
+  const [draftAllocs, setDraftAllocs]     = useState(DEFAULT_BUDGET_ALLOCATIONS.map(a=>({category:a.category,amount:'',type:a.type})));
   const [saving, setSaving]               = useState(false);
   const [confirmDel, setConfirmDel]       = useState(false);
   const [alert, setAlert]                 = useState({msg:'',type:''});
@@ -1514,13 +1514,18 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
 
   const startEdit = () => {
     const exps = budgetEntry?.expenses||[];
+    const inc  = parseFloat(budgetEntry?.income||'')||0;
     const allocs = exps.length>0
       ? exps.map(e=>({
-          category:e.category||'',
-          pct: e.pct!=null ? parseFloat(e.pct) : (budgetEntry?.income>0 ? Math.round((parseFloat(e.amount||0)/budgetEntry.income)*100) : 0),
-          type: e.type||'need',
+          category: e.category||'',
+          amount:   String(e.amount||''),
+          type:     e.type||'need',
         }))
-      : DEFAULT_BUDGET_ALLOCATIONS.map(a=>({...a}));
+      : DEFAULT_BUDGET_ALLOCATIONS.map(a=>({
+          category: a.category,
+          amount:   inc>0 ? String((inc*a.pct/100).toFixed(0)) : '',
+          type:     a.type,
+        }));
     setDraftIncome(String(budgetEntry?.income||''));
     setDraftAllocs(allocs);
     setEditing(true);
@@ -1531,15 +1536,15 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
   const handleSave = async () => {
     const inc = parseFloat(draftIncome)||0;
     if(inc<=0){ msg('Enter your monthly net income.','err'); return; }
-    const validAllocs = draftAllocs.filter(a=>a.category&&parseFloat(a.pct||0)>0);
-    if(validAllocs.length===0){ msg('Add at least one allocation.','err'); return; }
+    const validAllocs = draftAllocs.filter(a=>a.category&&parseFloat(a.amount||0)>0);
+    if(validAllocs.length===0){ msg('Add at least one category with an amount.','err'); return; }
     setSaving(true);
     try {
       const expArr = validAllocs.map(a=>({
-        category:a.category,
-        pct:parseFloat(a.pct),
-        amount:parseFloat(((inc*parseFloat(a.pct))/100).toFixed(2)),
-        type:a.type,
+        category: a.category,
+        amount:   parseFloat(parseFloat(a.amount).toFixed(2)),
+        pct:      parseFloat((parseFloat(a.amount)/inc*100).toFixed(2)),
+        type:     a.type,
       }));
       const dateVal = `${selectedYear}-${selectedMonth}-01`;
       if(budgetEntry){
@@ -1577,14 +1582,15 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
   const removeDraftAlloc = (i) =>
     setDraftAllocs(prev=>prev.filter((_,j)=>j!==i));
   const addDraftAlloc = (type) =>
-    setDraftAllocs(prev=>[...prev, {category:'', pct:0, type}]);
+    setDraftAllocs(prev=>[...prev, {category:'', amount:'', type}]);
 
-  const draftTotalPct = draftAllocs.reduce((s,a)=>s+parseFloat(a.pct||0),0);
+  const draftTotalAmount = draftAllocs.reduce((s,a)=>s+parseFloat(a.amount||0),0);
 
   const renderSection = (sec) => {
     if(editing){
       const editRows = draftAllocs.map((a,i)=>({...a,_i:i})).filter(a=>a.type===sec.key);
-      const editPlanned = editRows.reduce((s,a)=>s+(parseFloat(draftIncome||0)*parseFloat(a.pct||0)/100),0);
+      const editPlanned = editRows.reduce((s,a)=>s+parseFloat(a.amount||0),0);
+      const draftInc = parseFloat(draftIncome||0);
       return (
         React.createElement('div', {key:sec.key, style:{marginBottom:16,background:'#0d0d0b',border:`1px solid ${sec.color}44`,borderRadius:12,overflow:'hidden'}},
           React.createElement('div', {style:{padding:'12px 14px',borderBottom:`1px solid ${sec.color}22`,display:'flex',alignItems:'center',justifyContent:'space-between',background:`${sec.color}0d`}},
@@ -1593,27 +1599,36 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
               React.createElement('span', {style:{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:15,color:sec.color,letterSpacing:'0.1em'}}, sec.label),
               React.createElement('span', {style:{fontFamily:"'DM Mono',monospace",fontSize:9,color:sec.color,opacity:0.6}}, `TARGET ${sec.targetPct}%`)
             ),
-            React.createElement('span', {style:{fontFamily:"'DM Mono',monospace",fontSize:10,color:sec.color}}, fmtR(editPlanned))
+            React.createElement('div', {style:{textAlign:'right'}},
+              React.createElement('span', {style:{fontFamily:"'DM Mono',monospace",fontSize:10,color:sec.color}}, fmtR(editPlanned)),
+              draftInc>0&&React.createElement('div', {style:{fontFamily:"'DM Mono',monospace",fontSize:8,color:'rgba(255,255,255,0.3)'}},
+                `${(editPlanned/draftInc*100).toFixed(1)}% of income`
+              )
+            )
           ),
           React.createElement('div', {style:{padding:'8px 0'}},
-            React.createElement('div', {style:{display:'grid',gridTemplateColumns:'1fr 80px 32px',gap:8,padding:'4px 14px 6px',borderBottom:'1px solid rgba(255,255,255,0.05)'}},
+            React.createElement('div', {style:{display:'grid',gridTemplateColumns:'1fr 110px 32px',gap:8,padding:'4px 14px 6px',borderBottom:'1px solid rgba(255,255,255,0.05)'}},
               React.createElement('span', {style:{fontFamily:"'DM Mono',monospace",fontSize:7,color:'rgba(255,255,255,0.3)',letterSpacing:'0.12em'}}, 'CATEGORY'),
-              React.createElement('span', {style:{fontFamily:"'DM Mono',monospace",fontSize:7,color:'rgba(255,255,255,0.3)',letterSpacing:'0.12em'}}, '% OF INCOME'),
+              React.createElement('span', {style:{fontFamily:"'DM Mono',monospace",fontSize:7,color:'rgba(255,255,255,0.3)',letterSpacing:'0.12em'}}, 'AMOUNT (R)'),
               React.createElement('span', null)
             ),
-            editRows.map(a=>
-              React.createElement('div', {key:a._i, style:{display:'grid',gridTemplateColumns:'1fr 80px 32px',gap:8,padding:'6px 14px',alignItems:'center'}},
-                React.createElement('input', {className:'form-input', placeholder:'Category name', style:{margin:0,fontSize:11,padding:'5px 8px',height:32},
-                  value:a.category, onChange:e=>updateDraftAlloc(a._i,'category',e.target.value)}),
-                React.createElement('div', {style:{display:'flex',alignItems:'center',gap:4}},
-                  React.createElement('input', {className:'form-input', type:'number', min:0, max:100, style:{margin:0,fontSize:11,padding:'5px 6px',height:32,textAlign:'center'},
-                    value:a.pct, onChange:e=>updateDraftAlloc(a._i,'pct',e.target.value)}),
-                  React.createElement('span', {style:{fontFamily:"'DM Mono',monospace",fontSize:9,color:'rgba(255,255,255,0.4)',flexShrink:0}}, '%')
+            editRows.map(a=>{
+              const computedPct = draftInc>0&&parseFloat(a.amount||0)>0
+                ? (parseFloat(a.amount)/draftInc*100).toFixed(1)
+                : null;
+              return React.createElement('div', {key:a._i, style:{display:'grid',gridTemplateColumns:'1fr 110px 32px',gap:8,padding:'6px 14px',alignItems:'center'}},
+                React.createElement('div', null,
+                  React.createElement('input', {className:'form-input', placeholder:'Category name', style:{margin:0,fontSize:11,padding:'5px 8px',height:32,width:'100%'},
+                    value:a.category, onChange:e=>updateDraftAlloc(a._i,'category',e.target.value)}),
+                  computedPct&&React.createElement('div', {style:{fontFamily:"'DM Mono',monospace",fontSize:8,color:sec.color,marginTop:2,paddingLeft:2}}, `${computedPct}% of income`)
                 ),
+                React.createElement('input', {className:'form-input', type:'number', min:0, placeholder:'0',
+                  style:{margin:0,fontSize:13,padding:'5px 8px',height:32,textAlign:'right'},
+                  value:a.amount, onChange:e=>updateDraftAlloc(a._i,'amount',e.target.value)}),
                 React.createElement('button', {onClick:()=>removeDraftAlloc(a._i),
                   style:{width:28,height:28,borderRadius:4,background:'rgba(255,61,61,0.1)',border:'1px solid rgba(255,61,61,0.25)',color:'var(--red)',cursor:'pointer',fontWeight:700,fontSize:14,flexShrink:0}}, '×')
-              )
-            ),
+              );
+            }),
             React.createElement('div', {style:{padding:'4px 14px 8px'}},
               React.createElement('button', {onClick:()=>addDraftAlloc(sec.key),
                 style:{width:'100%',padding:'7px',borderRadius:6,border:`1px dashed ${sec.color}55`,background:`${sec.color}08`,color:sec.color,fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.1em',cursor:'pointer'}},
@@ -1706,14 +1721,25 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
                   onChange={e=>setDraftIncome(e.target.value)}
                   autoFocus/>
                 <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'rgba(255,255,255,0.3)',marginBottom:16}}>Your income after tax and deductions</div>
-                {draftTotalPct!==100&&(
-                  <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,padding:'6px 10px',marginBottom:12,borderRadius:6,
-                    color:draftTotalPct>100?'#ff3b3b':'#ffd600',
-                    background:draftTotalPct>100?'rgba(255,61,61,0.1)':'rgba(255,214,0,0.08)',
-                    border:`1px solid ${draftTotalPct>100?'rgba(255,61,61,0.3)':'rgba(255,214,0,0.2)'}`}}>
-                    ⚠ Allocations total {draftTotalPct.toFixed(0)}% — must equal 100%
-                  </div>
-                )}
+                {(()=>{
+                  const inc = parseFloat(draftIncome||0);
+                  const diff = draftTotalAmount - inc;
+                  if(!inc||draftTotalAmount===0) return null;
+                  const over = diff > 0;
+                  const pctUsed = inc>0 ? (draftTotalAmount/inc*100).toFixed(1) : 0;
+                  return (
+                    <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,padding:'6px 10px',marginBottom:12,borderRadius:6,
+                      color:over?'#ff3b3b':Math.abs(diff)<1?'#00e676':'#ffd600',
+                      background:over?'rgba(255,61,61,0.1)':Math.abs(diff)<1?'rgba(0,230,118,0.08)':'rgba(255,214,0,0.08)',
+                      border:`1px solid ${over?'rgba(255,61,61,0.3)':Math.abs(diff)<1?'rgba(0,230,118,0.25)':'rgba(255,214,0,0.2)'}`}}>
+                      {over
+                        ? `⚠ Over by ${fmtR(diff)} — total ${fmtR(draftTotalAmount)} exceeds income`
+                        : Math.abs(diff)<1
+                          ? `✓ Fully allocated — ${pctUsed}% of income`
+                          : `${fmtR(draftTotalAmount)} of ${fmtR(inc)} allocated (${pctUsed}%) — ${fmtR(-diff)} unallocated`}
+                    </div>
+                  );
+                })()}
                 <div style={{display:'flex',gap:8}}>
                   <button onClick={handleSave} disabled={saving}
                     style={{flex:1,padding:'11px',borderRadius:8,background:tabColor,color:'#000',border:'none',fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:14,letterSpacing:'0.12em',cursor:'pointer',opacity:saving?0.6:1}}>
