@@ -68,6 +68,7 @@ async function ensureSchema() {
         )`,
         `CREATE INDEX IF NOT EXISTS idx_budget_username ON vectraarchlegacy_budget(username)`,
         `CREATE INDEX IF NOT EXISTS idx_budget_date ON vectraarchlegacy_budget(date)`,
+        `ALTER TABLE vectraarchlegacy_budget ADD COLUMN IF NOT EXISTS section_targets JSONB DEFAULT '{}'`,
         // ── Setup wizard: new user profile columns ──
         `ALTER TABLE vectraarchlegacy_users ADD COLUMN IF NOT EXISTS date_of_birth TEXT`,
         `ALTER TABLE vectraarchlegacy_users ADD COLUMN IF NOT EXISTS accent_color TEXT DEFAULT '#00ff41'`,
@@ -677,7 +678,7 @@ app.get('/api/budget', async (req, res) => {
     if (!user) return res.status(400).json({ success: false, message: 'User required.' });
     try {
         const rows = await dbAll(
-            "SELECT id, username AS \"user\", income, expenses, TO_CHAR(date, 'YYYY-MM-DD') AS date, COALESCE(budget_type,'need') AS budget_type FROM vectraarchlegacy_budget WHERE username = $1 ORDER BY date DESC",
+            "SELECT id, username AS \"user\", income, expenses, TO_CHAR(date, 'YYYY-MM-DD') AS date, COALESCE(budget_type,'need') AS budget_type, COALESCE(section_targets,'{}') AS section_targets FROM vectraarchlegacy_budget WHERE username = $1 ORDER BY date DESC",
             [user]
         );
         const data = rows.map(r => ({
@@ -693,7 +694,7 @@ app.get('/api/budget', async (req, res) => {
 });
 
 app.post('/api/budget', async (req, res) => {
-    const { user, income, expenses, date, budget_type } = req.body;
+    const { user, income, expenses, date, budget_type, section_targets } = req.body;
     if (!user || !date) return res.status(400).json({ success: false, message: 'User and date required.' });
     let expArr = [];
     try { const raw = expenses || '[]'; expArr = typeof raw === 'string' ? JSON.parse(raw) : raw; if (!Array.isArray(expArr)) expArr = []; } catch { expArr = []; }
@@ -702,10 +703,11 @@ app.post('/api/budget', async (req, res) => {
     const incomeVal = parseFloat(income) || totalPlanned;
     const budType = budget_type || expArr[0]?.type || 'need';
     const dateVal = String(date).slice(0, 10);
+    const targetsVal = (section_targets && typeof section_targets === 'object') ? section_targets : {};
     try {
         const r = await dbRun(
-            'INSERT INTO vectraarchlegacy_budget (username,income,expenses,date,budget_type) VALUES ($1,$2,$3,$4,$5) RETURNING id',
-            [user, incomeVal, JSON.stringify(expArr), dateVal, budType]
+            'INSERT INTO vectraarchlegacy_budget (username,income,expenses,date,budget_type,section_targets) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id',
+            [user, incomeVal, JSON.stringify(expArr), dateVal, budType, JSON.stringify(targetsVal)]
         );
         await logTransaction(user, 'CREATE', 'budget', r.rows[0].id, user);
         res.json({ success: true, message: 'Budget saved!', id: r.rows[0].id });
@@ -717,7 +719,7 @@ app.post('/api/budget', async (req, res) => {
 
 app.put('/api/budget/:id', async (req, res) => {
     const { id } = req.params;
-    const { user, income, expenses, date, budget_type } = req.body;
+    const { user, income, expenses, date, budget_type, section_targets } = req.body;
     if (!user || !date) return res.status(400).json({ success: false, message: 'User and date required.' });
     let expArr = [];
     try { const raw = expenses||'[]'; expArr = typeof raw==='string'?JSON.parse(raw):raw; if(!Array.isArray(expArr)) expArr=[]; } catch { expArr=[]; }
@@ -725,11 +727,12 @@ app.put('/api/budget/:id', async (req, res) => {
     const incomeVal = parseFloat(income)||totalPlanned;
     const budType = budget_type || expArr[0]?.type || 'need';
     const dateVal = String(date).slice(0, 10);
+    const targetsVal = (section_targets && typeof section_targets === 'object') ? section_targets : {};
     try {
         const row = await dbQuery('SELECT id FROM vectraarchlegacy_budget WHERE id=$1 AND username=$2', [id, user]);
         if (!row) return res.status(404).json({ success: false, message: 'Budget not found.' });
         await dbTransaction([
-            { sql: 'UPDATE vectraarchlegacy_budget SET income=$1,expenses=$2,date=$3,budget_type=$4 WHERE id=$5', params:[incomeVal,JSON.stringify(expArr),dateVal,budType,id] },
+            { sql: 'UPDATE vectraarchlegacy_budget SET income=$1,expenses=$2,date=$3,budget_type=$4,section_targets=$5 WHERE id=$6', params:[incomeVal,JSON.stringify(expArr),dateVal,budType,JSON.stringify(targetsVal),id] },
             { sql: 'INSERT INTO vectraarchlegacy_transaction_history (username,action,table_name,record_id,modified_by,modified_at) VALUES ($1,$2,$3,$4,$5,$6)', params:[user,'UPDATE','budget',id,user,new Date().toISOString()] }
         ]);
         res.json({ success: true, message: 'Budget updated!' });
