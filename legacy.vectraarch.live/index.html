@@ -4293,7 +4293,7 @@ const App = () => {
   });
 
   const TAB_INFO = {
-    cal: {title:'CALENDAR',     sub:'SCHEDULE'},
+    calendar: {title:'CALENDAR',     sub:'SCHEDULE'},
     budget:   {title:'BUDGET',       sub:'PLANNED'},
     finances: {title:'FINANCES',     sub: isShared?'COMBINED HOUSEHOLD TOTALS':'INCOME · EXPENSES'},
     gym:      {title:'GYM',          sub:'EXERCISES'},
@@ -4331,8 +4331,8 @@ const App = () => {
         </div>
       </div>
       <div style={{flex:1,overflow:'hidden',minHeight:0}}>
-        {activeTab==='finances'&&<FinancesPage {...sharedProps}/>}
-        {activeTab==='calendar'&&<CalendarPage {...sharedProps}/>}
+        {activeTab==='fin'&&<FinancesPage {...sharedProps}/>}
+        {activeTab==='cal'&&<CalendarPage {...sharedProps}/>}
         {activeTab==='budget'  &&<BudgetPage   {...sharedProps}/>}
         {activeTab==='gym'     &&<GymPage      {...sharedProps}/>}
         {activeTab==='meals'   &&<MealsPage    {...sharedProps}/>}
