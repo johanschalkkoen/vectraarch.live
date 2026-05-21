@@ -2582,8 +2582,8 @@ const MealUserCard = ({uname, meals, user, partner, partners, tabColor, selected
     const dayDate=new Date(weekStart); dayDate.setDate(weekStart.getDate()+di);
     const ds=dayDate.toLocaleDateString('en-CA');
     return uMeals.filter(m=>{
-      const d=m.date?m.date.slice(0,10):''; const sd=m.day||(m.date?new Date(m.date).toLocaleDateString('en-US',{weekday:'long'}):'');
-      return d===ds||sd===dayName;
+      if(m.date) return m.date.slice(0,10)===ds;
+      return (m.day||'')===dayName;
     }).reduce((s,m)=>s+parseFloat(m.calories||0),0);
   });
   const maxWeekKcal = Math.max(...weekDayKcal, tdee, 1);
@@ -2629,7 +2629,7 @@ const MealUserCard = ({uname, meals, user, partner, partners, tabColor, selected
           ):(
             <>
               <div style={{height:4,background:'rgba(255,255,255,0.07)',borderRadius:2,overflow:'hidden',marginBottom:12}}>
-                <div style={{height:'100%',width:`${Math.min(todayCal/tdee,1)*100}%`,background:todayCal>tdee?'#ff3b3b':oc,borderRadius:2,transition:'width 0.4s'}}/>
+                <div style={{height:'100%',width:`${Math.min(todayCal/tdee,1)*100}%`,background:oc,borderRadius:2,transition:'width 0.4s'}}/>
               </div>
               {MEAL_TYPES.map(mt=>{
                 const mtMeals=todayMeals.filter(m=>(m.mealType||'').toLowerCase()===mt);
@@ -2668,7 +2668,7 @@ const MealUserCard = ({uname, meals, user, partner, partners, tabColor, selected
               const barH=maxWeekKcal>0?(kcal/maxWeekKcal)*60:0;
               const isCur=isCurrentMonth&&di===todayDayIdx;
               const isOver=kcal>tdee;
-              const barColor=kcal>0?(isOver?'#ff3b3b':(isCur?oc:`${oc}88`)):'rgba(255,255,255,0.05)';
+              const barColor=kcal>0?(isCur?oc:`${oc}88`):'rgba(255,255,255,0.05)';
               return (
                 <div key={dayName} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:2}}>
                   {kcal>0&&<div style={{fontFamily:"'DM Mono',monospace",fontSize:6,color:isOver?'#ff3b3b':(isCur?oc:'rgba(255,255,255,0.4)')}}>{Math.round(kcal/100)/10}k</div>}
@@ -2707,7 +2707,7 @@ const MealUserCard = ({uname, meals, user, partner, partners, tabColor, selected
               const barH=maxMonthKcal>0?(kcal/maxMonthKcal)*62:0;
               const isCur=isCurrentMonth&&i+1===todayDayNum;
               const isOver=kcal>tdee&&kcal>0;
-              const barColor=kcal>0?(isOver?'#ff3b3b':(isCur?oc:`${oc}77`)):'rgba(255,255,255,0.04)';
+              const barColor=kcal>0?(isCur?oc:`${oc}77`):'rgba(255,255,255,0.04)';
               const showLbl=i===0||i===6||i===13||i===20||i===27||i===daysInMonth-1;
               return (
                 <div key={i} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center'}}>
