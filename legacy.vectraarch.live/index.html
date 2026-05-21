@@ -628,6 +628,63 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
             </div>
             {/* end dashboard widget */}
 
+            {/* ── Budget vs Actual summary (shown when budget exists) ── */}
+            {budgetCategories.length>0&&(()=>{
+              const monthExp = filtered.filter(i=>i.type==='expense');
+              const bud = budgets.find(b=>(b.user===user.username||!b.user)&&(b.date||'').startsWith(`${new Date().getFullYear()}-${selectedMonth}`));
+              const budIncome = parseFloat(bud?.income||0);
+              const actualIncome = filtered.filter(i=>i.type==='income').reduce((s,i)=>s+parseFloat(i.amount||0),0);
+              const BSEC = typeof BUDGET_SECTIONS!=='undefined'?BUDGET_SECTIONS:[];
+              return (
+                <div style={{margin:'8px 16px 0',background:'#0d0d0b',border:'1px solid rgba(255,255,255,0.08)',borderRadius:12,overflow:'hidden'}}>
+                  <div style={{padding:'10px 14px',borderBottom:'1px solid rgba(255,255,255,0.07)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                    <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:14,color:'rgba(255,255,255,0.8)',letterSpacing:'0.1em'}}>BUDGET vs ACTUAL</div>
+                    {budIncome>0&&<div style={{display:'flex',gap:12}}>
+                      {actualIncome>0&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'#00e676'}}>▲ {fmtR(actualIncome)} received</span>}
+                      <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'rgba(255,255,255,0.35)'}}>budget {fmtR(budIncome)}</span>
+                    </div>}
+                  </div>
+                  {BSEC.map(sec=>{
+                    const cats = budgetCategories.filter(c=>c.type===sec.key);
+                    if(!cats.length) return null;
+                    const planned = cats.reduce((s,c)=>s+parseFloat(c.amount||0),0);
+                    const actual  = monthExp.filter(t=>cats.some(c=>c.category===(t.category||'')))
+                                           .reduce((s,t)=>s+parseFloat(t.amount||0),0);
+                    const over    = actual>planned&&planned>0;
+                    const fill    = planned>0?Math.min(actual/planned,1):0;
+                    return (
+                      <div key={sec.key} style={{padding:'10px 14px',borderBottom:'1px solid rgba(255,255,255,0.05)'}}>
+                        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:5}}>
+                          <div style={{display:'flex',alignItems:'center',gap:6}}>
+                            <div style={{width:7,height:7,borderRadius:2,background:sec.color}}/>
+                            <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:13,color:sec.color,letterSpacing:'0.08em'}}>{sec.label}</span>
+                          </div>
+                          <div style={{fontFamily:"'DM Mono',monospace",fontSize:9}}>
+                            <span style={{color:over?'#ff3b3b':sec.color}}>{fmtR(actual)}</span>
+                            <span style={{color:'rgba(255,255,255,0.25)'}}> / </span>
+                            <span style={{color:'rgba(255,255,255,0.4)'}}>{fmtR(planned)}</span>
+                          </div>
+                        </div>
+                        <div style={{height:4,background:'rgba(255,255,255,0.06)',borderRadius:2,overflow:'hidden'}}>
+                          <div style={{height:'100%',width:`${fill*100}%`,background:over?'#ff3b3b':sec.color,borderRadius:2,transition:'width 0.4s',boxShadow:`0 0 4px ${over?'#ff3b3b':sec.color}55`}}/>
+                        </div>
+                        <div style={{display:'flex',flexWrap:'wrap',gap:3,marginTop:5}}>
+                          {cats.map(c=>{
+                            const catAct=monthExp.filter(t=>(t.category||'')===c.category).reduce((s,t)=>s+parseFloat(t.amount||0),0);
+                            return catAct>0&&(
+                              <span key={c.category} style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:'rgba(255,255,255,0.4)',padding:'2px 6px',borderRadius:3,background:'rgba(255,255,255,0.05)'}}>
+                                {c.category}: {fmtR(catAct)}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+
             <SearchBar value={search} onChange={setSearch} placeholder="Search transactions..." tabColor={tabColor}/>
 
             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'4px 16px 8px'}}>
@@ -889,45 +946,69 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
           <div className="modal-sheet" style={{"--page-color":tabColor||"var(--green)"}} onClick={e=>e.stopPropagation()}>
             <div className="modal-handle"/>
             <div className="modal-title">{editId?"Edit":"Add"} Transaction</div>
-            <div className="form-field">
-              <label className="form-label">
-                Category
-                {budgetCategories.length>0&&form.type==='expense'&&(
-                  <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:tabColor,marginLeft:8,letterSpacing:'0.08em'}}>FROM BUDGET</span>
-                )}
-              </label>
-              <input className="form-input"
-                list={`fin-budget-cats-${user.username}`}
-                placeholder={form.type==='expense'&&budgetCategories.length>0?'Select or type category':'e.g. Salary, Freelance'}
-                value={form.category}
-                onChange={e=>setForm(p=>({...p,category:e.target.value}))}/>
-              {form.type==='expense'&&budgetCategories.length>0&&(
-                <datalist id={`fin-budget-cats-${user.username}`}>
-                  {budgetCategories.map(c=><option key={c.category} value={c.category}/>)}
-                </datalist>
-              )}
-              {form.type==='expense'&&budgetCategories.length>0&&!form.category&&(
-                <div style={{display:'flex',flexWrap:'wrap',gap:4,marginTop:8}}>
-                  {budgetCategories.map(c=>(
-                    <button key={c.category} type="button"
-                      onClick={()=>setForm(p=>({...p,category:c.category}))}
-                      style={{padding:'4px 10px',borderRadius:20,border:`1px solid ${tabColor}44`,background:`${tabColor}10`,
-                        color:tabColor,fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.06em',cursor:'pointer',whiteSpace:'nowrap'}}>
-                      {c.category}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="form-field">
-              <label className="form-label">Amount (ZAR)</label>
-              <input className="form-input" type="number" placeholder="0.00" value={form.amount} onChange={e=>setForm(p=>({...p,amount:e.target.value}))}/>
-            </div>
+
+            {/* Type first so category section updates immediately */}
             <div className="form-field">
               <label className="form-label">Type</label>
               <div className="type-toggle">
-                {['income','expense'].map(t=><button key={t} className={`type-toggle-btn ${form.type===t?'active':''}`} onClick={()=>setForm(p=>({...p,type:t}))}>{t.toUpperCase()}</button>)}
+                {['expense','income'].map(t=>(
+                  <button key={t} className={`type-toggle-btn ${form.type===t?'active':''}`}
+                    onClick={()=>setForm(p=>({...p,type:t,category:''}))}>
+                    {t.toUpperCase()}
+                  </button>
+                ))}
               </div>
+            </div>
+
+            {/* Category — sectioned by budget when expenses + budget exists */}
+            <div className="form-field">
+              <label className="form-label">Category</label>
+              {form.type==='expense'&&budgetCategories.length>0 ? (
+                <>
+                  {(typeof BUDGET_SECTIONS!=='undefined'?BUDGET_SECTIONS:[]).map(sec=>{
+                    const cats=budgetCategories.filter(c=>c.type===sec.key);
+                    if(!cats.length) return null;
+                    return (
+                      <div key={sec.key} style={{marginBottom:10}}>
+                        <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.14em',color:sec.color,marginBottom:5,display:'flex',alignItems:'center',gap:6}}>
+                          <div style={{width:6,height:6,borderRadius:1,background:sec.color}}/>
+                          {sec.label}
+                        </div>
+                        <div style={{display:'flex',flexWrap:'wrap',gap:5}}>
+                          {cats.map(c=>{
+                            const sel=form.category===c.category;
+                            return (
+                              <button key={c.category} type="button"
+                                onClick={()=>setForm(p=>({...p,category:c.category}))}
+                                style={{padding:'6px 12px',borderRadius:6,cursor:'pointer',
+                                  border:`1px solid ${sel?sec.color:sec.color+'55'}`,
+                                  background:sel?`${sec.color}22`:`${sec.color}0a`,
+                                  color:sel?sec.color:'rgba(255,255,255,0.65)',
+                                  fontFamily:"'Barlow Condensed',sans-serif",fontWeight:sel?700:500,fontSize:13,letterSpacing:'0.04em'}}>
+                                {c.category}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <input className="form-input" style={{marginTop:4}}
+                    placeholder="Or type a custom category"
+                    value={budgetCategories.some(c=>c.category===form.category)?'':form.category}
+                    onChange={e=>setForm(p=>({...p,category:e.target.value}))}/>
+                </>
+              ) : (
+                <input className="form-input"
+                  placeholder={form.type==='income'?'e.g. Salary, Freelance, Bonus':'e.g. Groceries'}
+                  value={form.category}
+                  onChange={e=>setForm(p=>({...p,category:e.target.value}))}/>
+              )}
+            </div>
+
+            <div className="form-field">
+              <label className="form-label">Amount (ZAR)</label>
+              <input className="form-input" type="number" placeholder="0.00" value={form.amount} onChange={e=>setForm(p=>({...p,amount:e.target.value}))} autoFocus={!form.category}/>
             </div>
             <div className="form-field">
               <label className="form-label">Date</label>
@@ -1531,6 +1612,9 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
   ,[finances, viewUser, user.username, selectedPeriod]);
 
   const incomeVal = parseFloat(editing ? draftIncome : (budgetEntry?.income||''))||0;
+  const actualIncome = useMemo(()=>
+    monthFinances.filter(f=>f.type==='income').reduce((s,f)=>s+parseFloat(f.amount||0),0)
+  ,[monthFinances]);
 
   const allocations = useMemo(()=>{
     if(editing) return draftAllocs;
@@ -1796,9 +1880,16 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
                   MONTHLY NET INCOME{viewPartner?` · ${(viewPartner.displayName||viewPartner.username||'').toUpperCase()}`:''}
                 </div>
                 <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:38,color:viewPartner?viewPartner.eventColor||tabColor:'rgba(255,255,255,0.95)',letterSpacing:'0.01em',lineHeight:1,marginBottom:4}}>{fmtR(incomeVal)}</div>
-                <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'rgba(255,255,255,0.35)',marginBottom:16}}>
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'rgba(255,255,255,0.35)',marginBottom:actualIncome>0?6:16}}>
                   {viewPartner?`${(viewPartner.displayName||viewPartner.username||'Partner')}'s income after tax and deductions`:'Your income after tax and deductions'}
                 </div>
+                {actualIncome>0&&(
+                  <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:14,padding:'7px 10px',borderRadius:6,background:'rgba(0,230,118,0.07)',border:'1px solid rgba(0,230,118,0.2)'}}>
+                    <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'rgba(255,255,255,0.4)',letterSpacing:'0.1em'}}>RECEIVED THIS MONTH</span>
+                    <span style={{fontFamily:"'DM Mono',monospace",fontSize:11,color:'#00e676',fontWeight:600,marginLeft:'auto'}}>{fmtR(actualIncome)}</span>
+                    <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:actualIncome>=incomeVal?'#00e676':'rgba(255,255,255,0.3)'}}>{incomeVal>0?`${Math.round(actualIncome/incomeVal*100)}%`:''}</span>
+                  </div>
+                )}
                 <div style={{display:'flex',gap:8,marginBottom:16}}>
                   {BUDGET_SECTIONS.map(sec=>{
                     const secAllocs=allocations.filter(a=>a.type===sec.key);
