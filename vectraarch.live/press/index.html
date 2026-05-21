@@ -154,12 +154,12 @@
   </p>
   <div class="hero-meta">
     <div class="meta-item">
-      <span class="meta-value">09</span>
+      <span class="meta-value">10</span>
       <span class="meta-label">Published Volumes</span>
     </div>
     <div class="meta-div"></div>
     <div class="meta-item">
-      <span class="meta-value">01</span>
+      <span class="meta-value">02</span>
       <span class="meta-label">Authors</span>
     </div>
     <div class="meta-div"></div>
@@ -175,8 +175,8 @@
     <span class="search-icon">⌕</span>
     <input class="search-input" type="text" id="search" placeholder="Search catalogue..." autocomplete="off"/>
   </div>
-  <span class="toolbar-count"><span id="visible-count">9</span> volumes</span>
-  <span class="published-stamp">Updated · 2026/05/20, 19:57:13</span>
+  <span class="toolbar-count"><span id="visible-count">10</span> volumes</span>
+  <span class="published-stamp">Updated · 2026/05/20, 21:14:15</span>
 </div>
 
 <div class="catalog-wrap">
@@ -403,6 +403,47 @@
         <div class="book-preview">
           <div class="preview-label">§ Preview</div>
           <div class="preview-text">Mystery / Thriller</div>
+          <button class="preview-toggle" onclick="this.closest('.book-card').classList.toggle('preview-open');this.textContent=this.closest('.book-card').classList.contains('preview-open')?'Close ↑':'Read excerpt ↓'">Read excerpt ↓</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="author-section reveal">
+    <div class="author-header">
+      <div class="author-header-left">
+        <span class="author-number">02</span>
+        <div class="author-name-block">
+          <span class="author-label">§ Author</span>
+          <h2 class="author-name">Schalk Johan Koen</h2>
+        </div>
+      </div>
+      <div class="author-header-right">
+        <span class="author-count">1 volume</span>
+      </div>
+    </div>
+    <div class="book-grid">
+      
+      <div class="book-card" data-title="A whole, whole, whole new world 2">
+        <div class="book-cover" style="background:linear-gradient(160deg,#0a1a0a 0%,#001a08 60%,#002210 100%);">
+          <div class="cover-grid-lines"></div>
+          
+          <div class="book-cover-inner">
+            <div class="cover-corner">I</div>
+          </div>
+          <div class="cover-accent-line"></div>
+        </div>
+        <div class="book-info">
+          <div class="book-title">A whole, whole, whole new world 2</div>
+          <div class="book-footer">
+            <span class="book-year">2026</span>
+            <span class="book-status status-published">Published</span>
+          </div>
+        </div>
+        
+        <div class="book-preview">
+          <div class="preview-label">§ Preview</div>
+          <div class="preview-text">c1</div>
           <button class="preview-toggle" onclick="this.closest('.book-card').classList.toggle('preview-open');this.textContent=this.closest('.book-card').classList.contains('preview-open')?'Close ↑':'Read excerpt ↓'">Read excerpt ↓</button>
         </div>
       </div>
