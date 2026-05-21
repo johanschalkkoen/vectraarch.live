@@ -55,6 +55,26 @@ pool.connect((err, client, release) => {
     console.log('Connected to VectraArchLegacy (PostgreSQL).');
 });
 
+async function ensureSchema() {
+    const migrations = [
+        `CREATE TABLE IF NOT EXISTS vectraarchlegacy_budget (
+            id           SERIAL PRIMARY KEY,
+            username     TEXT NOT NULL,
+            income       NUMERIC NOT NULL DEFAULT 0,
+            expenses     JSONB NOT NULL DEFAULT '[]',
+            date         DATE NOT NULL,
+            budget_type  TEXT NOT NULL DEFAULT 'need'
+        )`,
+        `CREATE INDEX IF NOT EXISTS idx_budget_username ON vectraarchlegacy_budget(username)`,
+        `CREATE INDEX IF NOT EXISTS idx_budget_date ON vectraarchlegacy_budget(date)`,
+    ];
+    for (const sql of migrations) {
+        try { await pool.query(sql); } catch (e) { console.error('[schema]', e.message); }
+    }
+    console.log('Schema check complete.');
+}
+ensureSchema();
+
 // ── DB HELPERS ────────────────────────────────────────────────────────────────
 const dbQuery = async (sql, params = []) => {
     const r = await pool.query(sql, params);
@@ -587,10 +607,9 @@ app.post('/api/budget', async (req, res) => {
     const budType = budget_type || expArr[0]?.type || 'need';
     const dateVal = String(date).slice(0, 10);
     try {
-        // Pass expArr (JS array) directly — pg serialises it into jsonb correctly
         const r = await dbRun(
             'INSERT INTO vectraarchlegacy_budget (username,income,expenses,date,budget_type) VALUES ($1,$2,$3,$4,$5) RETURNING id',
-            [user, incomeVal, expArr, dateVal, budType]
+            [user, incomeVal, JSON.stringify(expArr), dateVal, budType]
         );
         await logTransaction(user, 'CREATE', 'budget', r.rows[0].id, user);
         res.json({ success: true, message: 'Budget saved!', id: r.rows[0].id });
@@ -613,9 +632,8 @@ app.put('/api/budget/:id', async (req, res) => {
     try {
         const row = await dbQuery('SELECT id FROM vectraarchlegacy_budget WHERE id=$1 AND username=$2', [id, user]);
         if (!row) return res.status(404).json({ success: false, message: 'Budget not found.' });
-        // Pass expArr directly — pg handles jsonb serialisation
         await dbTransaction([
-            { sql: 'UPDATE vectraarchlegacy_budget SET income=$1,expenses=$2,date=$3,budget_type=$4 WHERE id=$5', params:[incomeVal,expArr,dateVal,budType,id] },
+            { sql: 'UPDATE vectraarchlegacy_budget SET income=$1,expenses=$2,date=$3,budget_type=$4 WHERE id=$5', params:[incomeVal,JSON.stringify(expArr),dateVal,budType,id] },
             { sql: 'INSERT INTO vectraarchlegacy_transaction_history (username,action,table_name,record_id,modified_by,modified_at) VALUES ($1,$2,$3,$4,$5,$6)', params:[user,'UPDATE','budget',id,user,new Date().toISOString()] }
         ]);
         res.json({ success: true, message: 'Budget updated!' });
