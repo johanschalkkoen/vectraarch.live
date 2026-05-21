@@ -3834,47 +3834,41 @@ const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPart
 
 /* ── PROFILE PAGE ── */
 const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingConfig, setSharingConfig, onLogout, tabColor='#00ff41'}) => {
-  const [form, setForm] = useState({
-    firstName:   user.firstName||'',
-    lastName:    user.lastName||'',
-    email:       user.email||'',
-    phone:       user.phone||'',
-    gender:      user.gender||'',
-    dob:         user.dob||'',         // date of birth → age
-    weight:      user.weight||'',      // kg
-    height:      user.height||'',      // cm
+  const [editing, setEditing] = useState(false);
+  const mkForm = (u) => ({
+    firstName: u.firstName||'',
+    lastName:  u.lastName||'',
+    email:     u.email||'',
+    phone:     u.phone||'',
+    gender:    u.gender||'',
+    dob:       u.dateOfBirth||u.dob||'',
+    weight:    u.weightKg!=null ? String(u.weightKg) : (u.weight||''),
+    height:    u.heightCm!=null ? String(u.heightCm) : (u.height||''),
+    role:      u.role||'individual',
+    currency:  u.currency||'ZAR',
   });
-  const [selectedColor, setSelectedColor]   = useState(user.eventColor||'#00e676');
+  const [form, setForm] = useState(()=>mkForm(user));
+  const [selectedColor, setSelectedColor]   = useState(user.accentColor||user.eventColor||'#e91e8c');
   const [picPreview, setPicPreview]         = useState(user.profilePicUrl||DP);
   const [showBmiWarning, setShowBmiWarning] = useState(()=>{
     try { const v=localStorage.getItem('legacyBmiWarning'); return v===null?true:v==='true'; } catch { return true; }
   });
   const toggleBmiWarning = () => setShowBmiWarning(p=>{ const n=!p; try{localStorage.setItem('legacyBmiWarning',String(n));}catch{} return n; });
   const [picFile, setPicFile]               = useState(null);
-  const [partnerLinked, setPartnerLinked]   = useState(false);
   const [alert, setAlert]                   = useState({msg:'',type:''});
   const fileInputRef = useRef();
 
-  const COLORS = ['#00e676','#ff3b3b','#448aff','#ffd600','#e91e8c','#e040fb','#ff9800','#00bcd4','#b06aff','#1de9b6'];
+  const COLORS = ['#e74c3c','#00e676','#448aff','#ffd600','#e91e8c','#e040fb','#ff9800','#00bcd4','#b06aff','#1de9b6'];
+  const COLOR_NAMES = {'#e74c3c':'CRIMSON','#ff3b3b':'CRIMSON','#00e676':'NEON','#00ff41':'NEON','#448aff':'OCEAN','#00bfff':'CYAN','#ffd600':'GOLD','#e91e8c':'PINK','#e040fb':'VIOLET','#9b59b6':'PURPLE','#ff9800':'AMBER','#00bcd4':'TEAL','#b06aff':'INDIGO','#1de9b6':'MINT'};
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [showTerms, setShowTerms]     = useState(false);
   const msg = (m,t='ok') => { setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
   const sharingItems = ['Finances','Calendar','Budget','Gym','Meals','Cycle'];
 
-  // Re-sync form when user prop updates (after App reloads profile)
+  // Re-sync form when user prop updates
   useEffect(()=>{
-    setForm({
-      firstName: user.firstName||'',
-      lastName:  user.lastName||'',
-      email:     user.email||'',
-      phone:     user.phone||'',
-      gender:    user.gender||'',
-      dob:       user.dob||'',
-      weight:    user.weight||'',
-      height:    user.height||'',
-      currency:  user.currency||'ZAR',
-    });
-    setSelectedColor(user.eventColor||'#00e676');
+    setForm(mkForm(user));
+    setSelectedColor(user.accentColor||user.eventColor||'#e91e8c');
     setPicPreview(user.profilePicUrl||DP);
   },[user.username]);
 
@@ -3914,12 +3908,18 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
     reader.readAsDataURL(file);
   };
 
+  const cancelEdit = () => {
+    setEditing(false);
+    setForm(mkForm(user));
+    setSelectedColor(user.accentColor||user.eventColor||'#e91e8c');
+    setPicPreview(user.profilePicUrl||DP);
+    setPicFile(null);
+  };
+
   // Save all profile changes
   const handleSave = async() => {
     try {
       const displayName = form.firstName&&form.lastName ? `${form.firstName} ${form.lastName}` : (user.displayName||user.username);
-      // Only include profilePicUrl in the request when a NEW file was selected and compressed
-      // This prevents resending a potentially large existing base64 on every profile save
       const newPic = picFile ? picPreview : undefined;
       await axios.post(`${API}/profile-pictures`,{
         username:    user.username,
@@ -3932,23 +3932,37 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
         dob:         form.dob||undefined,
         weight:      form.weight||undefined,
         height:      form.height||undefined,
+        role:        form.role||undefined,
         eventColor:  selectedColor,
+        accentColor: selectedColor,
         currency:    form.currency||'ZAR',
         profilePicUrl: newPic,
       });
-      const updated = {...user,...form,displayName,eventColor:selectedColor,currency:form.currency||'ZAR',
-        profilePicUrl: newPic || user.profilePicUrl,
-        gender:form.gender,dob:form.dob,weight:form.weight,height:form.height};
+      const updated = {
+        ...user,...form,displayName,
+        eventColor:selectedColor, accentColor:selectedColor,
+        dateOfBirth:form.dob, weightKg:form.weight?parseFloat(form.weight):null,
+        heightCm:form.height?parseFloat(form.height):null,
+        currency:form.currency||'ZAR',
+        profilePicUrl: newPic||user.profilePicUrl,
+      };
       setUser(updated);
       localStorage.setItem('user',JSON.stringify(updated));
       setPicFile(null);
-      msg('Changes saved.');
+      setEditing(false);
+      msg('Profile saved.');
     } catch(e) { msg('Error saving.','err'); }
   };
 
 
 
   const fullName = form.firstName&&form.lastName ? `${form.firstName} ${form.lastName}` : (user.displayName||user.username);
+  const allPartners = partners.length>0 ? partners : (partner?[partner]:[]);
+  const acColor = selectedColor;
+  const colorName = COLOR_NAMES[acColor]||'CUSTOM';
+  const iL = {background:'var(--bg3)',border:'1px solid var(--border2)',borderRadius:4,padding:'10px 12px',width:'100%',boxSizing:'border-box',outline:'none',fontFamily:"'Space Grotesk',sans-serif",fontSize:13,color:'var(--text)'};
+  const lL = {fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.18em',textTransform:'uppercase',color:'var(--pink)',marginBottom:5,display:'block'};
+  const vL = {fontFamily:"'Space Grotesk',sans-serif",fontSize:13,color:'var(--text)',padding:'2px 0'};
 
   return (
     <div className="page-outer">
@@ -3956,90 +3970,135 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
         <div className="page-inner">
           <Alert {...alert}/>
 
-          {/* ── Profile picture + name card ── */}
-          <div className="profile-user-card" style={{flexDirection:'column',alignItems:'center',gap:12,padding:'20px 16px'}}>
-            {/* Avatar with tap-to-change */}
-            <div style={{position:'relative',cursor:'pointer'}} onClick={()=>fileInputRef.current.click()}>
-              <img src={picPreview} alt="avatar"
-                style={{width:80,height:80,borderRadius:'50%',objectFit:'cover',border:`3px solid ${selectedColor}`,display:'block'}}/>
-              <div style={{position:'absolute',bottom:0,right:0,width:26,height:26,borderRadius:'50%',background:'var(--bg3)',border:'2px solid var(--border2)',display:'flex',alignItems:'center',justifyContent:'center'}}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          {/* ── PROFILE HEADER CARD ── */}
+          <div style={{position:'relative',background:'var(--bg2)',borderRadius:8,overflow:'hidden',marginBottom:12,border:'1px solid var(--border)'}}>
+            <div style={{position:'absolute',top:0,right:0,width:'60%',height:'100%',background:`radial-gradient(ellipse at top right, ${acColor}22 0%, transparent 65%)`,pointerEvents:'none'}}/>
+            <div style={{padding:'14px 14px 0',position:'relative'}}>
+              <div style={{display:'flex',alignItems:'flex-start',gap:12}}>
+                {/* Avatar */}
+                <div style={{position:'relative',flexShrink:0,cursor:editing?'pointer':'default'}} onClick={editing?()=>fileInputRef.current.click():undefined}>
+                  <img src={picPreview} alt="avatar" style={{width:72,height:72,borderRadius:'50%',objectFit:'cover',border:`3px solid ${acColor}`,display:'block'}}/>
+                  {editing&&<div style={{position:'absolute',bottom:0,right:0,width:22,height:22,borderRadius:'50%',background:'var(--bg3)',border:'2px solid var(--border2)',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="11" height="11"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                  </div>}
+                  <input ref={fileInputRef} type="file" accept="image/*" style={{display:'none'}} onChange={handlePicChange}/>
+                </div>
+                {/* Identity info */}
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.2em',color:'var(--text3)',marginBottom:2}}>USER ID · {(user.username||'').toUpperCase()}</div>
+                  <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:22,letterSpacing:'0.03em',textTransform:'uppercase',color:'var(--text)',lineHeight:1.05,marginBottom:3}}>{fullName}</div>
+                  <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',marginBottom:8,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{form.email||user.email||user.username}</div>
+                  <div style={{display:'flex',flexWrap:'wrap',gap:5}}>
+                    <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.1em',padding:'3px 8px',borderRadius:100,background:`${acColor}22`,border:`1px solid ${acColor}55`,color:acColor}}>◉ {colorName}</span>
+                    {form.role&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.1em',padding:'3px 8px',borderRadius:100,background:'rgba(233,30,140,0.14)',border:'1px solid rgba(233,30,140,0.35)',color:'var(--pink)'}}>✦ {form.role.toUpperCase()}</span>}
+                    {form.phone&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.08em',padding:'3px 8px',borderRadius:100,background:'var(--bg3)',border:'1px solid var(--border2)',color:'var(--text3)'}}>{form.phone}</span>}
+                  </div>
+                  {picFile&&<div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'var(--green)',letterSpacing:'0.1em',marginTop:6}}>NEW PHOTO — SAVE TO APPLY</div>}
+                </div>
+                {/* Edit/Save/Cancel */}
+                {!editing
+                  ? <button onClick={()=>setEditing(true)} style={{fontFamily:"'DM Mono',monospace",fontSize:10,letterSpacing:'0.12em',padding:'8px 13px',border:`1px solid ${acColor}55`,borderRadius:4,background:`${acColor}12`,color:acColor,cursor:'pointer',flexShrink:0,whiteSpace:'nowrap'}}>✎ EDIT</button>
+                  : <div style={{display:'flex',flexDirection:'column',gap:5,flexShrink:0}}>
+                      <button onClick={handleSave} style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.1em',padding:'7px 11px',border:'1px solid var(--green)',borderRadius:4,background:'rgba(0,230,118,0.12)',color:'var(--green)',cursor:'pointer',whiteSpace:'nowrap'}}>✓ SAVE</button>
+                      <button onClick={cancelEdit} style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.1em',padding:'7px 11px',border:'1px solid var(--border2)',borderRadius:4,background:'transparent',color:'var(--text3)',cursor:'pointer',whiteSpace:'nowrap'}}>✕ CANCEL</button>
+                    </div>
+                }
               </div>
-              <input ref={fileInputRef} type="file" accept="image/*" style={{display:'none'}} onChange={handlePicChange}/>
             </div>
-            <div style={{textAlign:'center'}}>
-              <div className="profile-user-name" style={{fontSize:20,marginBottom:4}}>{fullName}</div>
-              <div className="profile-user-email">{form.email||user.username}</div>
-              {form.gender&&<span className={`profile-user-badge ${form.gender.toLowerCase()}`} style={{marginTop:6,display:'inline-block'}}>{form.gender.toUpperCase()}</span>}
+            {/* Stats row */}
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',borderTop:'1px solid var(--border)',padding:'12px 14px',marginTop:14,gap:8}}>
+              {[{l:'WEIGHT',v:form.weight?`${form.weight}kg`:'—'},{l:'HEIGHT',v:form.height?`${form.height}cm`:'—'},{l:'DOB',v:form.dob||'—'}].map(({l,v})=>(
+                <div key={l} style={{textAlign:'center'}}>
+                  <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,letterSpacing:'0.18em',color:'var(--text3)',textTransform:'uppercase',marginBottom:3}}>{l}</div>
+                  <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:15,color:'var(--text)',letterSpacing:'0.03em'}}>{v}</div>
+                </div>
+              ))}
             </div>
-            {picFile&&<div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--green)',letterSpacing:'0.1em'}}>NEW PHOTO — SAVE TO APPLY</div>}
           </div>
 
-          {/* ── Account Details ── */}
+          {/* ── SWITCH USER ── */}
+          {allPartners.length>0&&(
+            <div style={{marginBottom:14}}>
+              <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.2em',textTransform:'uppercase',color:tabColor,marginBottom:10}}>SWITCH USER</div>
+              <div style={{display:'flex',gap:12,overflowX:'auto',paddingBottom:4}}>
+                <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:5,flexShrink:0}}>
+                  <div style={{width:50,height:50,borderRadius:'50%',border:`3px solid ${acColor}`,overflow:'hidden'}}><img src={user.profilePicUrl||DP} style={{width:'100%',height:'100%',objectFit:'cover'}}/></div>
+                  <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.1em',textTransform:'uppercase',color:acColor}}>{user.firstName||user.username}</span>
+                </div>
+                {allPartners.map(p=>{const pc=p.accentColor||p.eventColor||'#448aff';return(
+                  <div key={p.username} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:5,flexShrink:0}}>
+                    <div style={{width:50,height:50,borderRadius:'50%',border:`2px solid ${pc}70`,overflow:'hidden'}}><img src={p.profilePicUrl||DP} style={{width:'100%',height:'100%',objectFit:'cover'}}/></div>
+                    <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--text3)'}}>{p.firstName||p.username}</span>
+                  </div>
+                );})}
+              </div>
+            </div>
+          )}
+
+          {/* ── ACCOUNT DETAILS ── */}
           <div className="profile-section">
             <div className="profile-section-title">§ ACCOUNT DETAILS</div>
-            <div className="profile-field">
-              <div className="profile-field-label">First Name</div>
-              <input className="profile-field-input" placeholder="First name" value={form.firstName}
-                onChange={e=>setForm(p=>({...p,firstName:e.target.value}))}/>
-            </div>
-            <div className="profile-field">
-              <div className="profile-field-label">Last Name</div>
-              <input className="profile-field-input" placeholder="Last name" value={form.lastName}
-                onChange={e=>setForm(p=>({...p,lastName:e.target.value}))}/>
-            </div>
-            <div className="profile-field">
-              <div className="profile-field-label">Email</div>
-              <input className="profile-field-input" type="email" value={form.email}
-                onChange={e=>setForm(p=>({...p,email:e.target.value}))}/>
-            </div>
-            <div className="profile-field">
-              <div className="profile-field-label">Phone</div>
-              <input className="profile-field-input" type="tel" value={form.phone}
-                onChange={e=>setForm(p=>({...p,phone:e.target.value}))}/>
-            </div>
-            <div className="profile-field">
-              <div className="profile-field-label">Gender</div>
-              <div style={{display:'flex',gap:10,paddingTop:6}}>
-                {['male','female'].map(g=>(
-                  <button key={g}
-                    onClick={()=>setForm(p=>({...p,gender:g}))}
-                    style={{
-                      fontFamily:"'DM Mono',monospace",fontSize:10,letterSpacing:'0.12em',
-                      textTransform:'uppercase',padding:'8px 20px',borderRadius:4,cursor:'pointer',
-                      border: form.gender===g
-                        ? `1px solid ${g==='female'?'var(--pink)':'var(--blue)'}`
-                        : '1px solid var(--border2)',
-                      color: form.gender===g ? (g==='female'?'var(--pink)':'var(--blue)') : 'var(--text3)',
-                      background: form.gender===g
-                        ? (g==='female'?'rgba(233,30,140,0.12)':'rgba(68,138,255,0.12)')
-                        : 'transparent',
-                    }}>
-                    {g==='male'?'♂ Male':'♀ Female'}
-                  </button>
+            <div style={{padding:'14px 14px 0'}}>
+              {/* First / Last Name */}
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:14}}>
+                {['firstName','lastName'].map((f,fi)=>(
+                  <div key={f}>
+                    <span style={lL}>{fi===0?'FIRST NAME':'LAST NAME'}</span>
+                    {editing
+                      ? <input value={form[f]} placeholder={fi===0?'First':'Last'} onChange={e=>setForm(p=>({...p,[f]:e.target.value}))} className="profile-field-input" style={iL}/>
+                      : <div style={vL}>{form[f]||'—'}</div>}
+                  </div>
                 ))}
               </div>
-            </div>
-            <div className="profile-field">
-              <div className="profile-field-label">Date of Birth</div>
-              <input className="profile-field-input" type="date" value={form.dob}
-                onChange={e=>setForm(p=>({...p,dob:e.target.value}))}/>
-              {form.dob&&<div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)',marginTop:4}}>
-                Age: {Math.floor((new Date()-new Date(form.dob))/31557600000)} years
-              </div>}
-            </div>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:0}}>
-              <div className="profile-field" style={{borderRight:'1px solid var(--border)'}}>
-                <div className="profile-field-label">Weight (kg)</div>
-                <input className="profile-field-input" type="number" min="30" max="300" step="0.1"
-                  placeholder="e.g. 65" value={form.weight}
-                  onChange={e=>setForm(p=>({...p,weight:e.target.value}))}/>
+              {/* Email */}
+              <div style={{marginBottom:14}}>
+                <span style={lL}>EMAIL</span>
+                {editing
+                  ? <input value={form.email} type="email" placeholder="email@example.com" onChange={e=>setForm(p=>({...p,email:e.target.value}))} className="profile-field-input" style={iL}/>
+                  : <div style={vL}>{form.email||'—'}</div>}
               </div>
-              <div className="profile-field">
-                <div className="profile-field-label">Height (cm)</div>
-                <input className="profile-field-input" type="number" min="100" max="250" step="1"
-                  placeholder="e.g. 168" value={form.height}
-                  onChange={e=>setForm(p=>({...p,height:e.target.value}))}/>
+              {/* Phone */}
+              <div style={{marginBottom:14}}>
+                <span style={lL}>PHONE</span>
+                {editing
+                  ? <input value={form.phone} type="tel" placeholder="+27 82 000 0000" onChange={e=>setForm(p=>({...p,phone:e.target.value}))} className="profile-field-input" style={iL}/>
+                  : <div style={vL}>{form.phone||'—'}</div>}
+              </div>
+              {/* Gender */}
+              <div style={{marginBottom:14}}>
+                <span style={lL}>GENDER</span>
+                <div style={{display:'flex',gap:8,paddingTop:editing?0:2}}>
+                  {['male','female'].map(g=>(
+                    <button key={g} onClick={editing?()=>setForm(p=>({...p,gender:g})):undefined}
+                      style={{fontFamily:"'DM Mono',monospace",fontSize:10,letterSpacing:'0.12em',textTransform:'uppercase',
+                        padding:'8px 18px',borderRadius:4,cursor:editing?'pointer':'default',
+                        border:form.gender===g?`1px solid ${g==='female'?'var(--pink)':'var(--blue)'}`:'1px solid var(--border2)',
+                        color:form.gender===g?(g==='female'?'var(--pink)':'var(--blue)'):'var(--text3)',
+                        background:form.gender===g?(g==='female'?'rgba(233,30,140,0.12)':'rgba(68,138,255,0.12)'):'transparent',
+                        opacity:editing?1:(form.gender===g?1:0.4)}}>
+                      {g==='male'?'♂ MALE':'♀ FEMALE'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {/* DOB */}
+              <div style={{marginBottom:14}}>
+                <span style={lL}>DATE OF BIRTH</span>
+                {editing
+                  ? <input value={form.dob} type="date" onChange={e=>setForm(p=>({...p,dob:e.target.value}))} className="profile-field-input" style={iL}/>
+                  : <div style={vL}>{form.dob||'—'}</div>}
+                {form.dob&&<div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)',marginTop:4}}>Age: {Math.floor((new Date()-new Date(form.dob))/31557600000)} years</div>}
+              </div>
+              {/* Weight / Height */}
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:14}}>
+                {[{f:'weight',l:'WEIGHT (KG)',ph:'65',t:'number'},{f:'height',l:'HEIGHT (CM)',ph:'170',t:'number'}].map(({f,l,ph,t})=>(
+                  <div key={f}>
+                    <span style={lL}>{l}</span>
+                    {editing
+                      ? <input value={form[f]} type={t} placeholder={ph} onChange={e=>setForm(p=>({...p,[f]:e.target.value}))} className="profile-field-input" style={iL}/>
+                      : <div style={vL}>{form[f]||'—'}</div>}
+                  </div>
+                ))}
               </div>
             </div>
             {form.weight&&form.height&&(()=>{
@@ -4128,23 +4187,32 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
             })()}
           </div>
 
-          {/* ── Event Color ── */}
+          {/* ── ACCENT COLOR ── */}
           <div className="profile-section">
-            <div className="profile-section-title">§ EVENT COLOR</div>
-            <div style={{padding:'12px 14px',fontFamily:"'DM Mono',monospace",fontSize:'10px',color:'var(--text3)'}}>Your personal event color for the calendar</div>
-            <div className="color-palette">
+            <div className="profile-section-title">§ ACCENT COLOR</div>
+            <div style={{padding:'10px 14px 4px',fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)'}}>Personal accent — used on calendar, charts and badges.</div>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:8,padding:'8px 14px 14px'}}>
               {COLORS.map(col=>{
-                const takenBy = (partners.length>0?partners:partner?[partner]:[]).find(p=>p.eventColor===col);
+                const takenBy = allPartners.find(p=>(p.accentColor||p.eventColor)===col);
                 const isTaken = !!takenBy && col!==selectedColor;
+                const isActive = selectedColor===col;
                 return (
                   <div key={col}
-                    className={`color-swatch ${selectedColor===col?'selected':''}`}
-                    style={{background:col,opacity:isTaken?0.2:1,cursor:isTaken?'not-allowed':'pointer',position:'relative'}}
+                    style={{aspectRatio:'1',background:col,borderRadius:6,display:'flex',alignItems:'center',justifyContent:'center',
+                      cursor:editing&&!isTaken?'pointer':'default',opacity:isTaken?0.18:1,
+                      outline:isActive?'2px solid rgba(255,255,255,0.8)':'none',outlineOffset:'2px',
+                      transition:'transform 0.12s, outline 0.12s',transform:isActive&&editing?'scale(1.06)':'scale(1)',
+                    }}
                     title={isTaken?`In use by ${takenBy.displayName||takenBy.username}`:''}
-                    onClick={()=>!isTaken&&setSelectedColor(col)}/>
+                    onClick={()=>editing&&!isTaken&&setSelectedColor(col)}>
+                    {isActive
+                      ? <span style={{fontSize:18,fontWeight:900,color:'rgba(0,0,0,0.75)'}}>✓</span>
+                      : <span style={{fontSize:14,fontWeight:300,color:'rgba(0,0,0,0.25)'}}>/</span>}
+                  </div>
                 );
               })}
             </div>
+            {!editing&&<div style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.14em',color:'var(--text3)',padding:'0 14px 12px'}}>tap EDIT to change accent</div>}
           </div>
 
           {/* ── Currency ── */}
@@ -4152,8 +4220,8 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
             <div className="profile-section-title">§ CURRENCY</div>
             <div className="profile-field">
               <div className="profile-field-label">Display Currency</div>
-              <select className="profile-field-input" style={{background:'transparent',border:'none',outline:'none',color:'var(--text)',fontFamily:"'DM Mono',monospace",fontSize:13,width:'100%',cursor:'pointer'}}
-                value={form.currency||'ZAR'} onChange={e=>setForm(p=>({...p,currency:e.target.value}))}>
+              <select className="profile-field-input" style={{background:'transparent',border:'none',outline:'none',color:'var(--text)',fontFamily:"'DM Mono',monospace",fontSize:13,width:'100%',cursor:editing?'pointer':'default'}}
+                value={form.currency||'ZAR'} onChange={e=>editing&&setForm(p=>({...p,currency:e.target.value}))} disabled={!editing}>
                 <option value="ZAR">ZAR — South African Rand (R)</option>
                 <option value="USD">USD — US Dollar ($)</option>
                 <option value="EUR">EUR — Euro (€)</option>
@@ -4185,10 +4253,11 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
             </div>
           )}
 
-          <button className="save-btn" onClick={handleSave}>SAVE CHANGES</button>
+          {/* ── Log out ── */}
+          <button className="save-btn" style={{background:'transparent',border:'1px solid var(--red)',color:'var(--red)',marginTop:4}} onClick={onLogout}>LOG OUT</button>
 
           {/* ── Legal ── */}
-          <div style={{display:'flex',gap:8,marginTop:16,marginBottom:8}}>
+          <div style={{display:'flex',gap:8,marginTop:10,marginBottom:8}}>
             <button onClick={()=>setShowPrivacy(true)}
               style={{flex:1,fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.12em',textTransform:'uppercase',padding:'10px',border:'1px solid var(--border2)',color:'var(--text3)',borderRadius:4,background:'transparent',cursor:'pointer'}}>
               PRIVACY POLICY

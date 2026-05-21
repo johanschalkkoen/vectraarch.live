@@ -394,24 +394,34 @@ app.get('/api/profile-pictures', async (req, res) => {
 });
 
 app.post('/api/profile-pictures', async (req, res) => {
-    const { username, firstName, lastName, profilePicUrl, email, phone, address, eventColor, gender, telegram_chat_id, displayName, bio, pronouns, theme, activityStatus } = req.body;
+    const { username, firstName, lastName, profilePicUrl, email, phone, address,
+            eventColor, accentColor, gender, telegram_chat_id, displayName, bio, pronouns,
+            theme, activityStatus, dob, weight, height, role } = req.body;
     if (!username) return res.status(400).json({ success: false, message: 'Username required.' });
     if (firstName && firstName.length > 50) return res.status(400).json({ success: false, message: 'First name must be 50 characters or less.' });
     if (lastName  && lastName.length  > 50) return res.status(400).json({ success: false, message: 'Last name must be 50 characters or less.' });
     try {
         const exists = await dbQuery('SELECT username FROM vectraarchlegacy_users WHERE username = $1', [username]);
         if (!exists) return res.status(404).json({ success: false, message: 'User not found.' });
+        const resolvedAccent = accentColor || eventColor || '#2dd4bf';
         await dbRun(`
             UPDATE vectraarchlegacy_users SET
                 first_name=$1, last_name=$2,
                 profile_pic_url=COALESCE($3::text, profile_pic_url),
                 email=$4, phone=$5, address=$6,
                 event_color=$7, gender=$8, telegram_chat_id=$9, display_name=$10,
-                bio=$11, pronouns=$12, theme=$13, activity_status=$14, last_active=$15
-            WHERE username=$16`,
+                bio=$11, pronouns=$12, theme=$13, activity_status=$14, last_active=$15,
+                date_of_birth=$16, height_cm=$17, weight_kg=$18, accent_color=$19, role=$20
+            WHERE username=$21`,
             [firstName||null, lastName||null, profilePicUrl||null, email||null, phone||null, address||null,
-             eventColor||'#2dd4bf', gender||null, telegram_chat_id||null, displayName||username,
-             bio||null, pronouns||null, theme||'dark', activityStatus?1:0, new Date().toISOString(), username]
+             resolvedAccent, gender||null, telegram_chat_id||null, displayName||username,
+             bio||null, pronouns||null, theme||'dark', activityStatus?1:0, new Date().toISOString(),
+             dob||null,
+             height ? parseFloat(height) : null,
+             weight ? parseFloat(weight) : null,
+             resolvedAccent,
+             role||null,
+             username]
         );
         await logTransaction(username, 'UPDATE_PROFILE', 'users', null, username);
         const updated = await dbQuery('SELECT * FROM vectraarchlegacy_users WHERE username = $1', [username]);
