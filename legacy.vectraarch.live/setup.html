@@ -1,0 +1,1600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <title>Setup · VectraArch</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500&family=Barlow:wght@300;400;500;600&family=Barlow+Condensed:wght@300;400;500;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="/shared/va.css"/>
+  <style>
+    *, *::before, *::after { cursor: default; }
+    input, select, textarea { cursor: text; }
+    button, [onclick], .chip, .color-dot-wrap, .member-tab, .module-btn,
+    .module-select-card, .toggle, .sharing-toggle-all, .member-delete { cursor: pointer !important; }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      background: var(--bg);
+    }
+
+    .grid-bg { z-index: 0; }
+
+    /* ── HEADER ── */
+    .sw-header {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 20px 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sw-eyebrow {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      color: var(--accent);
+      flex-shrink: 0;
+    }
+
+    .sw-progress {
+      display: flex;
+      gap: 3px;
+      flex: 1;
+    }
+
+    .sw-seg {
+      flex: 1;
+      height: 2px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 1px;
+      transition: background 0.3s;
+    }
+
+    .sw-seg.done { background: var(--accent); }
+
+    .sw-pct {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      color: var(--text-dim);
+      flex-shrink: 0;
+      min-width: 30px;
+      text-align: right;
+    }
+
+    /* ── BODY ── */
+    .sw-body {
+      position: relative;
+      z-index: 10;
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 20px 8px;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .sw-body::-webkit-scrollbar { display: none; }
+
+    /* ── FOOTER ── */
+    .sw-footer {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 20px 20px;
+      border-top: 1px solid var(--border);
+      background: var(--bg);
+    }
+
+    .btn-back {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      color: var(--text-muted);
+      background: none;
+      border: 1px solid var(--border2);
+      padding: 12px 18px;
+      border-radius: 6px;
+      flex-shrink: 0;
+    }
+
+    .btn-back:hover { border-color: var(--accent); color: var(--text); }
+
+    .btn-continue {
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      letter-spacing: 0.12em;
+      color: #000;
+      background: var(--accent);
+      border: none;
+      padding: 14px 0;
+      border-radius: 100px;
+      flex: 1;
+      font-weight: 500;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+
+    .btn-continue:hover  { opacity: 0.88; }
+    .btn-continue:active { transform: scale(0.98); }
+    .btn-continue:disabled { opacity: 0.5; }
+
+    /* ── STEP LAYOUT ── */
+    .step { display: none; }
+    .step.active { display: block; }
+
+    .step-eyebrow {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      color: var(--accent);
+      text-transform: uppercase;
+      margin-bottom: 14px;
+      display: block;
+    }
+
+    .step-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 30px;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.05;
+      margin-bottom: 6px;
+    }
+
+    .step-sub {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.55;
+      margin-bottom: 22px;
+    }
+
+    /* ── FORM FIELDS ── */
+    .sf { margin-bottom: 16px; }
+
+    .sf-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 0.2em;
+      color: var(--accent);
+      text-transform: uppercase;
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .sf-label small { opacity: 0.5; font-size: 8px; }
+
+    .sf-input, .sf-select {
+      width: 100%;
+      background: var(--bg2);
+      border: 1px solid var(--border2);
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      padding: 11px 14px;
+      border-radius: 4px;
+      outline: none;
+      transition: border-color 0.2s;
+      -webkit-appearance: none;
+    }
+
+    .sf-input:focus, .sf-select:focus { border-color: var(--accent); }
+    .sf-input::placeholder { color: var(--text-dim); }
+
+    .sf-select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='rgba(232,228,216,0.35)' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      padding-right: 34px;
+    }
+
+    .sf-select option { background: #111110; }
+
+    .sf-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .field-hint {
+      font-family: 'DM Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 0.1em;
+      margin-top: 5px;
+      display: none;
+    }
+
+    .field-hint.ok  { display: block; color: var(--accent); }
+    .field-hint.err { display: block; color: var(--red); }
+
+    /* ── CHIPS ── */
+    .chip-group { display: flex; gap: 7px; flex-wrap: wrap; }
+
+    .chip {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      padding: 8px 16px;
+      border: 1px solid var(--border2);
+      border-radius: 100px;
+      color: var(--text-muted);
+      background: transparent;
+      transition: border-color 0.2s, color 0.2s;
+      white-space: nowrap;
+    }
+
+    .chip.active { border-color: var(--accent); color: var(--accent); }
+
+    .chip.num {
+      width: 38px;
+      height: 38px;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      font-size: 12px;
+    }
+
+    .chip.num.active {
+      background: var(--accent);
+      color: #000;
+      border-color: var(--accent);
+    }
+
+    /* ── ACCENT COLORS ── */
+    .color-group { display: flex; gap: 18px; }
+
+    .color-dot-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .color-dot {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+
+    .color-dot.active {
+      border-color: #fff;
+      transform: scale(1.12);
+    }
+
+    .color-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 8px;
+      letter-spacing: 0.1em;
+      color: var(--text-dim);
+      text-transform: uppercase;
+    }
+
+    /* ── DIVIDER ── */
+    .sf-divider {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 18px 0 14px;
+    }
+
+    .sf-divider-line { flex: 1; height: 1px; background: var(--border); }
+
+    .sf-divider-text {
+      font-family: 'DM Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 0.18em;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    /* ── TOGGLE ── */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 0;
+    }
+
+    .toggle-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.15em;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    .toggle {
+      width: 44px;
+      height: 24px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 12px;
+      position: relative;
+      flex-shrink: 0;
+      transition: background 0.25s;
+    }
+
+    .toggle::after {
+      content: '';
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 18px;
+      height: 18px;
+      background: var(--text-dim);
+      border-radius: 50%;
+      transition: left 0.25s, background 0.25s;
+    }
+
+    .toggle.on { background: var(--accent); }
+    .toggle.on::after { left: 23px; background: #000; }
+
+    /* ── INVITE SECTION ── */
+    .invite-section {
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+      margin-top: 4px;
+    }
+
+    .invite-header {
+      font-family: 'DM Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 0.2em;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .invite-note {
+      font-size: 11px;
+      color: var(--text-dim);
+      line-height: 1.5;
+      margin-top: 8px;
+    }
+
+    /* ── MEMBER CARD ── */
+    .member-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+
+    .member-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .member-card-title {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.15em;
+      color: var(--accent);
+      text-transform: uppercase;
+    }
+
+    .member-delete {
+      font-size: 14px;
+      color: var(--text-dim);
+      background: none;
+      border: none;
+      padding: 4px 6px;
+      border-radius: 4px;
+      transition: color 0.2s;
+      line-height: 1;
+    }
+
+    .member-delete:hover { color: var(--red); }
+
+    .member-tabs {
+      display: flex;
+      gap: 5px;
+      margin-bottom: 14px;
+    }
+
+    .member-tab {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 8px 0;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      border-radius: 4px;
+      flex: 1;
+      text-align: center;
+      transition: all 0.2s;
+    }
+
+    .member-tab.active {
+      background: var(--accent);
+      color: #000;
+      border-color: var(--accent);
+    }
+
+    /* ── SHARING ── */
+    .sharing-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+
+    .sharing-card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .sharing-member-name {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text);
+      margin-bottom: 2px;
+    }
+
+    .sharing-member-role {
+      font-family: 'DM Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 0.15em;
+      color: var(--text-dim);
+      text-transform: uppercase;
+    }
+
+    .sharing-toggle-all {
+      font-family: 'DM Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 0.12em;
+      color: var(--accent);
+      text-transform: uppercase;
+      background: none;
+      border: none;
+      padding: 0;
+      flex-shrink: 0;
+    }
+
+    .module-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 7px;
+    }
+
+    .module-btn {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 9px 4px;
+      border: 1px solid var(--border2);
+      border-radius: 4px;
+      color: var(--text-muted);
+      background: transparent;
+      transition: all 0.18s;
+      text-align: center;
+    }
+
+    .module-btn.on {
+      background: var(--accent);
+      color: #000;
+      border-color: var(--accent);
+    }
+
+    .module-btn .mcheck { display: none; }
+    .module-btn.on .mcheck { display: inline; }
+
+    /* ── WELCOME ── */
+    .welcome-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      padding: 12px 0 20px;
+    }
+
+    .welcome-icon-box {
+      width: 76px;
+      height: 76px;
+      background: var(--bg2);
+      border: 1px solid var(--border2);
+      border-radius: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 22px;
+    }
+
+    .welcome-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 34px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      color: var(--text);
+      text-transform: uppercase;
+      line-height: 1;
+      margin-bottom: 2px;
+    }
+
+    .welcome-brand {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 34px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      color: var(--accent);
+      text-transform: uppercase;
+      line-height: 1;
+      margin-bottom: 18px;
+    }
+
+    .welcome-desc {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.6;
+      max-width: 290px;
+      margin-bottom: 28px;
+    }
+
+    .welcome-chips {
+      display: flex;
+      gap: 8px;
+      width: 100%;
+    }
+
+    .welcome-chip {
+      flex: 1;
+      border: 1px solid var(--border2);
+      border-radius: 6px;
+      padding: 10px 6px;
+      text-align: center;
+    }
+
+    .welcome-chip-num {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--accent);
+      line-height: 1;
+    }
+
+    .welcome-chip-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 8px;
+      letter-spacing: 0.15em;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-top: 4px;
+    }
+
+    .welcome-time {
+      font-family: 'DM Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 0.15em;
+      color: var(--text-dim);
+      margin-top: 18px;
+    }
+
+    /* ── FAMILY ADMIN CARD ── */
+    .admin-card {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .admin-icon {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+      opacity: 0.7;
+    }
+
+    .admin-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 0.2em;
+      color: var(--accent);
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+
+    .admin-name {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* ── MODULES GRID ── */
+    .module-select-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .module-select-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 12px;
+      transition: border-color 0.2s, background 0.2s;
+    }
+
+    .module-select-card.on {
+      border-color: var(--accent);
+      background: rgba(0,255,65,0.04);
+    }
+
+    .module-select-icon { font-size: 20px; margin-bottom: 8px; }
+
+    .module-select-name {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.15em;
+      color: var(--accent);
+      text-transform: uppercase;
+      margin-bottom: 3px;
+    }
+
+    .module-select-desc { font-size: 11px; color: var(--text-dim); }
+
+    .module-select-check { display: flex; justify-content: flex-end; margin-top: 10px; }
+
+    .msc-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 1px solid var(--border2);
+      background: transparent;
+      transition: background 0.2s, border-color 0.2s;
+    }
+
+    .module-select-card.on .msc-dot {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+
+    /* ── REVIEW ── */
+    .review-section {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 10px;
+    }
+
+    .review-section-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 0.2em;
+      color: var(--accent);
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .review-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: 4px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .review-row:last-child { border-bottom: none; }
+
+    .review-key {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      color: var(--text-dim);
+      flex-shrink: 0;
+    }
+
+    .review-val {
+      font-size: 12px;
+      color: var(--text-muted);
+      text-align: right;
+      margin-left: 12px;
+    }
+
+    /* ── ERROR ── */
+    .setup-error {
+      background: rgba(184,64,64,0.1);
+      border: 1px solid rgba(184,64,64,0.3);
+      color: var(--red);
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.05em;
+      padding: 10px 14px;
+      border-radius: 4px;
+      margin-bottom: 16px;
+      display: none;
+    }
+
+    /* empty state for sharing when no members */
+    .no-members-msg {
+      text-align: center;
+      color: var(--text-dim);
+      font-size: 13px;
+      padding: 30px 0;
+    }
+  </style>
+</head>
+<body>
+<div class="grid-bg"></div>
+
+<!-- HEADER -->
+<div class="sw-header">
+  <span class="sw-eyebrow">§ SETUP</span>
+  <div class="sw-progress" id="sw-progress"></div>
+  <span class="sw-pct" id="sw-pct">14%</span>
+</div>
+
+<!-- BODY -->
+<div class="sw-body" id="sw-body">
+  <div id="step-error" class="setup-error"></div>
+
+  <!-- ── STEP 1: WELCOME ── -->
+  <div class="step active" id="s1">
+    <div class="welcome-wrap">
+      <div class="welcome-icon-box">
+        <svg width="38" height="38" viewBox="0 0 38 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M19 5v28M5 19h28" stroke="#00ff41" stroke-width="2" stroke-linecap="round"/>
+          <path d="M9 9l20 20M29 9L9 29" stroke="#00ff41" stroke-width="1" stroke-linecap="round" opacity=".4"/>
+          <circle cx="19" cy="19" r="5" stroke="#00ff41" stroke-width="1.5" fill="none"/>
+          <circle cx="26" cy="8" r="2" fill="#00ff41"/>
+          <line x1="24" y1="6" x2="26" y2="4" stroke="#00ff41" stroke-width="1" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="welcome-title">WELCOME TO</div>
+      <div class="welcome-brand">VECTRA ARCH_</div>
+      <div class="welcome-desc">Your family command center for finances, calendar, fitness, nutrition and cycles. Let's set things up in a few quick steps.</div>
+      <div class="welcome-chips">
+        <div class="welcome-chip">
+          <div class="welcome-chip-num">01</div>
+          <div class="welcome-chip-label">Profile</div>
+        </div>
+        <div class="welcome-chip">
+          <div class="welcome-chip-num">02</div>
+          <div class="welcome-chip-label">Family</div>
+        </div>
+        <div class="welcome-chip">
+          <div class="welcome-chip-num">03</div>
+          <div class="welcome-chip-label">Modules</div>
+        </div>
+      </div>
+      <div class="welcome-time">~ 2 MIN · SKIP-FREE SETUP</div>
+    </div>
+  </div>
+
+  <!-- ── STEP 2: PROFILE ── -->
+  <div class="step" id="s2">
+    <span class="step-eyebrow">§ YOUR PROFILE</span>
+    <div class="step-title">Your profile_</div>
+    <div class="step-sub">Tell us about you. This personalises every module.</div>
+
+    <div class="sf">
+      <label class="sf-label">FULL NAME</label>
+      <input class="sf-input" id="p-fullname" type="text" placeholder="First Last" autocomplete="name" oninput="onNameInput()"/>
+    </div>
+
+    <div class="sf">
+      <label class="sf-label">EMAIL ADDRESS</label>
+      <input class="sf-input" id="p-email" type="email" placeholder="you@example.com" autocomplete="email"/>
+    </div>
+
+    <div class="sf">
+      <label class="sf-label">CELL NUMBER</label>
+      <input class="sf-input" id="p-cell" type="tel" placeholder="+27 82 000 0000" autocomplete="tel"/>
+    </div>
+
+    <div class="sf">
+      <label class="sf-label">GENDER</label>
+      <div class="chip-group">
+        <div class="chip" id="gender-female" onclick="setGender('female')">Female</div>
+        <div class="chip active" id="gender-male" onclick="setGender('male')">Male</div>
+        <div class="chip" id="gender-other" onclick="setGender('other')">Other</div>
+      </div>
+    </div>
+
+    <div class="sf">
+      <label class="sf-label">DATE OF BIRTH</label>
+      <input class="sf-input" id="p-dob" type="text" placeholder="YYYY/MM/DD" maxlength="10"/>
+    </div>
+
+    <div class="sf">
+      <label class="sf-label">ACCENT COLOUR</label>
+      <div class="color-group">
+        <div class="color-dot-wrap" onclick="setAccent('#e74c3c','crimson')">
+          <div class="color-dot" id="dot-crimson" style="background:#e74c3c"></div>
+          <span class="color-label">Crimson</span>
+        </div>
+        <div class="color-dot-wrap" onclick="setAccent('#00ff41','neon')">
+          <div class="color-dot active" id="dot-neon" style="background:#00ff41"></div>
+          <span class="color-label">Neon</span>
+        </div>
+        <div class="color-dot-wrap" onclick="setAccent('#00bfff','cyan')">
+          <div class="color-dot" id="dot-cyan" style="background:#00bfff"></div>
+          <span class="color-label">Cyan</span>
+        </div>
+        <div class="color-dot-wrap" onclick="setAccent('#9b59b6','purple')">
+          <div class="color-dot" id="dot-purple" style="background:#9b59b6"></div>
+          <span class="color-label">Purple</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="sf">
+      <label class="sf-label">I AM THE___</label>
+      <div class="chip-group">
+        <div class="chip active" id="role-parent" onclick="setRole('parent')">Parent</div>
+        <div class="chip" id="role-guardian" onclick="setRole('guardian')">Guardian</div>
+        <div class="chip" id="role-individual" onclick="setRole('individual')">Individual</div>
+      </div>
+    </div>
+
+    <div class="sf-divider">
+      <div class="sf-divider-line"></div>
+      <div class="sf-divider-text">Quick Health / Optional</div>
+      <div class="sf-divider-line"></div>
+    </div>
+
+    <div class="sf-row">
+      <div class="sf">
+        <label class="sf-label">HEIGHT <small>CM</small></label>
+        <input class="sf-input" id="p-height" type="number" placeholder="175" min="50" max="280"/>
+      </div>
+      <div class="sf">
+        <label class="sf-label">WEIGHT <small>KG</small></label>
+        <input class="sf-input" id="p-weight" type="number" placeholder="70" min="20" max="500"/>
+      </div>
+    </div>
+
+    <div class="sf-divider">
+      <div class="sf-divider-line"></div>
+      <div class="sf-divider-text">Account Credentials</div>
+      <div class="sf-divider-line"></div>
+    </div>
+
+    <div class="sf">
+      <label class="sf-label">USERNAME</label>
+      <input class="sf-input" id="p-username" type="text" placeholder="your.username" autocomplete="username" autocapitalize="none" spellcheck="false"/>
+      <div class="field-hint" id="username-hint"></div>
+    </div>
+
+    <div class="sf" style="margin-bottom:8px">
+      <label class="sf-label">PASSWORD</label>
+      <input class="sf-input" id="p-password" type="password" placeholder="········" autocomplete="new-password"/>
+    </div>
+  </div>
+
+  <!-- ── STEP 3: FAMILY ── -->
+  <div class="step" id="s3">
+    <span class="step-eyebrow">§ YOUR FAMILY</span>
+    <div class="step-title">Your household_</div>
+    <div class="step-sub">Vectra Arch is built around your people. Create your family unit.</div>
+
+    <div class="sf">
+      <label class="sf-label">FAMILY NAME</label>
+      <input class="sf-input" id="f-name" type="text" placeholder="The Smith Family"/>
+    </div>
+
+    <div class="sf">
+      <label class="sf-label">HOW MANY MEMBERS</label>
+      <div class="chip-group">
+        <div class="chip num" id="mc-2" onclick="setMemberCount(2)">2</div>
+        <div class="chip num active" id="mc-3" onclick="setMemberCount(3)">3</div>
+        <div class="chip num" id="mc-4" onclick="setMemberCount(4)">4+</div>
+      </div>
+    </div>
+
+    <div class="sf-row">
+      <div class="sf">
+        <label class="sf-label">CURRENCY</label>
+        <select class="sf-select" id="f-currency">
+          <option value="ZAR">ZAR</option>
+          <option value="USD">USD</option>
+          <option value="EUR">EUR</option>
+          <option value="GBP">GBP</option>
+          <option value="AUD">AUD</option>
+          <option value="CAD">CAD</option>
+          <option value="NGN">NGN</option>
+          <option value="KES">KES</option>
+          <option value="INR">INR</option>
+          <option value="JPY">JPY</option>
+        </select>
+      </div>
+      <div class="sf">
+        <label class="sf-label">TIMEZONE</label>
+        <select class="sf-select" id="f-tz">
+          <option value="Africa/Johannesburg">Africa/Johannesburg</option>
+          <option value="Africa/Lagos">Africa/Lagos</option>
+          <option value="Africa/Nairobi">Africa/Nairobi</option>
+          <option value="Africa/Cairo">Africa/Cairo</option>
+          <option value="Africa/Accra">Africa/Accra</option>
+          <option value="Europe/London">Europe/London</option>
+          <option value="Europe/Paris">Europe/Paris</option>
+          <option value="Europe/Amsterdam">Europe/Amsterdam</option>
+          <option value="America/New_York">America/New_York</option>
+          <option value="America/Chicago">America/Chicago</option>
+          <option value="America/Denver">America/Denver</option>
+          <option value="America/Los_Angeles">America/Los_Angeles</option>
+          <option value="America/Sao_Paulo">America/Sao_Paulo</option>
+          <option value="Asia/Dubai">Asia/Dubai</option>
+          <option value="Asia/Kolkata">Asia/Kolkata</option>
+          <option value="Asia/Singapore">Asia/Singapore</option>
+          <option value="Asia/Tokyo">Asia/Tokyo</option>
+          <option value="Australia/Sydney">Australia/Sydney</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="sf">
+      <label class="sf-label">FAMILY ADMIN</label>
+      <div class="admin-card">
+        <div class="admin-icon">◎</div>
+        <div>
+          <div class="admin-label">Family Admin</div>
+          <div class="admin-name" id="f-admin-name">You will be linked as administrator.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── STEP 4: MEMBERS ── -->
+  <div class="step" id="s4">
+    <span class="step-eyebrow">§ ADD MEMBERS</span>
+    <div class="step-title">Add family_</div>
+    <div class="step-sub">Add the people who'll share your hub. You can invite them anytime.</div>
+    <div id="members-container"></div>
+  </div>
+
+  <!-- ── STEP 5: SHARING ── -->
+  <div class="step" id="s5">
+    <span class="step-eyebrow">§ SHARING</span>
+    <div class="step-title">Sharing_</div>
+    <div class="step-sub">Choose what each member can see. Smart defaults applied.</div>
+    <div id="sharing-container"></div>
+  </div>
+
+  <!-- ── STEP 6: MODULES ── -->
+  <div class="step" id="s6">
+    <span class="step-eyebrow">§ MODULES</span>
+    <div class="step-title">Your hub_</div>
+    <div class="step-sub">Select the Vectra Arch modules to activate for your household.</div>
+    <div class="module-select-grid" id="modules-grid"></div>
+  </div>
+
+  <!-- ── STEP 7: CREATE ── -->
+  <div class="step" id="s7">
+    <span class="step-eyebrow">§ REVIEW</span>
+    <div class="step-title">Create hub_</div>
+    <div class="step-sub">Review your setup and launch your Vectra Arch hub.</div>
+    <div id="review-container"></div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div class="sw-footer">
+  <button class="btn-back" onclick="prevStep()">&#x3C; BACK</button>
+  <button class="btn-continue" id="btn-continue" onclick="nextStep()">CONTINUE &#x3E;</button>
+</div>
+
+<script>
+// ── CONSTANTS & STATE ───────────────────────────────────────────────────────
+const TOTAL_STEPS = 7;
+let curStep = 1;
+let usernameCheckTimer = null;
+let usernameOk = false;
+let usernameManuallySet = false;
+
+const D = {
+  profile: {
+    firstName: '', lastName: '', email: '', cellNumber: '',
+    gender: 'male', dateOfBirth: '', accentColor: '#00ff41',
+    role: 'parent', heightCm: '', weightKg: '',
+    username: '', password: ''
+  },
+  family: { familyName: '', memberCount: 3, currency: 'ZAR', timezone: 'Africa/Johannesburg' },
+  members: [],
+  moduleAccess: {},
+  enabledModules: ['fin', 'cal', 'bud', 'gym', 'eat', 'cyc']
+};
+
+const MODULE_META = [
+  { key: 'fin', icon: '💰', name: 'Finances',  desc: 'Income, expenses & transactions' },
+  { key: 'cal', icon: '📅', name: 'Calendar',  desc: 'Events & family reminders' },
+  { key: 'bud', icon: '📊', name: 'Budget',    desc: 'Monthly budget planner' },
+  { key: 'gym', icon: '🏋', name: 'Fitness',   desc: 'Workouts & gym tracking' },
+  { key: 'eat', icon: '🥗', name: 'Nutrition', desc: 'Meal plans & diet tracking' },
+  { key: 'cyc', icon: '🔄', name: 'Cycles',    desc: 'Menstrual cycle tracking' },
+];
+
+const SHARE_DEFAULTS = {
+  partner: { fin: true,  cal: true,  bud: true,  gym: true,  eat: true,  cyc: true  },
+  child:   { fin: false, cal: true,  bud: false, gym: true,  eat: true,  cyc: false },
+  other:   { fin: false, cal: true,  bud: false, gym: false, eat: false, cyc: false },
+};
+
+// ── PROGRESS ────────────────────────────────────────────────────────────────
+function initProgress() {
+  const bar = document.getElementById('sw-progress');
+  for (let i = 0; i < TOTAL_STEPS; i++) {
+    const seg = document.createElement('div');
+    seg.className = 'sw-seg';
+    seg.id = 'seg-' + i;
+    bar.appendChild(seg);
+  }
+}
+
+function updateProgress(step) {
+  const pct = Math.round((step / TOTAL_STEPS) * 100);
+  document.getElementById('sw-pct').textContent = pct + '%';
+  for (let i = 0; i < TOTAL_STEPS; i++) {
+    document.getElementById('seg-' + i).className = 'sw-seg' + (i < step ? ' done' : '');
+  }
+}
+
+// ── NAVIGATION ──────────────────────────────────────────────────────────────
+function showStep(s) {
+  document.querySelectorAll('.step').forEach(el => el.classList.remove('active'));
+  document.getElementById('s' + s).classList.add('active');
+  document.getElementById('sw-body').scrollTop = 0;
+  clearError();
+  updateProgress(s);
+  const btn = document.getElementById('btn-continue');
+  btn.textContent = s === TOTAL_STEPS ? 'CREATE HUB >' : 'CONTINUE >';
+  btn.disabled = false;
+}
+
+function nextStep() {
+  if (curStep === TOTAL_STEPS) { submitSetup(); return; }
+  if (!validateStep(curStep)) return;
+  collectStep(curStep);
+
+  const isIndividual = D.profile.role === 'individual';
+
+  if (curStep === 2 && isIndividual) {
+    curStep = 6;
+  } else if (curStep === 3 && D.family.memberCount < 2) {
+    curStep = 6;
+  } else {
+    curStep++;
+  }
+
+  if (curStep === 4) renderMembers();
+  if (curStep === 5) renderSharing();
+  if (curStep === 6) renderModules();
+  if (curStep === 7) renderReview();
+
+  showStep(curStep);
+}
+
+function prevStep() {
+  if (curStep === 1) { window.location.href = '/login.html'; return; }
+
+  const isIndividual = D.profile.role === 'individual';
+  if (curStep === 6 && isIndividual) {
+    curStep = 2;
+  } else if (curStep === 6 && D.family.memberCount < 2) {
+    curStep = 3;
+  } else {
+    curStep--;
+  }
+
+  showStep(curStep);
+}
+
+// ── VALIDATION ──────────────────────────────────────────────────────────────
+function showError(msg) {
+  const el = document.getElementById('step-error');
+  el.textContent = '⚠ ' + msg;
+  el.style.display = 'block';
+  document.getElementById('sw-body').scrollTop = 0;
+}
+
+function clearError() {
+  const el = document.getElementById('step-error');
+  el.style.display = 'none';
+}
+
+function validateStep(s) {
+  clearError();
+  if (s === 2) {
+    const fullName = document.getElementById('p-fullname').value.trim();
+    if (!fullName || fullName.split(/\s+/).length < 2) {
+      showError('Enter your full name — first and last.'); return false;
+    }
+    const email = document.getElementById('p-email').value.trim();
+    if (!email || !email.includes('@') || !email.includes('.')) {
+      showError('Enter a valid email address.'); return false;
+    }
+    const uname = document.getElementById('p-username').value.trim();
+    if (!uname || uname.length < 3) {
+      showError('Username must be at least 3 characters.'); return false;
+    }
+    if (!/^[a-z0-9._-]+$/.test(uname)) {
+      showError('Username may only contain lowercase letters, numbers, dots, hyphens, underscores.'); return false;
+    }
+    if (usernameOk === false) {
+      showError('That username is already taken — choose another.'); return false;
+    }
+    const pw = document.getElementById('p-password').value;
+    if (!pw || pw.length < 6) {
+      showError('Password must be at least 6 characters.'); return false;
+    }
+    return true;
+  }
+  if (s === 3) {
+    if (!document.getElementById('f-name').value.trim()) {
+      showError('Enter a name for your family.'); return false;
+    }
+    return true;
+  }
+  return true;
+}
+
+// ── COLLECT ─────────────────────────────────────────────────────────────────
+function collectStep(s) {
+  if (s === 2) {
+    const parts = document.getElementById('p-fullname').value.trim().split(/\s+/);
+    D.profile.firstName = parts[0] || '';
+    D.profile.lastName  = parts.slice(1).join(' ') || '';
+    D.profile.email     = document.getElementById('p-email').value.trim();
+    D.profile.cellNumber = document.getElementById('p-cell').value.trim();
+    D.profile.dateOfBirth = document.getElementById('p-dob').value.trim();
+    D.profile.heightCm  = document.getElementById('p-height').value;
+    D.profile.weightKg  = document.getElementById('p-weight').value;
+    D.profile.username  = document.getElementById('p-username').value.trim().toLowerCase();
+    D.profile.password  = document.getElementById('p-password').value;
+  }
+  if (s === 3) {
+    D.family.familyName  = document.getElementById('f-name').value.trim();
+    D.family.currency    = document.getElementById('f-currency').value;
+    D.family.timezone    = document.getElementById('f-tz').value;
+  }
+}
+
+// ── PROFILE HELPERS ──────────────────────────────────────────────────────────
+function setGender(g) {
+  D.profile.gender = g;
+  ['female','male','other'].forEach(v =>
+    document.getElementById('gender-' + v).classList.toggle('active', v === g)
+  );
+}
+
+function setRole(r) {
+  D.profile.role = r;
+  ['parent','guardian','individual'].forEach(v =>
+    document.getElementById('role-' + v).classList.toggle('active', v === r)
+  );
+}
+
+function setAccent(color, key) {
+  D.profile.accentColor = color;
+  ['crimson','neon','cyan','purple'].forEach(k =>
+    document.getElementById('dot-' + k).classList.toggle('active', k === key)
+  );
+}
+
+function onNameInput() {
+  const name = document.getElementById('p-fullname').value.trim();
+  const parts = name.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2 && !usernameManuallySet) {
+    const suggested = (parts[0] + '.' + parts[parts.length - 1])
+      .toLowerCase().replace(/[^a-z0-9._-]/g, '');
+    document.getElementById('p-username').value = suggested;
+    scheduleUsernameCheck(suggested);
+  }
+  // Update family admin label
+  const display = name || 'You';
+  const adminEl = document.getElementById('f-admin-name');
+  if (adminEl) adminEl.textContent = display + ' will be linked as administrator.';
+}
+
+function scheduleUsernameCheck(val) {
+  clearTimeout(usernameCheckTimer);
+  const hint = document.getElementById('username-hint');
+  hint.className = 'field-hint';
+  if (!val || val.length < 3) { usernameOk = false; return; }
+  usernameCheckTimer = setTimeout(() => checkUsername(val), 450);
+}
+
+async function checkUsername(val) {
+  val = val || document.getElementById('p-username').value.trim().toLowerCase();
+  const hint = document.getElementById('username-hint');
+  if (!val || val.length < 3) { usernameOk = false; hint.className = 'field-hint'; return; }
+  try {
+    const r = await fetch('/api/check-username?username=' + encodeURIComponent(val));
+    const d = await r.json();
+    if (d.available) {
+      hint.className = 'field-hint ok';
+      hint.textContent = '✓ Available';
+      usernameOk = true;
+    } else {
+      hint.className = 'field-hint err';
+      hint.textContent = '✗ Already taken';
+      usernameOk = false;
+    }
+  } catch (e) {
+    usernameOk = null; // unknown — let backend decide
+    hint.className = 'field-hint';
+  }
+}
+
+// ── MEMBER COUNT ────────────────────────────────────────────────────────────
+function setMemberCount(n) {
+  D.family.memberCount = n;
+  [2,3,4].forEach(v =>
+    document.getElementById('mc-' + v).classList.toggle('active', v === n)
+  );
+}
+
+// ── RENDER MEMBERS ───────────────────────────────────────────────────────────
+function renderMembers() {
+  const needed = Math.max(0, D.family.memberCount - 1);
+  while (D.members.length < needed) {
+    const i = D.members.length;
+    const type = i === 0 ? 'partner' : 'child';
+    D.members.push({
+      type, name: '', sex: 'm', dateOfBirth: '',
+      accentColor: '#00ff41', accentKey: 'neon',
+      inviteEmail: '', inviteCell: '', sendInvite: true
+    });
+  }
+  if (D.members.length > needed) D.members.length = needed;
+
+  const container = document.getElementById('members-container');
+  container.innerHTML = '';
+  D.members.forEach((m, i) => container.appendChild(buildMemberCard(m, i)));
+}
+
+function buildMemberCard(m, i) {
+  const card = document.createElement('div');
+  card.className = 'member-card';
+  card.id = 'mcard-' + i;
+
+  const typeLabel = m.type.charAt(0).toUpperCase() + m.type.slice(1);
+  const accentKeys = ['crimson', 'neon', 'cyan', 'purple'];
+  const accentColors = { crimson: '#e74c3c', neon: '#00ff41', cyan: '#00bfff', purple: '#9b59b6' };
+
+  card.innerHTML =
+    '<div class="member-card-header">' +
+      '<span class="member-card-title" id="mtitle-' + i + '">' + typeLabel + ' \xB7 #' + (i + 1) + '</span>' +
+      '<button class="member-delete" onclick="deleteMember(' + i + ')" title="Remove">\u{1F5D1}</button>' +
+    '</div>' +
+    '<div class="member-tabs">' +
+      ['partner','child','other'].map(t =>
+        '<div class="member-tab' + (m.type === t ? ' active' : '') + '" ' +
+        'id="mtab-' + i + '-' + t + '" onclick="setMemberType(' + i + ',\'' + t + '\')">' +
+        t.charAt(0).toUpperCase() + t.slice(1) + '</div>'
+      ).join('') +
+    '</div>' +
+    '<div class="sf"><label class="sf-label">NAME</label>' +
+      '<input class="sf-input" id="m-' + i + '-name" type="text" placeholder="Full Name" value="' + escHtml(m.name) + '" oninput="D.members[' + i + '].name=this.value"/>' +
+    '</div>' +
+    '<div class="sf-row">' +
+      '<div class="sf"><label class="sf-label">SEX</label>' +
+        '<div class="chip-group">' +
+          ['f','m','-'].map(s =>
+            '<div class="chip num' + (m.sex === s ? ' active' : '') + '" ' +
+            'id="msex-' + i + '-' + s.replace('-','x') + '" ' +
+            'onclick="setMemberSex(' + i + ',\'' + s + '\')">' + s.toUpperCase() + '</div>'
+          ).join('') +
+        '</div>' +
+      '</div>' +
+      '<div class="sf"><label class="sf-label">DOB</label>' +
+        '<input class="sf-input" id="m-' + i + '-dob" type="text" placeholder="YYYY/MM/DD" value="' + escHtml(m.dateOfBirth) + '" oninput="D.members[' + i + '].dateOfBirth=this.value"/>' +
+      '</div>' +
+    '</div>' +
+    '<div class="sf"><label class="sf-label">ACCENT</label>' +
+      '<div class="color-group">' +
+        accentKeys.map(k =>
+          '<div class="color-dot-wrap" onclick="setMemberAccent(' + i + ',\'' + accentColors[k] + '\',\'' + k + '\')">' +
+            '<div class="color-dot' + (m.accentKey === k ? ' active' : '') + '" id="mdot-' + i + '-' + k + '" style="background:' + accentColors[k] + '"></div>' +
+            '<span class="color-label">' + k.charAt(0).toUpperCase() + k.slice(1) + '</span>' +
+          '</div>'
+        ).join('') +
+      '</div>' +
+    '</div>' +
+    '<div class="toggle-row">' +
+      '<span class="toggle-label">SEND INVITE LINK</span>' +
+      '<div class="toggle' + (m.sendInvite ? ' on' : '') + '" id="toggle-' + i + '" onclick="toggleInvite(' + i + ')"></div>' +
+    '</div>' +
+    '<div class="invite-section" id="invite-' + i + '"' + (m.sendInvite ? '' : ' style="display:none"') + '>' +
+      '<div class="invite-header">\xA7 INVITE CONTACT</div>' +
+      '<div class="sf"><label class="sf-label">EMAIL <small>FOR INVITE</small></label>' +
+        '<input class="sf-input" id="m-' + i + '-email" type="email" placeholder="joe@example.com" value="' + escHtml(m.inviteEmail) + '" oninput="D.members[' + i + '].inviteEmail=this.value"/>' +
+      '</div>' +
+      '<div class="sf"><label class="sf-label">CELL NUMBER <small>OPTIONAL</small></label>' +
+        '<input class="sf-input" id="m-' + i + '-cell" type="tel" placeholder="+27 82 000 0000" value="' + escHtml(m.inviteCell) + '" oninput="D.members[' + i + '].inviteCell=this.value"/>' +
+      '</div>' +
+      '<p class="invite-note">We\'ll send an invite link to join your hub.</p>' +
+    '</div>';
+
+  return card;
+}
+
+function escHtml(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function deleteMember(i) {
+  D.members.splice(i, 1);
+  delete D.moduleAccess[i];
+  renderMembers();
+}
+
+function setMemberType(i, type) {
+  D.members[i].type = type;
+  D.moduleAccess[i] = Object.assign({}, SHARE_DEFAULTS[type]);
+  document.getElementById('mtitle-' + i).textContent =
+    type.charAt(0).toUpperCase() + type.slice(1) + ' \xB7 #' + (i + 1);
+  ['partner','child','other'].forEach(t => {
+    const el = document.getElementById('mtab-' + i + '-' + t);
+    if (el) el.classList.toggle('active', t === type);
+  });
+}
+
+function setMemberSex(i, sex) {
+  D.members[i].sex = sex;
+  ['f','m','-'].forEach(s => {
+    const id = 'msex-' + i + '-' + (s === '-' ? 'x' : s);
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('active', s === sex);
+  });
+}
+
+function setMemberAccent(i, color, key) {
+  D.members[i].accentColor = color;
+  D.members[i].accentKey   = key;
+  ['crimson','neon','cyan','purple'].forEach(k => {
+    const el = document.getElementById('mdot-' + i + '-' + k);
+    if (el) el.classList.toggle('active', k === key);
+  });
+}
+
+function toggleInvite(i) {
+  D.members[i].sendInvite = !D.members[i].sendInvite;
+  document.getElementById('toggle-' + i).classList.toggle('on', D.members[i].sendInvite);
+  document.getElementById('invite-' + i).style.display = D.members[i].sendInvite ? '' : 'none';
+}
+
+// ── RENDER SHARING ────────────────────────────────────────────────────────────
+function renderSharing() {
+  D.members.forEach((m, i) => {
+    if (!D.moduleAccess[i]) D.moduleAccess[i] = Object.assign({}, SHARE_DEFAULTS[m.type]);
+  });
+
+  const container = document.getElementById('sharing-container');
+  container.innerHTML = '';
+
+  if (D.members.length === 0) {
+    container.innerHTML = '<div class="no-members-msg">No family members added.<br>Continue to the next step.</div>';
+    return;
+  }
+
+  const MODS = ['fin','cal','bud','gym','eat','cyc'];
+
+  D.members.forEach((m, i) => {
+    const allOn = MODS.every(mod => D.moduleAccess[i][mod]);
+    const card = document.createElement('div');
+    card.className = 'sharing-card';
+    card.id = 'scard-' + i;
+
+    const modBtns = MODS.map(mod => {
+      const on = D.moduleAccess[i][mod];
+      return '<button class="module-btn' + (on ? ' on' : '') + '" id="sh-' + i + '-' + mod + '" ' +
+             'onclick="toggleModule(' + i + ',\'' + mod + '\')">' +
+             '<span class="mcheck">✓ </span>' + mod.toUpperCase() + '</button>';
+    }).join('');
+
+    card.innerHTML =
+      '<div class="sharing-card-header">' +
+        '<div>' +
+          '<div class="sharing-member-name">' + escHtml(m.name || '(Unnamed)') + '</div>' +
+          '<div class="sharing-member-role">' + m.type + '</div>' +
+        '</div>' +
+        '<button class="sharing-toggle-all" id="stoggle-' + i + '" onclick="toggleAllModules(' + i + ')">' +
+          (allOn ? 'DISABLE ALL' : 'ENABLE ALL') +
+        '</button>' +
+      '</div>' +
+      '<div class="module-grid">' + modBtns + '</div>';
+
+    container.appendChild(card);
+  });
+}
+
+function toggleModule(mi, mod) {
+  D.moduleAccess[mi][mod] = !D.moduleAccess[mi][mod];
+  const btn = document.getElementById('sh-' + mi + '-' + mod);
+  if (btn) btn.classList.toggle('on', D.moduleAccess[mi][mod]);
+  refreshToggleAllBtn(mi);
+}
+
+function toggleAllModules(mi) {
+  const MODS = ['fin','cal','bud','gym','eat','cyc'];
+  const allOn = MODS.every(mod => D.moduleAccess[mi][mod]);
+  const next = !allOn;
+  MODS.forEach(mod => {
+    D.moduleAccess[mi][mod] = next;
+    const btn = document.getElementById('sh-' + mi + '-' + mod);
+    if (btn) btn.classList.toggle('on', next);
+  });
+  refreshToggleAllBtn(mi);
+}
+
+function refreshToggleAllBtn(mi) {
+  const MODS = ['fin','cal','bud','gym','eat','cyc'];
+  const allOn = MODS.every(mod => D.moduleAccess[mi][mod]);
+  const btn = document.getElementById('stoggle-' + mi);
+  if (btn) btn.textContent = allOn ? 'DISABLE ALL' : 'ENABLE ALL';
+}
+
+// ── RENDER MODULES ────────────────────────────────────────────────────────────
+function renderModules() {
+  const grid = document.getElementById('modules-grid');
+  grid.innerHTML = '';
+  MODULE_META.forEach(meta => {
+    const on = D.enabledModules.includes(meta.key);
+    const card = document.createElement('div');
+    card.className = 'module-select-card' + (on ? ' on' : '');
+    card.id = 'msel-' + meta.key;
+    card.onclick = () => toggleModuleSel(meta.key);
+    card.innerHTML =
+      '<div class="module-select-icon">' + meta.icon + '</div>' +
+      '<div class="module-select-name">' + meta.name + '</div>' +
+      '<div class="module-select-desc">' + meta.desc + '</div>' +
+      '<div class="module-select-check"><div class="msc-dot"></div></div>';
+    grid.appendChild(card);
+  });
+}
+
+function toggleModuleSel(key) {
+  const idx = D.enabledModules.indexOf(key);
+  if (idx === -1) D.enabledModules.push(key);
+  else D.enabledModules.splice(idx, 1);
+  const card = document.getElementById('msel-' + key);
+  if (card) card.classList.toggle('on', D.enabledModules.includes(key));
+}
+
+// ── RENDER REVIEW ─────────────────────────────────────────────────────────────
+function renderReview() {
+  const container = document.getElementById('review-container');
+  container.innerHTML = '';
+
+  const pr = D.profile;
+  const profileHTML =
+    rRow('Name', pr.firstName + ' ' + pr.lastName) +
+    rRow('Email', pr.email) +
+    rRow('Username', '@' + pr.username) +
+    rRow('Role', pr.role) +
+    (pr.gender ? rRow('Gender', pr.gender) : '') +
+    (pr.dateOfBirth ? rRow('Born', pr.dateOfBirth) : '');
+
+  container.appendChild(rSection('\xA7 Profile', profileHTML));
+
+  if (pr.role !== 'individual' && D.family.familyName) {
+    const fam = D.family;
+    const famHTML =
+      rRow('Family', fam.familyName) +
+      rRow('Members', String(fam.memberCount)) +
+      rRow('Currency', fam.currency) +
+      rRow('Timezone', fam.timezone);
+    container.appendChild(rSection('\xA7 Family', famHTML));
+
+    if (D.members.length > 0) {
+      const memHTML = D.members.map(m =>
+        rRow(m.name || '(Unnamed)', m.type + (m.sendInvite && m.inviteEmail ? ' \xB7 invite' : ''))
+      ).join('');
+      container.appendChild(rSection('\xA7 Members', memHTML));
+    }
+  }
+
+  const modHTML = rRow('Active', D.enabledModules.map(k => k.toUpperCase()).join(', ') || 'None');
+  container.appendChild(rSection('\xA7 Modules', modHTML));
+}
+
+function rSection(label, inner) {
+  const sec = document.createElement('div');
+  sec.className = 'review-section';
+  sec.innerHTML = '<div class="review-section-label">' + label + '</div>' + inner;
+  return sec;
+}
+
+function rRow(key, val) {
+  return '<div class="review-row"><span class="review-key">' + escHtml(key) + '</span>' +
+         '<span class="review-val">' + escHtml(String(val)) + '</span></div>';
+}
+
+// ── SUBMIT ────────────────────────────────────────────────────────────────────
+async function submitSetup() {
+  const btn = document.getElementById('btn-continue');
+  btn.textContent = 'CREATING...';
+  btn.disabled = true;
+  clearError();
+
+  // Final collect of all steps
+  collectStep(2);
+  collectStep(3);
+
+  try {
+    const payload = {
+      profile:        D.profile,
+      family:         D.family,
+      members:        D.members,
+      moduleAccess:   D.moduleAccess,
+      enabledModules: D.enabledModules,
+    };
+
+    const res  = await fetch('/api/setup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+
+    if (!res.ok || !data.success) {
+      showError(data.message || 'Setup failed. Please try again.');
+      btn.textContent = 'CREATE HUB >';
+      btn.disabled = false;
+      return;
+    }
+
+    // Store session data and redirect
+    localStorage.setItem('user', JSON.stringify(data));
+    window.location.href = '/app.html';
+
+  } catch (e) {
+    showError('Connection error — please try again.');
+    btn.textContent = 'CREATE HUB >';
+    btn.disabled = false;
+  }
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  // Redirect if already logged in
+  try {
+    const u = JSON.parse(localStorage.getItem('user') || 'null');
+    if (u && u.username && u.success !== false) window.location.replace('/app.html');
+  } catch (e) { /* ignore */ }
+
+  initProgress();
+  updateProgress(1);
+
+  // Username field: mark as manually set when user types
+  const uInput = document.getElementById('p-username');
+  uInput.addEventListener('input', () => {
+    usernameManuallySet = true;
+    scheduleUsernameCheck(uInput.value.trim().toLowerCase());
+  });
+
+  // Default member count chip
+  document.getElementById('mc-3').classList.add('active');
+});
+</script>
+</body>
+</html>
