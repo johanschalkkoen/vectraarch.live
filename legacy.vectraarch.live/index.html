@@ -258,6 +258,7 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
   const [actionItem, setActionItem] = useState(null);
   const [confirmDel, setConfirmDel] = useState(null);
   const [alert, setAlert] = useState({msg:'',type:''});
+  const [multiRows, setMultiRows] = useState([{id:1, category:'', amount:''}]);
 
   // ── New feature state ──
   const [activeSection, setActiveSection] = useState('overview'); // 'overview'|'trends'|'recurring'|'categories'|'savings'
@@ -387,16 +388,18 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
 
   // ── CRUD handlers ──
   const handleSave = async () => {
-    if(!form.category||!form.amount){msg('Fill all fields.','err');return;}
     try {
       if(editId) {
+        if(!form.category||!form.amount){msg('Fill all fields.','err');return;}
         await axios.put(`${API}/financial/${editId}`,{user:user.username,category:form.category,amount:parseFloat(form.amount),type:form.type,date:form.date});
         msg('Updated.');
       } else {
-        await axios.post(`${API}/financial`,{user:user.username,category:form.category,amount:parseFloat(form.amount),type:form.type,date:form.date});
-        msg('Saved.');
+        const validRows = multiRows.filter(r=>r.category&&r.amount);
+        if(!validRows.length){msg('Add at least one row with category and amount.','err');return;}
+        await Promise.all(validRows.map(r=>axios.post(`${API}/financial`,{user:user.username,category:r.category,amount:parseFloat(r.amount),type:form.type,date:form.date})));
+        msg(`Saved ${validRows.length} transaction${validRows.length>1?'s':''}.`);
       }
-      setShowForm(false);setEditId(null);setForm({category:'',amount:'',type:'expense',date:now()});fetchAll();
+      setShowForm(false);setEditId(null);setForm({category:'',amount:'',type:'expense',date:now()});setMultiRows([{id:Date.now(),category:'',amount:''}]);fetchAll();
     } catch { msg('Error.','err'); }
   };
   const handleFinDelete = async(id)=>{
@@ -1019,7 +1022,7 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
 
       {/* ── FAB: only on overview ── */}
       {activeSection==='overview'&&(
-        <button className="fab" style={{background:tabColor,boxShadow:`0 4px 20px ${tabColor}55`}} onClick={()=>setShowForm(true)}>+ ADD ITEM</button>
+        <button className="fab" style={{background:tabColor,boxShadow:`0 4px 20px ${tabColor}55`}} onClick={()=>{setMultiRows([{id:Date.now(),category:'',amount:''}]);setShowForm(true);}}>+ ADD ITEM</button>
       )}
 
       {/* ── Action sheets & modals ── */}
@@ -1033,91 +1036,201 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
 
       {/* Add/Edit Transaction */}
       {showForm&&(
-        <div className="modal-overlay" onClick={()=>setShowForm(false)}>
+        <div className="modal-overlay" onClick={()=>{setShowForm(false);setEditId(null);setForm({category:'',amount:'',type:'expense',date:now()});setMultiRows([{id:Date.now(),category:'',amount:''}]);}}>
           <div className="modal-sheet" style={{"--page-color":tabColor||"var(--green)"}} onClick={e=>e.stopPropagation()}>
             <div className="modal-handle"/>
             <div className="modal-title">{editId?"Edit":"Add"} Transaction</div>
 
-            {/* Type first so category section updates immediately */}
-            <div className="form-field">
-              <label className="form-label">Type</label>
-              <div className="type-toggle">
-                {['expense','income'].map(t=>(
-                  <button key={t} className={`type-toggle-btn ${form.type===t?'active':''}`}
-                    onClick={()=>setForm(p=>({...p,type:t,category:''}))}>
-                    {t.toUpperCase()}
-                  </button>
-                ))}
-              </div>
-            </div>
+            {editId ? (
+              <>
+                {/* ── EDIT MODE: single row ── */}
+                {/* Type */}
+                <div className="form-field">
+                  <label className="form-label">Type</label>
+                  <div className="type-toggle">
+                    {['expense','income'].map(t=>(
+                      <button key={t} className={`type-toggle-btn ${form.type===t?'active':''}`}
+                        onClick={()=>setForm(p=>({...p,type:t,category:''}))}>
+                        {t.toUpperCase()}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-            {/* Category — sectioned by budget when expenses + budget exists */}
-            <div className="form-field">
-              <label className="form-label">Category</label>
-              {form.type==='expense'&&budgetCategories.length>0 ? (
-                <>
-                  {(typeof BUDGET_SECTIONS!=='undefined'?BUDGET_SECTIONS:[]).map(sec=>{
-                    const cats=budgetCategories.filter(c=>c.type===sec.key);
-                    if(!cats.length) return null;
-                    return (
-                      <div key={sec.key} style={{marginBottom:10}}>
-                        <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.14em',color:sec.color,marginBottom:5,display:'flex',alignItems:'center',gap:6}}>
-                          <div style={{width:6,height:6,borderRadius:1,background:sec.color}}/>
-                          {sec.label}
-                        </div>
-                        <div style={{display:'flex',flexWrap:'wrap',gap:5}}>
-                          {cats.map(c=>{
-                            const sel=form.category===c.category;
+                {/* Category — sectioned by budget when expenses + budget exists */}
+                <div className="form-field">
+                  <label className="form-label">Category</label>
+                  {form.type==='expense'&&budgetCategories.length>0 ? (
+                    <>
+                      {(typeof BUDGET_SECTIONS!=='undefined'?BUDGET_SECTIONS:[]).map(sec=>{
+                        const cats=budgetCategories.filter(c=>c.type===sec.key);
+                        if(!cats.length) return null;
+                        return (
+                          <div key={sec.key} style={{marginBottom:10}}>
+                            <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.14em',color:sec.color,marginBottom:5,display:'flex',alignItems:'center',gap:6}}>
+                              <div style={{width:6,height:6,borderRadius:1,background:sec.color}}/>
+                              {sec.label}
+                            </div>
+                            <div style={{display:'flex',flexWrap:'wrap',gap:5}}>
+                              {cats.map(c=>{
+                                const sel=form.category===c.category;
+                                return (
+                                  <button key={c.category} type="button"
+                                    onClick={()=>setForm(p=>({...p,category:c.category}))}
+                                    style={{padding:'6px 12px',borderRadius:6,cursor:'pointer',
+                                      border:`1px solid ${sel?sec.color:sec.color+'55'}`,
+                                      background:sel?`${sec.color}22`:`${sec.color}0a`,
+                                      color:sel?sec.color:'rgba(255,255,255,0.65)',
+                                      fontFamily:"'Barlow Condensed',sans-serif",fontWeight:sel?700:500,fontSize:13,letterSpacing:'0.04em'}}>
+                                    {c.category}
+                                  </button>
+                                );
+                              })}
+                              {(()=>{const sel=form.category===`Other (${sec.label})`;return(
+                                <button type="button"
+                                  onClick={()=>setForm(p=>({...p,category:`Other (${sec.label})`}))}
+                                  style={{padding:'6px 12px',borderRadius:6,cursor:'pointer',
+                                    border:`1px dashed ${sel?sec.color:sec.color+'44'}`,
+                                    background:sel?`${sec.color}22`:'transparent',
+                                    color:sel?sec.color:'rgba(255,255,255,0.4)',
+                                    fontFamily:"'Barlow Condensed',sans-serif",fontWeight:sel?700:400,fontSize:13,letterSpacing:'0.04em'}}>
+                                  Other
+                                </button>
+                              );})()}
+                            </div>
+                          </div>
+                        );
+                      })}
+                      <input className="form-input" style={{marginTop:4}}
+                        placeholder="Or type a custom category"
+                        value={budgetCategories.some(c=>c.category===form.category)?'':form.category}
+                        onChange={e=>setForm(p=>({...p,category:e.target.value}))}/>
+                    </>
+                  ) : (
+                    <input className="form-input"
+                      placeholder={form.type==='income'?'e.g. Salary, Freelance, Bonus':'e.g. Groceries'}
+                      value={form.category}
+                      onChange={e=>setForm(p=>({...p,category:e.target.value}))}/>
+                  )}
+                </div>
+
+                <div className="form-field">
+                  <label className="form-label">Amount (ZAR)</label>
+                  <input className="form-input" type="number" placeholder="0.00" value={form.amount} onChange={e=>setForm(p=>({...p,amount:e.target.value}))} autoFocus={!form.category}/>
+                </div>
+                <div className="form-field">
+                  <label className="form-label">Date</label>
+                  <input className="form-input" type="datetime-local" value={form.date} onChange={e=>setForm(p=>({...p,date:e.target.value}))} step="1"/>
+                </div>
+                <button className="form-submit" style={{background:tabColor,color:'#000'}} onClick={handleSave}>UPDATE</button>
+                <button className="form-cancel" onClick={()=>{setShowForm(false);setEditId(null);setForm({category:'',amount:'',type:'expense',date:now()});setMultiRows([{id:Date.now(),category:'',amount:''}]);}}>Cancel</button>
+              </>
+            ) : (
+              <>
+                {/* ── ADD MODE: shared type + date, multiple rows ── */}
+                {/* Shared Type */}
+                <div className="form-field">
+                  <label className="form-label">Type</label>
+                  <div className="type-toggle">
+                    {['expense','income'].map(t=>(
+                      <button key={t} className={`type-toggle-btn ${form.type===t?'active':''}`}
+                        onClick={()=>setForm(p=>({...p,type:t,category:''}))}>
+                        {t.toUpperCase()}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Shared Date */}
+                <div className="form-field">
+                  <label className="form-label">Date</label>
+                  <input className="form-input" type="datetime-local" value={form.date} onChange={e=>setForm(p=>({...p,date:e.target.value}))} step="1"/>
+                </div>
+
+                {/* Per-row: category + amount */}
+                {multiRows.map((row,rowIdx)=>(
+                  <div key={row.id} style={{border:'1px solid var(--border)',borderRadius:8,padding:'10px 12px',marginBottom:8,position:'relative'}}>
+                    {multiRows.length>1&&(
+                      <button type="button"
+                        onClick={()=>setMultiRows(prev=>prev.filter(r=>r.id!==row.id))}
+                        style={{position:'absolute',top:8,right:8,background:'transparent',border:'none',color:'rgba(255,255,255,0.4)',cursor:'pointer',fontSize:16,lineHeight:1,padding:'0 4px'}}>
+                        ×
+                      </button>
+                    )}
+                    <div className="form-field" style={{marginBottom:8}}>
+                      <label className="form-label">Category</label>
+                      {form.type==='expense'&&budgetCategories.length>0 ? (
+                        <>
+                          {(typeof BUDGET_SECTIONS!=='undefined'?BUDGET_SECTIONS:[]).map(sec=>{
+                            const cats=budgetCategories.filter(c=>c.type===sec.key);
+                            if(!cats.length) return null;
                             return (
-                              <button key={c.category} type="button"
-                                onClick={()=>setForm(p=>({...p,category:c.category}))}
-                                style={{padding:'6px 12px',borderRadius:6,cursor:'pointer',
-                                  border:`1px solid ${sel?sec.color:sec.color+'55'}`,
-                                  background:sel?`${sec.color}22`:`${sec.color}0a`,
-                                  color:sel?sec.color:'rgba(255,255,255,0.65)',
-                                  fontFamily:"'Barlow Condensed',sans-serif",fontWeight:sel?700:500,fontSize:13,letterSpacing:'0.04em'}}>
-                                {c.category}
-                              </button>
+                              <div key={sec.key} style={{marginBottom:10}}>
+                                <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.14em',color:sec.color,marginBottom:5,display:'flex',alignItems:'center',gap:6}}>
+                                  <div style={{width:6,height:6,borderRadius:1,background:sec.color}}/>
+                                  {sec.label}
+                                </div>
+                                <div style={{display:'flex',flexWrap:'wrap',gap:5}}>
+                                  {cats.map(c=>{
+                                    const sel=row.category===c.category;
+                                    return (
+                                      <button key={c.category} type="button"
+                                        onClick={()=>setMultiRows(prev=>prev.map(r=>r.id===row.id?{...r,category:c.category}:r))}
+                                        style={{padding:'6px 12px',borderRadius:6,cursor:'pointer',
+                                          border:`1px solid ${sel?sec.color:sec.color+'55'}`,
+                                          background:sel?`${sec.color}22`:`${sec.color}0a`,
+                                          color:sel?sec.color:'rgba(255,255,255,0.65)',
+                                          fontFamily:"'Barlow Condensed',sans-serif",fontWeight:sel?700:500,fontSize:13,letterSpacing:'0.04em'}}>
+                                        {c.category}
+                                      </button>
+                                    );
+                                  })}
+                                  {(()=>{const sel=row.category===`Other (${sec.label})`;return(
+                                    <button type="button"
+                                      onClick={()=>setMultiRows(prev=>prev.map(r=>r.id===row.id?{...r,category:`Other (${sec.label})`}:r))}
+                                      style={{padding:'6px 12px',borderRadius:6,cursor:'pointer',
+                                        border:`1px dashed ${sel?sec.color:sec.color+'44'}`,
+                                        background:sel?`${sec.color}22`:'transparent',
+                                        color:sel?sec.color:'rgba(255,255,255,0.4)',
+                                        fontFamily:"'Barlow Condensed',sans-serif",fontWeight:sel?700:400,fontSize:13,letterSpacing:'0.04em'}}>
+                                      Other
+                                    </button>
+                                  );})()}
+                                </div>
+                              </div>
                             );
                           })}
-                          {(()=>{const sel=form.category===`Other (${sec.label})`;return(
-                            <button type="button"
-                              onClick={()=>setForm(p=>({...p,category:`Other (${sec.label})`}))}
-                              style={{padding:'6px 12px',borderRadius:6,cursor:'pointer',
-                                border:`1px dashed ${sel?sec.color:sec.color+'44'}`,
-                                background:sel?`${sec.color}22`:'transparent',
-                                color:sel?sec.color:'rgba(255,255,255,0.4)',
-                                fontFamily:"'Barlow Condensed',sans-serif",fontWeight:sel?700:400,fontSize:13,letterSpacing:'0.04em'}}>
-                              Other
-                            </button>
-                          );})()}
-                        </div>
-                      </div>
-                    );
-                  })}
-                  <input className="form-input" style={{marginTop:4}}
-                    placeholder="Or type a custom category"
-                    value={budgetCategories.some(c=>c.category===form.category)?'':form.category}
-                    onChange={e=>setForm(p=>({...p,category:e.target.value}))}/>
-                </>
-              ) : (
-                <input className="form-input"
-                  placeholder={form.type==='income'?'e.g. Salary, Freelance, Bonus':'e.g. Groceries'}
-                  value={form.category}
-                  onChange={e=>setForm(p=>({...p,category:e.target.value}))}/>
-              )}
-            </div>
+                          <input className="form-input" style={{marginTop:4}}
+                            placeholder="Or type a custom category"
+                            value={budgetCategories.some(c=>c.category===row.category)?'':row.category}
+                            onChange={e=>setMultiRows(prev=>prev.map(r=>r.id===row.id?{...r,category:e.target.value}:r))}/>
+                        </>
+                      ) : (
+                        <input className="form-input"
+                          placeholder={form.type==='income'?'e.g. Salary, Freelance, Bonus':'e.g. Groceries'}
+                          value={row.category}
+                          onChange={e=>setMultiRows(prev=>prev.map(r=>r.id===row.id?{...r,category:e.target.value}:r))}/>
+                      )}
+                    </div>
+                    <div className="form-field" style={{marginBottom:0}}>
+                      <label className="form-label">Amount (ZAR)</label>
+                      <input className="form-input" type="number" placeholder="0.00" value={row.amount}
+                        onChange={e=>setMultiRows(prev=>prev.map(r=>r.id===row.id?{...r,amount:e.target.value}:r))}/>
+                    </div>
+                  </div>
+                ))}
 
-            <div className="form-field">
-              <label className="form-label">Amount (ZAR)</label>
-              <input className="form-input" type="number" placeholder="0.00" value={form.amount} onChange={e=>setForm(p=>({...p,amount:e.target.value}))} autoFocus={!form.category}/>
-            </div>
-            <div className="form-field">
-              <label className="form-label">Date</label>
-              <input className="form-input" type="datetime-local" value={form.date} onChange={e=>setForm(p=>({...p,date:e.target.value}))} step="1"/>
-            </div>
-            <button className="form-submit" style={{background:tabColor,color:'#000'}} onClick={handleSave}>{editId?"UPDATE":"SAVE"}</button>
-            <button className="form-cancel" onClick={()=>{setShowForm(false);setEditId(null);setForm({category:'',amount:'',type:'expense',date:now()});}}>Cancel</button>
+                {/* + ADD ROW */}
+                <button type="button"
+                  onClick={()=>setMultiRows(prev=>[...prev,{id:Date.now(),category:'',amount:''}])}
+                  style={{width:'100%',padding:'10px',background:'transparent',border:'1px dashed rgba(255,255,255,0.2)',borderRadius:8,color:'rgba(255,255,255,0.5)',fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:13,letterSpacing:'0.1em',cursor:'pointer',marginBottom:8}}>
+                  + ADD ROW
+                </button>
+
+                <button className="form-submit" style={{background:tabColor,color:'#000'}} onClick={handleSave}>SAVE ALL</button>
+                <button className="form-cancel" onClick={()=>{setShowForm(false);setEditId(null);setForm({category:'',amount:'',type:'expense',date:now()});setMultiRows([{id:Date.now(),category:'',amount:''}]);}}>Cancel</button>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -1510,25 +1623,6 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
               );
             };
 
-            const CalGroupHeader = ({groupKey, label, count, color, total}) => {
-              const isOpen = expandedCalGroups.has(groupKey);
-              return (
-                <div className="day-block" style={{borderLeft:`2px solid ${color}44`,paddingLeft:0,marginBottom:2}}>
-                  <div className="day-header" style={{cursor:'pointer',paddingLeft:8}} onClick={()=>toggleCalGroup(groupKey)}>
-                    <div style={{display:'flex',alignItems:'center',gap:6}}>
-                      <div style={{width:6,height:6,borderRadius:1,background:color,flexShrink:0}}/>
-                      <span className="day-name" style={{color,fontSize:13}}>{label}</span>
-                      <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'rgba(255,255,255,0.25)'}}>{count}</span>
-                    </div>
-                    <div style={{display:'flex',alignItems:'center',gap:10}}>
-                      {total!=null&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:10,color,fontWeight:500}}>{fmtR(total)}</span>}
-                      <span style={{color:'rgba(255,255,255,0.3)',fontSize:10}}>{isOpen?'▲':'▼'}</span>
-                    </div>
-                  </div>
-                </div>
-              );
-            };
-
             return (
               <div style={{padding:'0 16px'}}>
                 {canSeeCycle&&selectedEvents.some(e=>e.isCycle)&&(
@@ -1548,24 +1642,50 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
                 )}
                 {/* Normal events — expanded by default, time shown */}
                 {normalEvts.length>0&&(
-                  <>
-                    <CalGroupHeader groupKey="events" label="EVENTS" count={normalEvts.length} color={tabColor}/>
+                  <div className="day-block" style={{borderLeft:`2px solid ${tabColor}44`,paddingLeft:'8px',marginBottom:4}}>
+                    <div className="day-header" style={{cursor:'pointer'}} onClick={()=>toggleCalGroup('events')}>
+                      <div className="day-name" style={{color:tabColor}}>{`EVENTS`}</div>
+                      <div style={{display:'flex',alignItems:'center',gap:12}}>
+                        <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,color:'var(--text3)'}}>
+                          <span style={{color:tabColor}}>{normalEvts.length}</span>
+                        </span>
+                        <span style={{color:'rgba(255,255,255,0.3)',fontSize:10}}>{expandedCalGroups.has('events')?'▲':'▼'}</span>
+                      </div>
+                    </div>
                     {expandedCalGroups.has('events')&&normalEvts.map(e=>renderCard(e,true))}
-                  </>
+                  </div>
                 )}
                 {/* Finance expenses — collapsed by default */}
                 {finExpEvts.length>0&&(
-                  <>
-                    <CalGroupHeader groupKey="finexp" label="FINANCE EXPENSES" count={finExpEvts.length} color="var(--red)" total={finExpEvts.reduce((s,e)=>s+parseFloat(e.amount||0),0)}/>
+                  <div className="day-block" style={{borderLeft:`2px solid ${'var(--red)'}44`,paddingLeft:'8px',marginBottom:4}}>
+                    <div className="day-header" style={{cursor:'pointer'}} onClick={()=>toggleCalGroup('finexp')}>
+                      <div className="day-name" style={{color:'var(--red)'}}>{`FINANCE EXPENSES`}</div>
+                      <div style={{display:'flex',alignItems:'center',gap:12}}>
+                        <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,color:'var(--text3)'}}>
+                          <span style={{color:'var(--red)'}}>{finExpEvts.length}</span>
+                          <span style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--red)',fontWeight:500,marginLeft:6}}>{fmtR(finExpEvts.reduce((s,e)=>s+parseFloat(e.amount||0),0))}</span>
+                        </span>
+                        <span style={{color:'rgba(255,255,255,0.3)',fontSize:10}}>{expandedCalGroups.has('finexp')?'▲':'▼'}</span>
+                      </div>
+                    </div>
                     {expandedCalGroups.has('finexp')&&finExpEvts.map(e=>renderCard(e,false))}
-                  </>
+                  </div>
                 )}
                 {/* Finance income — collapsed by default */}
                 {finIncEvts.length>0&&(
-                  <>
-                    <CalGroupHeader groupKey="fininc" label="FINANCE INCOME" count={finIncEvts.length} color="var(--green)" total={finIncEvts.reduce((s,e)=>s+parseFloat(e.amount||0),0)}/>
+                  <div className="day-block" style={{borderLeft:`2px solid ${'var(--green)'}44`,paddingLeft:'8px',marginBottom:4}}>
+                    <div className="day-header" style={{cursor:'pointer'}} onClick={()=>toggleCalGroup('fininc')}>
+                      <div className="day-name" style={{color:'var(--green)'}}>{`FINANCE INCOME`}</div>
+                      <div style={{display:'flex',alignItems:'center',gap:12}}>
+                        <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,color:'var(--text3)'}}>
+                          <span style={{color:'var(--green)'}}>{finIncEvts.length}</span>
+                          <span style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--green)',fontWeight:500,marginLeft:6}}>{fmtR(finIncEvts.reduce((s,e)=>s+parseFloat(e.amount||0),0))}</span>
+                        </span>
+                        <span style={{color:'rgba(255,255,255,0.3)',fontSize:10}}>{expandedCalGroups.has('fininc')?'▲':'▼'}</span>
+                      </div>
+                    </div>
                     {expandedCalGroups.has('fininc')&&finIncEvts.map(e=>renderCard(e,false))}
-                  </>
+                  </div>
                 )}
               </div>
             );
