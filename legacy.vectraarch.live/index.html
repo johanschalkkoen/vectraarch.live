@@ -245,7 +245,7 @@ const ItemAvatar = ({username, user, partner, partners=[], size=36}) => {
 
 /* ── FINANCES PAGE ── */
 /* ── FINANCES PAGE ── */
-const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedPartners=[], selfVisible=true, isShared, tabSelected, onToggleUser, tabColor='#00e676'}) => {
+const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedPartners=[], selfVisible=true, isShared, tabSelected, onToggleUser, tabColor='#ffd600'}) => {
   const [items, setItems] = useState([]);
   const [budgets, setBudgets] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()+1).padStart(2,'0'));
@@ -1398,7 +1398,7 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
                   style={{
                     display:'flex',flexDirection:'column',alignItems:'center',
                     padding:'4px 0 6px',cursor:item.otherMonth?'default':'pointer',
-                    background:hasCycle?'rgba(233,30,140,0.22)':hasFertile?'rgba(29,233,182,0.1)':'transparent',
+                    background:hasCycle?'rgba(255,61,61,0.22)':hasFertile?'rgba(29,233,182,0.1)':'transparent',
                     borderRadius:6,
                     opacity:item.otherMonth?0.25:1,
                     boxShadow:isToday?`inset 0 0 0 2px ${tabColor}`:'none',
@@ -1413,7 +1413,7 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
                   }}>{item.date.getDate()}</div>
                   {/* Event icons — SVG */}
                   <div style={{display:'flex',gap:1,marginTop:2,height:10,alignItems:'center',justifyContent:'center',color:'var(--text3)'}}>
-                    {hasCycle&&<svg viewBox="0 0 24 24" fill="#e91e8c" width="7" height="7"><path d="M12 2C12 2 5 10.5 5 15a7 7 0 0 0 14 0C19 10.5 12 2 12 2z"/></svg>}
+                    {hasCycle&&<svg viewBox="0 0 24 24" fill="#ff3b3b" width="7" height="7"><path d="M12 2C12 2 5 10.5 5 15a7 7 0 0 0 14 0C19 10.5 12 2 12 2z"/></svg>}
                     {hasFertile&&!hasCycle&&<svg viewBox="0 0 24 24" fill="none" stroke="#1de9b6" strokeWidth="2" width="7" height="7"><circle cx="12" cy="12" r="5"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/></svg>}
                     {realEvts.slice(0,2).map((e,j)=>{
                       const owner=getOwner(e.user||e.username,user,partner,partners);
@@ -1429,7 +1429,7 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
 
           {/* ── Legend inline — SVG icons matching tab icons ── */}
           <div style={{display:'flex',flexWrap:'wrap',gap:8,padding:'8px 12px 4px',borderTop:'1px solid var(--border)',marginTop:4}}>
-            {canSeeCycle&&<LegendItem color="#e91e8c" label="MENSTRUATION" icon={<svg viewBox="0 0 24 24" fill="#e91e8c" width="10" height="10"><path d="M12 2C12 2 5 10.5 5 15a7 7 0 0 0 14 0C19 10.5 12 2 12 2z"/></svg>}/>}
+            {canSeeCycle&&<LegendItem color="#ff3b3b" label="MENSTRUATION" icon={<svg viewBox="0 0 24 24" fill="#ff3b3b" width="10" height="10"><path d="M12 2C12 2 5 10.5 5 15a7 7 0 0 0 14 0C19 10.5 12 2 12 2z"/></svg>}/>}
             {canSeeCycle&&<LegendItem color="#1de9b6" label="OVULATION" icon={<svg viewBox="0 0 24 24" fill="none" stroke="#1de9b6" strokeWidth="2" width="10" height="10"><circle cx="12" cy="12" r="5"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/></svg>}/>}
             <LegendItem label="PERSONAL" icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="10" height="10"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>}/>
             <LegendItem label="WORK" icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="10" height="10"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>}/>
@@ -1461,9 +1461,9 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
               EVENTS <span style={{color:tabColor}}>{selectedEvents.filter(e=>!e.isCycle&&!e.isFertile&&(!search||(e.title||'').toLowerCase().includes(search.toLowerCase()))).length}</span> RECORDS
             </div>
             {canSeeCycle&&selectedEvents.some(e=>e.isCycle)&&(
-              <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',background:'rgba(233,30,140,0.1)',border:'1px solid rgba(233,30,140,0.25)',borderRadius:8,marginBottom:8}}>
+              <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',background:'rgba(255,61,61,0.1)',border:'1px solid rgba(255,61,61,0.25)',borderRadius:8,marginBottom:8}}>
                 <span style={{fontSize:16}}>🩸</span>
-                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,color:'#e91e8c'}}>MENSTRUATION DAY</div>
+                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,color:'#ff3b3b'}}>MENSTRUATION DAY</div>
               </div>
             )}
             {canSeeCycle&&selectedEvents.some(e=>e.isFertile)&&(
@@ -1653,7 +1653,7 @@ const BUDGET_SECTIONS = [
   {key:'want',   label:'LIFESTYLE NEEDS',      targetPct:20, color:'#e040fb'},
 ];
 
-const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPartners=[], selfVisible=true, isShared, tabSelected, onToggleUser, tabColor='#ffd600'}) => {
+const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPartners=[], selfVisible=true, isShared, tabSelected, onToggleUser, tabColor='#ff6d00'}) => {
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()+1).padStart(2,'0'));
   const [selectedYear, setSelectedYear]   = useState(new Date().getFullYear());
   const [allBudgets, setAllBudgets]       = useState([]);
@@ -2131,7 +2131,7 @@ const gymFormatDetail = w => {
 const GymUserCard = ({uname, workouts, user, partner, partners, tabColor, selectedMonth}) => {
   const [view, setView] = useState('weekly');
   const owner = getOwner(uname, user, partner, partners);
-  const oc = owner?.eventColor || tabColor || '#ff3b3b';
+  const oc = owner?.eventColor || tabColor || '#ff4081';
   const selYear = new Date().getFullYear();
   const selMonthIdx = parseInt(selectedMonth,10)-1;
   const isCurrentMonth = selectedMonth===String(new Date().getMonth()+1).padStart(2,'0');
@@ -2293,7 +2293,7 @@ const GymUserCard = ({uname, workouts, user, partner, partners, tabColor, select
   );
 };
 
-const GymPage = ({user, partner, partners=[], activePartners=[], permittedPartners=[], selfVisible=true, isShared, tabSelected, onToggleUser, tabColor='#ff3b3b'}) => {
+const GymPage = ({user, partner, partners=[], activePartners=[], permittedPartners=[], selfVisible=true, isShared, tabSelected, onToggleUser, tabColor='#ff4081'}) => {
   const _todayDayGym = new Date().toLocaleDateString('en-US',{weekday:'long'});
   const [search, setSearch] = useState('');
   const [actionWorkout, setActionWorkout] = useState(null);
@@ -3164,7 +3164,7 @@ const cycleStats = (cycles) => {
 };
 
 // Phase wheel SVG — proper donut
-const PhaseWheel = ({dayOfCycle=1, cycleLength=28, accentColor='#e91e8c'}) => {
+const PhaseWheel = ({dayOfCycle=1, cycleLength=28, accentColor='#ff3b3b'}) => {
   const S=260,cx=130,cy=130,outerR=100,innerR=62,numR=outerR+16;
   // Dynamic phases based on actual cycle length:
   // Menstruation: days 1-5
@@ -3177,7 +3177,7 @@ const PhaseWheel = ({dayOfCycle=1, cycleLength=28, accentColor='#e91e8c'}) => {
   const preOvDays = Math.max(fertStart - mensDays, 0);        // gray before fertile
   const lutDays   = Math.max(cycleLength - mensDays - preOvDays - ovDays, 1); // gray after
   const phases=[
-    {name:'Menstruation', days:mensDays,  color:'#e91e8c'},  // pink
+    {name:'Menstruation', days:mensDays,  color:'#ff3b3b'},  // red
     {name:'Follicular',   days:preOvDays, color:'#2a2d32'},  // dark gray
     {name:'Ovulation',    days:ovDays,    color:'#1de9b6'},  // teal
     {name:'Luteal',       days:lutDays,   color:'#2a2d32'},  // dark gray
@@ -3204,7 +3204,7 @@ const PhaseWheel = ({dayOfCycle=1, cycleLength=28, accentColor='#e91e8c'}) => {
     : dayOfCycle<fertStart           ? 'FOLLICULAR'
     : dayOfCycle<=(fertStart+ovDays) ? 'OVULATION'
     : 'LUTEAL';
-  const phaseColor = phase==='MENSTRUATION'?'#e91e8c':phase==='OVULATION'?'#1de9b6':'#8a8f99';
+  const phaseColor = phase==='MENSTRUATION'?'#ff3b3b':phase==='OVULATION'?'#1de9b6':'#8a8f99';
   return (
     <svg width={S} height={S} viewBox={`0 0 ${S} ${S}`}>
       <defs>
@@ -3237,7 +3237,7 @@ const PhaseWheel = ({dayOfCycle=1, cycleLength=28, accentColor='#e91e8c'}) => {
   );
 };
 
-const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPartners=[], selfVisible=true, isShared, tabSelected, onToggleUser, tabColor='#e91e8c'}) => {
+const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPartners=[], selfVisible=true, isShared, tabSelected, onToggleUser, tabColor='#ff3b3b'}) => {
   // allCycles stored per username: { username: [cycles] }
   const [allCycles, setAllCycles]   = useState({});
   const [showForm, setShowForm]     = useState(false);
@@ -3332,16 +3332,16 @@ const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPart
           <UserRow user={user} partner={partner} partners={partners} activePartners={activePartners} permittedPartners={permittedPartners} selfVisible={selfVisible} tabSelected={tabSelected} isShared={isShared} onToggleUser={onToggleUser}/>
           {/* ── Health data consent gate ── */}
           {!isMale&&!cycleConsent&&(
-            <div style={{background:'var(--bg2)',border:'1px solid rgba(233,30,140,0.3)',borderRadius:8,padding:'24px 20px',margin:'16px 0',textAlign:'center'}}>
+            <div style={{background:'var(--bg2)',border:'1px solid rgba(255,61,61,0.3)',borderRadius:8,padding:'24px 20px',margin:'16px 0',textAlign:'center'}}>
               <div style={{fontSize:28,marginBottom:12,opacity:0.7}}>🩺</div>
-              <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:20,letterSpacing:'0.04em',color:'var(--pink)',marginBottom:8}}>HEALTH DATA CONSENT</div>
+              <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:20,letterSpacing:'0.04em',color:'#ff3b3b',marginBottom:8}}>HEALTH DATA CONSENT</div>
               <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',lineHeight:1.7,marginBottom:20,maxWidth:320,margin:'0 auto 20px'}}>
                 This module records sensitive health data including menstrual cycles, symptoms, and fertility markers.
                 This data is stored securely and never shared with third parties without your explicit consent.
                 You may revoke consent at any time from your Profile settings.
               </div>
               <button onClick={()=>{localStorage.setItem(`cycleConsent_${user.username}`,'granted');setCycleConsent(true);}}
-                style={{background:'var(--pink)',color:'#fff',border:'none',borderRadius:6,padding:'12px 24px',fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:15,letterSpacing:'0.08em',cursor:'pointer',display:'block',width:'100%',marginBottom:8}}>
+                style={{background:'#ff3b3b',color:'#fff',border:'none',borderRadius:6,padding:'12px 24px',fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:15,letterSpacing:'0.08em',cursor:'pointer',display:'block',width:'100%',marginBottom:8}}>
                 I CONSENT — ENABLE CYCLE TRACKING
               </button>
               <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'var(--text3)',letterSpacing:'0.1em',marginTop:8}}>
@@ -3364,7 +3364,7 @@ const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPart
             });
             const isOwn    = u.username === user.username;
             const owner    = getOwner(u.username, user, partner, partners) || u;
-            const ac = owner.eventColor || '#e91e8c';
+            const ac = owner.eventColor || '#ff3b3b';
 
             // ── Use month cycle if present, else latest overall for predictions ──
             // For predictions: use the most recent cycle up to and including selected month
@@ -3397,7 +3397,7 @@ const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPart
             const follDays = Math.max(fertStartDay-mensDays,0);
             const lutDays = Math.max(avgLen-mensDays-follDays-ovDays,1);
             const phaseBreakdown = [
-              {label:'MENSTRUAL',  days:mensDays, color:'#e91e8c'},
+              {label:'MENSTRUAL',  days:mensDays, color:'#ff3b3b'},
               {label:'FOLLICULAR', days:follDays, color:'#1de9b6'},
               {label:'OVULATION',  days:ovDays,   color:'#00e676'},
               {label:'LUTEAL',     days:lutDays,  color:'#448aff'},
@@ -3470,7 +3470,7 @@ const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPart
                     <div style={{flex:1,padding:'14px 16px',display:'flex',flexDirection:'column',gap:8}}>
                       <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline'}}>
                         <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.14em',color:'rgba(255,255,255,0.58)'}}>NEXT PERIOD</span>
-                        <span style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'#e91e8c',fontWeight:600}}>
+                        <span style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'#ff3b3b',fontWeight:600}}>
                           {nextPeriodStr}{deltaDays!==null?' ±1d':''}
                         </span>
                       </div>
@@ -3607,7 +3607,7 @@ const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPart
                       <PhaseWheel dayOfCycle={dayOfCycle} cycleLength={avgLen} accentColor={ac}/>
                       <div style={{display:'flex',gap:16,justifyContent:'center',marginTop:8,flexWrap:'wrap'}}>
                         {[
-                          {color:'#e91e8c', label:`MENSTRUATION · 1-5`},
+                          {color:'#ff3b3b', label:`MENSTRUATION · 1-5`},
                           {color:'#00e676', label:`OVULATION · ${Math.max(avgLen-14-4,6)}-${Math.min(avgLen-14+1,avgLen-1)}`},
                         ].map(({color,label})=>(
                           <div key={label} style={{display:'flex',alignItems:'center',gap:6}}>
@@ -3661,7 +3661,7 @@ const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPart
                     <div style={{background:'#0d0d0b',border:`1px solid rgba(255,255,255,0.07)`,borderRadius:12,padding:'12px 12px 10px'}}>
                       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
                         <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.12em',color:'rgba(255,255,255,0.50)'}}>PERIOD DURATION</div>
-                        <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'#e91e8c',fontWeight:600}}>{avgDur}d</div>
+                        <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'#ff3b3b',fontWeight:600}}>{avgDur}d</div>
                       </div>
                       <div style={{display:'flex',alignItems:'flex-end',gap:3,height:44}}>
                         {durations.map((d,i)=>{
@@ -3670,7 +3670,7 @@ const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPart
                           return (
                             <div key={i} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:2}}>
                               <div style={{width:'100%',height:36,display:'flex',alignItems:'flex-end'}}>
-                                <div style={{width:'100%',height:h,background:'#e91e8c',borderRadius:'3px 3px 0 0',opacity:i===durations.length-1?1:0.6,boxShadow:i===durations.length-1?'0 0 8px #e91e8c88':'none'}}/>
+                                <div style={{width:'100%',height:h,background:'#ff3b3b',borderRadius:'3px 3px 0 0',opacity:i===durations.length-1?1:0.6,boxShadow:i===durations.length-1?'0 0 8px #ff3b3b88':'none'}}/>
                               </div>
                               <div style={{fontFamily:"'DM Mono',monospace",fontSize:6,color:'rgba(255,255,255,0.25)'}}>C{i+1}</div>
                             </div>
@@ -3766,7 +3766,7 @@ const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPart
 };
 
 /* ── PROFILE PAGE ── */
-const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingConfig, setSharingConfig, onLogout, tabColor='#b06aff'}) => {
+const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingConfig, setSharingConfig, onLogout, tabColor='#00ff41'}) => {
   const [form, setForm] = useState({
     firstName:   user.firstName||'',
     lastName:    user.lastName||'',
@@ -4386,11 +4386,11 @@ const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
 
 const ALL_TABS = [
   {id:'calendar', label:'CAL', color:'#448aff'},
-  {id:'budget',   label:'BUD',   color:'#ffd600'},
-  {id:'finances', label:'FIN', color:'#00e676'},
-  {id:'gym',      label:'GYM',      color:'#ff3b3b'},
+  {id:'budget',   label:'BUD',   color:'#ff6d00'},
+  {id:'finances', label:'FIN', color:'#ffd600'},
+  {id:'gym',      label:'GYM',      color:'#ff4081'},
   {id:'meals',    label:'EAT',    color:'#d67bff'},
-  {id:'cycle',    label:'CYC',    color:'#e91e8c', cycleOnly:true},
+  {id:'cycle',    label:'CYC',    color:'#ff3b3b', cycleOnly:true},
 ];
 
 const App = () => {
@@ -4500,7 +4500,7 @@ const App = () => {
   if(error) return <div style={{padding:'40px',color:'var(--red)',fontFamily:"'DM Mono',monospace"}}>{error}</div>;
   if(!user) return <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',color:'var(--text3)',fontFamily:"'DM Mono',monospace",fontSize:'11px',letterSpacing:'0.14em'}}>LOADING...</div>;
 
-  const TAB_COLORS = {budget:'#ffd600',finances:'#00e676',calendar:'#448aff',gym:'#ff3b3b',meals:'#d67bff',cycle:'#e91e8c',profile:'#b06aff'};
+  const TAB_COLORS = {budget:'#ff6d00',finances:'#ffd600',calendar:'#448aff',gym:'#ff4081',meals:'#d67bff',cycle:'#ff3b3b',profile:'#00ff41'};
   const tabColor = TAB_COLORS[activeTab] || '#00e676';
   const TAB_KEY = {finances:'Finances',calendar:'Calendar',budget:'Budget',gym:'Gym',meals:'Meals',cycle:'Cycle'};
   const tabSharingKey = TAB_KEY[activeTab];
@@ -4576,7 +4576,7 @@ const App = () => {
           </div>
         </div>
         <div style={{display:'flex',alignItems:'center',gap:4,flexShrink:0,marginLeft:8}}>
-          <button onClick={()=>setActiveTab('profile')} title="Profile" style={{display:'flex',flexDirection:'column',alignItems:'center',gap:2,padding:'4px 8px',border:`1px solid ${activeTab==='profile'?'#b06aff':'rgba(255,255,255,0.1)'}`,borderRadius:4,background:activeTab==='profile'?'rgba(176,106,255,0.14)':'transparent',color:activeTab==='profile'?'#b06aff':'rgba(255,255,255,0.4)',cursor:'pointer',transition:'all 0.15s'}}>
+          <button onClick={()=>setActiveTab('profile')} title="Profile" style={{display:'flex',flexDirection:'column',alignItems:'center',gap:2,padding:'4px 8px',border:`1px solid ${activeTab==='profile'?'#00ff41':'rgba(255,255,255,0.1)'}`,borderRadius:4,background:activeTab==='profile'?'rgba(0,255,65,0.14)':'transparent',color:activeTab==='profile'?'#00ff41':'rgba(255,255,255,0.4)',cursor:'pointer',transition:'all 0.15s'}}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="16" height="16"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             <span style={{fontFamily:"'DM Mono',monospace",fontSize:7,letterSpacing:'0.1em',textTransform:'uppercase'}}>PROFILE</span>
           </button>
