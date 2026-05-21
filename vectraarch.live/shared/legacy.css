@@ -301,8 +301,26 @@ body::before { display: none; }
 .page-outer { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
 
 /* ── TOP BAR ── */
-.top-bar { flex-shrink: 0; height: var(--top-h); display: flex; align-items: center; padding: 0 3px; border-bottom: 1px solid var(--border); background: var(--bg); gap: 4px; overflow: hidden; }
-.top-eyebrow { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--text3); }
+.top-bar { 
+  flex-shrink: 0; 
+  height: 18px;  /* was var(--top-h), now fixed small */
+  display: flex; 
+  align-items: center; 
+  padding: 0 6px; 
+  border-bottom: 1px solid var(--border); 
+  background: var(--bg); 
+  gap: 6px; 
+  overflow: hidden; 
+}
+
+.top-eyebrow { 
+  font-family: 'DM Mono', monospace; 
+  font-size: 7px;  /* down from 9px */
+  letter-spacing: 0.12em;  /* tightened */
+  text-transform: uppercase; 
+  color: var(--text3); 
+  line-height: 1;
+}
 
 /* ── PAGE SCROLL ── */
 .page-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; }
