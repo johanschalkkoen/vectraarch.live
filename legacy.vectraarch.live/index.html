@@ -2268,6 +2268,7 @@ const GymUserCard = ({uname, workouts, user, partner, partners, tabColor, select
 };
 
 const GymPage = ({user, partner, partners=[], activePartners=[], permittedPartners=[], selfVisible=true, isShared, tabSelected, onToggleUser, tabColor='#ff3b3b'}) => {
+  const _todayDayGym = new Date().toLocaleDateString('en-US',{weekday:'long'});
   const [search, setSearch] = useState('');
   const [actionWorkout, setActionWorkout] = useState(null);
   const [confirmDelGym, setConfirmDelGym] = useState(null);
@@ -2276,6 +2277,7 @@ const GymPage = ({user, partner, partners=[], activePartners=[], permittedPartne
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()+1).padStart(2,'0'));
   const [showForm, setShowForm] = useState(false);
   const [isCustomEx, setIsCustomEx] = useState(false);
+  const [expandedGymDays, setExpandedGymDays] = useState(new Set([_todayDayGym]));
   const [form, setForm] = useState({day:'Monday',exercise:'',sets:'3',reps:'10',weight:'60',date:now(),type:'strength'});
   const [alert, setAlert] = useState({msg:'',type:''});
   const msg=(m,t='ok')=>{ setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
@@ -2362,18 +2364,23 @@ const GymPage = ({user, partner, partners=[], activePartners=[], permittedPartne
             const visUsers=[...(selfVisible?[user.username]:[]),...(activePartners||[]).map(p=>p.username)];
             const dayWorkouts = workouts.filter(w=>(w.day===day)&&(w.date||'').slice(5,7)===selectedMonth&&(visUsers.length===0||visUsers.includes(String(w.userKey)))&&(!search||(w.exercise||'').toLowerCase().includes(search.toLowerCase())));
             const totalEx = dayWorkouts.length;
+            const isToday = day===_todayDayGym;
+            const isOpen = expandedGymDays.has(day);
             return (
-              <div key={day} className="day-block">
-                <div className="day-header">
-                  <div className="day-name">{day}</div>
+              <div key={day} className="day-block" style={{borderLeft:isToday?`2px solid ${tabColor}`:'2px solid transparent',paddingLeft:isToday?'8px':'8px'}}>
+                <div className="day-header" style={{cursor:'pointer'}} onClick={()=>setExpandedGymDays(prev=>{const n=new Set(prev);n.has(day)?n.delete(day):n.add(day);return n;})}>
+                  <div className="day-name" style={{color:isToday?tabColor:'var(--text2)',fontWeight:isToday?800:600}}>
+                    {day}{isToday&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:tabColor,letterSpacing:'0.1em',marginLeft:6}}>TODAY</span>}
+                  </div>
                   <div style={{display:'flex',alignItems:'center',gap:12}}>
                     <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,color:'var(--text3)'}}>
-                      <span style={{color:tabColor}}>{totalEx}</span> EX
+                      <span style={{color:isToday?tabColor:'var(--text3)'}}>{totalEx}</span> EX
                     </div>
-                    <button className="day-add-btn" onClick={()=>{setForm(p=>({...p,day}));setShowForm(true);}}>+ add</button>
+                    <span style={{color:'rgba(255,255,255,0.3)',fontSize:10}}>{isOpen?'▲':'▼'}</span>
+                    <button className="day-add-btn" onClick={e=>{e.stopPropagation();setForm(p=>({...p,day}));setShowForm(true);}}>+ add</button>
                   </div>
                 </div>
-                {totalEx===0
+                {isOpen&&(totalEx===0
                   ? <div className="rest-day">· Rest day</div>
                   : dayWorkouts.map(w=>{
                       const wt  = gymGetType(w.exercise);
@@ -2395,7 +2402,7 @@ const GymPage = ({user, partner, partners=[], activePartners=[], permittedPartne
                         </div>
                       );
                     })
-                }
+                )}
               </div>
             );
           })}
@@ -2572,7 +2579,18 @@ const MealUserCard = ({uname, meals, user, partner, partners, tabColor, selected
   const tdee = customTarget || _calcTDEE(ownerFull) || 2000;
   const uMeals = meals.filter(m=>String(m.userKey)===String(uname));
   const monthMeals = uMeals.filter(m=>(m.date||'').slice(5,7)===selectedMonth);
-  const todayMeals = uMeals.filter(m=>{if(m.date) return m.date.slice(0,10)===todayStr; return m.day===todayDayName&&isCurrentMonth;});
+  const todayMeals = (()=>{
+    const byDate = uMeals.filter(m=>m.date&&m.date.slice(0,10)===todayStr);
+    if(byDate.length>0) return byDate;
+    // Fall back to most recent occurrence of today's weekday within selected month
+    const sameDayMonth = uMeals.filter(m=>{
+      const sd=m.day||(m.date?new Date(m.date).toLocaleDateString('en-US',{weekday:'long'}):'');
+      return sd===todayDayName&&(m.date||'').slice(5,7)===selectedMonth;
+    }).sort((a,b)=>new Date(b.date||0)-new Date(a.date||0));
+    if(!sameDayMonth.length) return [];
+    const recentDate=(sameDayMonth[0].date||'').slice(0,10);
+    return recentDate?sameDayMonth.filter(m=>(m.date||'').slice(0,10)===recentDate):sameDayMonth;
+  })();
   const todayCal = Math.round(todayMeals.reduce((s,m)=>s+parseFloat(m.calories||0),0));
   const monthCal = Math.round(monthMeals.reduce((s,m)=>s+parseFloat(m.calories||0),0));
   const monthTarget = tdee*daysElapsed;
@@ -2748,6 +2766,7 @@ const MealUserCard = ({uname, meals, user, partner, partners, tabColor, selected
 };
 
 const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPartners=[], selfVisible=true, isShared, tabSelected, onToggleUser, tabColor='#d67bff'}) => {
+  const _todayDayMeals = new Date().toLocaleDateString('en-US',{weekday:'long'});
   const [search, setSearch] = useState('');
   const [actionMeal, setActionMeal] = useState(null);
   const [confirmDelMeal, setConfirmDelMeal] = useState(null);
@@ -2758,6 +2777,7 @@ const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPart
   const [typeFilter, setTypeFilter] = useState('All');
   const [showForm, setShowForm] = useState(false);
   const [isCustomMeal, setIsCustomMeal] = useState(false);
+  const [expandedMealDays, setExpandedMealDays] = useState(new Set([_todayDayMeals]));
   const [form, setForm] = useState({name:'',mealType:'breakfast',calories:'',note:'',date:now()});
   const [alert, setAlert] = useState({msg:'',type:''});
   const msg=(m,t='ok')=>{ setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
@@ -2939,24 +2959,28 @@ const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPart
           {/* Days first — all users' meals together under each day, same as Gym */}
           {DAYS.map(day=>{
             const dayMeals = filtered.filter(m=>{
-              // Match by stored day field, or derive from date
               const storedDay = m.day||(m.date?new Date(m.date).toLocaleDateString('en-US',{weekday:'long'}):'');
               return storedDay===day&&(!search||(m.description||m.name||'').toLowerCase().includes(search.toLowerCase()));
             });
             const totalMeals = dayMeals.length;
             const dayCal = dayMeals.reduce((s,m)=>s+parseFloat(m.calories||0),0);
+            const isToday = day===_todayDayMeals;
+            const isOpen = expandedMealDays.has(day);
             return (
-              <div key={day} className="day-block">
-                <div className="day-header">
-                  <div className="day-name">{day}</div>
+              <div key={day} className="day-block" style={{borderLeft:isToday?`2px solid ${tabColor}`:'2px solid transparent',paddingLeft:'8px'}}>
+                <div className="day-header" style={{cursor:'pointer'}} onClick={()=>setExpandedMealDays(prev=>{const n=new Set(prev);n.has(day)?n.delete(day):n.add(day);return n;})}>
+                  <div className="day-name" style={{color:isToday?tabColor:'var(--text2)',fontWeight:isToday?800:600}}>
+                    {day}{isToday&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:tabColor,letterSpacing:'0.1em',marginLeft:6}}>TODAY</span>}
+                  </div>
                   <div style={{display:'flex',alignItems:'center',gap:12}}>
                     <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,color:'var(--text3)'}}>
-                      <span style={{color:tabColor}}>{totalMeals}</span> MEAL{totalMeals!==1?'S':''}
+                      <span style={{color:isToday?tabColor:'var(--text3)'}}>{totalMeals}</span> MEAL{totalMeals!==1?'S':''}
                       {dayCal>0&&<span style={{color:'var(--text3)',fontWeight:400,fontSize:12}}> · {Math.round(dayCal)} kcal</span>}
                     </div>
-                    <button className="day-add-btn" style={{borderColor:'var(--meals-color,#d67bff)',color:'var(--meals-color,#d67bff)'}}
-                      onClick={()=>{
-                        // Pre-set the date to the nearest occurrence of this day
+                    <span style={{color:'rgba(255,255,255,0.3)',fontSize:10}}>{isOpen?'▲':'▼'}</span>
+                    <button className="day-add-btn" style={{borderColor:tabColor,color:tabColor}}
+                      onClick={e=>{
+                        e.stopPropagation();
                         const today=new Date();
                         const dayIdx=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'].indexOf(day);
                         const diff=(dayIdx-today.getDay()+7)%7;
@@ -2967,7 +2991,7 @@ const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPart
                       }}>+ ADD</button>
                   </div>
                 </div>
-                {totalMeals===0
+                {isOpen&&(totalMeals===0
                   ? <div className="rest-day">· No meals logged</div>
                   : dayMeals.map(m=>{
                       const cal   = parseFloat(m.calories)||0;
@@ -2996,7 +3020,7 @@ const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPart
                         </div>
                       );
                     })
-                }
+                )}
               </div>
             );
           })}
