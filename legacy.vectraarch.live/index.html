@@ -2388,7 +2388,11 @@ const GymPage = ({user, partner, partners=[], activePartners=[], permittedPartne
           {/* Days first — all users' workouts together under each day */}
           {DAYS.map(day=>{
             const visUsers=[...(selfVisible?[user.username]:[]),...(activePartners||[]).map(p=>p.username)];
-            const dayWorkouts = workouts.filter(w=>(w.day===day)&&(w.date||'').slice(5,7)===selectedMonth&&(visUsers.length===0||visUsers.includes(String(w.userKey)))&&(!search||(w.exercise||'').toLowerCase().includes(search.toLowerCase())));
+            const _allDayWorkouts = workouts.filter(w=>(w.day===day)&&(w.date||'').slice(5,7)===selectedMonth&&(visUsers.length===0||visUsers.includes(String(w.userKey)))&&(!search||(w.exercise||'').toLowerCase().includes(search.toLowerCase())));
+            // Show only the most recent date's batch per weekday
+            const _wDates=[...(new Set(_allDayWorkouts.map(w=>(w.date||'').slice(0,10))))].filter(Boolean).sort((a,b)=>b.localeCompare(a));
+            const _wRecentDate=_wDates[0];
+            const dayWorkouts=_wRecentDate?_allDayWorkouts.filter(w=>(w.date||'').slice(0,10)===_wRecentDate):_allDayWorkouts;
             const totalEx = dayWorkouts.length;
             const isToday = day===_todayDayGym;
             const isOpen = expandedGymDays.has(day);
@@ -3024,10 +3028,14 @@ const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPart
 
           {/* Days first — all users' meals together under each day, same as Gym */}
           {DAYS.map(day=>{
-            const dayMeals = filtered.filter(m=>{
+            const _allDayMeals = filtered.filter(m=>{
               const storedDay = m.day||(m.date?new Date(m.date).toLocaleDateString('en-US',{weekday:'long'}):'');
               return storedDay===day&&(!search||(m.description||m.name||'').toLowerCase().includes(search.toLowerCase()));
             });
+            // Show only the most recent date's batch (matches card daily view logic)
+            const _dayDates=[...(new Set(_allDayMeals.map(m=>(m.date||'').slice(0,10))))].filter(Boolean).sort((a,b)=>b.localeCompare(a));
+            const _recentDate=_dayDates[0];
+            const dayMeals=_recentDate?_allDayMeals.filter(m=>(m.date||'').slice(0,10)===_recentDate):_allDayMeals;
             const totalMeals = dayMeals.length;
             const dayCal = dayMeals.reduce((s,m)=>s+parseFloat(m.calories||0),0);
             const isToday = day===_todayDayMeals;
@@ -4580,7 +4588,7 @@ const App = () => {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="16" height="16"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             <span style={{fontFamily:"'DM Mono',monospace",fontSize:7,letterSpacing:'0.1em',textTransform:'uppercase'}}>PROFILE</span>
           </button>
-          {isAdmin&&<button onClick={()=>setActiveTab('admin')} title="Admin" style={{display:'flex',flexDirection:'column',alignItems:'center',gap:2,padding:'4px 8px',border:`1px solid ${activeTab==='admin'?'#ff9800':'rgba(255,255,255,0.1)'}`,borderRadius:4,background:activeTab==='admin'?'rgba(255,152,0,0.14)':'transparent',color:activeTab==='admin'?'#ff9800':'rgba(255,255,255,0.4)',cursor:'pointer',transition:'all 0.15s'}}>
+          {isAdmin&&<button onClick={()=>setActiveTab('admin')} title="Admin" style={{display:'flex',flexDirection:'column',alignItems:'center',gap:2,padding:'4px 8px',border:`1px solid ${activeTab==='admin'?'#00ff41':'rgba(255,255,255,0.1)'}`,borderRadius:4,background:activeTab==='admin'?'rgba(0,255,65,0.14)':'transparent',color:activeTab==='admin'?'#00ff41':'rgba(255,255,255,0.4)',cursor:'pointer',transition:'all 0.15s'}}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="16" height="16"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
             <span style={{fontFamily:"'DM Mono',monospace",fontSize:7,letterSpacing:'0.1em',textTransform:'uppercase'}}>ADMIN</span>
           </button>}
