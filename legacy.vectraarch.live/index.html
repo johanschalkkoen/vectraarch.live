@@ -4331,8 +4331,8 @@ const App = () => {
         </div>
       </div>
       <div style={{flex:1,overflow:'hidden',minHeight:0}}>
-        {activeTab==='fin'&&<FinancesPage {...sharedProps}/>}
-        {activeTab==='cal'&&<CalendarPage {...sharedProps}/>}
+        {activeTab==='finances'&&<FinancesPage {...sharedProps}/>}
+        {activeTab==='calendar'&&<CalendarPage {...sharedProps}/>}
         {activeTab==='budget'  &&<BudgetPage   {...sharedProps}/>}
         {activeTab==='gym'     &&<GymPage      {...sharedProps}/>}
         {activeTab==='meals'   &&<MealsPage    {...sharedProps}/>}
