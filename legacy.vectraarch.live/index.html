@@ -1422,41 +1422,45 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
 };
 
 /* ── BUDGET PAGE ── */
+const DEFAULT_BUDGET_ALLOCATIONS = [
+  {category:'Rent / Bond',            pct:25, type:'need'},
+  {category:'Food',                   pct:10, type:'need'},
+  {category:'Household Essentials',   pct: 5, type:'need'},
+  {category:'Transport',              pct:10, type:'need'},
+  {category:'Savings',                pct:10, type:'saving'},
+  {category:'Retirement',             pct: 5, type:'saving'},
+  {category:'Medical Aid',            pct: 5, type:'saving'},
+  {category:'Education',              pct: 5, type:'saving'},
+  {category:'Financial Services',     pct: 5, type:'saving'},
+  {category:'Entertainment & Dining', pct:20, type:'want'},
+];
+
+const BUDGET_SECTIONS = [
+  {key:'need',   label:'ESSENTIAL EXPENSES',   targetPct:50, color:'#448aff'},
+  {key:'saving', label:'FINANCIAL PRIORITIES', targetPct:30, color:'#00e676'},
+  {key:'want',   label:'LIFESTYLE NEEDS',      targetPct:20, color:'#e040fb'},
+];
+
 const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPartners=[], selfVisible=true, isShared, tabSelected, onToggleUser, tabColor='#ffd600'}) => {
-  const [search, setSearch]             = useState('');
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()+1).padStart(2,'0'));
   const [selectedYear, setSelectedYear]   = useState(new Date().getFullYear());
-  const [budgets, setBudgets]           = useState([]);
-  const [finances, setFinances]         = useState([]);
-  const [showForm, setShowForm]         = useState(false);
-  const [editBudgetId, setEditBudgetId] = useState(null);
-  const [actionBudget, setActionBudget] = useState(null);
-  const [confirmDelBud, setConfirmDelBud] = useState(null);
-  const [alert, setAlert]               = useState({msg:'',type:''});
-
-  // Budget form: name, planned amount, category type (need/want/saving)
-  const blankForm = useCallback(()=>({
-    category:'', income:'', manualIncome:'', type:'need',
-    expenses:[{category:'',amount:''}],
-    date:`${selectedYear}-${selectedMonth}-01`
-  }),[selectedMonth, selectedYear]);
-  const [form, setForm] = useState(()=>({
-    category:'', income:'', manualIncome:'', type:'need',
-    expenses:[{category:'',amount:''}],
-    date:`${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}-01`
-  }));
+  const [allBudgets, setAllBudgets]       = useState([]);
+  const [finances, setFinances]           = useState([]);
+  const [editing, setEditing]             = useState(false);
+  const [draftIncome, setDraftIncome]     = useState('');
+  const [draftAllocs, setDraftAllocs]     = useState(DEFAULT_BUDGET_ALLOCATIONS.map(a=>({...a})));
+  const [saving, setSaving]               = useState(false);
+  const [confirmDel, setConfirmDel]       = useState(false);
+  const [alert, setAlert]                 = useState({msg:'',type:''});
 
   const msg = (m,t='ok')=>{ setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
 
-  const CAT_TYPES = [
-    {key:'need',  label:'NEEDS',   color:'#448aff', desc:'Housing · Food · Utilities · Transport'},
-    {key:'want',  label:'WANTS',   color:'#e040fb', desc:'Entertainment · Dining · Shopping'},
-    {key:'saving',label:'SAVINGS', color:'#00e676', desc:'Emergency fund · Investments · Goals'},
-  ];
+  const selectedPeriod = `${selectedYear}-${selectedMonth}`;
+  const monthLabel = MONTHS.find(m=>m.v===selectedMonth)?.l||'';
 
   const fetchAll = useCallback(async()=>{
     const users=[...(selfVisible?[user.username]:[]),...(activePartners||[]).map(p=>p.username)];
-    if(users.length===0){setBudgets([]);setFinances([]);return;}
+    if(users.length===0){setAllBudgets([]);setFinances([]);return;}
     try {
       const [buds,fins] = await Promise.all([
         Promise.all(users.map(u=>axios.get(`${API}/budget`,{params:{user:u}})
@@ -1472,104 +1476,206 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
         )).then(r=>r.flat()),
         Promise.all(users.map(u=>axios.get(`${API}/financial`,{params:{user:u}}).then(r=>r.data).catch(()=>[]))).then(r=>r.flat())
       ]);
-      setBudgets(buds);
+      setAllBudgets(buds);
       setFinances(fins);
     } catch {}
-  },[user.username, partner, isShared, selfVisible, JSON.stringify((activePartners||[]).map(p=>p.username))]);
+  },[user.username, selfVisible, JSON.stringify((activePartners||[]).map(p=>p.username))]);
 
   useEffect(()=>{ fetchAll(); },[fetchAll]);
 
-  // ── Computed values ──
-  const monthLabel = MONTHS.find(m=>m.v===selectedMonth)?.l||'';
-  const selectedPeriod = `${selectedYear}-${selectedMonth}`;
+  const budgetEntry = useMemo(()=>
+    allBudgets.find(b=>(b.user===user.username||!b.user)&&(b.date||'').startsWith(selectedPeriod))||null
+  ,[allBudgets, user.username, selectedPeriod]);
 
   const monthFinances = useMemo(()=>
     finances.filter(f=>(f.date||'').startsWith(selectedPeriod))
   ,[finances, selectedPeriod]);
 
-  const totalIncome  = useMemo(()=>monthFinances.filter(f=>f.type==='income').reduce((s,f)=>s+parseFloat(f.amount||0),0),[monthFinances]);
-  const totalExpense = useMemo(()=>monthFinances.filter(f=>f.type==='expense').reduce((s,f)=>s+parseFloat(f.amount||0),0),[monthFinances]);
-  const netFlow      = totalIncome - totalExpense;
+  const incomeVal = parseFloat(editing ? draftIncome : (budgetEntry?.income||''))||0;
 
-  const monthBudgets = useMemo(()=>{
-    const users=[...(selfVisible?[user.username]:[]),...(activePartners||[]).map(p=>p.username)];
-    return budgets.filter(b=>(b.date||'').startsWith(selectedPeriod) && users.includes(b.user||user.username));
-  },[budgets, selectedPeriod, selfVisible, JSON.stringify((activePartners||[]).map(p=>p.username))]);
+  const allocations = useMemo(()=>{
+    if(editing) return draftAllocs;
+    if(!budgetEntry) return DEFAULT_BUDGET_ALLOCATIONS;
+    const exps = budgetEntry.expenses||[];
+    if(exps.length===0) return DEFAULT_BUDGET_ALLOCATIONS;
+    return exps.map(e=>({
+      category: e.category||'',
+      pct: e.pct!=null ? parseFloat(e.pct) : (budgetEntry.income>0 ? Math.round((parseFloat(e.amount||0)/budgetEntry.income)*100) : 0),
+      type: e.type||'need',
+    }));
+  },[editing, draftAllocs, budgetEntry]);
 
-  const filteredBudgets = useMemo(()=>
-    monthBudgets.filter(b=>!search||(b.expenses[0]?.category||'').toLowerCase().includes(search.toLowerCase()))
-  ,[monthBudgets, search]);
+  const getActual = (catName) => {
+    const lc = catName.toLowerCase();
+    return monthFinances
+      .filter(f=>f.type==='expense'&&(f.category||'').toLowerCase().includes(lc))
+      .reduce((s,f)=>s+parseFloat(f.amount||0),0);
+  };
 
-  // Per-type totals
-  const byType = useMemo(()=>{
-    const result = {};
-    CAT_TYPES.forEach(ct=>{
-      const typeBuds = monthBudgets.filter(b=>(b.budget_type||b.expenses[0]?.type||'need')===ct.key);
-      const planned  = typeBuds.reduce((s,b)=>s+b.expenses.reduce((ss,e)=>ss+parseFloat(e.amount||0),0),0);
-      // Match actual expenses to this category type by category name
-      const catNames = typeBuds.flatMap(b=>b.expenses.map(e=>(e.category||'').toLowerCase()));
-      const actual   = monthFinances.filter(f=>f.type==='expense'&&catNames.some(n=>n&&(f.category||'').toLowerCase().includes(n))).reduce((s,f)=>s+parseFloat(f.amount||0),0);
-      result[ct.key] = {planned, actual, left: planned-actual};
-    });
-    return result;
-  },[monthBudgets, monthFinances]);
+  const startEdit = () => {
+    const exps = budgetEntry?.expenses||[];
+    const allocs = exps.length>0
+      ? exps.map(e=>({
+          category:e.category||'',
+          pct: e.pct!=null ? parseFloat(e.pct) : (budgetEntry?.income>0 ? Math.round((parseFloat(e.amount||0)/budgetEntry.income)*100) : 0),
+          type: e.type||'need',
+        }))
+      : DEFAULT_BUDGET_ALLOCATIONS.map(a=>({...a}));
+    setDraftIncome(String(budgetEntry?.income||''));
+    setDraftAllocs(allocs);
+    setEditing(true);
+  };
 
-  // 50/30/20 rule suggestions based on income
-  const rule = useMemo(()=>({
-    need:   totalIncome * 0.50,
-    want:   totalIncome * 0.30,
-    saving: totalIncome * 0.20,
-  }),[totalIncome]);
+  const cancelEdit = () => setEditing(false);
 
-  // Add/remove expense rows
-  const addRow    = () => setForm(p=>({...p, expenses:[...p.expenses,{category:'',amount:''}]}));
-  const removeRow = (i) => setForm(p=>({...p, expenses:p.expenses.filter((_,j)=>j!==i)}));
-  const updateRow = (i, field, val) => setForm(p=>({...p, expenses:p.expenses.map((r,j)=>j===i?{...r,[field]:val}:r)}));
-
-  const handleSave = async()=>{
-    const validRows = form.expenses.filter(r=>r.category&&parseFloat(r.amount)>0);
-    if(validRows.length===0){ msg('Add at least one category with an amount.','err'); return; }
-    const total = validRows.reduce((s,r)=>s+parseFloat(r.amount),0);
-    // Use manual income if set, otherwise use computed totalIncome from finances
-    const incomeSource = parseFloat(form.manualIncome)||totalIncome||total;
-    const expJson = JSON.stringify(validRows.map(r=>({category:r.category,amount:parseFloat(r.amount),type:form.type})));
-    const dateVal = (form.date||now()).slice(0,7)+'-01';
+  const handleSave = async () => {
+    const inc = parseFloat(draftIncome)||0;
+    if(inc<=0){ msg('Enter your monthly net income.','err'); return; }
+    const validAllocs = draftAllocs.filter(a=>a.category&&parseFloat(a.pct||0)>0);
+    if(validAllocs.length===0){ msg('Add at least one allocation.','err'); return; }
+    setSaving(true);
     try {
-      if(editBudgetId){
-        await axios.put(`${API}/budget/${editBudgetId}`,{
-          user:user.username, income:incomeSource, expenses:expJson,
-          date:dateVal, budget_type:form.type
+      const expArr = validAllocs.map(a=>({
+        category:a.category,
+        pct:parseFloat(a.pct),
+        amount:parseFloat(((inc*parseFloat(a.pct))/100).toFixed(2)),
+        type:a.type,
+      }));
+      const dateVal = `${selectedYear}-${selectedMonth}-01`;
+      if(budgetEntry){
+        await axios.put(`${API}/budget/${budgetEntry.id}`,{
+          user:user.username, income:inc,
+          expenses:JSON.stringify(expArr),
+          date:dateVal, budget_type:'need',
         });
       } else {
         await axios.post(`${API}/budget`,{
-          user:user.username, income:incomeSource, expenses:expJson,
-          date:dateVal, budget_type:form.type
+          user:user.username, income:inc,
+          expenses:JSON.stringify(expArr),
+          date:dateVal, budget_type:'need',
         });
       }
-      msg(editBudgetId?'Budget updated.':'Budget saved.');
-      setShowForm(false); setEditBudgetId(null);
-      setForm(blankForm());
+      msg(budgetEntry?'Budget updated.':'Budget saved.');
+      setEditing(false);
       fetchAll();
     } catch(e){ msg(e.response?.data?.message||'Error: '+e.message,'err'); }
+    setSaving(false);
   };
 
-  const startEditBudget = (b) => {
-    const typ = b.budget_type||b.expenses?.[0]?.type||'need';
-    const rows = b.expenses?.length>0
-      ? b.expenses.map(e=>({category:e.category||'',amount:String(e.amount||0)}))
-      : [{category:'',amount:''}];
-    setForm({category:'',income:'',manualIncome:String(b.income||''),type:typ,expenses:rows,date:(b.date||now()).slice(0,7)+'-01'});
-    setEditBudgetId(b.id);
-    setShowForm(true);
+  const handleDelete = async () => {
+    if(!budgetEntry) return;
+    try {
+      await axios.delete(`${API}/budget/${budgetEntry.id}`);
+      msg('Budget deleted.');
+      setConfirmDel(false);
+      fetchAll();
+    } catch { msg('Error deleting.','err'); }
   };
 
-  const handleBudgetDelete = async(id)=>{
-    try { await axios.delete(`${API}/budget/${id}`); msg('Deleted.'); fetchAll(); } catch { msg('Error.','err'); }
-  };
+  const updateDraftAlloc = (i, field, val) =>
+    setDraftAllocs(prev=>prev.map((a,j)=>j===i?{...a,[field]:val}:a));
+  const removeDraftAlloc = (i) =>
+    setDraftAllocs(prev=>prev.filter((_,j)=>j!==i));
+  const addDraftAlloc = (type) =>
+    setDraftAllocs(prev=>[...prev, {category:'', pct:0, type}]);
 
-  const totalPlanned = monthBudgets.reduce((s,b)=>s+b.expenses.reduce((ss,e)=>ss+parseFloat(e.amount||0),0),0);
-  const totalActual  = totalExpense;
-  const savings      = netFlow;
+  const draftTotalPct = draftAllocs.reduce((s,a)=>s+parseFloat(a.pct||0),0);
+
+  const renderSection = (sec) => {
+    if(editing){
+      const editRows = draftAllocs.map((a,i)=>({...a,_i:i})).filter(a=>a.type===sec.key);
+      const editPlanned = editRows.reduce((s,a)=>s+(parseFloat(draftIncome||0)*parseFloat(a.pct||0)/100),0);
+      return (
+        React.createElement('div', {key:sec.key, style:{marginBottom:16,background:'#0d0d0b',border:`1px solid ${sec.color}44`,borderRadius:12,overflow:'hidden'}},
+          React.createElement('div', {style:{padding:'12px 14px',borderBottom:`1px solid ${sec.color}22`,display:'flex',alignItems:'center',justifyContent:'space-between',background:`${sec.color}0d`}},
+            React.createElement('div', {style:{display:'flex',alignItems:'center',gap:10}},
+              React.createElement('div', {style:{width:10,height:10,borderRadius:2,background:sec.color}}),
+              React.createElement('span', {style:{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:15,color:sec.color,letterSpacing:'0.1em'}}, sec.label),
+              React.createElement('span', {style:{fontFamily:"'DM Mono',monospace",fontSize:9,color:sec.color,opacity:0.6}}, `TARGET ${sec.targetPct}%`)
+            ),
+            React.createElement('span', {style:{fontFamily:"'DM Mono',monospace",fontSize:10,color:sec.color}}, fmtR(editPlanned))
+          ),
+          React.createElement('div', {style:{padding:'8px 0'}},
+            React.createElement('div', {style:{display:'grid',gridTemplateColumns:'1fr 80px 32px',gap:8,padding:'4px 14px 6px',borderBottom:'1px solid rgba(255,255,255,0.05)'}},
+              React.createElement('span', {style:{fontFamily:"'DM Mono',monospace",fontSize:7,color:'rgba(255,255,255,0.3)',letterSpacing:'0.12em'}}, 'CATEGORY'),
+              React.createElement('span', {style:{fontFamily:"'DM Mono',monospace",fontSize:7,color:'rgba(255,255,255,0.3)',letterSpacing:'0.12em'}}, '% OF INCOME'),
+              React.createElement('span', null)
+            ),
+            editRows.map(a=>
+              React.createElement('div', {key:a._i, style:{display:'grid',gridTemplateColumns:'1fr 80px 32px',gap:8,padding:'6px 14px',alignItems:'center'}},
+                React.createElement('input', {className:'form-input', placeholder:'Category name', style:{margin:0,fontSize:11,padding:'5px 8px',height:32},
+                  value:a.category, onChange:e=>updateDraftAlloc(a._i,'category',e.target.value)}),
+                React.createElement('div', {style:{display:'flex',alignItems:'center',gap:4}},
+                  React.createElement('input', {className:'form-input', type:'number', min:0, max:100, style:{margin:0,fontSize:11,padding:'5px 6px',height:32,textAlign:'center'},
+                    value:a.pct, onChange:e=>updateDraftAlloc(a._i,'pct',e.target.value)}),
+                  React.createElement('span', {style:{fontFamily:"'DM Mono',monospace",fontSize:9,color:'rgba(255,255,255,0.4)',flexShrink:0}}, '%')
+                ),
+                React.createElement('button', {onClick:()=>removeDraftAlloc(a._i),
+                  style:{width:28,height:28,borderRadius:4,background:'rgba(255,61,61,0.1)',border:'1px solid rgba(255,61,61,0.25)',color:'var(--red)',cursor:'pointer',fontWeight:700,fontSize:14,flexShrink:0}}, '×')
+              )
+            ),
+            React.createElement('div', {style:{padding:'4px 14px 8px'}},
+              React.createElement('button', {onClick:()=>addDraftAlloc(sec.key),
+                style:{width:'100%',padding:'7px',borderRadius:6,border:`1px dashed ${sec.color}55`,background:`${sec.color}08`,color:sec.color,fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.1em',cursor:'pointer'}},
+                `+ ADD CATEGORY`)
+            )
+          )
+        )
+      );
+    }
+
+    const rows = allocations.filter(a=>a.type===sec.key);
+    const plannedTotal = rows.reduce((s,a)=>s+(incomeVal>0?incomeVal*parseFloat(a.pct||0)/100:0),0);
+    const actualTotal  = rows.reduce((s,a)=>s+getActual(a.category),0);
+    const overTotal    = actualTotal>plannedTotal&&plannedTotal>0;
+
+    return (
+      React.createElement('div', {key:sec.key, style:{marginBottom:16,background:'#0d0d0b',border:`1px solid ${sec.color}22`,borderRadius:12,overflow:'hidden'}},
+        React.createElement('div', {style:{padding:'12px 14px',borderBottom:'1px solid rgba(255,255,255,0.06)',display:'flex',alignItems:'center',justifyContent:'space-between',background:`${sec.color}08`}},
+          React.createElement('div', {style:{display:'flex',alignItems:'center',gap:10}},
+            React.createElement('div', {style:{width:10,height:10,borderRadius:2,background:sec.color}}),
+            React.createElement('span', {style:{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:15,color:sec.color,letterSpacing:'0.1em'}}, sec.label),
+            React.createElement('span', {style:{fontFamily:"'DM Mono',monospace",fontSize:9,color:'rgba(255,255,255,0.28)'}}, `TARGET ${sec.targetPct}%`)
+          ),
+          React.createElement('div', {style:{textAlign:'right'}},
+            React.createElement('div', {style:{fontFamily:"'DM Mono',monospace",fontSize:10,color:sec.color}}, incomeVal>0?fmtR(plannedTotal):'—'),
+            actualTotal>0&&React.createElement('div', {style:{fontFamily:"'DM Mono',monospace",fontSize:8,color:overTotal?'#ff3b3b':'rgba(255,255,255,0.35)'}}, `spent ${fmtR(actualTotal)}`)
+          )
+        ),
+        React.createElement('div', {style:{display:'grid',gridTemplateColumns:'1fr 52px 96px',gap:0,padding:'6px 14px',borderBottom:'1px solid rgba(255,255,255,0.04)'}},
+          React.createElement('span', {style:{fontFamily:"'DM Mono',monospace",fontSize:7,color:'rgba(255,255,255,0.22)',letterSpacing:'0.12em'}}, 'CATEGORY'),
+          React.createElement('span', {style:{fontFamily:"'DM Mono',monospace",fontSize:7,color:'rgba(255,255,255,0.22)',letterSpacing:'0.12em',textAlign:'center'}}, '%'),
+          React.createElement('span', {style:{fontFamily:"'DM Mono',monospace",fontSize:7,color:'rgba(255,255,255,0.22)',letterSpacing:'0.12em',textAlign:'right'}}, 'AMOUNT')
+        ),
+        rows.length===0
+          ? React.createElement('div', {style:{padding:'18px 14px',fontFamily:"'DM Mono',monospace",fontSize:9,color:'rgba(255,255,255,0.2)',textAlign:'center'}}, 'No categories — tap EDIT BUDGET to configure')
+          : rows.map((a,i)=>{
+              const amt    = incomeVal>0 ? incomeVal*parseFloat(a.pct||0)/100 : 0;
+              const actual = getActual(a.category);
+              const over   = actual>amt&&amt>0;
+              const fill   = amt>0 ? Math.min(actual/amt,1) : 0;
+              return React.createElement('div', {key:i, style:{padding:'9px 14px',borderBottom:'1px solid rgba(255,255,255,0.03)'}},
+                React.createElement('div', {style:{display:'grid',gridTemplateColumns:'1fr 52px 96px',alignItems:'center',marginBottom:4}},
+                  React.createElement('span', {style:{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:600,fontSize:13,color:'rgba(255,255,255,0.85)'}}, a.category),
+                  React.createElement('span', {style:{fontFamily:"'DM Mono',monospace",fontSize:10,color:sec.color,textAlign:'center'}}, `${a.pct}%`),
+                  React.createElement('div', {style:{textAlign:'right'}},
+                    React.createElement('div', {style:{fontFamily:"'DM Mono',monospace",fontSize:11,color:'rgba(255,255,255,0.9)',fontWeight:500}}, incomeVal>0?fmtR(amt):'—'),
+                    actual>0&&React.createElement('div', {style:{fontFamily:"'DM Mono',monospace",fontSize:8,color:over?'#ff3b3b':'rgba(255,255,255,0.32)'}}, `spent ${fmtR(actual)}`)
+                  )
+                ),
+                incomeVal>0&&React.createElement('div', {style:{height:3,background:'rgba(255,255,255,0.06)',borderRadius:2,overflow:'hidden'}},
+                  React.createElement('div', {style:{height:'100%',width:`${fill*100}%`,background:over?'#ff3b3b':sec.color,borderRadius:2,transition:'width 0.4s',boxShadow:`0 0 4px ${over?'#ff3b3b':sec.color}55`}})
+                )
+              );
+            }),
+        rows.length>0&&React.createElement('div', {style:{display:'grid',gridTemplateColumns:'1fr 52px 96px',padding:'8px 14px',borderTop:'1px solid rgba(255,255,255,0.06)',background:'rgba(255,255,255,0.02)'}},
+          React.createElement('span', {style:{fontFamily:"'DM Mono',monospace",fontSize:8,color:'rgba(255,255,255,0.28)',letterSpacing:'0.1em'}}, 'TOTAL'),
+          React.createElement('span', {style:{fontFamily:"'DM Mono',monospace",fontSize:9,color:sec.color,textAlign:'center'}}, `${rows.reduce((s,a)=>s+parseFloat(a.pct||0),0)}%`),
+          React.createElement('span', {style:{fontFamily:"'DM Mono',monospace",fontSize:10,color:sec.color,textAlign:'right',fontWeight:600}}, incomeVal>0?fmtR(plannedTotal):'—')
+        )
+      )
+    );
+  };
 
   return (
     <div className="page-outer">
@@ -1578,367 +1684,103 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
         <div className="page-inner">
           <div className="page-head">
             <div className="page-title">BUDGET</div>
-            <div className="page-sub">50/30/20 · PLANNED vs ACTUAL · VARIANCE</div>
+            <div className="page-sub">MONTHLY ALLOCATION · PLANNED vs ACTUAL</div>
           </div>
           <UserRow user={user} partner={partner} partners={partners} activePartners={activePartners} permittedPartners={permittedPartners} selfVisible={selfVisible} tabSelected={tabSelected} isShared={isShared} onToggleUser={onToggleUser}/>
           <MonthNav selectedMonth={selectedMonth} setSelectedMonth={m=>{
-            const curM=parseInt(selectedMonth,10), newM=parseInt(m,10);
+            const curM=parseInt(selectedMonth,10),newM=parseInt(m,10);
             if(curM===12&&newM===1) setSelectedYear(y=>y+1);
             else if(curM===1&&newM===12) setSelectedYear(y=>y-1);
             setSelectedMonth(m);
           }} tabColor={tabColor} year={selectedYear} onGoToday={()=>setSelectedYear(new Date().getFullYear())}/>
-          <SearchBar value={search} onChange={setSearch} placeholder="Search budget categories..." tabColor={tabColor}/>
           <Alert {...alert}/>
 
-          
-          {/* ── Budget Dashboard Widget ── */}
-          <div style={{margin:'4px 0 16px',background:'#0d0d0b',border:'1px solid rgba(255,255,255,0.08)',borderRadius:12,overflow:'hidden'}}>
-
-            {/* Row 1: Income / Spent / Net */}
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:0,borderBottom:'1px solid rgba(255,255,255,0.07)'}}>
-              {[
-                {label:'INCOME', val:totalIncome,  color:'#00e676'},
-                {label:'SPENT',  val:totalExpense, color:'#ff3b3b'},
-                {label:'NET',    val:netFlow,      color:netFlow>=0?'#00e676':'#ff3b3b', sub:netFlow>=0?'SURPLUS':'DEFICIT'},
-              ].map((s,i)=>(
-                <div key={s.label} style={{padding:'14px 14px 12px',borderRight:i<2?'1px solid rgba(255,255,255,0.07)':'none'}}>
-                  <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.18em',color:'rgba(255,255,255,0.35)',marginBottom:5}}>{s.label}</div>
-                  <div style={{fontFamily:"'DM Mono',monospace",fontWeight:500,fontSize:13,color:s.color,letterSpacing:'0.04em',lineHeight:1}}>{fmtR(Math.abs(s.val))}</div>
-                  {s.sub&&<div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:s.color,marginTop:4,letterSpacing:'0.14em'}}>{s.sub}</div>}
+          {/* ── Income card ── */}
+          <div style={{marginBottom:16,background:'#0d0d0b',border:`1px solid ${tabColor}44`,borderRadius:12,padding:'20px 16px 16px'}}>
+            {editing ? (
+              <>
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.2em',color:'rgba(255,255,255,0.4)',marginBottom:8}}>MONTHLY NET INCOME (R)</div>
+                <input className="form-input" type="number" placeholder="e.g. 47000"
+                  style={{fontSize:22,fontWeight:600,padding:'10px 14px',letterSpacing:'0.02em',marginBottom:6}}
+                  value={draftIncome}
+                  onChange={e=>setDraftIncome(e.target.value)}
+                  autoFocus/>
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'rgba(255,255,255,0.3)',marginBottom:16}}>Your income after tax and deductions</div>
+                {draftTotalPct!==100&&(
+                  <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,padding:'6px 10px',marginBottom:12,borderRadius:6,
+                    color:draftTotalPct>100?'#ff3b3b':'#ffd600',
+                    background:draftTotalPct>100?'rgba(255,61,61,0.1)':'rgba(255,214,0,0.08)',
+                    border:`1px solid ${draftTotalPct>100?'rgba(255,61,61,0.3)':'rgba(255,214,0,0.2)'}`}}>
+                    ⚠ Allocations total {draftTotalPct.toFixed(0)}% — must equal 100%
+                  </div>
+                )}
+                <div style={{display:'flex',gap:8}}>
+                  <button onClick={handleSave} disabled={saving}
+                    style={{flex:1,padding:'11px',borderRadius:8,background:tabColor,color:'#000',border:'none',fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:14,letterSpacing:'0.12em',cursor:'pointer',opacity:saving?0.6:1}}>
+                    {saving?'SAVING…':'SAVE BUDGET ↗'}
+                  </button>
+                  <button onClick={cancelEdit}
+                    style={{padding:'11px 18px',borderRadius:8,background:'rgba(255,255,255,0.05)',color:'rgba(255,255,255,0.6)',border:'1px solid rgba(255,255,255,0.1)',fontFamily:"'DM Mono',monospace",fontSize:10,cursor:'pointer'}}>
+                    CANCEL
+                  </button>
                 </div>
-              ))}
-            </div>
-
-            {/* Row 2: 50/30/20 rule with donut + bars */}
-            <div style={{borderBottom:'1px solid rgba(255,255,255,0.07)',padding:'14px'}}>
-              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
-                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:16,color:'rgba(255,255,255,0.9)',letterSpacing:'0.06em'}}>50 / 30 / 20 RULE</div>
-                <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'rgba(255,255,255,0.3)',letterSpacing:'0.08em'}}>BASED ON {fmtR(totalIncome)} INCOME</div>
-              </div>
-              <div style={{display:'flex',gap:14,alignItems:'center'}}>
-                {(()=>{
-                  const R=38,r=24,CX=50,CY=50;
-                  const sliceData=CAT_TYPES.map(ct=>({color:ct.color,val:byType[ct.key]?.actual||0}));
-                  const total=sliceData.reduce((s,d)=>s+d.val,0)||1;
-                  let cumAngle=-Math.PI/2;
-                  const slices=sliceData.map(d=>{
-                    const angle=(d.val/total)*2*Math.PI;
-                    const x1=CX+R*Math.cos(cumAngle),y1=CY+R*Math.sin(cumAngle);
-                    cumAngle+=angle;
-                    const x2=CX+R*Math.cos(cumAngle),y2=CY+R*Math.sin(cumAngle);
-                    const xi1=CX+r*Math.cos(cumAngle-angle),yi1=CY+r*Math.sin(cumAngle-angle);
-                    const xi2=CX+r*Math.cos(cumAngle),yi2=CY+r*Math.sin(cumAngle);
-                    const large=angle>Math.PI?1:0;
-                    const path=`M${x1.toFixed(2)},${y1.toFixed(2)} A${R},${R} 0 ${large},1 ${x2.toFixed(2)},${y2.toFixed(2)} L${xi2.toFixed(2)},${yi2.toFixed(2)} A${r},${r} 0 ${large},0 ${xi1.toFixed(2)},${yi1.toFixed(2)} Z`;
-                    return {...d,path};
-                  });
-                  const hasData=sliceData.some(d=>d.val>0);
-                  return (
-                    <div style={{flexShrink:0,position:'relative',width:100,height:100}}>
-                      <svg viewBox="0 0 100 100" width="100" height="100">
-                        {hasData?slices.map((s,i)=><path key={i} d={s.path} fill={s.color}/>)
-                          :<circle cx="50" cy="50" r="38" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="14"/>}
-                      </svg>
-                      <div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',pointerEvents:'none'}}>
-                        <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,letterSpacing:'0.1em',color:'rgba(255,255,255,0.4)',marginBottom:2}}>ALLOC</div>
-                        <div style={{fontFamily:"'DM Mono',monospace",fontWeight:500,fontSize:10,color:'#ff3b3b',lineHeight:1,textAlign:'center'}}>{fmtR(totalExpense)}</div>
-                      </div>
-                    </div>
-                  );
-                })()}
-                <div style={{flex:1,display:'flex',flexDirection:'column',gap:10}}>
-                  {CAT_TYPES.map(ct=>{
-                    const ruleAmt=rule[ct.key];
-                    const actual=byType[ct.key]?.actual||0;
-                    const barFill=ruleAmt>0?Math.min((actual/ruleAmt)*100,100):0;
-                    const over=actual>ruleAmt&&ruleAmt>0;
-                    const actualPct=totalIncome>0?Math.round((actual/totalIncome)*100):0;
+              </>
+            ) : incomeVal>0 ? (
+              <>
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.2em',color:'rgba(255,255,255,0.35)',marginBottom:6}}>MONTHLY NET INCOME</div>
+                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:38,color:'rgba(255,255,255,0.95)',letterSpacing:'0.01em',lineHeight:1,marginBottom:4}}>{fmtR(incomeVal)}</div>
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'rgba(255,255,255,0.35)',marginBottom:16}}>Your income after tax and deductions</div>
+                <div style={{display:'flex',gap:8,marginBottom:16}}>
+                  {BUDGET_SECTIONS.map(sec=>{
+                    const secAllocs=allocations.filter(a=>a.type===sec.key);
+                    const secAmt=secAllocs.reduce((s,a)=>s+(incomeVal*parseFloat(a.pct||0)/100),0);
                     return (
-                      <div key={ct.key}>
-                        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:3}}>
-                          <div style={{display:'flex',alignItems:'center',gap:6}}>
-                            <div style={{width:8,height:8,borderRadius:'50%',background:ct.color,flexShrink:0}}/>
-                            <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:13,color:ct.color,letterSpacing:'0.06em'}}>{ct.label}</span>
-                            <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'rgba(255,255,255,0.3)'}}>{actualPct}%</span>
-                          </div>
-                          <div style={{fontFamily:"'DM Mono',monospace",fontSize:8}}>
-                            <span style={{color:over?'#ff3b3b':ct.color}}>{fmtR(actual)}</span>
-                            <span style={{color:'rgba(255,255,255,0.25)'}}> / </span>
-                            <span style={{color:'rgba(255,255,255,0.4)'}}>{fmtR(ruleAmt)}</span>
-                          </div>
-                        </div>
-                        <div style={{height:4,background:'rgba(255,255,255,0.07)',borderRadius:2,overflow:'hidden',marginBottom:2}}>
-                          <div style={{height:'100%',width:`${barFill}%`,background:over?'#ff3b3b':ct.color,borderRadius:2,transition:'width 0.5s',boxShadow:`0 0 6px ${over?'#ff3b3b':ct.color}88`}}/>
-                        </div>
-                        <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:'rgba(255,255,255,0.25)',letterSpacing:'0.06em'}}>{ct.desc}</div>
+                      <div key={sec.key} style={{flex:1,padding:'8px 10px',borderRadius:8,background:`${sec.color}0f`,border:`1px solid ${sec.color}33`,textAlign:'center'}}>
+                        <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:sec.color,letterSpacing:'0.08em',marginBottom:3}}>{sec.label.split(' ')[0]}</div>
+                        <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:13,color:sec.color}}>{fmtR(secAmt)}</div>
+                        <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:'rgba(255,255,255,0.25)',marginTop:2}}>{sec.targetPct}%</div>
                       </div>
                     );
                   })}
                 </div>
-              </div>
-            </div>
-
-            {/* Row 3: Net trend sparkline — last 6 months */}
-            {(()=>{
-              const today=new Date();
-              const anchor=new Date(today.getFullYear(),today.getMonth(),1);
-              const months6=[];
-              for(let i=5;i>=0;i--){
-                const d=new Date(anchor.getFullYear(),anchor.getMonth()-i,1);
-                const mv=String(d.getMonth()+1).padStart(2,'0');
-                const key=`${d.getFullYear()}-${mv}`;
-                const label=d.toLocaleString('default',{month:'short'}).toUpperCase();
-                const mFins=finances.filter(f=>(f.date||'').startsWith(key));
-                const inc=mFins.filter(f=>f.type==='income').reduce((s,f)=>s+parseFloat(f.amount||0),0);
-                const exp=mFins.filter(f=>f.type==='expense').reduce((s,f)=>s+parseFloat(f.amount||0),0);
-                months6.push({label,net:inc-exp});
-              }
-              const vals=months6.map(m=>m.net);
-              const minV=Math.min(...vals,0);
-              const maxV=Math.max(...vals,1);
-              const range=maxV-minV||1;
-              const W=400,H=60,PAD=8;
-              const pts=vals.map((v,i)=>{
-                const x=PAD+(i/(vals.length-1||1))*(W-PAD*2);
-                const y=PAD+(1-(v-minV)/range)*(H-PAD*2);
-                return `${x.toFixed(1)},${y.toFixed(1)}`;
-              });
-              const lastNet=vals[vals.length-1]||0;
-              return (
-                <div style={{position:'relative'}}>
-                  <div style={{position:'absolute',top:10,left:14,fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.14em',color:'rgba(255,255,255,0.3)',zIndex:2}}>NET TREND · LAST 6 MONTHS</div>
-                  <div style={{position:'absolute',top:10,right:14,fontFamily:"'DM Mono',monospace",fontSize:9,color:lastNet>=0?'#00e676':'#ff3b3b',zIndex:2}}>{lastNet>=0?'▲':'▼'} {fmtR(Math.abs(lastNet))}</div>
-                  <svg viewBox={`0 0 ${W} ${H}`} style={{width:'100%',height:72,display:'block'}} preserveAspectRatio="none">
-                    <defs><linearGradient id="budNetGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#00e676" stopOpacity="0.4"/><stop offset="100%" stopColor="#00e676" stopOpacity="0.02"/></linearGradient></defs>
-                    <polygon points={`${pts[0]} ${pts.join(' ')} ${W-PAD},${H} ${PAD},${H}`} fill="url(#budNetGrad)"/>
-                    <polyline points={pts.join(' ')} fill="none" stroke="#00e676" strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round"/>
-                    {pts.map((p,i)=>{ const [x,y]=p.split(','); return <circle key={i} cx={x} cy={y} r={i===pts.length-1?3:2} fill={months6[i].net>=0?'#00e676':'#ff3b3b'}/> })}
-                    {months6.map((m,i)=>{ const x=PAD+(i/(vals.length-1||1))*(W-PAD*2); return <text key={i} x={x.toFixed(1)} y={H-2} textAnchor="middle" fontFamily="DM Mono" fontSize="7" fill="rgba(255,255,255,0.3)">{m.label}</text>; })}
-                  </svg>
+                <div style={{display:'flex',gap:8}}>
+                  <button onClick={startEdit}
+                    style={{flex:1,padding:'10px',borderRadius:8,background:'rgba(255,255,255,0.06)',color:'rgba(255,255,255,0.8)',border:'1px solid rgba(255,255,255,0.12)',fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:13,letterSpacing:'0.1em',cursor:'pointer'}}>
+                    EDIT BUDGET
+                  </button>
+                  <button onClick={()=>setConfirmDel(true)}
+                    style={{padding:'10px 14px',borderRadius:8,background:'rgba(255,61,61,0.08)',color:'rgba(255,61,61,0.7)',border:'1px solid rgba(255,61,61,0.2)',fontFamily:"'DM Mono',monospace",fontSize:10,cursor:'pointer'}}>
+                    DELETE
+                  </button>
                 </div>
-              );
-            })()}
+              </>
+            ) : (
+              <>
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.2em',color:'rgba(255,255,255,0.35)',marginBottom:6}}>MONTHLY NET INCOME</div>
+                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:28,color:'rgba(255,255,255,0.25)',letterSpacing:'0.01em',lineHeight:1,marginBottom:4}}>NOT SET</div>
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'rgba(255,255,255,0.3)',marginBottom:16}}>No budget configured for {monthLabel} {selectedYear}</div>
+                <button onClick={startEdit}
+                  style={{width:'100%',padding:'12px',borderRadius:8,background:tabColor,color:'#000',border:'none',fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:15,letterSpacing:'0.12em',cursor:'pointer'}}>
+                  SET UP BUDGET ↗
+                </button>
+              </>
+            )}
           </div>
-          {/* end budget dashboard widget */}
 
-          {/* ── Budget allocations ── */}
-          <div className="section-label">ALLOCATIONS <span style={{color:tabColor}}>{filteredBudgets.length}</span> CATEGORIES</div>
+          {/* ── Three allocation sections ── */}
+          {BUDGET_SECTIONS.map(sec => renderSection(sec))}
 
-          {/* Group by type */}
-          {CAT_TYPES.map(ct=>{
-            const typeBuds = filteredBudgets.filter(b=>(b.budget_type||b.expenses[0]?.type||'need')===ct.key);
-            if(typeBuds.length===0) return null;
-            const typePlanned = typeBuds.reduce((s,b)=>s+b.expenses.reduce((ss,e)=>ss+parseFloat(e.amount||0),0),0);
-            return (
-              <div key={ct.key} style={{marginBottom:16}}>
-                {/* Type header */}
-                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'6px 12px',background:`${ct.color}15`,borderRadius:6,marginBottom:8,border:`1px solid ${ct.color}33`}}>
-                  <div style={{display:'flex',alignItems:'center',gap:8}}>
-                    <div style={{width:8,height:8,borderRadius:2,background:ct.color}}/>
-                    <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:14,color:ct.color,letterSpacing:'0.04em'}}>{ct.label}</span>
-                  </div>
-                  <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:ct.color,fontWeight:600}}>{fmtR(typePlanned)}</span>
-                </div>
-
-                {typeBuds.map(b=>{
-                  const planned  = b.expenses.reduce((s,e)=>s+parseFloat(e.amount||0),0);
-                  // Match actual spend from finances by category name
-                  const catName  = (b.expenses[0]?.category||'').toLowerCase();
-                  const actual   = monthFinances.filter(f=>f.type==='expense'&&(f.category||'').toLowerCase().includes(catName)).reduce((s,f)=>s+parseFloat(f.amount||0),0);
-                  const pct      = planned>0?Math.min(actual/planned,1.5):0;
-                  const over     = actual>planned;
-                  const left     = planned-actual;
-                  const budOwner = getOwner(b.user||user.username,user,partner,partners);
-                  const boc      = budOwner?.eventColor||ct.color;
-                  const isOwn    = (b.user===user.username||!b.user);
-                  return (
-                    <div key={b.id} className="meal-card" style={{marginBottom:6,borderLeft:`3px solid ${boc}`,cursor:isOwn?'pointer':'default'}}
-                      onClick={()=>isOwn&&setActionBudget(b)}>
-                      {/* Header row */}
-                      <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
-                        <ItemAvatar username={b.user||user.username} user={user} partner={partner} partners={partners} size={32}/>
-                        <div style={{flex:1}}>
-                          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:16,color:'var(--text)'}}>{(b.expenses[0]?.category||'Budget').toUpperCase()}</div>
-                          <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'var(--text3)'}}>{fmtDate(b.date)}</div>
-                        </div>
-                        <div style={{textAlign:'right',flexShrink:0}}>
-                          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:16,color:over?'var(--red)':boc}}>{fmtR(actual)}</div>
-                          <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'var(--text3)'}}>of {fmtR(planned)}</div>
-                        </div>
-                        {isOwn&&<span style={{color:'var(--text3)',fontSize:12,flexShrink:0}}>›</span>}
-                      </div>
-                      {/* Progress bar */}
-                      <div style={{height:5,background:'var(--bg3)',borderRadius:3,overflow:'hidden',marginBottom:4}}>
-                        <div style={{height:'100%',width:`${Math.min(pct*100,100)}%`,background:over?'var(--red)':ct.color,borderRadius:3,transition:'width 0.4s'}}/>
-                      </div>
-                      {/* Stats row */}
-                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                        <div style={{display:'flex',gap:16}}>
-                          <div>
-                            <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:'var(--text3)',letterSpacing:'0.1em'}}>SPENT</div>
-                            <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:over?'var(--red)':'var(--text)',fontWeight:600}}>{Math.round(pct*100)}%</div>
-                          </div>
-                          <div>
-                            <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:'var(--text3)',letterSpacing:'0.1em'}}>{left>=0?'REMAINING':'OVER BY'}</div>
-                            <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:left>=0?'var(--green)':'var(--red)',fontWeight:600}}>{fmtR(Math.abs(left))}</div>
-                          </div>
-                        </div>
-                        <span style={{fontFamily:"'DM Mono',monospace",fontSize:7,padding:'2px 6px',borderRadius:2,
-                          background:over?'rgba(255,61,61,0.15)':pct>0.75?'rgba(255,214,0,0.15)':'rgba(0,230,118,0.15)',
-                          color:over?'var(--red)':pct>0.75?'var(--yellow)':'var(--green)',fontWeight:600,letterSpacing:'0.1em'}}>
-                          {over?'OVER':pct>0.75?'WARN':'OK'}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            );
-          })}
-
-          {filteredBudgets.length===0&&(
-            <div className="no-events">
-              <div className="no-events-icon">📊</div>
-              <div className="no-events-text">No budget allocations for {monthLabel}</div>
-              <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)',marginTop:8,textAlign:'center'}}>Tap + ADD BUDGET to create your first allocation</div>
-            </div>
-          )}
-          <div style={{height:'80px'}}/>
+          <div style={{height:'40px'}}/>
         </div>
       </div>
-      <button className="fab" style={{background:tabColor,boxShadow:`0 4px 20px ${tabColor}55`}} onClick={()=>{setForm(blankForm());setEditBudgetId(null);setShowForm(true);}}>+ ADD BUDGET</button>
-      <ActionSheet open={!!actionBudget} title={actionBudget?.expenses?.[0]?.category} tabColor={tabColor}
-        onEdit={()=>startEditBudget(actionBudget)}
-        onDelete={()=>setConfirmDelBud(actionBudget?.id)}
-        onClose={()=>setActionBudget(null)}/>
-      <ConfirmModal open={!!confirmDelBud} message="Delete budget allocation?" detail={actionBudget?.expenses?.[0]?.category}
-        onConfirm={async()=>{await handleBudgetDelete(confirmDelBud);setConfirmDelBud(null);setActionBudget(null);}}
-        onCancel={()=>setConfirmDelBud(null)}/>
 
-      {/* ── Add / Edit Budget Modal ── */}
-      {showForm&&(
-        <div className="modal-overlay" onClick={()=>{setShowForm(false);setEditBudgetId(null);setForm(blankForm());}}>
-          <div className="modal-sheet" style={{"--page-color":tabColor}} onClick={e=>e.stopPropagation()}>
-            <div className="modal-handle"/>
-            <div className="modal-title">{editBudgetId?'Edit':'Add'} Budget Allocation</div>
-
-            {/* Month */}
-            <div className="form-field">
-              <label className="form-label">Month</label>
-              <select className="form-input"
-                value={(form.date||'').slice(0,7)}
-                onChange={e=>setForm(p=>({...p,date:e.target.value+'-01'}))}>
-                {[-1,0,1].flatMap(yo=>MONTHS.map(m=>{
-                  const y=selectedYear+yo;
-                  return <option key={`${y}-${m.v}`} value={`${y}-${m.v}`}>{m.l} {y}</option>;
-                }))}
-              </select>
-            </div>
-
-            {/* Income source for this budget */}
-            <div className="form-field">
-              <label className="form-label">
-                Monthly Income (R)
-                {totalIncome>0&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'var(--green)',marginLeft:8}}>
-                  AUTO: {fmtR(totalIncome)} from Finances
-                </span>}
-              </label>
-              <input className="form-input" type="number" placeholder="e.g. 45000"
-                value={form.manualIncome||''}
-                onChange={e=>setForm(p=>({...p,manualIncome:e.target.value}))}/>
-              <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'var(--text3)',marginTop:4}}>
-                Used for 50/30/20 calculations. Leave blank to use income from Finances tab.
-              </div>
-            </div>
-
-            {/* Budget type */}
-            <div className="form-field">
-              <label className="form-label">Type</label>
-              <div style={{display:'flex',gap:8}}>
-                {CAT_TYPES.map(ct=>{
-                  const incSrc = parseFloat(form.manualIncome)||totalIncome||0;
-                  const pct    = ct.key==='need'?50:ct.key==='want'?30:20;
-                  const sug    = Math.round(incSrc*(pct/100));
-                  return (
-                    <button key={ct.key} onClick={()=>setForm(p=>({...p,type:ct.key}))}
-                      style={{flex:1,padding:'8px 4px',borderRadius:6,cursor:'pointer',textAlign:'center',
-                        border:`1px solid ${form.type===ct.key?ct.color:'var(--border2)'}`,
-                        background:form.type===ct.key?`${ct.color}18`:'transparent'}}>
-                      <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:13,color:form.type===ct.key?ct.color:'var(--text3)'}}>{ct.label}</div>
-                      <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:'var(--text3)',marginTop:2}}>{pct}%{sug>0?` · ${fmtR(sug)}`:''}</div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Multiple category rows */}
-            <div className="form-field">
-              <label className="form-label">
-                CATEGORIES
-                <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'var(--text3)',marginLeft:8}}>
-                  TOTAL: {fmtR(form.expenses.reduce((s,r)=>s+parseFloat(r.amount||0),0))}
-                </span>
-              </label>
-              {form.expenses.map((row,i)=>(
-                <div key={i} style={{display:'flex',gap:8,marginBottom:8,alignItems:'center'}}>
-                  <input className="form-input" placeholder="Category name (e.g. Rent)"
-                    style={{flex:2,marginBottom:0}}
-                    value={row.category}
-                    onChange={e=>updateRow(i,'category',e.target.value)}/>
-                  <input className="form-input" type="number" placeholder="Amount"
-                    style={{flex:1,marginBottom:0}}
-                    value={row.amount}
-                    onChange={e=>updateRow(i,'amount',e.target.value)}/>
-                  {form.expenses.length>1&&(
-                    <button onClick={()=>removeRow(i)}
-                      style={{width:32,height:32,borderRadius:4,background:'rgba(255,61,61,0.1)',border:'1px solid rgba(255,61,61,0.3)',color:'var(--red)',cursor:'pointer',fontWeight:700,flexShrink:0}}>×</button>
-                  )}
-                </div>
-              ))}
-              <button onClick={addRow}
-                style={{width:'100%',padding:'8px',borderRadius:4,border:`1px dashed ${tabColor}66`,background:`${tabColor}08`,color:tabColor,fontFamily:"'DM Mono',monospace",fontSize:10,letterSpacing:'0.1em',cursor:'pointer',marginTop:4}}>
-                + ADD CATEGORY
-              </button>
-            </div>
-
-            {/* 50/30/20 quick-fill */}
-            {(parseFloat(form.manualIncome)||totalIncome)>0&&(()=>{
-              const inc = parseFloat(form.manualIncome)||totalIncome;
-              return (
-                <div style={{background:'var(--bg3)',borderRadius:6,padding:'10px 12px',marginBottom:12,border:'1px solid var(--border)'}}>
-                  <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'var(--text3)',marginBottom:6}}>
-                    TAP TO QUICK-FILL · 50/30/20 OF {fmtR(inc)}
-                  </div>
-                  <div style={{display:'flex',gap:8}}>
-                    {CAT_TYPES.map(ct=>{
-                      const sug = Math.round(inc*(ct.key==='need'?0.5:ct.key==='want'?0.3:0.2));
-                      return (
-                        <button key={ct.key}
-                          onClick={()=>setForm(p=>({...p,type:ct.key,
-                            expenses:[{category:ct.label,amount:String(sug)}]
-                          }))}
-                          style={{flex:1,padding:'6px 4px',borderRadius:4,border:`1px solid ${ct.color}55`,background:`${ct.color}10`,cursor:'pointer',textAlign:'center'}}>
-                          <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:ct.color}}>{ct.label}</div>
-                          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:12,color:ct.color}}>{fmtR(sug)}</div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })()}
-
-            <button className="form-submit" style={{background:tabColor,color:'#000'}} onClick={handleSave}>
-              {editBudgetId?'UPDATE':'SAVE'} ALLOCATION
-            </button>
-            <button className="form-cancel" onClick={()=>{setShowForm(false);setEditBudgetId(null);setForm(blankForm());}}>Cancel</button>
-          </div>
-        </div>
-      )}
+      <ConfirmModal open={confirmDel} message={`Delete budget for ${monthLabel} ${selectedYear}?`} detail="This cannot be undone."
+        onConfirm={handleDelete}
+        onCancel={()=>setConfirmDel(false)}/>
     </div>
   );
 };
+
 
 /* ── GYM PAGE ── */
 const WORKOUT_OPTIONS = [
