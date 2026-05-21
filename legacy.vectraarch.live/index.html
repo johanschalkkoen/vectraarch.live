@@ -4342,10 +4342,13 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
                 const pCfg   = sharingConfig[pun] || {};
                 const pAll   = myGrants.includes(pun);
 
-                const toggleItem = (item) => setSharingConfig(prev=>({
-                  ...prev,
-                  [pun]: { ...(prev[pun]||{}), [item]: !(prev[pun]?.[item]) }
-                }));
+                const toggleItem = async(item) => {
+                  const newVal = !(pCfg[item]);
+                  setSharingConfig(prev=>({...prev,[pun]:{...(prev[pun]||{}),[item]:newVal}}));
+                  try {
+                    await axios.post(`${API}/partner-sharing`,{owner:user.username,partner:pun,module:item,enabled:newVal});
+                  } catch { msg('Error updating sharing.','err'); }
+                };
 
                 const shareAll = async() => {
                   const next = !pAll;
@@ -4353,12 +4356,20 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
                     if(next){
                       await axios.post(`${API}/share-self`,{username:user.username,partner:pun});
                       setMyGrants(prev=>[...prev.filter(x=>x!==pun),pun]);
-                      setSharingConfig(prev=>({...prev,[pun]:Object.fromEntries(sharingItems.map(i=>[i,true]))}));
+                      const allOn = Object.fromEntries(sharingItems.map(i=>[i,true]));
+                      setSharingConfig(prev=>({...prev,[pun]:allOn}));
+                      await Promise.all(sharingItems.map(item=>
+                        axios.post(`${API}/partner-sharing`,{owner:user.username,partner:pun,module:item,enabled:true})
+                      ));
                       msg(`${pun} can now see your data.`);
                     } else {
                       await axios.post(`${API}/unshare-self`,{username:user.username,partner:pun});
                       setMyGrants(prev=>prev.filter(x=>x!==pun));
-                      setSharingConfig(prev=>({...prev,[pun]:Object.fromEntries(sharingItems.map(i=>[i,false]))}));
+                      const allOff = Object.fromEntries(sharingItems.map(i=>[i,false]));
+                      setSharingConfig(prev=>({...prev,[pun]:allOff}));
+                      await Promise.all(sharingItems.map(item=>
+                        axios.post(`${API}/partner-sharing`,{owner:user.username,partner:pun,module:item,enabled:false})
+                      ));
                       msg(`Sharing with ${pun} revoked.`);
                     }
                   } catch { msg('Error updating sharing.','err'); }
@@ -4609,6 +4620,7 @@ const App = () => {
     } catch { return {}; }
   }); // { partnerUsername: { Finances:bool, ... } } — managed in Profile only
   const [selectedUsers, setSelectedUsers] = useState({}); // { tabId: Set<username> } — which users' data to show
+  const [sharedWithMe, setSharedWithMe] = useState({}); // { ownerUsername: { Finances:bool, ... } } — what partners have shared with me
   const [error, setError] = useState('');
 
   const handleLogout = useCallback(()=>{
@@ -4672,24 +4684,13 @@ const App = () => {
             gender:         data.gender||prev.gender||'',
           }));
         }).catch(()=>{});
-        // Load existing access links to pre-populate sharingConfig
-        axios.get(`${API}/get-access`,{params:{viewer:u.username,adminUsername:u.username}}).then(({data})=>{
-          if(data.success&&data.accessList?.length>0){
-            const targets=data.accessList.filter(a=>a.viewer===u.username).map(a=>a.target);
-            if(targets.length>0){
-              // Populate sharingConfig for all linked partners
-              // Only set defaults for partners not already in localStorage config
-              const defaultCfg={Finances:true,Calendar:true,Budget:true,Gym:true,Meals:true,Cycle:true};
-              setSharingConfig(prev=>{
-                const next={...prev};
-                targets.forEach(t=>{
-                  // Keep existing config but ensure all keys exist
-                  next[t] = {...defaultCfg, ...(next[t]||{})};
-                });
-                return next;
-              });
-            }
-          }
+        // Load what I have configured to share with each partner (from DB)
+        axios.get(`${API}/my-partner-sharing`,{params:{username:u.username}}).then(({data})=>{
+          if(data.success&&data.config) setSharingConfig(prev=>({...prev,...data.config}));
+        }).catch(()=>{});
+        // Load what others are sharing with me (drives tab visibility on my side)
+        axios.get(`${API}/shared-with-me`,{params:{username:u.username}}).then(({data})=>{
+          if(data.success&&data.sharedWithMe) setSharedWithMe(data.sharedWithMe);
         }).catch(()=>{});
       } catch { setError('Invalid session'); }
     } else {
@@ -4708,9 +4709,9 @@ const App = () => {
   // All linked partners
   const allPartners = partners.length > 0 ? partners : (partner ? [partner] : []);
 
-  // Partners who HAVE permission for this tab (from Profile sharing config)
+  // Partners who have explicitly shared this tab with me (from backend)
   const permittedPartners = allPartners.filter(p =>
-    tabSharingKey && sharingConfig[p.username]?.[tabSharingKey]
+    tabSharingKey && sharedWithMe[p.username]?.[tabSharingKey]
   );
 
   // Which usernames are currently selected (visible) for this tab
@@ -4741,7 +4742,7 @@ const App = () => {
   // Cycle tab: show if user is female, OR if any partner is female and cycle sharing is on
   const userIsFemale = (user.gender||'').toLowerCase()==='female';
   const anyCycleFemale = allPartners.some(p=>
-    (p.gender||'').toLowerCase()==='female' && sharingConfig[p.username]?.Cycle
+    (p.gender||'').toLowerCase()==='female' && sharedWithMe[p.username]?.Cycle
   );
   // Male users only see Cycle tab if a female partner has explicitly shared Cycle
   const showCycle = userIsFemale || anyCycleFemale;
