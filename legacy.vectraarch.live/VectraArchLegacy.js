@@ -113,6 +113,16 @@ async function ensureSchema() {
             UNIQUE(family_id, owner_username, member_id, module)
         )`,
         `CREATE INDEX IF NOT EXISTS idx_mod_access_owner ON vectraarchlegacy_module_access(family_id, owner_username)`,
+        `CREATE TABLE IF NOT EXISTS vectraarchlegacy_partner_sharing (
+            id      SERIAL PRIMARY KEY,
+            owner   TEXT NOT NULL,
+            partner TEXT NOT NULL,
+            module  TEXT NOT NULL,
+            enabled BOOLEAN NOT NULL DEFAULT TRUE,
+            UNIQUE(owner, partner, module)
+        )`,
+        `CREATE INDEX IF NOT EXISTS idx_partner_sharing_owner   ON vectraarchlegacy_partner_sharing(owner)`,
+        `CREATE INDEX IF NOT EXISTS idx_partner_sharing_partner ON vectraarchlegacy_partner_sharing(partner)`,
     ];
     for (const sql of migrations) {
         try { await pool.query(sql); } catch (e) { console.error('[schema]', e.message); }
@@ -541,6 +551,81 @@ app.post('/api/unshare-self', async (req, res) => {
         await dbRun('DELETE FROM vectraarchlegacy_access WHERE viewer=$1 AND target=$2', [partner, username]);
         await logTransaction(username, 'UNSHARE_SELF', 'access', null, username);
         res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
+// ── PARTNER MODULE SHARING ────────────────────────────────────────────────────
+// Set (upsert) one module's sharing state: owner shares module with partner
+app.post('/api/partner-sharing', async (req, res) => {
+    const { owner, partner, module, enabled } = req.body;
+    if (!owner || !partner || !module) return res.status(400).json({ success: false, message: 'owner, partner, module required.' });
+    if (owner === partner) return res.status(400).json({ success: false, message: 'Cannot share with yourself.' });
+    try {
+        await dbRun(
+            `INSERT INTO vectraarchlegacy_partner_sharing (owner, partner, module, enabled)
+             VALUES ($1,$2,$3,$4)
+             ON CONFLICT (owner, partner, module) DO UPDATE SET enabled = $4`,
+            [owner, partner, module, !!enabled]
+        );
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
+// Get what the current user has configured as shared with each of their partners
+app.get('/api/my-partner-sharing', async (req, res) => {
+    const { username } = req.query;
+    if (!username) return res.status(400).json({ success: false, message: 'Username required.' });
+    try {
+        const rows = await dbAll(
+            'SELECT partner, module, enabled FROM vectraarchlegacy_partner_sharing WHERE owner = $1',
+            [username]
+        );
+        const config = {};
+        rows.forEach(r => {
+            if (!config[r.partner]) config[r.partner] = {};
+            config[r.partner][r.module] = r.enabled;
+        });
+        res.json({ success: true, config });
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
+// Get what other users are sharing with the current user (drives partner tab visibility)
+// Falls back to all-modules-enabled for partners with full access but no explicit module config.
+app.get('/api/shared-with-me', async (req, res) => {
+    const { username } = req.query;
+    if (!username) return res.status(400).json({ success: false, message: 'Username required.' });
+    const ALL_MODULES = ['Finances','Calendar','Budget','Gym','Meals','Cycle'];
+    try {
+        // Who has granted me full access (they appear as target when I am viewer)
+        const accessRows = await dbAll(
+            'SELECT target FROM vectraarchlegacy_access WHERE viewer = $1', [username]
+        );
+        // Explicit per-module config set by each owner for me
+        const moduleRows = await dbAll(
+            'SELECT owner, module, enabled FROM vectraarchlegacy_partner_sharing WHERE partner = $1', [username]
+        );
+        const explicit = {};
+        moduleRows.forEach(r => {
+            if (!explicit[r.owner]) explicit[r.owner] = {};
+            explicit[r.owner][r.module] = r.enabled;
+        });
+        const sharedWithMe = {};
+        accessRows.forEach(r => {
+            const owner = r.target;
+            if (explicit[owner] && Object.keys(explicit[owner]).length > 0) {
+                sharedWithMe[owner] = explicit[owner];
+            } else {
+                // No explicit config yet — backward-compatible default: all modules on
+                sharedWithMe[owner] = Object.fromEntries(ALL_MODULES.map(m => [m, true]));
+            }
+        });
+        res.json({ success: true, sharedWithMe });
     } catch (e) {
         res.status(500).json({ success: false, message: e.message });
     }
