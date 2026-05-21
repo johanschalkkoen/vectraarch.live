@@ -697,7 +697,8 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
                     const cats = budgetCategories.filter(c=>c.type===sec.key);
                     if(!cats.length) return null;
                     const planned = cats.reduce((s,c)=>s+parseFloat(c.amount||0),0);
-                    const actual  = monthExp.filter(t=>cats.some(c=>catMatch(t.category,c.category)))
+                    const isOtherForSec = t=>{const tc=(t.category||'').toLowerCase();return tc.startsWith('other')&&tc.includes(sec.label.toLowerCase());};
+                    const actual  = monthExp.filter(t=>cats.some(c=>catMatch(t.category,c.category))||isOtherForSec(t))
                                            .reduce((s,t)=>s+parseFloat(t.amount||0),0);
                     const over    = actual>planned&&planned>0;
                     const fill    = planned>0?Math.min(actual/planned,1):0;
@@ -726,6 +727,7 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
                               </span>
                             );
                           })}
+                          {(()=>{const otherAmt=monthExp.filter(t=>{const tc=(t.category||'').toLowerCase();return tc.startsWith('other')&&tc.includes(sec.label.toLowerCase());}).reduce((s,t)=>s+parseFloat(t.amount||0),0);return otherAmt>0&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:'rgba(255,255,255,0.4)',padding:'2px 6px',borderRadius:3,background:'rgba(255,255,255,0.05)'}}>Other: {fmtR(otherAmt)}</span>;})()}
                         </div>
                       </div>
                     );
@@ -738,7 +740,7 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
             <SearchBar value={search} onChange={setSearch} placeholder="Search transactions..." tabColor={tabColor}/>
 
             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'4px 16px 8px'}}>
-              <div className="section-label" style={{padding:0}}>ITEMS <span style={{color:tabColor}}>{filtered.filter(i=>!i.virtual).length}</span>{filtered.some(i=>i.virtual)&&<span style={{color:'rgba(255,255,255,0.3)',fontSize:9,marginLeft:6}}>+{filtered.filter(i=>i.virtual).length} BUDGET</span>}</div>
+              <div className="section-label" style={{padding:0}}>ITEMS <span style={{color:tabColor}}>{filtered.filter(i=>!i.virtual).length}</span></div>
               <div style={{display:'flex',gap:6}}>
                 {['date','amount'].map(f=>(
                   <button key={f} onClick={()=>setSortField(f)} style={{...pillStyle(sortField===f?'_active':'_'),borderColor:sortField===f?tabColor:'rgba(255,255,255,0.1)',background:sortField===f?`${tabColor}18`:'transparent',color:sortField===f?tabColor:'var(--text3)'}}>
@@ -749,7 +751,7 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
             </div>
 
             <div className="item-list">
-              {filtered.map(item=>{
+              {filtered.filter(i=>!i.virtual).map(item=>{
                 const isVirtual=!!item.virtual;
                 const finOwner=isVirtual?null:getOwner(item.user||item.username, user, partner, partners);
                 const oc = finOwner?.eventColor||'#00e676';
