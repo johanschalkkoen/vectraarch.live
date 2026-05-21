@@ -4293,14 +4293,14 @@ const App = () => {
   });
 
   const TAB_INFO = {
-    calendar: {title:'CALENDAR',     sub:'EVENTS · CYCLE · SCHEDULE'},
-    budget:   {title:'BUDGET',       sub:'MONTHLY ALLOCATION · PLANNED vs ACTUAL'},
-    finances: {title:'FINANCES',     sub: isShared?'COMBINED HOUSEHOLD TOTALS':'INCOME · EXPENSES · NET TOTAL'},
-    gym:      {title:'GYM',          sub:'EXERCISES · STRENGTH · WEEKLY PLAN'},
-    meals:    {title:'MEALS',        sub:'MACROS · DAILY FOOD LOG'},
-    cycle:    {title:'CYCLE TRACKER',sub:'PERIOD · OVULATION · FERTILITY'},
-    profile:  {title:'PROFILE',      sub:'ACCOUNT · SHARING · PREFERENCES'},
-    admin:    {title:'ADMIN PANEL',  sub:'USER MANAGEMENT · ACCESS CONTROL'},
+    calendar: {title:'CALENDAR',     sub:'SCHEDULE'},
+    budget:   {title:'BUDGET',       sub:'PLANNED'},
+    finances: {title:'FINANCES',     sub: isShared?'COMBINED HOUSEHOLD TOTALS':'INCOME · EXPENSES'},
+    gym:      {title:'GYM',          sub:'EXERCISES'},
+    meals:    {title:'MEALS',        sub:'FOOD LOG'},
+    cycle:    {title:'CYCLE TRACKER',sub:'PERIOD'},
+    profile:  {title:'PROFILE',      sub:'ACCOUNT'},
+    admin:    {title:'ADMIN PANEL',  sub:'ACCESS MANAGEMENT'},
   };
   const pageInfo = TAB_INFO[activeTab]||{title:'',sub:''};
 
