@@ -845,17 +845,15 @@ app.put('/api/budget/:id', async (req, res) => {
     try {
         const row = await dbQuery('SELECT id FROM vectraarchlegacy_budget WHERE id=$1 AND username=$2', [id, user]);
         if (!row) return res.status(404).json({ success: false, message: 'Budget not found.' });
+        // Run the UPDATE on its own — never bundle with history INSERT so a history failure can't roll back the budget change
         try {
-            await dbTransaction([
-                { sql: 'UPDATE vectraarchlegacy_budget SET income=$1,expenses=$2,date=$3,budget_type=$4,section_targets=$5 WHERE id=$6', params:[incomeVal,JSON.stringify(expArr),dateVal,budType,JSON.stringify(targetsVal),id] },
-                { sql: 'INSERT INTO vectraarchlegacy_transaction_history (username,action,table_name,record_id,modified_by,modified_at) VALUES ($1,$2,$3,$4,$5,$6)', params:[user,'UPDATE','budget',id,user,new Date().toISOString()] }
-            ]);
+            await dbRun('UPDATE vectraarchlegacy_budget SET income=$1,expenses=$2,date=$3,budget_type=$4,section_targets=$5 WHERE id=$6',
+                [incomeVal, JSON.stringify(expArr), dateVal, budType, JSON.stringify(targetsVal), id]);
         } catch {
-            await dbTransaction([
-                { sql: 'UPDATE vectraarchlegacy_budget SET income=$1,expenses=$2,date=$3,budget_type=$4 WHERE id=$5', params:[incomeVal,JSON.stringify(expArr),dateVal,budType,id] },
-                { sql: 'INSERT INTO vectraarchlegacy_transaction_history (username,action,table_name,record_id,modified_by,modified_at) VALUES ($1,$2,$3,$4,$5,$6)', params:[user,'UPDATE','budget',id,user,new Date().toISOString()] }
-            ]);
+            await dbRun('UPDATE vectraarchlegacy_budget SET income=$1,expenses=$2,date=$3,budget_type=$4 WHERE id=$5',
+                [incomeVal, JSON.stringify(expArr), dateVal, budType, id]);
         }
+        await logTransaction(user, 'UPDATE', 'budget', id, user); // best-effort, never throws
         res.json({ success: true, message: 'Budget updated!' });
     } catch (e) {
         console.error('[budget PUT]', e.message);
@@ -868,10 +866,8 @@ app.delete('/api/budget/:id', async (req, res) => {
     try {
         const row = await dbQuery('SELECT id, username FROM vectraarchlegacy_budget WHERE id=$1', [id]);
         if (!row) return res.status(404).json({ success: false, message: 'Budget not found.' });
-        await dbTransaction([
-            { sql: 'DELETE FROM vectraarchlegacy_budget WHERE id=$1', params: [id] },
-            { sql: 'INSERT INTO vectraarchlegacy_transaction_history (username,action,table_name,record_id,modified_by,modified_at) VALUES ($1,$2,$3,$4,$5,$6)', params: [row.username,'DELETE','budget',id,row.username,new Date().toISOString()] }
-        ]);
+        await dbRun('DELETE FROM vectraarchlegacy_budget WHERE id=$1', [id]);
+        await logTransaction(row.username, 'DELETE', 'budget', id, row.username);
         res.json({ success: true, message: 'Budget item deleted successfully!' });
     } catch (e) {
         res.status(500).json({ success: false, message: 'Database error deleting budget.', error: e.message });
