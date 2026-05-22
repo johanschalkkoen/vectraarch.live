@@ -129,7 +129,7 @@ async function ensureSchema() {
     }
     console.log('Schema check complete.');
 }
-ensureSchema();
+// Schema is awaited before the server accepts any requests (see bottom of file)
 
 // ── DB HELPERS ────────────────────────────────────────────────────────────────
 const dbQuery = async (sql, params = []) => {
@@ -405,24 +405,34 @@ app.get('/api/profile-pictures', async (req, res) => {
 });
 
 app.post('/api/profile-pictures', async (req, res) => {
-    const { username, firstName, lastName, profilePicUrl, email, phone, address, eventColor, gender, telegram_chat_id, displayName, bio, pronouns, theme, activityStatus } = req.body;
+    const { username, firstName, lastName, profilePicUrl, email, phone, address,
+            eventColor, accentColor, gender, telegram_chat_id, displayName, bio, pronouns,
+            theme, activityStatus, dob, weight, height, role } = req.body;
     if (!username) return res.status(400).json({ success: false, message: 'Username required.' });
     if (firstName && firstName.length > 50) return res.status(400).json({ success: false, message: 'First name must be 50 characters or less.' });
     if (lastName  && lastName.length  > 50) return res.status(400).json({ success: false, message: 'Last name must be 50 characters or less.' });
     try {
         const exists = await dbQuery('SELECT username FROM vectraarchlegacy_users WHERE username = $1', [username]);
         if (!exists) return res.status(404).json({ success: false, message: 'User not found.' });
+        const resolvedAccent = accentColor || eventColor || '#2dd4bf';
         await dbRun(`
             UPDATE vectraarchlegacy_users SET
                 first_name=$1, last_name=$2,
                 profile_pic_url=COALESCE($3::text, profile_pic_url),
                 email=$4, phone=$5, address=$6,
                 event_color=$7, gender=$8, telegram_chat_id=$9, display_name=$10,
-                bio=$11, pronouns=$12, theme=$13, activity_status=$14, last_active=$15
-            WHERE username=$16`,
+                bio=$11, pronouns=$12, theme=$13, activity_status=$14, last_active=$15,
+                date_of_birth=$16, height_cm=$17, weight_kg=$18, accent_color=$19, role=$20
+            WHERE username=$21`,
             [firstName||null, lastName||null, profilePicUrl||null, email||null, phone||null, address||null,
-             eventColor||'#2dd4bf', gender||null, telegram_chat_id||null, displayName||username,
-             bio||null, pronouns||null, theme||'dark', activityStatus?1:0, new Date().toISOString(), username]
+             resolvedAccent, gender||null, telegram_chat_id||null, displayName||username,
+             bio||null, pronouns||null, theme||'dark', activityStatus?1:0, new Date().toISOString(),
+             dob||null,
+             height ? parseFloat(height) : null,
+             weight ? parseFloat(weight) : null,
+             resolvedAccent,
+             role||null,
+             username]
         );
         await logTransaction(username, 'UPDATE_PROFILE', 'users', null, username);
         const updated = await dbQuery('SELECT * FROM vectraarchlegacy_users WHERE username = $1', [username]);
@@ -762,14 +772,25 @@ app.get('/api/budget', async (req, res) => {
     const { user } = req.query;
     if (!user) return res.status(400).json({ success: false, message: 'User required.' });
     try {
-        const rows = await dbAll(
-            "SELECT id, username AS \"user\", income, expenses, TO_CHAR(date, 'YYYY-MM-DD') AS date, COALESCE(budget_type,'need') AS budget_type, COALESCE(section_targets,'{}') AS section_targets FROM vectraarchlegacy_budget WHERE username = $1 ORDER BY date DESC",
-            [user]
-        );
+        let rows;
+        try {
+            rows = await dbAll(
+                "SELECT id, username AS \"user\", income, expenses, TO_CHAR(date, 'YYYY-MM-DD') AS date, COALESCE(budget_type,'need') AS budget_type, COALESCE(section_targets,'{}') AS section_targets FROM vectraarchlegacy_budget WHERE username = $1 ORDER BY date DESC",
+                [user]
+            );
+        } catch {
+            // section_targets column may not exist yet — fall back without it
+            rows = (await dbAll(
+                "SELECT id, username AS \"user\", income, expenses, TO_CHAR(date, 'YYYY-MM-DD') AS date, COALESCE(budget_type,'need') AS budget_type FROM vectraarchlegacy_budget WHERE username = $1 ORDER BY date DESC",
+                [user]
+            )).map(r => ({ ...r, section_targets: {} }));
+        }
         const data = rows.map(r => ({
             ...r,
             expenses: Array.isArray(r.expenses) ? r.expenses
                 : (typeof r.expenses === 'string' ? JSON.parse(r.expenses || '[]') : []),
+            section_targets: (typeof r.section_targets === 'object' && r.section_targets !== null)
+                ? r.section_targets : {},
         }));
         res.json({ success: true, data });
     } catch (e) {
@@ -790,10 +811,18 @@ app.post('/api/budget', async (req, res) => {
     const dateVal = String(date).slice(0, 10);
     const targetsVal = (section_targets && typeof section_targets === 'object') ? section_targets : {};
     try {
-        const r = await dbRun(
-            'INSERT INTO vectraarchlegacy_budget (username,income,expenses,date,budget_type,section_targets) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id',
-            [user, incomeVal, JSON.stringify(expArr), dateVal, budType, JSON.stringify(targetsVal)]
-        );
+        let r;
+        try {
+            r = await dbRun(
+                'INSERT INTO vectraarchlegacy_budget (username,income,expenses,date,budget_type,section_targets) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id',
+                [user, incomeVal, JSON.stringify(expArr), dateVal, budType, JSON.stringify(targetsVal)]
+            );
+        } catch {
+            r = await dbRun(
+                'INSERT INTO vectraarchlegacy_budget (username,income,expenses,date,budget_type) VALUES ($1,$2,$3,$4,$5) RETURNING id',
+                [user, incomeVal, JSON.stringify(expArr), dateVal, budType]
+            );
+        }
         await logTransaction(user, 'CREATE', 'budget', r.rows[0].id, user);
         res.json({ success: true, message: 'Budget saved!', id: r.rows[0].id });
     } catch (e) {
@@ -816,12 +845,18 @@ app.put('/api/budget/:id', async (req, res) => {
     try {
         const row = await dbQuery('SELECT id FROM vectraarchlegacy_budget WHERE id=$1 AND username=$2', [id, user]);
         if (!row) return res.status(404).json({ success: false, message: 'Budget not found.' });
-        await dbTransaction([
-            { sql: 'UPDATE vectraarchlegacy_budget SET income=$1,expenses=$2,date=$3,budget_type=$4,section_targets=$5 WHERE id=$6', params:[incomeVal,JSON.stringify(expArr),dateVal,budType,JSON.stringify(targetsVal),id] },
-            { sql: 'INSERT INTO vectraarchlegacy_transaction_history (username,action,table_name,record_id,modified_by,modified_at) VALUES ($1,$2,$3,$4,$5,$6)', params:[user,'UPDATE','budget',id,user,new Date().toISOString()] }
-        ]);
+        // Run the UPDATE on its own — never bundle with history INSERT so a history failure can't roll back the budget change
+        try {
+            await dbRun('UPDATE vectraarchlegacy_budget SET income=$1,expenses=$2,date=$3,budget_type=$4,section_targets=$5 WHERE id=$6',
+                [incomeVal, JSON.stringify(expArr), dateVal, budType, JSON.stringify(targetsVal), id]);
+        } catch {
+            await dbRun('UPDATE vectraarchlegacy_budget SET income=$1,expenses=$2,date=$3,budget_type=$4 WHERE id=$5',
+                [incomeVal, JSON.stringify(expArr), dateVal, budType, id]);
+        }
+        await logTransaction(user, 'UPDATE', 'budget', id, user); // best-effort, never throws
         res.json({ success: true, message: 'Budget updated!' });
     } catch (e) {
+        console.error('[budget PUT]', e.message);
         res.status(500).json({ success: false, message: 'Database error: ' + e.message });
     }
 });
@@ -831,10 +866,8 @@ app.delete('/api/budget/:id', async (req, res) => {
     try {
         const row = await dbQuery('SELECT id, username FROM vectraarchlegacy_budget WHERE id=$1', [id]);
         if (!row) return res.status(404).json({ success: false, message: 'Budget not found.' });
-        await dbTransaction([
-            { sql: 'DELETE FROM vectraarchlegacy_budget WHERE id=$1', params: [id] },
-            { sql: 'INSERT INTO vectraarchlegacy_transaction_history (username,action,table_name,record_id,modified_by,modified_at) VALUES ($1,$2,$3,$4,$5,$6)', params: [row.username,'DELETE','budget',id,row.username,new Date().toISOString()] }
-        ]);
+        await dbRun('DELETE FROM vectraarchlegacy_budget WHERE id=$1', [id]);
+        await logTransaction(row.username, 'DELETE', 'budget', id, row.username);
         res.json({ success: true, message: 'Budget item deleted successfully!' });
     } catch (e) {
         res.status(500).json({ success: false, message: 'Database error deleting budget.', error: e.message });
@@ -1462,4 +1495,6 @@ app.post('/api/setup', async (req, res) => {
     }
 });
 
-app.listen(PORT, HOST, () => console.log('VectraArch Legacy online · port ' + PORT));
+ensureSchema()
+    .then(() => app.listen(PORT, HOST, () => console.log('VectraArch Legacy online · port ' + PORT)))
+    .catch(err => { console.error('Fatal: schema init failed', err); process.exit(1); });
