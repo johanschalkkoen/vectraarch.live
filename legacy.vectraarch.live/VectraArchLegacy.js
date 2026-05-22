@@ -780,6 +780,9 @@ app.get('/api/budget', async (req, res) => {
             ...r,
             expenses: Array.isArray(r.expenses) ? r.expenses
                 : (typeof r.expenses === 'string' ? JSON.parse(r.expenses || '[]') : []),
+            section_targets: (typeof r.section_targets === 'object' && r.section_targets !== null)
+                ? r.section_targets
+                : (typeof r.section_targets === 'string' ? JSON.parse(r.section_targets || '{}') : {}),
         }));
         res.json({ success: true, data });
     } catch (e) {
