@@ -68,7 +68,6 @@ async function ensureSchema() {
         )`,
         `CREATE INDEX IF NOT EXISTS idx_budget_username ON vectraarchlegacy_budget(username)`,
         `CREATE INDEX IF NOT EXISTS idx_budget_date ON vectraarchlegacy_budget(date)`,
-        `ALTER TABLE vectraarchlegacy_budget ADD COLUMN IF NOT EXISTS section_targets JSONB DEFAULT '{}'`,
         // ── Setup wizard: new user profile columns ──
         `ALTER TABLE vectraarchlegacy_users ADD COLUMN IF NOT EXISTS date_of_birth TEXT`,
         `ALTER TABLE vectraarchlegacy_users ADD COLUMN IF NOT EXISTS accent_color TEXT DEFAULT '#00ff41'`,
@@ -768,30 +767,51 @@ app.delete('/api/financial/:id', async (req, res) => {
 });
 
 // ── BUDGET ────────────────────────────────────────────────────────────────────
+// Section targets (the 50/30/20 % goals) live inside the expenses JSONB as a
+// sentinel entry: adding a dedicated section_targets column via ALTER TABLE does
+// not take effect on this database, so the expenses column is the reliable store.
+const SECTION_TARGETS_KIND = '__section_targets__';
+const isTargetsSentinel = (e) =>
+    e && typeof e === 'object' && e.__kind === SECTION_TARGETS_KIND;
+
+// Pull the section-targets sentinel out of a raw expenses array.
+function splitBudgetExpenses(raw) {
+    const list = Array.isArray(raw) ? raw : [];
+    const expenses = [];
+    let section_targets = {};
+    for (const item of list) {
+        if (isTargetsSentinel(item)) {
+            if (item.values && typeof item.values === 'object') section_targets = item.values;
+        } else {
+            expenses.push(item);
+        }
+    }
+    return { expenses, section_targets };
+}
+
+// Build the expenses array to store: real categories plus the targets sentinel.
+function packBudgetExpenses(expArr, targetsVal) {
+    const list = (Array.isArray(expArr) ? expArr : []).filter(e => !isTargetsSentinel(e));
+    if (targetsVal && typeof targetsVal === 'object' && Object.keys(targetsVal).length > 0) {
+        list.push({ __kind: SECTION_TARGETS_KIND, values: targetsVal });
+    }
+    return list;
+}
+
 app.get('/api/budget', async (req, res) => {
     const { user } = req.query;
     if (!user) return res.status(400).json({ success: false, message: 'User required.' });
     try {
-        let rows;
-        try {
-            rows = await dbAll(
-                "SELECT id, username AS \"user\", income, expenses, TO_CHAR(date, 'YYYY-MM-DD') AS date, COALESCE(budget_type,'need') AS budget_type, COALESCE(section_targets,'{}') AS section_targets FROM vectraarchlegacy_budget WHERE username = $1 ORDER BY date DESC",
-                [user]
-            );
-        } catch {
-            // section_targets column may not exist yet — fall back without it
-            rows = (await dbAll(
-                "SELECT id, username AS \"user\", income, expenses, TO_CHAR(date, 'YYYY-MM-DD') AS date, COALESCE(budget_type,'need') AS budget_type FROM vectraarchlegacy_budget WHERE username = $1 ORDER BY date DESC",
-                [user]
-            )).map(r => ({ ...r, section_targets: {} }));
-        }
-        const data = rows.map(r => ({
-            ...r,
-            expenses: Array.isArray(r.expenses) ? r.expenses
-                : (typeof r.expenses === 'string' ? JSON.parse(r.expenses || '[]') : []),
-            section_targets: (typeof r.section_targets === 'object' && r.section_targets !== null)
-                ? r.section_targets : {},
-        }));
+        const rows = await dbAll(
+            "SELECT id, username AS \"user\", income, expenses, TO_CHAR(date, 'YYYY-MM-DD') AS date, COALESCE(budget_type,'need') AS budget_type FROM vectraarchlegacy_budget WHERE username = $1 ORDER BY date DESC",
+            [user]
+        );
+        const data = rows.map(r => {
+            const raw = Array.isArray(r.expenses) ? r.expenses
+                : (typeof r.expenses === 'string' ? JSON.parse(r.expenses || '[]') : []);
+            const { expenses, section_targets } = splitBudgetExpenses(raw);
+            return { ...r, expenses, section_targets };
+        });
         res.json({ success: true, data });
     } catch (e) {
         console.error('[budget GET]', e.message);
@@ -804,25 +824,19 @@ app.post('/api/budget', async (req, res) => {
     if (!user || !date) return res.status(400).json({ success: false, message: 'User and date required.' });
     let expArr = [];
     try { const raw = expenses || '[]'; expArr = typeof raw === 'string' ? JSON.parse(raw) : raw; if (!Array.isArray(expArr)) expArr = []; } catch { expArr = []; }
+    expArr = expArr.filter(e => !isTargetsSentinel(e));
     if (expArr.length === 0) return res.status(400).json({ success: false, message: 'At least one expense category required.' });
     const totalPlanned = expArr.reduce((s, e) => s + parseFloat(e.amount || 0), 0);
     const incomeVal = parseFloat(income) || totalPlanned;
     const budType = budget_type || expArr[0]?.type || 'need';
     const dateVal = String(date).slice(0, 10);
     const targetsVal = (section_targets && typeof section_targets === 'object') ? section_targets : {};
+    const stored = packBudgetExpenses(expArr, targetsVal);
     try {
-        let r;
-        try {
-            r = await dbRun(
-                'INSERT INTO vectraarchlegacy_budget (username,income,expenses,date,budget_type,section_targets) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id',
-                [user, incomeVal, JSON.stringify(expArr), dateVal, budType, JSON.stringify(targetsVal)]
-            );
-        } catch {
-            r = await dbRun(
-                'INSERT INTO vectraarchlegacy_budget (username,income,expenses,date,budget_type) VALUES ($1,$2,$3,$4,$5) RETURNING id',
-                [user, incomeVal, JSON.stringify(expArr), dateVal, budType]
-            );
-        }
+        const r = await dbRun(
+            'INSERT INTO vectraarchlegacy_budget (username,income,expenses,date,budget_type) VALUES ($1,$2,$3,$4,$5) RETURNING id',
+            [user, incomeVal, JSON.stringify(stored), dateVal, budType]
+        );
         await logTransaction(user, 'CREATE', 'budget', r.rows[0].id, user);
         res.json({ success: true, message: 'Budget saved!', id: r.rows[0].id });
     } catch (e) {
@@ -837,22 +851,19 @@ app.put('/api/budget/:id', async (req, res) => {
     if (!user || !date) return res.status(400).json({ success: false, message: 'User and date required.' });
     let expArr = [];
     try { const raw = expenses||'[]'; expArr = typeof raw==='string'?JSON.parse(raw):raw; if(!Array.isArray(expArr)) expArr=[]; } catch { expArr=[]; }
+    expArr = expArr.filter(e => !isTargetsSentinel(e));
     const totalPlanned = expArr.reduce((s,e)=>s+parseFloat(e.amount||0),0);
     const incomeVal = parseFloat(income)||totalPlanned;
     const budType = budget_type || expArr[0]?.type || 'need';
     const dateVal = String(date).slice(0, 10);
     const targetsVal = (section_targets && typeof section_targets === 'object') ? section_targets : {};
+    const stored = packBudgetExpenses(expArr, targetsVal);
     try {
         const row = await dbQuery('SELECT id FROM vectraarchlegacy_budget WHERE id=$1 AND username=$2', [id, user]);
         if (!row) return res.status(404).json({ success: false, message: 'Budget not found.' });
         // Run the UPDATE on its own — never bundle with history INSERT so a history failure can't roll back the budget change
-        try {
-            await dbRun('UPDATE vectraarchlegacy_budget SET income=$1,expenses=$2,date=$3,budget_type=$4,section_targets=$5 WHERE id=$6',
-                [incomeVal, JSON.stringify(expArr), dateVal, budType, JSON.stringify(targetsVal), id]);
-        } catch {
-            await dbRun('UPDATE vectraarchlegacy_budget SET income=$1,expenses=$2,date=$3,budget_type=$4 WHERE id=$5',
-                [incomeVal, JSON.stringify(expArr), dateVal, budType, id]);
-        }
+        await dbRun('UPDATE vectraarchlegacy_budget SET income=$1,expenses=$2,date=$3,budget_type=$4 WHERE id=$5',
+            [incomeVal, JSON.stringify(stored), dateVal, budType, id]);
         await logTransaction(user, 'UPDATE', 'budget', id, user); // best-effort, never throws
         res.json({ success: true, message: 'Budget updated!' });
     } catch (e) {
