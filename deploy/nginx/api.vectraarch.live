@@ -1,0 +1,49 @@
+# =============================================================================
+# api.vectraarch.live  ->  VectraArchIdentity :3200
+#
+# Version-controlled copy of /etc/nginx/sites-enabled/api.vectraarch.live
+# Apply with:  sudo cp deploy/nginx/api.vectraarch.live /etc/nginx/sites-enabled/
+#              sudo nginx -t && sudo systemctl reload nginx
+# =============================================================================
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    server_name api.vectraarch.live;
+
+    ssl_certificate     /etc/letsencrypt/live/api.vectraarch.live/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/api.vectraarch.live/privkey.pem;
+    include             /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam         /etc/letsencrypt/ssl-dhparams.pem;
+
+    add_header Strict-Transport-Security "max-age=31536000; preload" always;
+    add_header X-Frame-Options            "SAMEORIGIN"               always;
+    add_header X-Content-Type-Options     "nosniff"                  always;
+    add_header Referrer-Policy            "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy         "camera=(), microphone=(), geolocation=(), payment=()" always;
+
+    server_tokens off;
+
+    # Identity is an internal service guarded only by an X-API-Key header.
+    # To restrict it to known callers, uncomment and set your allowed IPs:
+    #   allow 127.0.0.1;
+    #   allow <your-other-server-ip>;
+    #   deny all;
+
+    location / {
+        proxy_pass          http://127.0.0.1:3200;
+        proxy_http_version  1.1;
+        proxy_set_header    Host              $host;
+        proxy_set_header    X-Real-IP         $remote_addr;
+        proxy_set_header    X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header    X-Forwarded-Proto $scheme;
+    }
+}
+
+# HTTP → HTTPS
+server {
+    listen 80;
+    listen [::]:80;
+    server_name api.vectraarch.live;
+    return 301 https://$host$request_uri;
+}
