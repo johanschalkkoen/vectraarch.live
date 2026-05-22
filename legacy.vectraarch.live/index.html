@@ -2018,6 +2018,21 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
   const addDraftAlloc = (type) =>
     setDraftAllocs(prev=>[...prev, {category:'', amount:'', type}]);
 
+  // Auto-populate amounts when income is typed for a brand-new budget
+  useEffect(() => {
+    if (!editing || budgetEntry) return;
+    const inc = parseFloat(draftIncome) || 0;
+    if (inc <= 0) return;
+    setDraftAllocs(prev => {
+      if (prev.some(a => parseFloat(a.amount || 0) > 0)) return prev; // user already typed amounts
+      return DEFAULT_BUDGET_ALLOCATIONS.map(a => ({
+        category: a.category,
+        amount: String((inc * a.pct / 100).toFixed(0)),
+        type: a.type,
+      }));
+    });
+  }, [draftIncome, editing, !!budgetEntry]);
+
   const draftTotalAmount = draftAllocs.reduce((s,a)=>s+parseFloat(a.amount||0),0);
 
   const renderSection = (sec) => {
