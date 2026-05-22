@@ -3,3 +3,5 @@
 **/dist-electron/
 **/release/
 .psql_history
+**/.env
+**/.pm2/
