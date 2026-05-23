@@ -165,10 +165,23 @@ async function ensureSchema() {
         `CREATE INDEX IF NOT EXISTS idx_invites_email  ON vectraarchlegacy_invites(LOWER(email))`,
         `CREATE INDEX IF NOT EXISTS idx_invites_status ON vectraarchlegacy_invites(status)`,
     ];
+    let failed = 0;
     for (const sql of migrations) {
-        try { await pool.query(sql); } catch (e) { console.error('[schema]', e.message); }
+        try { await pool.query(sql); }
+        catch (e) {
+            failed += 1;
+            console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            console.error('[schema] MIGRATION FAILED — fix this or features will break');
+            console.error('  SQL : ' + sql.replace(/\s+/g, ' ').trim().slice(0, 200));
+            console.error('  CODE: ' + (e.code || '-'));
+            console.error('  ERR : ' + e.message);
+            console.error('  HINT: if "permission denied for table", the table is owned by a different');
+            console.error('        postgres role. See migrations/2026_05_fix_legacy_schema.sql');
+            console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        }
     }
-    console.log('Schema check complete.');
+    if (failed > 0) console.error(`[schema] ${failed} migration(s) failed — app will run but some features may be broken.`);
+    else console.log('Schema check complete.');
 }
 // Schema is awaited before the server accepts any requests (see bottom of file)
 
@@ -1575,7 +1588,7 @@ If you weren't expecting this, just ignore the email.
 
 — VectraArch Legacy`;
     const html = `<div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;background:#0a0a0a;color:#e5e5e5">
-        <div style="font-size:11px;letter-spacing:0.2em;color:#d4a017;text-transform:uppercase;margin-bottom:8px">§ VectraArch · Legacy</div>
+        <div style="font-size:11px;letter-spacing:0.2em;color:#d4a017;text-transform:uppercase;margin-bottom:8px">VectraArch · Legacy</div>
         <h1 style="font-size:22px;color:#fff;margin:0 0 14px">You're invited.</h1>
         <p style="line-height:1.55;color:#bdbdbd"><strong style="color:#fff">${inviter || 'A VectraArch admin'}</strong> has invited you to join the VectraArch Legacy hub.</p>
         <p style="line-height:1.55;color:#bdbdbd">Click below to accept and sign in with your Google account (<strong>${invite.email}</strong>):</p>
@@ -1752,7 +1765,7 @@ app.get('/invite/:token', (req, res) => {
 </style></head><body>
 <div class="grid-bg"></div>
 <div class="auth-wrap"><div class="auth-card invite-card">
-  <div class="invite-eyebrow">§ Invitation</div>
+  <div class="invite-eyebrow">Invitation</div>
   <div id="state-loading">
     <div class="invite-sub">Checking invitation…</div>
   </div>
