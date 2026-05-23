@@ -1588,7 +1588,7 @@ If you weren't expecting this, just ignore the email.
 
 — VectraArch Legacy`;
     const html = `<div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;background:#0a0a0a;color:#e5e5e5">
-        <div style="font-size:11px;letter-spacing:0.2em;color:#d4a017;text-transform:uppercase;margin-bottom:8px">§ VectraArch · Legacy</div>
+        <div style="font-size:11px;letter-spacing:0.2em;color:#d4a017;text-transform:uppercase;margin-bottom:8px">VectraArch · Legacy</div>
         <h1 style="font-size:22px;color:#fff;margin:0 0 14px">You're invited.</h1>
         <p style="line-height:1.55;color:#bdbdbd"><strong style="color:#fff">${inviter || 'A VectraArch admin'}</strong> has invited you to join the VectraArch Legacy hub.</p>
         <p style="line-height:1.55;color:#bdbdbd">Click below to accept and sign in with your Google account (<strong>${invite.email}</strong>):</p>
@@ -1765,7 +1765,7 @@ app.get('/invite/:token', (req, res) => {
 </style></head><body>
 <div class="grid-bg"></div>
 <div class="auth-wrap"><div class="auth-card invite-card">
-  <div class="invite-eyebrow">§ Invitation</div>
+  <div class="invite-eyebrow">Invitation</div>
   <div id="state-loading">
     <div class="invite-sub">Checking invitation…</div>
   </div>

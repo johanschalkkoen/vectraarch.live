@@ -3987,7 +3987,7 @@ const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPart
                       {cyc.symptoms&&cyc.symptoms.length>0&&(
                         <div className="symptom-tags" style={{marginTop:8}}>
                           {cyc.symptoms.split(',').filter(Boolean).map(s=>(
-                            <span key={s} className="symptom-tag">§ {s.trim()}</span>
+                            <span key={s} className="symptom-tag">{s.trim()}</span>
                           ))}
                         </div>
                       )}
@@ -4127,7 +4127,7 @@ const SecuritySection = ({user, setUser, onAlert}) => {
 
   return (
     <div className="profile-section">
-      <div className="profile-section-title">§ SECURITY</div>
+      <div className="profile-section-title">SECURITY</div>
       <div className="profile-field" style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
         <div>
           <div className="profile-field-label">Two-Factor Authentication</div>
@@ -4178,8 +4178,20 @@ const SecuritySection = ({user, setUser, onAlert}) => {
   );
 };
 
+const ROLE_OPTIONS = ['individual', 'partner', 'parent', 'guardian'];
+
+// If the user has a linked partner but role is still the default 'individual',
+// treat it as 'partner' for display & as the seed value when entering edit mode.
+const deriveRole = (storedRole, hasPartner) => {
+  const r = (storedRole || 'individual').toLowerCase();
+  if (hasPartner && r === 'individual') return 'partner';
+  return r;
+};
+
 const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingConfig, setSharingConfig, onLogout, tabColor='#00ff41'}) => {
   const [editing, setEditing] = useState(false);
+  const hasPartner   = partners.length > 0 || !!partner;
+  const effectiveRole = deriveRole(user.role, hasPartner);
   const mkForm = (u) => ({
     firstName: u.firstName||'',
     lastName:  u.lastName||'',
@@ -4189,7 +4201,7 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
     dob:       u.dateOfBirth||u.dob||'',
     weight:    u.weightKg!=null ? String(u.weightKg) : (u.weight||''),
     height:    u.heightCm!=null ? String(u.heightCm) : (u.height||''),
-    role:      u.role||'individual',
+    role:      deriveRole(u.role, hasPartner),
     currency:  u.currency||'ZAR',
   });
   const [form, setForm] = useState(()=>mkForm(user));
@@ -4310,7 +4322,7 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
   const acColor = selectedColor;
   const colorName = COLOR_NAMES[acColor]||'CUSTOM';
   const iL = {background:'var(--bg3)',border:'1px solid var(--border2)',borderRadius:4,padding:'10px 12px',width:'100%',boxSizing:'border-box',outline:'none',fontFamily:"'Space Grotesk',sans-serif",fontSize:13,color:'var(--text)'};
-  const lL = {fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.18em',textTransform:'uppercase',color:'var(--pink)',marginBottom:5,display:'block'};
+  const lL = {fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.18em',textTransform:'uppercase',color:'var(--text3)',marginBottom:5,display:'block'};
   const vL = {fontFamily:"'Space Grotesk',sans-serif",fontSize:13,color:'var(--text)',padding:'2px 0'};
 
   return (
@@ -4335,7 +4347,7 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
                   </div>
                 </div>
                 <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:tabColor,letterSpacing:'0.18em',textTransform:'uppercase'}}>
-                  § {user.role ? user.role.toUpperCase() : 'INDIVIDUAL'}
+                  {effectiveRole.toUpperCase()}
                 </div>
               </div>
             );
@@ -4390,13 +4402,13 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
           {/* ── PARTNER SHARING (moved from bottom) ── */}
           {(partners.length===0&&!partner)&&(
             <div style={{background:'var(--bg2)',border:'1px solid var(--border2)',borderRadius:6,padding:'14px 16px',marginBottom:14}}>
-              <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:18,letterSpacing:'0.02em',color:'var(--text)',marginBottom:8}}>§ PARTNER SHARING</div>
+              <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:18,letterSpacing:'0.02em',color:'var(--text)',marginBottom:8}}>PARTNER SHARING</div>
               <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',lineHeight:1.6}}>No partners linked yet. An admin can set up access links at <strong style={{color:'var(--text2)'}}>vectraarch.live/conduit/users</strong></div>
             </div>
           )}
           {(partners.length>0?partners:partner?[partner]:[]).length>0&&(
             <div className="partner-sharing-card" style={{marginBottom:14}}>
-              <div className="profile-section-title">§ PARTNER SHARING</div>
+              <div className="profile-section-title">PARTNER SHARING</div>
               <div className="partner-hint" style={{marginBottom:12}}>Control which partners can see YOUR data. Each partner is managed independently.</div>
 
               {(partners.length>0?partners:[partner]).map((p,pi)=>{
@@ -4467,7 +4479,7 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
 
           {/* ── ACCOUNT DETAILS ── */}
           <div className="profile-section">
-            <div className="profile-section-title">§ ACCOUNT DETAILS</div>
+            <div className="profile-section-title">ACCOUNT DETAILS</div>
             <div style={{padding:'14px 14px 0'}}>
               {/* First / Last Name */}
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:14}}>
@@ -4510,6 +4522,28 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
                     </button>
                   ))}
                 </div>
+              </div>
+              {/* Role */}
+              <div style={{marginBottom:14}}>
+                <span style={lL}>ROLE</span>
+                <div style={{display:'flex',gap:6,flexWrap:'wrap',paddingTop:editing?0:2}}>
+                  {ROLE_OPTIONS.map(r=>(
+                    <button key={r} onClick={editing?()=>setForm(p=>({...p,role:r})):undefined}
+                      style={{fontFamily:"'DM Mono',monospace",fontSize:10,letterSpacing:'0.12em',textTransform:'uppercase',
+                        padding:'8px 14px',borderRadius:4,cursor:editing?'pointer':'default',
+                        border:form.role===r?`1px solid ${tabColor}`:'1px solid var(--border2)',
+                        color:form.role===r?tabColor:'var(--text3)',
+                        background:form.role===r?`${tabColor}20`:'transparent',
+                        opacity:editing?1:(form.role===r?1:0.4)}}>
+                      {r}
+                    </button>
+                  ))}
+                </div>
+                {!editing && form.role==='partner' && hasPartner && (
+                  <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)',marginTop:6,letterSpacing:'0.04em'}}>
+                    Auto-set because you share with {partner?.displayName || partner?.firstName || partner?.username || (partners.length+' partners')}.
+                  </div>
+                )}
               </div>
               {/* DOB */}
               <div style={{marginBottom:14}}>
@@ -4619,7 +4653,7 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
 
           {/* ── ACCENT COLOR ── */}
           <div className="profile-section">
-            <div className="profile-section-title">§ ACCENT COLOR</div>
+            <div className="profile-section-title">ACCENT COLOR</div>
             <div style={{padding:'10px 14px 4px',fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)'}}>Personal accent — used on calendar, charts and badges.</div>
             <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:8,padding:'8px 14px 14px'}}>
               {COLORS.map(col=>{
@@ -4647,7 +4681,7 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
 
           {/* ── Currency ── */}
           <div className="profile-section">
-            <div className="profile-section-title">§ CURRENCY</div>
+            <div className="profile-section-title">CURRENCY</div>
             <div className="profile-field">
               <div className="profile-field-label">Display Currency</div>
               <select className="profile-field-input" style={{background:'transparent',border:'none',outline:'none',color:'var(--text)',fontFamily:"'DM Mono',monospace",fontSize:13,width:'100%',cursor:editing?'pointer':'default'}}
@@ -4665,7 +4699,7 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
           {/* ── Health data consent ── */}
           {(user.gender||'').toLowerCase()==='female'&&(
             <div className="profile-section">
-              <div className="profile-section-title">§ HEALTH DATA</div>
+              <div className="profile-section-title">HEALTH DATA</div>
               <div className="profile-field" style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
                 <div>
                   <div className="profile-field-label">Cycle Tracking Consent</div>
@@ -4711,19 +4745,19 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
             <div className="modal-handle"/>
             <div className="modal-title">PRIVACY POLICY</div>
             <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',lineHeight:1.8,letterSpacing:'0.04em'}}>
-              <div style={{color:'var(--pink)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:8}}>§ DATA COLLECTED</div>
+              <div style={{color:'var(--pink)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:8}}>DATA COLLECTED</div>
               We collect profile data (name, email, gender, date of birth, physical stats), financial records (income, expenses), calendar events, workout logs, meal entries, and — with your explicit consent — menstrual cycle and health data.
-              <div style={{color:'var(--pink)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>§ HOW WE USE YOUR DATA</div>
+              <div style={{color:'var(--pink)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>HOW WE USE YOUR DATA</div>
               Your data is used solely to provide the features of this application. We do not sell, rent, or share your personal data with third parties for marketing purposes.
-              <div style={{color:'var(--pink)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>§ SHARING</div>
+              <div style={{color:'var(--pink)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>SHARING</div>
               You control which data categories are shared with linked partners via the Sharing settings in your Profile. Shared data is visible only to users you explicitly link.
-              <div style={{color:'var(--pink)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>§ STORAGE &amp; SECURITY</div>
+              <div style={{color:'var(--pink)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>STORAGE &amp; SECURITY</div>
               Data is stored on secured servers. Passwords are hashed and never stored in plain text. All data transmission uses HTTPS encryption.
-              <div style={{color:'var(--pink)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>§ YOUR RIGHTS</div>
+              <div style={{color:'var(--pink)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>YOUR RIGHTS</div>
               You have the right to access, correct, export, and delete your personal data at any time. To request full data deletion, contact your system administrator. Health data consent can be revoked instantly from your Profile settings, which immediately stops processing of that data category.
-              <div style={{color:'var(--pink)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>§ HEALTH DATA</div>
+              <div style={{color:'var(--pink)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>HEALTH DATA</div>
               Cycle and health data is only collected with your explicit, granular consent (separate from general Terms). You may revoke this consent at any time. Revoking consent stops further processing; contact admin to request scrubbing of existing health records.
-              <div style={{color:'var(--pink)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>§ CONTACT</div>
+              <div style={{color:'var(--pink)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>CONTACT</div>
               For privacy concerns or data requests: admin@vectraarch.live
               <div style={{color:'var(--text3)',fontSize:8,marginTop:16}}>Last updated: May 2026 · Vectra Arch Legacy</div>
             </div>
@@ -4739,19 +4773,19 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
             <div className="modal-handle"/>
             <div className="modal-title">TERMS OF SERVICE</div>
             <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',lineHeight:1.8,letterSpacing:'0.04em'}}>
-              <div style={{color:'var(--green)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:8}}>§ ACCEPTANCE</div>
+              <div style={{color:'var(--green)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:8}}>ACCEPTANCE</div>
               By using Vectra Arch Legacy, you agree to these Terms. If you do not agree, do not use the application.
-              <div style={{color:'var(--green)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>§ PERMITTED USE</div>
+              <div style={{color:'var(--green)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>PERMITTED USE</div>
               This application is provided for personal household financial tracking, health monitoring, and lifestyle management. You agree not to use it for commercial data collection, illegal purposes, or to harm other users.
-              <div style={{color:'var(--green)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>§ ACCOUNT RESPONSIBILITY</div>
+              <div style={{color:'var(--green)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>ACCOUNT RESPONSIBILITY</div>
               You are responsible for maintaining the confidentiality of your credentials. You accept full responsibility for all activity that occurs under your account.
-              <div style={{color:'var(--green)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>§ HEALTH DATA &amp; CONSENT</div>
+              <div style={{color:'var(--green)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>HEALTH DATA &amp; CONSENT</div>
               Health and cycle data recording requires separate, explicit opt-in consent. This consent is not bundled into acceptance of these Terms. You may withdraw consent at any time via Profile → Health Data settings.
-              <div style={{color:'var(--green)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>§ DATA ACCURACY</div>
+              <div style={{color:'var(--green)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>DATA ACCURACY</div>
               You are responsible for the accuracy of data you enter. Financial and health data is for personal reference only and does not constitute professional financial or medical advice.
-              <div style={{color:'var(--green)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>§ LIMITATION OF LIABILITY</div>
+              <div style={{color:'var(--green)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>LIMITATION OF LIABILITY</div>
               Vectra Arch provides this application "as is." We are not liable for data loss, financial decisions made based on app data, or health outcomes.
-              <div style={{color:'var(--green)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>§ CHANGES TO TERMS</div>
+              <div style={{color:'var(--green)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>CHANGES TO TERMS</div>
               We reserve the right to update these Terms. Continued use after changes constitutes acceptance of the updated Terms.
               <div style={{color:'var(--text3)',fontSize:8,marginTop:16}}>Effective: May 2026 · Vectra Arch Legacy · South Africa</div>
             </div>
@@ -4853,7 +4887,7 @@ const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
             {/* Add User */}
             <div style={cardStyle}>
-              <label style={labelStyle}>§ ADD USER</label>
+              <label style={labelStyle}>ADD USER</label>
               <input style={inputStyle} placeholder="Username" value={newUser.username} onChange={e=>setNewUser(p=>({...p,username:e.target.value}))}/>
               <input style={inputStyle} type="password" placeholder="Password" value={newUser.password} onChange={e=>setNewUser(p=>({...p,password:e.target.value}))}/>
               <button style={btnStyle('var(--green)')} onClick={()=>act(()=>axios.post(`${API}/add-user`,{...newUser,adminUsername:user.username}))}>Add User ↗</button>
@@ -4861,7 +4895,7 @@ const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
 
             {/* Grant/Revoke Access */}
             <div style={cardStyle}>
-              <label style={labelStyle}>§ MANAGE ACCESS</label>
+              <label style={labelStyle}>MANAGE ACCESS</label>
               <select style={selectStyle} value={accessForm.viewer} onChange={e=>setAccessForm(p=>({...p,viewer:e.target.value}))}>
                 {userOpts.map(u=><option key={u} value={u}>{u||'— Viewer —'}</option>)}
               </select>
@@ -4876,7 +4910,7 @@ const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
 
             {/* Admin status */}
             <div style={cardStyle}>
-              <label style={labelStyle}>§ ADMIN STATUS</label>
+              <label style={labelStyle}>ADMIN STATUS</label>
               <select style={selectStyle} value={adminForm.username} onChange={e=>setAdminForm({username:e.target.value})}>
                 {userOpts.map(u=><option key={u} value={u}>{u||'— Select user —'}</option>)}
               </select>
@@ -4888,7 +4922,7 @@ const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
 
             {/* Update Password */}
             <div style={cardStyle}>
-              <label style={labelStyle}>§ UPDATE PASSWORD</label>
+              <label style={labelStyle}>UPDATE PASSWORD</label>
               <select style={selectStyle} value={pwForm.username} onChange={e=>setPwForm(p=>({...p,username:e.target.value}))}>
                 {userOpts.map(u=><option key={u} value={u}>{u||'— Select user —'}</option>)}
               </select>
@@ -4898,7 +4932,7 @@ const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
 
             {/* Delete User */}
             <div style={cardStyle}>
-              <label style={labelStyle}>§ DELETE USER</label>
+              <label style={labelStyle}>DELETE USER</label>
               <select style={selectStyle} value={delUser} onChange={e=>setDelUser(e.target.value)}>
                 {userOpts.map(u=><option key={u} value={u}>{u||'— Select user —'}</option>)}
               </select>
@@ -4907,7 +4941,7 @@ const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
 
             {/* Access List */}
             <div style={cardStyle}>
-              <label style={labelStyle}>§ ACCESS LIST ({accessList.length})</label>
+              <label style={labelStyle}>ACCESS LIST ({accessList.length})</label>
               {accessList.length===0&&<div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)'}}>No access rules.</div>}
               {accessList.map((a,i)=>(
                 <div key={i} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid var(--border)',fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text2)'}}>
@@ -4919,7 +4953,7 @@ const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
 
             {/* Invite by Google email */}
             <div style={{...cardStyle, gridColumn:'span 2'}}>
-              <label style={labelStyle}>§ INVITE BY GOOGLE EMAIL</label>
+              <label style={labelStyle}>INVITE BY GOOGLE EMAIL</label>
               <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',lineHeight:1.6,marginBottom:10}}>
                 Send an invitation. Recipient signs in with the matching Google account to create their hub. No password required.
               </div>
@@ -4936,7 +4970,7 @@ const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
 
             {/* Reset 2FA */}
             <div style={cardStyle}>
-              <label style={labelStyle}>§ RESET 2FA</label>
+              <label style={labelStyle}>RESET 2FA</label>
               <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',lineHeight:1.6,marginBottom:8}}>
                 Clears the user's TOTP secret. They can re-enable from their Profile.
               </div>
@@ -4950,7 +4984,7 @@ const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
 
           {/* Users list */}
           <div style={{...cardStyle,marginTop:4}}>
-            <label style={labelStyle}>§ USERS · {users.length}</label>
+            <label style={labelStyle}>USERS · {users.length}</label>
             {users.map(u=>(
               <div key={u.username} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'8px 0',borderBottom:'1px solid var(--border)'}}>
                 <div>
@@ -4963,7 +4997,7 @@ const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
 
           {/* Invites list */}
           <div style={{...cardStyle,marginTop:4}}>
-            <label style={labelStyle}>§ INVITES · {invites.length}</label>
+            <label style={labelStyle}>INVITES · {invites.length}</label>
             {invites.length===0 && <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)'}}>No invitations sent yet.</div>}
             {invites.map(inv=>{
               const statusColor = inv.status==='pending' ? 'var(--yellow)' : inv.status==='accepted' ? 'var(--green)' : 'var(--red)';
@@ -5177,7 +5211,7 @@ const App = () => {
     <div className="app-shell">
       <div className="top-bar">
         <div style={{display:'flex',alignItems:'center',gap:8,flex:1,minWidth:0}}>
-          <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.18em',color:tabColor,flexShrink:0,fontWeight:500}}>§ VECTRA ARCH</span>
+          <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.18em',color:tabColor,flexShrink:0,fontWeight:500}}>VECTRA ARCH</span>
           <span style={{color:'rgba(255,255,255,0.12)',flexShrink:0}}>·</span>
           <div style={{minWidth:0,flex:1,overflow:'hidden'}}>
             <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:17,letterSpacing:'0.04em',textTransform:'uppercase',color:'var(--text)',lineHeight:1,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{pageInfo.title}</div>
