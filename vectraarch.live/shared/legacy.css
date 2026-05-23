@@ -141,7 +141,7 @@
 
 /* ── PROFILE SECTIONS ── */
 .profile-section { background: var(--bg2); border: 1px solid var(--border2); padding: 32px; margin-bottom: 20px; }
-.profile-section-title { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.25em; text-transform: uppercase; color: var(--accent); margin-bottom: 24px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+.profile-section-title { font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 18px; letter-spacing: 0.02em; color: var(--text); margin-bottom: 24px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
 .profile-avatar-wrap { display: flex; align-items: center; gap: 24px; margin-bottom: 24px; }
 .profile-avatar-lg { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border2); }
 
@@ -569,7 +569,7 @@ body::before { display: none; }
 .sharing-check.on   { background: var(--green); color: #000; }
 .sharing-check.off  { background: var(--bg4); border: 1px solid var(--border2); }
 .profile-section       { background: var(--bg2); border-radius: 6px; margin-bottom: 12px; overflow: hidden; }
-.profile-section-title { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--pink); padding: 12px 14px; border-bottom: 1px solid var(--border); }
+.profile-section-title { font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 18px; letter-spacing: 0.02em; color: var(--text); padding: 12px 14px; border-bottom: 1px solid var(--border); }
 .profile-field         { padding: 12px 14px; border-bottom: 1px solid var(--border); }
 .profile-field:last-child { border-bottom: none; }
 .profile-field-label   { font-family: 'DM Mono', monospace; font-size: 8px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text3); margin-bottom: 4px; }
