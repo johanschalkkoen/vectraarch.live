@@ -4066,13 +4066,18 @@ const SecuritySection = ({user, setUser, onAlert}) => {
       .catch(()=>{});
   }, [user.username]);
 
+  const errOf = (e, fallback) => {
+    const d = e.response?.data;
+    return (d?.error || d?.message || e.message || fallback);
+  };
+
   const startSetup = async () => {
     setBusy(true);
     try {
       const r = await axios.get(`${API}/2fa/setup`, {params:{username:user.username}});
       if (r.data.success) { setQr(r.data.qrCode); setSecret(r.data.secret); setStage('setup'); setToken(''); }
       else onAlert(r.data.message || 'Could not start 2FA setup.', 'err');
-    } catch (e) { onAlert(e.response?.data?.message || 'Could not start 2FA setup.', 'err'); }
+    } catch (e) { console.error('[2fa-setup]', e); onAlert('2FA setup failed: ' + errOf(e, 'unknown error'), 'err'); }
     finally { setBusy(false); }
   };
 
@@ -4087,7 +4092,7 @@ const SecuritySection = ({user, setUser, onAlert}) => {
         setUser(next); localStorage.setItem('user', JSON.stringify(next));
         onAlert('2FA enabled. Keep your authenticator app safe.', 'ok');
       } else onAlert(r.data.message || 'Verification failed.', 'err');
-    } catch (e) { onAlert(e.response?.data?.message || 'Verification failed.', 'err'); }
+    } catch (e) { console.error('[2fa-confirm]', e); onAlert('Verification failed: ' + errOf(e, 'invalid code'), 'err'); }
     finally { setBusy(false); }
   };
 
@@ -4102,7 +4107,7 @@ const SecuritySection = ({user, setUser, onAlert}) => {
         setUser(next); localStorage.setItem('user', JSON.stringify(next));
         onAlert('2FA disabled.', 'ok');
       } else onAlert(r.data.message || 'Could not disable 2FA.', 'err');
-    } catch (e) { onAlert(e.response?.data?.message || 'Could not disable 2FA.', 'err'); }
+    } catch (e) { console.error('[2fa-disable]', e); onAlert('Disable failed: ' + errOf(e, 'unknown error'), 'err'); }
     finally { setBusy(false); }
   };
 
@@ -4291,7 +4296,11 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
       setPicFile(null);
       setEditing(false);
       msg('Profile saved.');
-    } catch(e) { msg('Error saving.','err'); }
+    } catch(e) {
+      const detail = e.response?.data?.error || e.response?.data?.message || e.message || 'Unknown error';
+      console.error('[profile-save]', e);
+      msg('Save failed: ' + detail, 'err');
+    }
   };
 
 
@@ -4356,22 +4365,81 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
             </div>
           </div>
 
-          {/* ── SWITCH USER ── */}
-          {allPartners.length>0&&(
-            <div style={{marginBottom:14}}>
-              <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.2em',textTransform:'uppercase',color:tabColor,marginBottom:10}}>SWITCH USER</div>
-              <div style={{display:'flex',gap:12,overflowX:'auto',paddingBottom:4}}>
-                <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:5,flexShrink:0}}>
-                  <div style={{width:50,height:50,borderRadius:'50%',border:`3px solid ${acColor}`,overflow:'hidden'}}><img src={user.profilePicUrl||DP} style={{width:'100%',height:'100%',objectFit:'cover'}}/></div>
-                  <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.1em',textTransform:'uppercase',color:acColor}}>{user.firstName||user.username}</span>
-                </div>
-                {allPartners.map(p=>{const pc=p.accentColor||p.eventColor||'#448aff';return(
-                  <div key={p.username} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:5,flexShrink:0}}>
-                    <div style={{width:50,height:50,borderRadius:'50%',border:`2px solid ${pc}70`,overflow:'hidden'}}><img src={p.profilePicUrl||DP} style={{width:'100%',height:'100%',objectFit:'cover'}}/></div>
-                    <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--text3)'}}>{p.firstName||p.username}</span>
+          {/* ── PARTNER SHARING (moved from bottom) ── */}
+          {(partners.length===0&&!partner)&&(
+            <div style={{background:'var(--bg2)',border:'1px solid var(--border2)',borderRadius:6,padding:'14px 16px',marginBottom:14}}>
+              <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.18em',textTransform:'uppercase',color:'var(--pink)',marginBottom:6}}>§ PARTNER SHARING</div>
+              <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',lineHeight:1.6}}>No partners linked yet. An admin can set up access links at <strong style={{color:'var(--text2)'}}>vectraarch.live/conduit/users</strong></div>
+            </div>
+          )}
+          {(partners.length>0?partners:partner?[partner]:[]).length>0&&(
+            <div className="partner-sharing-card" style={{marginBottom:14}}>
+              <div className="profile-section-title">§ PARTNER SHARING</div>
+              <div className="partner-hint" style={{marginBottom:12}}>Control which partners can see YOUR data. Each partner is managed independently.</div>
+
+              {(partners.length>0?partners:[partner]).map((p,pi)=>{
+                const pun    = p.username;
+                const pCfg   = sharingConfig[pun] || {};
+                const pAll   = myGrants.includes(pun);
+
+                const toggleItem = async(item) => {
+                  const newVal = !(pCfg[item]);
+                  setSharingConfig(prev=>({...prev,[pun]:{...(prev[pun]||{}),[item]:newVal}}));
+                  try {
+                    await axios.post(`${API}/partner-sharing`,{owner:user.username,partner:pun,module:item,enabled:newVal});
+                  } catch { msg('Error updating sharing.','err'); }
+                };
+
+                const shareAll = async() => {
+                  const next = !pAll;
+                  try {
+                    if(next){
+                      await axios.post(`${API}/share-self`,{username:user.username,partner:pun});
+                      setMyGrants(prev=>[...prev.filter(x=>x!==pun),pun]);
+                      const allOn = Object.fromEntries(sharingItems.map(i=>[i,true]));
+                      setSharingConfig(prev=>({...prev,[pun]:allOn}));
+                      await Promise.all(sharingItems.map(item=>
+                        axios.post(`${API}/partner-sharing`,{owner:user.username,partner:pun,module:item,enabled:true})
+                      ));
+                      msg(`${pun} can now see your data.`);
+                    } else {
+                      await axios.post(`${API}/unshare-self`,{username:user.username,partner:pun});
+                      setMyGrants(prev=>prev.filter(x=>x!==pun));
+                      const allOff = Object.fromEntries(sharingItems.map(i=>[i,false]));
+                      setSharingConfig(prev=>({...prev,[pun]:allOff}));
+                      await Promise.all(sharingItems.map(item=>
+                        axios.post(`${API}/partner-sharing`,{owner:user.username,partner:pun,module:item,enabled:false})
+                      ));
+                      msg(`Sharing with ${pun} revoked.`);
+                    }
+                  } catch { msg('Error updating sharing.','err'); }
+                };
+
+                return (
+                  <div key={pun} style={pi>0?{marginTop:16,paddingTop:16,borderTop:'1px solid var(--border)'}:{}}>
+                    <div className="partner-row" style={{marginBottom:10}}>
+                      <img className="partner-avatar" src={p.profilePicUrl||DP} alt=""
+                        style={{border:`2px solid ${p.eventColor||'#448aff'}`}}/>
+                      <div style={{flex:1}}>
+                        <div className="partner-info-name">{p.displayName||(p.firstName&&p.lastName?`${p.firstName} ${p.lastName}`:null)||p.username}</div>
+                        <div className="partner-info-status">Partner · linked</div>
+                      </div>
+                      <button className={`share-all-btn ${pAll?'sharing':'not-sharing'}`} onClick={shareAll}>
+                        {pAll?'✓ SHARING ALL':'SHARE ALL'}
+                      </button>
+                    </div>
+                    <div className="sharing-grid">
+                      {sharingItems.map(item=>(
+                        <div key={item} className={`sharing-item ${pCfg[item]?'on':''}`}
+                          onClick={()=>toggleItem(item)}>
+                          <span className="sharing-item-label">{item.toUpperCase()}</span>
+                          <div className={`sharing-check ${pCfg[item]?'on':'off'}`}>{pCfg[item]?'✓':''}</div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                );})}
-              </div>
+                );
+              })}
             </div>
           )}
 
@@ -4610,84 +4678,6 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
               TERMS OF SERVICE
             </button>
           </div>
-
-          {/* ── Partner sharing — moved to bottom ── */}
-          {(partners.length===0&&!partner)&&(
-            <div style={{background:'var(--bg2)',border:'1px solid var(--border2)',borderRadius:6,padding:'14px 16px',marginBottom:16,marginTop:8}}>
-              <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.18em',textTransform:'uppercase',color:'var(--pink)',marginBottom:6}}>§ PARTNER SHARING</div>
-              <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',lineHeight:1.6}}>No partners linked yet. An admin can set up access links at <strong style={{color:'var(--text2)'}}>vectraarch.live/conduit/users</strong></div>
-            </div>
-          )}
-          {(partners.length>0?partners:partner?[partner]:[]).length>0&&(
-            <div className="partner-sharing-card" style={{marginTop:8}}>
-              <div className="profile-section-title">§ PARTNER SHARING</div>
-              <div className="partner-hint" style={{marginBottom:12}}>Control which partners can see YOUR data. Each partner is managed independently.</div>
-
-              {(partners.length>0?partners:[partner]).map((p,pi)=>{
-                const pun    = p.username;
-                const pCfg   = sharingConfig[pun] || {};
-                const pAll   = myGrants.includes(pun);
-
-                const toggleItem = async(item) => {
-                  const newVal = !(pCfg[item]);
-                  setSharingConfig(prev=>({...prev,[pun]:{...(prev[pun]||{}),[item]:newVal}}));
-                  try {
-                    await axios.post(`${API}/partner-sharing`,{owner:user.username,partner:pun,module:item,enabled:newVal});
-                  } catch { msg('Error updating sharing.','err'); }
-                };
-
-                const shareAll = async() => {
-                  const next = !pAll;
-                  try {
-                    if(next){
-                      await axios.post(`${API}/share-self`,{username:user.username,partner:pun});
-                      setMyGrants(prev=>[...prev.filter(x=>x!==pun),pun]);
-                      const allOn = Object.fromEntries(sharingItems.map(i=>[i,true]));
-                      setSharingConfig(prev=>({...prev,[pun]:allOn}));
-                      await Promise.all(sharingItems.map(item=>
-                        axios.post(`${API}/partner-sharing`,{owner:user.username,partner:pun,module:item,enabled:true})
-                      ));
-                      msg(`${pun} can now see your data.`);
-                    } else {
-                      await axios.post(`${API}/unshare-self`,{username:user.username,partner:pun});
-                      setMyGrants(prev=>prev.filter(x=>x!==pun));
-                      const allOff = Object.fromEntries(sharingItems.map(i=>[i,false]));
-                      setSharingConfig(prev=>({...prev,[pun]:allOff}));
-                      await Promise.all(sharingItems.map(item=>
-                        axios.post(`${API}/partner-sharing`,{owner:user.username,partner:pun,module:item,enabled:false})
-                      ));
-                      msg(`Sharing with ${pun} revoked.`);
-                    }
-                  } catch { msg('Error updating sharing.','err'); }
-                };
-
-                return (
-                  <div key={pun} style={pi>0?{marginTop:16,paddingTop:16,borderTop:'1px solid var(--border)'}:{}}>
-                    <div className="partner-row" style={{marginBottom:10}}>
-                      <img className="partner-avatar" src={p.profilePicUrl||DP} alt=""
-                        style={{border:`2px solid ${p.eventColor||'#448aff'}`}}/>
-                      <div style={{flex:1}}>
-                        <div className="partner-info-name">{p.displayName||(p.firstName&&p.lastName?`${p.firstName} ${p.lastName}`:null)||p.username}</div>
-                        <div className="partner-info-status">Partner · linked</div>
-                      </div>
-                      <button className={`share-all-btn ${pAll?'sharing':'not-sharing'}`} onClick={shareAll}>
-                        {pAll?'✓ SHARING ALL':'SHARE ALL'}
-                      </button>
-                    </div>
-                    <div className="sharing-grid">
-                      {sharingItems.map(item=>(
-                        <div key={item} className={`sharing-item ${pCfg[item]?'on':''}`}
-                          onClick={()=>toggleItem(item)}>
-                          <span className="sharing-item-label">{item.toUpperCase()}</span>
-                          <div className={`sharing-check ${pCfg[item]?'on':'off'}`}>{pCfg[item]?'✓':''}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
 
           <div style={{height:'32px'}}/>
         </div>
