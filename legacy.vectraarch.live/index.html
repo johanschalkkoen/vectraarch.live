@@ -1694,12 +1694,10 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
           <div style={{height:'80px'}}/>
         </div>
       </div>
-
-
-      <button className="fab" style={{background:tabColor,boxShadow:`0 4px 20px ${tabColor}55`}}
-        onClick={()=>{ setForm(p=>({...p,date:dayKey(selectedDay)+'T09:00:00'})); setShowForm(true); }}>
-        + ADD EVENT
-      </button>
+      
+<button className="fab" onClick={()=>setShowForm(true)} style={{background: 'rgb(68, 138, 255)', boxShadow: 'rgba(68, 138, 255, 0.333) 0px 4px 20px'}}>
+  + ADD TIME &amp; EVENT
+</button>
 
       <ActionSheet open={!!actionCalEvent} title={actionCalEvent?.title} tabColor={tabColor}
         onEdit={()=>startEditCalEvent(actionCalEvent)}
