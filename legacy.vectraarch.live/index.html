@@ -4047,6 +4047,132 @@ const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPart
 };
 
 /* ── PROFILE PAGE ── */
+// ── Security section: enable / disable TOTP 2FA ───────────────────────────
+const SecuritySection = ({user, setUser, onAlert}) => {
+  const [enabled, setEnabled] = useState(!!user.twoFactorEnabled);
+  const [stage, setStage] = useState('idle'); // idle | setup | disabling
+  const [qr, setQr] = useState('');
+  const [secret, setSecret] = useState('');
+  const [token, setToken] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  // Re-sync when server reports a change
+  useEffect(()=>{ setEnabled(!!user.twoFactorEnabled); }, [user.username, user.twoFactorEnabled]);
+
+  // On mount, check the authoritative server state (in case localStorage is stale)
+  useEffect(()=>{
+    axios.get(`${API}/2fa/status`, {params:{username:user.username}})
+      .then(r=>{ if(r.data.success) setEnabled(!!r.data.enabled); })
+      .catch(()=>{});
+  }, [user.username]);
+
+  const startSetup = async () => {
+    setBusy(true);
+    try {
+      const r = await axios.get(`${API}/2fa/setup`, {params:{username:user.username}});
+      if (r.data.success) { setQr(r.data.qrCode); setSecret(r.data.secret); setStage('setup'); setToken(''); }
+      else onAlert(r.data.message || 'Could not start 2FA setup.', 'err');
+    } catch (e) { onAlert(e.response?.data?.message || 'Could not start 2FA setup.', 'err'); }
+    finally { setBusy(false); }
+  };
+
+  const confirmSetup = async () => {
+    if (token.trim().length !== 6) { onAlert('Enter the 6-digit code from your authenticator app.', 'err'); return; }
+    setBusy(true);
+    try {
+      const r = await axios.post(`${API}/2fa/setup`, {username:user.username, secret, token:token.trim()});
+      if (r.data.success) {
+        setEnabled(true); setStage('idle'); setQr(''); setSecret(''); setToken('');
+        const next = {...user, twoFactorEnabled:true};
+        setUser(next); localStorage.setItem('user', JSON.stringify(next));
+        onAlert('2FA enabled. Keep your authenticator app safe.', 'ok');
+      } else onAlert(r.data.message || 'Verification failed.', 'err');
+    } catch (e) { onAlert(e.response?.data?.message || 'Verification failed.', 'err'); }
+    finally { setBusy(false); }
+  };
+
+  const disable2FA = async () => {
+    if (token.trim().length !== 6) { onAlert('Enter your current 6-digit code to disable 2FA.', 'err'); return; }
+    setBusy(true);
+    try {
+      const r = await axios.post(`${API}/2fa/disable`, {username:user.username, token:token.trim()});
+      if (r.data.success) {
+        setEnabled(false); setStage('idle'); setToken('');
+        const next = {...user, twoFactorEnabled:false};
+        setUser(next); localStorage.setItem('user', JSON.stringify(next));
+        onAlert('2FA disabled.', 'ok');
+      } else onAlert(r.data.message || 'Could not disable 2FA.', 'err');
+    } catch (e) { onAlert(e.response?.data?.message || 'Could not disable 2FA.', 'err'); }
+    finally { setBusy(false); }
+  };
+
+  const cancel = () => { setStage('idle'); setQr(''); setSecret(''); setToken(''); };
+
+  const inputCode = {
+    fontFamily:"'DM Mono',monospace", fontSize:'18px', letterSpacing:'0.4em', textAlign:'center',
+    width:'100%', background:'var(--bg3)', border:'1px solid var(--border2)', borderRadius:4,
+    padding:'12px 14px', color:'var(--text)', outline:'none', marginTop:10, boxSizing:'border-box',
+  };
+  const btn = (col, fill=false) => ({
+    fontFamily:"'DM Mono',monospace", fontSize:'10px', letterSpacing:'0.12em', textTransform:'uppercase',
+    padding:'10px 14px', border:`1px solid ${col}`, color: fill ? '#0a0a0a' : col,
+    background: fill ? col : 'transparent', cursor: busy ? 'wait' : 'pointer',
+    borderRadius:4, flex:1, opacity: busy ? 0.6 : 1,
+  });
+
+  return (
+    <div className="profile-section">
+      <div className="profile-section-title">§ SECURITY</div>
+      <div className="profile-field" style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+        <div>
+          <div className="profile-field-label">Two-Factor Authentication</div>
+          <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:enabled?'var(--green)':'var(--text3)'}}>
+            {enabled ? '✓ ENABLED · authenticator app required at sign-in' : 'DISABLED · sign-in uses password only'}
+          </div>
+        </div>
+        {stage==='idle' && !enabled && (
+          <button onClick={startSetup} disabled={busy} style={btn('var(--green)')}>ENABLE ↗</button>
+        )}
+        {stage==='idle' && enabled && (
+          <button onClick={()=>{setStage('disabling'); setToken('');}} disabled={busy} style={btn('var(--red)')}>DISABLE</button>
+        )}
+      </div>
+
+      {stage==='setup' && (
+        <div style={{padding:'14px 16px',background:'var(--bg3)',border:'1px solid var(--border2)',borderRadius:4,marginTop:8}}>
+          <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text2)',lineHeight:1.7,marginBottom:10}}>
+            1. Scan this QR with Google Authenticator (or Authy, 1Password, etc).<br/>
+            2. Enter the 6-digit code it shows to confirm.
+          </div>
+          {qr && <div style={{textAlign:'center',marginBottom:10}}><img src={qr} alt="2FA QR" style={{width:180,height:180,background:'#fff',padding:6,borderRadius:4}}/></div>}
+          <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)',letterSpacing:'0.1em',marginBottom:6}}>OR ENTER KEY MANUALLY</div>
+          <div style={{fontFamily:"'DM Mono',monospace",fontSize:11,color:'var(--text)',background:'var(--bg2)',padding:'8px 10px',borderRadius:3,wordBreak:'break-all',userSelect:'all'}}>{secret}</div>
+          <input type="text" inputMode="numeric" pattern="[0-9]*" maxLength={6} placeholder="000000"
+            value={token} onChange={e=>setToken(e.target.value.replace(/[^0-9]/g,''))} style={inputCode}/>
+          <div style={{display:'flex',gap:8,marginTop:10}}>
+            <button onClick={cancel} disabled={busy} style={btn('var(--text3)')}>CANCEL</button>
+            <button onClick={confirmSetup} disabled={busy} style={btn('var(--green)', true)}>VERIFY & ENABLE</button>
+          </div>
+        </div>
+      )}
+
+      {stage==='disabling' && (
+        <div style={{padding:'14px 16px',background:'var(--bg3)',border:'1px solid var(--border2)',borderRadius:4,marginTop:8}}>
+          <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text2)',lineHeight:1.7,marginBottom:6}}>
+            Enter your current 6-digit code to confirm disabling 2FA.
+          </div>
+          <input type="text" inputMode="numeric" pattern="[0-9]*" maxLength={6} placeholder="000000"
+            value={token} onChange={e=>setToken(e.target.value.replace(/[^0-9]/g,''))} style={inputCode} autoFocus/>
+          <div style={{display:'flex',gap:8,marginTop:10}}>
+            <button onClick={cancel} disabled={busy} style={btn('var(--text3)')}>CANCEL</button>
+            <button onClick={disable2FA} disabled={busy} style={btn('var(--red)', true)}>CONFIRM DISABLE</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingConfig, setSharingConfig, onLogout, tabColor='#00ff41'}) => {
   const [editing, setEditing] = useState(false);
   const mkForm = (u) => ({
@@ -4467,6 +4593,9 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
             </div>
           )}
 
+          {/* ── Security (2FA) ── */}
+          <SecuritySection user={user} setUser={setUser} onAlert={msg}/>
+
           {/* ── Log out ── */}
           <button className="save-btn" style={{background:'transparent',border:'1px solid var(--red)',color:'var(--red)',marginTop:4}} onClick={onLogout}>LOG OUT</button>
 
@@ -4627,11 +4756,14 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
 const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
   const [users, setUsers]       = useState([]);
   const [accessList, setAccessList] = useState([]);
+  const [invites, setInvites]   = useState([]);
   const [newUser, setNewUser]   = useState({username:'',password:''});
   const [accessForm, setAccessForm] = useState({viewer:'',target:''});
   const [adminForm, setAdminForm] = useState({username:''});
   const [pwForm, setPwForm]     = useState({username:'',newPassword:''});
   const [delUser, setDelUser]   = useState('');
+  const [resetUser, setResetUser] = useState('');
+  const [inviteForm, setInviteForm] = useState({email:'', role:'user', note:''});
   const [alert, setAlert]       = useState({msg:'',type:''});
 
   const msg=(m,t='ok')=>{ setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),5000); };
@@ -4644,11 +4776,55 @@ const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
     try { const r=await axios.get(`${API}/get-access`,{params:{adminUsername:user.username}}); if(r.data.success) setAccessList(r.data.accessList); } catch {}
   },[user.username]);
 
-  useEffect(()=>{ fetchUsers(); fetchAccess(); },[fetchUsers,fetchAccess]);
+  const fetchInvites = useCallback(async()=>{
+    try { const r=await axios.get(`${API}/admin/invites`,{params:{adminUsername:user.username}}); if(r.data.success) setInvites(r.data.invites||[]); } catch {}
+  },[user.username]);
+
+  useEffect(()=>{ fetchUsers(); fetchAccess(); fetchInvites(); },[fetchUsers,fetchAccess,fetchInvites]);
 
   const userOpts = ['',...users.map(u=>u.username)];
 
-  const act = async(fn)=>{ try{ const r=await fn(); msg(r.data.message||(r.data.success?'Done.':'Failed.'), r.data.success?'ok':'err'); if(r.data.success){fetchUsers();fetchAccess();} }catch(e){msg(e.response?.data?.message||'Error.','err');} };
+  const act = async(fn)=>{ try{ const r=await fn(); msg(r.data.message||(r.data.success?'Done.':'Failed.'), r.data.success?'ok':'err'); if(r.data.success){fetchUsers();fetchAccess();fetchInvites();} }catch(e){msg(e.response?.data?.message||'Error.','err');} };
+
+  const sendInvite = async () => {
+    const email = (inviteForm.email||'').trim().toLowerCase();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { msg('Enter a valid email address.','err'); return; }
+    try {
+      const r = await axios.post(`${API}/admin/invite`, {
+        adminUsername: user.username, email,
+        role: inviteForm.role || 'user',
+        note: inviteForm.note || undefined,
+      });
+      if (r.data.success) {
+        const note = r.data.email_sent
+          ? `Invite sent to ${email}.`
+          : `Invite created. Email NOT sent (${r.data.email_error || 'mail not configured'}). Copy the link from the list below.`;
+        msg(note, r.data.email_sent ? 'ok' : 'err');
+        setInviteForm({email:'', role:'user', note:''});
+        fetchInvites();
+      } else msg(r.data.message || 'Could not create invite.','err');
+    } catch (e) { msg(e.response?.data?.message || 'Could not create invite.','err'); }
+  };
+
+  const copyInviteUrl = async (url) => {
+    try { await navigator.clipboard.writeText(url); msg('Link copied to clipboard.','ok'); }
+    catch { msg('Copy failed — long-press the link to copy.','err'); }
+  };
+
+  const resendInvite = async (id) => {
+    try {
+      const r = await axios.post(`${API}/admin/invite/${id}/resend`, {adminUsername: user.username});
+      msg(r.data.message || (r.data.success ? 'Email resent.' : 'Resend failed.'), r.data.success ? 'ok' : 'err');
+    } catch (e) { msg(e.response?.data?.message || 'Resend failed.','err'); }
+  };
+
+  const revokeInvite = async (id) => {
+    try {
+      const r = await axios.delete(`${API}/admin/invite/${id}`, {data:{adminUsername: user.username}});
+      msg(r.data.message || (r.data.success ? 'Revoked.' : 'Revoke failed.'), r.data.success ? 'ok' : 'err');
+      fetchInvites();
+    } catch (e) { msg(e.response?.data?.message || 'Revoke failed.','err'); }
+  };
 
   const btnStyle = (col='var(--green)') => ({fontFamily:"'DM Mono',monospace",fontSize:'10px',letterSpacing:'0.12em',textTransform:'uppercase',padding:'10px 16px',border:`1px solid ${col}`,color:col,background:'transparent',cursor:'pointer',borderRadius:4,width:'100%',marginTop:6});
   const inputStyle = {width:'100%',background:'var(--bg3)',border:'1px solid var(--border2)',borderRadius:4,padding:'10px 14px',fontFamily:"'DM Mono',monospace",fontSize:'13px',color:'var(--text)',outline:'none',marginBottom:8};
@@ -4728,6 +4904,36 @@ const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
                 </div>
               ))}
             </div>
+
+            {/* Invite by Google email */}
+            <div style={{...cardStyle, gridColumn:'span 2'}}>
+              <label style={labelStyle}>§ INVITE BY GOOGLE EMAIL</label>
+              <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',lineHeight:1.6,marginBottom:10}}>
+                Send an invitation. Recipient signs in with the matching Google account to create their hub. No password required.
+              </div>
+              <div style={{display:'grid',gridTemplateColumns:'2fr 1fr',gap:6}}>
+                <input style={inputStyle} type="email" placeholder="name@example.com" value={inviteForm.email} onChange={e=>setInviteForm(p=>({...p,email:e.target.value}))}/>
+                <select style={selectStyle} value={inviteForm.role} onChange={e=>setInviteForm(p=>({...p,role:e.target.value}))}>
+                  <option value="user">USER</option>
+                  <option value="admin">ADMIN</option>
+                </select>
+              </div>
+              <input style={inputStyle} placeholder="Note (optional, only visible to admins)" value={inviteForm.note} onChange={e=>setInviteForm(p=>({...p,note:e.target.value}))}/>
+              <button style={btnStyle('var(--green)')} onClick={sendInvite}>Send Invite ↗</button>
+            </div>
+
+            {/* Reset 2FA */}
+            <div style={cardStyle}>
+              <label style={labelStyle}>§ RESET 2FA</label>
+              <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',lineHeight:1.6,marginBottom:8}}>
+                Clears the user's TOTP secret. They can re-enable from their Profile.
+              </div>
+              <select style={selectStyle} value={resetUser} onChange={e=>setResetUser(e.target.value)}>
+                {userOpts.map(u=><option key={u} value={u}>{u||'— Select user —'}</option>)}
+              </select>
+              <button style={btnStyle('var(--yellow)')} disabled={!resetUser}
+                onClick={()=>resetUser && act(()=>axios.post(`${API}/2fa/reset`,{username:resetUser,adminUsername:user.username}))}>Reset 2FA</button>
+            </div>
           </div>
 
           {/* Users list */}
@@ -4741,6 +4947,39 @@ const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
                 </div>
               </div>
             ))}
+          </div>
+
+          {/* Invites list */}
+          <div style={{...cardStyle,marginTop:4}}>
+            <label style={labelStyle}>§ INVITES · {invites.length}</label>
+            {invites.length===0 && <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)'}}>No invitations sent yet.</div>}
+            {invites.map(inv=>{
+              const statusColor = inv.status==='pending' ? 'var(--yellow)' : inv.status==='accepted' ? 'var(--green)' : 'var(--red)';
+              const isExpired = inv.status==='pending' && new Date(inv.expires_at) < new Date();
+              const displayStatus = isExpired ? 'EXPIRED' : inv.status.toUpperCase();
+              return (
+                <div key={inv.id} style={{padding:'10px 0',borderBottom:'1px solid var(--border)'}}>
+                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10}}>
+                    <div style={{minWidth:0,flex:1}}>
+                      <div style={{fontFamily:"'DM Mono',monospace",fontSize:12,color:'var(--text)',wordBreak:'break-all'}}>{inv.email}</div>
+                      <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)',marginTop:2}}>
+                        by {inv.invited_by} · {inv.role.toUpperCase()} · {fmtDate(inv.created_at)}
+                        {inv.accepted_username && <> · accepted as <strong style={{color:'var(--green)'}}>{inv.accepted_username}</strong></>}
+                      </div>
+                    </div>
+                    <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.12em',color:statusColor,border:`1px solid ${statusColor}`,opacity:0.7,padding:'2px 6px',borderRadius:3,whiteSpace:'nowrap'}}>{displayStatus}</span>
+                  </div>
+                  {inv.status==='pending' && !isExpired && (
+                    <div style={{display:'flex',gap:6,marginTop:8,flexWrap:'wrap'}}>
+                      <button onClick={()=>copyInviteUrl(inv.invite_url)} style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.1em',padding:'4px 10px',border:'1px solid var(--border2)',color:'var(--text2)',borderRadius:3,background:'transparent',cursor:'pointer'}}>COPY LINK</button>
+                      <button onClick={()=>resendInvite(inv.id)} style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.1em',padding:'4px 10px',border:'1px solid var(--blue)',color:'var(--blue)',borderRadius:3,background:'transparent',cursor:'pointer'}}>RESEND EMAIL</button>
+                      <button onClick={()=>revokeInvite(inv.id)} style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.1em',padding:'4px 10px',border:'1px solid var(--red)',color:'var(--red)',borderRadius:3,background:'transparent',cursor:'pointer'}}>REVOKE</button>
+                    </div>
+                  )}
+                  {inv.note && <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)',marginTop:4,fontStyle:'italic'}}>“{inv.note}”</div>}
+                </div>
+              );
+            })}
           </div>
 
           <button style={{...btnStyle('var(--red)'),width:'auto',display:'inline-flex',marginTop:16}} onClick={onLogout}>SIGN OUT ×</button>
