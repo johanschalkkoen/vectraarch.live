@@ -43,6 +43,8 @@ const fmtDate = d => { if(!d)return'—'; const dt=new Date(d); return isNaN(dt)
 const fmtDateTime = d => { if(!d)return'—'; const dt=new Date(d); return isNaN(dt)?'—':dt.toLocaleString('en-ZA',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).replace(',',''); };
 const fmtTime = d => { if(!d)return''; const dt=new Date(d); if(isNaN(dt))return''; const h=dt.getHours(),m=dt.getMinutes(); if(h===0&&m===0)return''; return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`; };
 const now = () => { const n=new Date(); n.setMinutes(n.getMinutes()-n.getTimezoneOffset()); return n.toISOString().slice(0,19); };
+// Now + N hours, formatted the same way as now() so datetime-local accepts it.
+const nowPlus = (hrs=1) => { const n=new Date(); n.setHours(n.getHours()+hrs); n.setMinutes(n.getMinutes()-n.getTimezoneOffset()); return n.toISOString().slice(0,19); };
 const todayISO = () => new Date().toISOString().slice(0,10);
 // Bidirectional fuzzy match: "RENT" matches "Rent / Bond" and vice-versa
 const catMatch = (transCat, budgCat) => {
@@ -1330,7 +1332,7 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
   const [viewDate, setViewDate]       = useState(new Date());
   const [selectedDay, setSelectedDay] = useState(new Date());
   const [showForm, setShowForm]       = useState(false);
-  const [form, setForm]               = useState({title:'',date:now(),endDate:'',type:'personal',color:user?.eventColor||'#448aff',amount:'',finType:'income',financial:false});
+  const [form, setForm]               = useState({title:'',date:now(),endDate:nowPlus(1),type:'personal',color:user?.eventColor||'#448aff',amount:'',finType:'income',financial:false});
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [alert, setAlert]             = useState({msg:'',type:''});
   const [search, setSearch]             = useState('');
@@ -1428,7 +1430,7 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
       });
       msg(editCalId?'Event updated.':'Event saved.');
       setShowForm(false);setEditCalId(null);
-      setForm({title:'',date:now(),endDate:'',type:'personal',color:user?.eventColor||'#448aff',amount:'',finType:'income',financial:false});
+      setForm({title:'',date:now(),endDate:nowPlus(1),type:'personal',color:user?.eventColor||'#448aff',amount:'',finType:'income',financial:false});
       fetchEvents();
     } catch { msg('Error.','err'); }
   };
@@ -1631,7 +1633,12 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
                     <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
                       <div className="meal-note">
                         {fmtDate(e.date)}
-                        {timeStart && <> · <span style={{color:'var(--text2)'}}>{timeStart}{timeEnd && timeEnd !== timeStart ? ` → ${timeEnd}` : ''}</span></>}
+                        {' · '}
+                        <span style={{color:'var(--text2)'}}>
+                          {timeStart
+                            ? <>{timeStart}{timeEnd && timeEnd !== timeStart ? ` → ${timeEnd}` : ''}</>
+                            : 'All day'}
+                        </span>
                       </div>
                       {e.amount&&<div style={{fontFamily:"'DM Mono',monospace",fontSize:13,fontWeight:600,
                         color:e.type==='expense'?'var(--red)':'var(--green)'}}>{fmtR(e.amount)}</div>}
@@ -1713,7 +1720,12 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
         </div>
       </div>
 
-<button className="fab" onClick={()=>setShowForm(true)} style={{background: 'rgb(68, 138, 255)', boxShadow: 'rgba(68, 138, 255, 0.333) 0px 4px 20px'}}>
+<button className="fab" onClick={()=>{
+  // Always seed with the actual current time when the user starts a new event
+  setEditCalId(null);
+  setForm({title:'',date:now(),endDate:nowPlus(1),type:'personal',color:user?.eventColor||'#448aff',amount:'',finType:'income',financial:false});
+  setShowForm(true);
+}} style={{background: 'rgb(68, 138, 255)', boxShadow: 'rgba(68, 138, 255, 0.333) 0px 4px 20px'}}>
   + ADD TIME &amp; EVENT
 </button>
 
