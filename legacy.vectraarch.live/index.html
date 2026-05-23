@@ -5013,7 +5013,35 @@ const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
   const [users, setUsers]       = useState([]);
   const [accessList, setAccessList] = useState([]);
   const [invites, setInvites]   = useState([]);
-  const [newUser, setNewUser]   = useState({username:'',password:''});
+  const blankNewUser = {
+    username:'', password:'', firstName:'', lastName:'', email:'',
+    role:'individual', gender:'', dateOfBirth:'',
+    heightCm:'', weightKg:'',
+    currency:'ZAR', accentColor:'#00ff41',
+    familyName:'', isAdmin:false,
+  };
+  const [newUser, setNewUser]   = useState(blankNewUser);
+  const [creating, setCreating] = useState(false);
+  const genPassword = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+    let out = '';
+    for (let i = 0; i < 14; i++) out += chars[Math.floor(Math.random()*chars.length)];
+    setNewUser(p=>({...p, password: out}));
+  };
+  const createUser = async () => {
+    if (!newUser.username || newUser.username.length < 3) { msg('Username must be at least 3 characters.','err'); return; }
+    if (!newUser.password || newUser.password.length < 6) { msg('Password must be at least 6 characters.','err'); return; }
+    setCreating(true);
+    try {
+      const r = await axios.post(`${API}/admin/create-user`, {...newUser, adminUsername:user.username});
+      if (r.data.success) {
+        msg(r.data.message || `Created ${r.data.username} + family ${r.data.familyName}.`, 'ok');
+        setNewUser(blankNewUser);
+        fetchUsers();
+      } else msg(r.data.message || 'Failed.','err');
+    } catch (e) { msg(e.response?.data?.message || 'Failed.','err'); }
+    finally { setCreating(false); }
+  };
   const [accessForm, setAccessForm] = useState({viewer:'',target:''});
   const [adminForm, setAdminForm] = useState({username:''});
   const [pwForm, setPwForm]     = useState({username:'',newPassword:''});
@@ -5165,15 +5193,144 @@ const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
           {/* Action cards grid */}
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
 
-            {/* Add User */}
-            <div className="profile-section">
+            {/* Add User — full creation: user row + auto family record */}
+            <div className="profile-section" style={{gridColumn:'span 2'}}>
               <div className="profile-section-title">ADD USER</div>
               <div style={cardBody}>
-                <span style={lL}>USERNAME</span>
-                <input style={iL} placeholder="username" value={newUser.username} onChange={e=>setNewUser(p=>({...p,username:e.target.value}))}/>
-                <span style={lL}>PASSWORD</span>
-                <input style={iL} type="password" placeholder="········" value={newUser.password} onChange={e=>setNewUser(p=>({...p,password:e.target.value}))}/>
-                <button style={btnStyle('var(--green)')} onClick={()=>act(()=>axios.post(`${API}/add-user`,{...newUser,adminUsername:user.username}))}>Add User ↗</button>
+                <div style={hintStyle}>
+                  Creates a user account and a matching family record (<code style={{color:'var(--text2)',fontSize:9}}>vectraarchlegacy_families</code>) with this user as its admin.
+                </div>
+
+                {/* Row 1: username / password */}
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+                  <div>
+                    <span style={lL}>USERNAME</span>
+                    <input style={iL} placeholder="lowercase, letters / dots / dashes" value={newUser.username}
+                      onChange={e=>setNewUser(p=>({...p,username:e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g,'')}))}/>
+                  </div>
+                  <div>
+                    <span style={lL}>PASSWORD</span>
+                    <div style={{display:'flex',gap:6}}>
+                      <input style={{...iL,marginBottom:0,flex:1}} type="text" placeholder="·········" value={newUser.password}
+                        onChange={e=>setNewUser(p=>({...p,password:e.target.value}))}/>
+                      <button type="button" onClick={genPassword}
+                        style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.12em',padding:'10px 12px',border:'1px solid var(--border2)',color:'var(--text2)',background:'var(--bg3)',borderRadius:4,cursor:'pointer',whiteSpace:'nowrap',flexShrink:0}}>GEN</button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Row 2: first / last name / email */}
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginTop:10}}>
+                  <div>
+                    <span style={lL}>FIRST NAME</span>
+                    <input style={iL} value={newUser.firstName} onChange={e=>setNewUser(p=>({...p,firstName:e.target.value}))}/>
+                  </div>
+                  <div>
+                    <span style={lL}>LAST NAME</span>
+                    <input style={iL} value={newUser.lastName} onChange={e=>setNewUser(p=>({...p,lastName:e.target.value}))}/>
+                  </div>
+                </div>
+                <span style={lL}>EMAIL</span>
+                <input style={iL} type="email" placeholder="name@example.com" value={newUser.email} onChange={e=>setNewUser(p=>({...p,email:e.target.value}))}/>
+
+                {/* Row 3: gender / DOB */}
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+                  <div>
+                    <span style={lL}>GENDER</span>
+                    <div style={{display:'flex',gap:6,marginBottom:10}}>
+                      {['male','female'].map(g=>(
+                        <button key={g} type="button" onClick={()=>setNewUser(p=>({...p,gender:g}))}
+                          style={{flex:1,fontFamily:"'DM Mono',monospace",fontSize:10,letterSpacing:'0.12em',textTransform:'uppercase',
+                            padding:'10px 8px',borderRadius:4,cursor:'pointer',
+                            border:newUser.gender===g?`1px solid ${g==='female'?'var(--pink)':'var(--blue)'}`:'1px solid var(--border2)',
+                            color:newUser.gender===g?(g==='female'?'var(--pink)':'var(--blue)'):'var(--text3)',
+                            background:newUser.gender===g?(g==='female'?'rgba(233,30,140,0.12)':'rgba(68,138,255,0.12)'):'transparent'}}>
+                          {g==='male'?'♂ MALE':'♀ FEMALE'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <span style={lL}>DATE OF BIRTH</span>
+                    <input style={iL} type="date" value={newUser.dateOfBirth} onChange={e=>setNewUser(p=>({...p,dateOfBirth:e.target.value}))}/>
+                  </div>
+                </div>
+
+                {/* Row 4: height / weight */}
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+                  <div>
+                    <span style={lL}>HEIGHT (CM)</span>
+                    <input style={iL} type="number" placeholder="170" value={newUser.heightCm} onChange={e=>setNewUser(p=>({...p,heightCm:e.target.value}))}/>
+                  </div>
+                  <div>
+                    <span style={lL}>WEIGHT (KG)</span>
+                    <input style={iL} type="number" placeholder="65" value={newUser.weightKg} onChange={e=>setNewUser(p=>({...p,weightKg:e.target.value}))}/>
+                  </div>
+                </div>
+
+                {/* Role chip group */}
+                <span style={lL}>ROLE</span>
+                <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:10}}>
+                  {['individual','partner','parent','guardian'].map(r=>(
+                    <button key={r} type="button" onClick={()=>setNewUser(p=>({...p,role:r}))}
+                      style={{fontFamily:"'DM Mono',monospace",fontSize:10,letterSpacing:'0.12em',textTransform:'uppercase',
+                        padding:'8px 14px',borderRadius:4,cursor:'pointer',
+                        border:newUser.role===r?`1px solid ${tabColor}`:'1px solid var(--border2)',
+                        color:newUser.role===r?tabColor:'var(--text3)',
+                        background:newUser.role===r?`${tabColor}20`:'transparent'}}>
+                      {r}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Row 5: family name / currency */}
+                <div style={{display:'grid',gridTemplateColumns:'2fr 1fr',gap:10}}>
+                  <div>
+                    <span style={lL}>FAMILY NAME</span>
+                    <input style={iL} value={newUser.familyName}
+                      placeholder={newUser.firstName ? (newUser.role==='individual' ? `${newUser.firstName}'s Hub` : `${newUser.firstName}'s Family`) : 'auto if blank'}
+                      onChange={e=>setNewUser(p=>({...p,familyName:e.target.value}))}/>
+                  </div>
+                  <div>
+                    <span style={lL}>CURRENCY</span>
+                    <select style={iL} value={newUser.currency} onChange={e=>setNewUser(p=>({...p,currency:e.target.value}))}>
+                      <option value="ZAR">ZAR · R</option>
+                      <option value="USD">USD · $</option>
+                      <option value="EUR">EUR · €</option>
+                      <option value="GBP">GBP · £</option>
+                      <option value="NGN">NGN · ₦</option>
+                      <option value="KES">KES · KSh</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Row 6: accent / admin toggle */}
+                <div style={{display:'flex',alignItems:'center',gap:14,marginBottom:14,marginTop:4}}>
+                  <div style={{display:'flex',alignItems:'center',gap:8}}>
+                    <span style={{...lL,marginBottom:0}}>ACCENT</span>
+                    <input type="color" value={newUser.accentColor} onChange={e=>setNewUser(p=>({...p,accentColor:e.target.value.toLowerCase()}))}
+                      style={{width:36,height:36,border:'1px solid var(--border2)',borderRadius:4,background:'transparent',padding:2,cursor:'pointer'}}/>
+                  </div>
+                  <button type="button" onClick={()=>setNewUser(p=>({...p,isAdmin:!p.isAdmin}))}
+                    style={{display:'flex',alignItems:'center',gap:10,padding:'8px 14px',borderRadius:4,cursor:'pointer',
+                      border:`1px solid ${newUser.isAdmin?'var(--yellow)':'var(--border2)'}`,
+                      background:newUser.isAdmin?'rgba(255,214,0,0.12)':'transparent',
+                      color:newUser.isAdmin?'var(--yellow)':'var(--text3)',
+                      fontFamily:"'DM Mono',monospace",fontSize:10,letterSpacing:'0.12em',textTransform:'uppercase'}}>
+                    <span style={{display:'inline-flex',alignItems:'center',justifyContent:'center',width:16,height:16,borderRadius:3,
+                      border:`1px solid ${newUser.isAdmin?'var(--yellow)':'var(--border2)'}`,
+                      background:newUser.isAdmin?'var(--yellow)':'transparent',
+                      color:newUser.isAdmin?'#0a0a0a':'var(--text3)',fontWeight:900,fontSize:11}}>
+                      {newUser.isAdmin?'✓':''}
+                    </span>
+                    Grant admin
+                  </button>
+                </div>
+
+                <button type="button" disabled={creating} onClick={createUser}
+                  style={{...btnStyle('var(--green)'),opacity:creating?0.5:1,cursor:creating?'wait':'pointer'}}>
+                  {creating ? 'Creating…' : `Create User + Family ↗`}
+                </button>
               </div>
             </div>
 
