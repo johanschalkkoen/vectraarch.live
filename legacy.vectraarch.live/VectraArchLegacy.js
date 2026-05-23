@@ -8,6 +8,7 @@
 
 const express    = require('express');
 const path       = require('path');
+const crypto     = require('crypto');
 const { Pool }   = require('pg');
 const bcrypt     = require('bcrypt');
 const cors       = require('cors');
@@ -17,13 +18,18 @@ const fs         = require('fs');
 const nodemailer = require('nodemailer');
 const { authenticator } = require('otplib');
 const QRCode     = require('qrcode');
+const session    = require('express-session');
+const passport   = require('passport');
+const GoogleStrategy = require('passport-google-oauth20').Strategy;
 
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const app  = express();
 const PORT = 3300;
 const HOST = '127.0.0.1';
+const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || 'https://legacy.vectraarch.live';
 
+app.set('trust proxy', 1);
 app.use(cors());
 app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ extended: true, limit: '25mb' }));
@@ -34,6 +40,23 @@ app.use((req, res, next) => {
     }
     next();
 });
+
+// Session — only used for OAuth state + short-lived auth handoff (invite token,
+// pending Google user, pending 2FA). Long-term session lives in browser localStorage.
+app.use(session({
+    secret: process.env.SESSION_SECRET || 'change-me-in-env',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        secure: process.env.NODE_ENV !== 'development',
+        sameSite: 'lax',
+        httpOnly: true,
+        maxAge: 30 * 60 * 1000,  // 30 minutes — long enough to complete an OAuth round-trip
+    },
+}));
+app.use(passport.initialize());
+app.use(passport.session());
+
 app.use('/shared', express.static(path.join(__dirname, '..', 'vectraarch.live', 'shared')));
 app.use('/images', express.static(path.join(__dirname, 'images')));
 app.get('/',               (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
@@ -122,6 +145,25 @@ async function ensureSchema() {
         )`,
         `CREATE INDEX IF NOT EXISTS idx_partner_sharing_owner   ON vectraarchlegacy_partner_sharing(owner)`,
         `CREATE INDEX IF NOT EXISTS idx_partner_sharing_partner ON vectraarchlegacy_partner_sharing(partner)`,
+        // ── Google auth & invites ──
+        `ALTER TABLE vectraarchlegacy_users ADD COLUMN IF NOT EXISTS google_id     TEXT`,
+        `ALTER TABLE vectraarchlegacy_users ADD COLUMN IF NOT EXISTS auth_provider TEXT DEFAULT 'password'`,
+        `CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_id ON vectraarchlegacy_users(google_id) WHERE google_id IS NOT NULL`,
+        `CREATE TABLE IF NOT EXISTS vectraarchlegacy_invites (
+            id                SERIAL PRIMARY KEY,
+            email             TEXT        NOT NULL,
+            token             TEXT        NOT NULL UNIQUE,
+            invited_by        TEXT        NOT NULL,
+            role              TEXT        NOT NULL DEFAULT 'user',
+            status            TEXT        NOT NULL DEFAULT 'pending',
+            note              TEXT,
+            created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            expires_at        TIMESTAMPTZ NOT NULL DEFAULT NOW() + INTERVAL '14 days',
+            accepted_at       TIMESTAMPTZ,
+            accepted_username TEXT
+        )`,
+        `CREATE INDEX IF NOT EXISTS idx_invites_email  ON vectraarchlegacy_invites(LOWER(email))`,
+        `CREATE INDEX IF NOT EXISTS idx_invites_status ON vectraarchlegacy_invites(status)`,
     ];
     for (const sql of migrations) {
         try { await pool.query(sql); } catch (e) { console.error('[schema]', e.message); }
@@ -186,6 +228,9 @@ function mapUser(row) {
         role:             row.role              || 'individual',
         heightCm:         row.height_cm         || null,
         weightKg:         row.weight_kg         || null,
+        authProvider:     row.auth_provider     || 'password',
+        hasGoogle:        !!row.google_id,
+        twoFactorEnabled: !!row.twofa_secret,
     };
 }
 
@@ -250,6 +295,9 @@ app.post('/api/login', async (req, res) => {
     try {
         const row = await dbQuery('SELECT * FROM vectraarchlegacy_users WHERE username = $1', [username]);
         if (!row) return res.status(404).json({ success: false, message: 'User not found.' });
+        if (!row.password_hash) {
+            return res.status(401).json({ success: false, message: 'This account uses Google sign-in. Please continue with Google.' });
+        }
         const match = await bcrypt.compare(password, row.password_hash);
         if (!match) return res.status(401).json({ success: false, message: 'Authentication failed: Incorrect password.' });
         await dbRun('UPDATE vectraarchlegacy_users SET last_active = $1 WHERE username = $2', [new Date().toISOString(), username]);
@@ -1315,6 +1363,437 @@ app.post('/api/2fa/reset', requireAdmin, async (req, res) => {
     } catch (e) {
         res.status(500).json({ success: false, message: 'Server error resetting 2FA.', error: e.message });
     }
+});
+
+// ── GOOGLE OAUTH ─────────────────────────────────────────────────────────────
+const GOOGLE_CONFIGURED = !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET && process.env.GOOGLE_CALLBACK_URL);
+
+if (GOOGLE_CONFIGURED) {
+    passport.use(new GoogleStrategy({
+        clientID:     process.env.GOOGLE_CLIENT_ID,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        callbackURL:  process.env.GOOGLE_CALLBACK_URL,
+    }, (accessToken, refreshToken, profile, done) => {
+        // We don't persist a passport session — we resolve to a Legacy user
+        // ourselves in the callback handler, so just hand the profile back.
+        return done(null, {
+            id:    profile.id,
+            email: profile.emails?.[0]?.value || '',
+            name:  profile.displayName || '',
+        });
+    }));
+} else {
+    console.warn('[google-oauth] GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET / GOOGLE_CALLBACK_URL not configured — /auth/google disabled.');
+}
+
+passport.serializeUser((u, d) => d(null, u));
+passport.deserializeUser((o, d) => d(null, o));
+
+// Build a tiny HTML response that hands a user payload to the SPA via
+// localStorage, then redirects. Used to bridge the OAuth round-trip back
+// into the existing localStorage-based session model.
+function renderHandoffPage(payload, redirectTo) {
+    const safe = JSON.stringify(payload).replace(/</g, '\\u003c').replace(/>/g, '\\u003e');
+    return `<!doctype html><html><head><meta charset="utf-8"><title>Signing in…</title>
+<style>body{background:#0a0a0a;color:#d4a017;font-family:'DM Mono',monospace;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;font-size:13px;letter-spacing:.08em}</style>
+</head><body>SIGNING IN…
+<script>
+try {
+  localStorage.setItem('user', ${JSON.stringify(safe)});
+  location.replace(${JSON.stringify(redirectTo)});
+} catch (e) { document.body.textContent = 'Storage error — refresh to retry.'; }
+</script></body></html>`;
+}
+
+// Generate a clean username from a Google display name, falling back to email local-part.
+async function generateUniqueUsername(displayName, email) {
+    const fromName  = (displayName || '').toLowerCase().replace(/[^a-z0-9]+/g, '.').replace(/^\.+|\.+$/g, '');
+    const fromEmail = (email || '').toLowerCase().split('@')[0].replace(/[^a-z0-9._-]/g, '');
+    let base = fromName || fromEmail || 'user';
+    if (base.length < 3) base = (base + 'user').slice(0, 12);
+    let candidate = base;
+    let n = 1;
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+        const exists = await dbQuery('SELECT username FROM vectraarchlegacy_users WHERE username = $1', [candidate]);
+        if (!exists) return candidate;
+        n += 1;
+        candidate = `${base}${n}`;
+        if (n > 9999) return `${base}${crypto.randomBytes(3).toString('hex')}`;
+    }
+}
+
+// Begin Google sign-in. If invoked with ?invite=<token>, stash it in the
+// session so the callback can consume it and create a new account.
+app.get('/auth/google', (req, res, next) => {
+    if (!GOOGLE_CONFIGURED) {
+        return res.status(503).send('Google sign-in is not configured on this server.');
+    }
+    if (req.query.invite) {
+        req.session.pendingInviteToken = String(req.query.invite);
+    }
+    passport.authenticate('google', { scope: ['profile', 'email'], session: false })(req, res, next);
+});
+
+app.get('/auth/google/callback', (req, res, next) => {
+    if (!GOOGLE_CONFIGURED) return res.redirect('/login.html?error=google_disabled');
+    passport.authenticate('google', { session: false, failureRedirect: '/login.html?error=google_failed' },
+        async (err, googleUser) => {
+            if (err || !googleUser) {
+                console.error('[google-oauth] callback error:', err?.message);
+                return res.redirect('/login.html?error=google_failed');
+            }
+            try {
+                const email = (googleUser.email || '').toLowerCase().trim();
+                if (!email) return res.redirect('/login.html?error=google_no_email');
+
+                // 1. Existing user by google_id
+                let user = await dbQuery('SELECT * FROM vectraarchlegacy_users WHERE google_id = $1', [googleUser.id]);
+
+                // 2. Existing user by email (auto-link Google to their account)
+                if (!user) {
+                    user = await dbQuery('SELECT * FROM vectraarchlegacy_users WHERE LOWER(email) = $1', [email]);
+                    if (user) {
+                        await dbRun('UPDATE vectraarchlegacy_users SET google_id = $1 WHERE username = $2',
+                            [googleUser.id, user.username]);
+                        user.google_id = googleUser.id;
+                        await logTransaction(user.username, 'LINK_GOOGLE', 'users', null, user.username);
+                    }
+                }
+
+                // 3. Invite-based sign-up
+                if (!user) {
+                    const inviteToken = req.session.pendingInviteToken;
+                    if (!inviteToken) {
+                        return res.redirect('/login.html?error=invite_required');
+                    }
+                    const invite = await dbQuery(
+                        `SELECT * FROM vectraarchlegacy_invites
+                         WHERE token=$1 AND status='pending' AND expires_at > NOW()`,
+                        [inviteToken]
+                    );
+                    if (!invite) {
+                        delete req.session.pendingInviteToken;
+                        return res.redirect('/login.html?error=invite_invalid');
+                    }
+                    if (invite.email.toLowerCase().trim() !== email) {
+                        return res.redirect('/login.html?error=invite_email_mismatch');
+                    }
+
+                    const username = await generateUniqueUsername(googleUser.name, email);
+                    const [firstName, ...rest] = (googleUser.name || '').split(' ');
+                    const lastName = rest.join(' ');
+                    const isAdmin = invite.role === 'admin' ? 1 : 0;
+
+                    await dbRun(`
+                        INSERT INTO vectraarchlegacy_users
+                            (username, password_hash, first_name, last_name, display_name,
+                             email, google_id, auth_provider, is_admin, event_color, theme, accent_color)
+                        VALUES ($1,$2,$3,$4,$5,$6,$7,'google',$8,'#2dd4bf','dark','#00ff41')`,
+                        [username, '', firstName || null, lastName || null,
+                         googleUser.name || username, email, googleUser.id, isAdmin]
+                    );
+
+                    await dbRun(
+                        `UPDATE vectraarchlegacy_invites
+                         SET status='accepted', accepted_at=NOW(), accepted_username=$1
+                         WHERE id=$2`,
+                        [username, invite.id]
+                    );
+
+                    await logTransaction(username, 'GOOGLE_SIGNUP', 'users', null, invite.invited_by);
+                    sendTelegramMessage(GROUP_CHAT_ID, `New Google user joined: ${username} (${email}) via invite from ${invite.invited_by}`);
+
+                    user = await dbQuery('SELECT * FROM vectraarchlegacy_users WHERE username = $1', [username]);
+                    delete req.session.pendingInviteToken;
+                }
+
+                await dbRun('UPDATE vectraarchlegacy_users SET last_active = $1 WHERE username = $2',
+                    [new Date().toISOString(), user.username]);
+                await logTransaction(user.username, 'LOGIN_GOOGLE', 'users', null, user.username);
+
+                // If 2FA enabled, stash the username and redirect to OTP step.
+                if (user.twofa_secret) {
+                    req.session.pendingGoogle2FA = { username: user.username };
+                    return res.redirect('/login.html?stage=2fa&from=google');
+                }
+
+                return res.send(renderHandoffPage({ success: true, ...mapUser(user) }, '/app.html'));
+            } catch (e) {
+                console.error('[google-oauth] handler error:', e.message);
+                return res.redirect('/login.html?error=google_server');
+            }
+        })(req, res, next);
+});
+
+// Used by login.html when ?stage=2fa&from=google — finishes a Google sign-in
+// that required a TOTP. Body: { token }. Reads the pending username from session.
+app.post('/api/google/verify-2fa', async (req, res) => {
+    const pending = req.session.pendingGoogle2FA;
+    if (!pending?.username) {
+        return res.status(401).json({ success: false, message: 'No pending Google sign-in.' });
+    }
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ success: false, message: 'Token required.' });
+    try {
+        const row = await dbQuery('SELECT * FROM vectraarchlegacy_users WHERE username = $1', [pending.username]);
+        if (!row || !row.twofa_secret) {
+            delete req.session.pendingGoogle2FA;
+            return res.status(400).json({ success: false, message: '2FA not configured.' });
+        }
+        const valid = authenticator.verify({ token, secret: row.twofa_secret });
+        if (!valid) return res.status(401).json({ success: false, message: 'Invalid code.' });
+        delete req.session.pendingGoogle2FA;
+        return res.json({ success: true, ...mapUser(row) });
+    } catch (e) {
+        return res.status(500).json({ success: false, message: 'Server error.', error: e.message });
+    }
+});
+
+// Cancel a pending Google flow (called when user navigates away or hits Back).
+app.post('/api/google/cancel', (req, res) => {
+    delete req.session.pendingGoogle2FA;
+    delete req.session.pendingInviteToken;
+    res.json({ success: true });
+});
+
+// ── INVITES ──────────────────────────────────────────────────────────────────
+function buildInviteEmail(invite, inviter) {
+    const url = `${PUBLIC_BASE_URL}/invite/${invite.token}`;
+    const subject = `You've been invited to VectraArch Legacy`;
+    const text = `Hi,
+
+${inviter || 'A VectraArch admin'} has invited you to join the VectraArch Legacy hub.
+
+Click the link below to accept and sign in with your Google account (${invite.email}):
+
+${url}
+
+This invite expires on ${new Date(invite.expires_at).toLocaleString('en-ZA')}.
+
+If you weren't expecting this, just ignore the email.
+
+— VectraArch Legacy`;
+    const html = `<div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;background:#0a0a0a;color:#e5e5e5">
+        <div style="font-size:11px;letter-spacing:0.2em;color:#d4a017;text-transform:uppercase;margin-bottom:8px">§ VectraArch · Legacy</div>
+        <h1 style="font-size:22px;color:#fff;margin:0 0 14px">You're invited.</h1>
+        <p style="line-height:1.55;color:#bdbdbd"><strong style="color:#fff">${inviter || 'A VectraArch admin'}</strong> has invited you to join the VectraArch Legacy hub.</p>
+        <p style="line-height:1.55;color:#bdbdbd">Click below to accept and sign in with your Google account (<strong>${invite.email}</strong>):</p>
+        <p style="margin:24px 0"><a href="${url}" style="display:inline-block;padding:12px 22px;background:#d4a017;color:#0a0a0a;text-decoration:none;font-weight:600;border-radius:4px;letter-spacing:.08em">Accept invitation ↗</a></p>
+        <p style="line-height:1.55;color:#666;font-size:12px">This invite expires on ${new Date(invite.expires_at).toLocaleString('en-ZA')}.<br>If you weren't expecting this, you can safely ignore this email.</p>
+        <hr style="border:none;border-top:1px solid #222;margin:24px 0">
+        <p style="font-size:11px;color:#555">Or paste this link into your browser:<br><span style="color:#888;word-break:break-all">${url}</span></p>
+    </div>`;
+    return { subject, text, html };
+}
+
+async function sendInviteEmail(invite, inviter) {
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+        return { sent: false, reason: 'Email not configured (EMAIL_USER/EMAIL_PASS missing).' };
+    }
+    try {
+        const { subject, text, html } = buildInviteEmail(invite, inviter);
+        await transporter.sendMail({
+            from: process.env.EMAIL_USER,
+            to: invite.email,
+            subject, text, html,
+        });
+        return { sent: true };
+    } catch (e) {
+        console.error('[invite] email send failed:', e.message);
+        return { sent: false, reason: e.message };
+    }
+}
+
+// Admin: create a new invite. Body: { adminUsername, email, role?, note? }
+app.post('/api/admin/invite', requireAdmin, async (req, res) => {
+    const email = (req.body.email || '').toLowerCase().trim();
+    const role  = req.body.role === 'admin' ? 'admin' : 'user';
+    const note  = req.body.note || null;
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return res.status(400).json({ success: false, message: 'Valid email required.' });
+    }
+    try {
+        const existing = await dbQuery('SELECT username FROM vectraarchlegacy_users WHERE LOWER(email) = $1', [email]);
+        if (existing) {
+            return res.status(400).json({ success: false, message: `A user with email ${email} already exists (${existing.username}).` });
+        }
+        const token = crypto.randomBytes(24).toString('hex');
+        const row = await pool.query(
+            `INSERT INTO vectraarchlegacy_invites (email, token, invited_by, role, note)
+             VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+            [email, token, req.adminUsername, role, note]
+        );
+        const invite = row.rows[0];
+        const emailResult = await sendInviteEmail(invite, req.adminUsername);
+
+        await logTransaction(req.adminUsername, 'INVITE_SEND', 'invites', invite.id, req.adminUsername);
+        if (emailResult.sent) {
+            sendTelegramMessage(GROUP_CHAT_ID, `Invite sent to ${email} by ${req.adminUsername}.`);
+        }
+
+        res.json({
+            success: true,
+            invite,
+            invite_url: `${PUBLIC_BASE_URL}/invite/${token}`,
+            email_sent: emailResult.sent,
+            email_error: emailResult.reason || null,
+        });
+    } catch (e) {
+        console.error('[invite] create error:', e.message);
+        res.status(500).json({ success: false, message: 'Server error creating invite.', error: e.message });
+    }
+});
+
+// Admin: list invites. Query: ?adminUsername=... &status=pending|accepted|revoked|all
+app.get('/api/admin/invites', requireAdmin, async (req, res) => {
+    const status = req.query.status || 'all';
+    try {
+        let rows;
+        if (status === 'all') {
+            rows = await dbAll(
+                `SELECT id, email, token, invited_by, role, status, note,
+                        created_at, expires_at, accepted_at, accepted_username
+                 FROM vectraarchlegacy_invites
+                 ORDER BY created_at DESC LIMIT 200`
+            );
+        } else {
+            rows = await dbAll(
+                `SELECT id, email, token, invited_by, role, status, note,
+                        created_at, expires_at, accepted_at, accepted_username
+                 FROM vectraarchlegacy_invites
+                 WHERE status = $1
+                 ORDER BY created_at DESC LIMIT 200`,
+                [status]
+            );
+        }
+        const invites = rows.map(r => ({ ...r, invite_url: `${PUBLIC_BASE_URL}/invite/${r.token}` }));
+        res.json({ success: true, invites });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Server error listing invites.', error: e.message });
+    }
+});
+
+// Admin: revoke a pending invite.
+app.delete('/api/admin/invite/:id', requireAdmin, async (req, res) => {
+    const id = parseInt(req.params.id, 10);
+    if (!id) return res.status(400).json({ success: false, message: 'Invite id required.' });
+    try {
+        const row = await dbQuery('SELECT * FROM vectraarchlegacy_invites WHERE id = $1', [id]);
+        if (!row) return res.status(404).json({ success: false, message: 'Invite not found.' });
+        if (row.status !== 'pending') return res.status(400).json({ success: false, message: `Invite is already ${row.status}.` });
+        await dbRun(`UPDATE vectraarchlegacy_invites SET status='revoked' WHERE id=$1`, [id]);
+        await logTransaction(req.adminUsername, 'INVITE_REVOKE', 'invites', id, req.adminUsername);
+        res.json({ success: true, message: 'Invite revoked.' });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Server error revoking invite.', error: e.message });
+    }
+});
+
+// Admin: resend the email for an existing pending invite.
+app.post('/api/admin/invite/:id/resend', requireAdmin, async (req, res) => {
+    const id = parseInt(req.params.id, 10);
+    if (!id) return res.status(400).json({ success: false, message: 'Invite id required.' });
+    try {
+        const row = await dbQuery('SELECT * FROM vectraarchlegacy_invites WHERE id = $1', [id]);
+        if (!row) return res.status(404).json({ success: false, message: 'Invite not found.' });
+        if (row.status !== 'pending') return res.status(400).json({ success: false, message: `Cannot resend a ${row.status} invite.` });
+        if (new Date(row.expires_at) < new Date()) return res.status(400).json({ success: false, message: 'Invite has expired.' });
+        const r = await sendInviteEmail(row, req.adminUsername);
+        res.json({ success: r.sent, message: r.sent ? 'Email resent.' : (r.reason || 'Email send failed.') });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Server error resending invite.', error: e.message });
+    }
+});
+
+// Public: validate an invite token (used by /invite/<token> landing page).
+app.get('/api/invite/check', async (req, res) => {
+    const token = (req.query.token || '').toString();
+    if (!token) return res.status(400).json({ success: false, message: 'Token required.' });
+    try {
+        const row = await dbQuery(
+            `SELECT email, status, expires_at, invited_by, role FROM vectraarchlegacy_invites WHERE token = $1`,
+            [token]
+        );
+        if (!row) return res.json({ success: false, valid: false, reason: 'not_found' });
+        if (row.status !== 'pending') return res.json({ success: false, valid: false, reason: row.status });
+        if (new Date(row.expires_at) < new Date()) return res.json({ success: false, valid: false, reason: 'expired' });
+        return res.json({
+            success: true, valid: true,
+            email: row.email, invited_by: row.invited_by, role: row.role,
+            expires_at: row.expires_at,
+        });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Server error checking invite.', error: e.message });
+    }
+});
+
+// Invite landing page: pretty welcome that explains the flow and offers "Continue with Google".
+app.get('/invite/:token', (req, res) => {
+    const token = req.params.token;
+    res.setHeader('Cache-Control', 'no-store');
+    res.send(`<!doctype html><html><head><meta charset="utf-8">
+<title>Invitation · VectraArch Legacy</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Barlow+Condensed:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/shared/va.css"><link rel="stylesheet" href="/shared/auth.css">
+<style>
+.invite-card{max-width:440px;margin:0 auto;padding:36px 28px;text-align:center}
+.invite-eyebrow{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.22em;color:#d4a017;text-transform:uppercase;margin-bottom:12px}
+.invite-title{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:34px;color:#fff;letter-spacing:.02em;margin:0 0 8px}
+.invite-sub{font-family:'DM Mono',monospace;font-size:12px;color:#888;margin-bottom:24px;line-height:1.6}
+.invite-email{font-family:'DM Mono',monospace;font-size:13px;color:#d4a017;background:rgba(212,160,23,0.08);padding:8px 14px;border:1px solid rgba(212,160,23,0.3);border-radius:4px;display:inline-block;margin-bottom:24px}
+.gbtn{display:inline-flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:13px 18px;background:#fff;color:#1f1f1f;border:none;border-radius:6px;font-family:'DM Mono',monospace;font-size:13px;font-weight:500;letter-spacing:.05em;cursor:pointer;text-decoration:none;box-sizing:border-box}
+.gbtn:hover{background:#f1f1f1}
+.gbtn svg{width:18px;height:18px;flex-shrink:0}
+.invite-err{font-family:'DM Mono',monospace;font-size:11px;color:#ff6161;line-height:1.7;padding:14px;border:1px solid rgba(255,97,97,0.3);border-radius:4px;background:rgba(255,97,97,0.05);text-align:left}
+.invite-back{display:block;margin-top:18px;color:#666;font-family:'DM Mono',monospace;font-size:11px;text-decoration:none}
+</style></head><body>
+<div class="grid-bg"></div>
+<div class="auth-wrap"><div class="auth-card invite-card">
+  <div class="invite-eyebrow">§ Invitation</div>
+  <div id="state-loading">
+    <div class="invite-sub">Checking invitation…</div>
+  </div>
+  <div id="state-ok" style="display:none">
+    <h1 class="invite-title">You're invited.</h1>
+    <div class="invite-sub" id="invitedBy">Loading…</div>
+    <div class="invite-email" id="inviteEmail"></div>
+    <a id="acceptBtn" class="gbtn" href="#">
+      <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.1c-.22-.66-.35-1.36-.35-2.1s.13-1.44.35-2.1V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      Continue with Google
+    </a>
+    <div class="invite-sub" style="margin-top:14px;font-size:10px">You must sign in with the Google account matching the email above.</div>
+  </div>
+  <div id="state-err" style="display:none">
+    <div class="invite-err" id="errMsg"></div>
+    <a class="invite-back" href="/login.html">← Back to sign-in</a>
+  </div>
+</div></div>
+<script>
+(function(){
+  var TOKEN = ${JSON.stringify(token)};
+  function show(id){['loading','ok','err'].forEach(function(s){document.getElementById('state-'+s).style.display=(s===id)?'block':'none';});}
+  fetch('/api/invite/check?token='+encodeURIComponent(TOKEN)).then(function(r){return r.json();}).then(function(d){
+    if(!d.success){
+      var reasons = {expired:'This invitation has expired. Ask your admin to send a new one.',
+                     accepted:'This invitation has already been accepted.',
+                     revoked:'This invitation was revoked.',
+                     not_found:'Invitation not found.'};
+      document.getElementById('errMsg').textContent = '⚠ ' + (reasons[d.reason] || 'Invitation is no longer valid.');
+      show('err'); return;
+    }
+    document.getElementById('inviteEmail').textContent = d.email;
+    document.getElementById('invitedBy').textContent = 'Invited by ' + (d.invited_by || 'admin') + (d.role==='admin'?' · admin role':'');
+    document.getElementById('acceptBtn').href = '/auth/google?invite=' + encodeURIComponent(TOKEN);
+    show('ok');
+  }).catch(function(){
+    document.getElementById('errMsg').textContent = '⚠ Could not contact server. Check your connection and refresh.';
+    show('err');
+  });
+})();
+</script></body></html>`);
 });
 
 // ── IDENTITY PROXY ───────────────────────────────────────────────────────────
