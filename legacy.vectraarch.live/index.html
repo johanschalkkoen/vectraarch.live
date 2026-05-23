@@ -1760,63 +1760,34 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
               <label className="form-label">Title</label>
               <input className="form-input" placeholder="Event name" value={form.title} onChange={e=>setForm(p=>({...p,title:e.target.value}))} autoFocus/>
             </div>
-<<<<<<< HEAD
-            <div style={{ display: 'flex', gap: '12px', width: '100%' }}>
-  <div className="form-field" style={{ flex: 1 }}>
-    <label className="form-label">Start Date &amp; Time</label>
-    <input 
-      className="form-input" 
-      type="datetime-local" 
-      value={form.startDate || form.date} 
-      onChange={e => setForm({ ...form, startDate: e.target.value })}
-    />
-  </div>
-
-  <div className="form-field" style={{ flex: 1 }}>
-    <label className="form-label">End Date &amp; Time</label>
-    <input 
-      className="form-input" 
-      type="datetime-local" 
-      value={form.endDate || form.date} 
-      onChange={e => setForm({ ...form, endDate: e.target.value })}
-    />
-  </div>
-</div>
-=======
-            <div className="form-field">
-              <label className="form-label">Starts</label>
-              <input className="form-input" type="datetime-local" value={form.date}
-                onChange={e=>{
-                  const v=e.target.value;
-                  // If end is empty or before new start, default end to start + 1h
-                  setForm(p=>{
-                    let nextEnd = p.endDate;
-                    if (!nextEnd || nextEnd < v) {
-                      const dt = new Date(v);
-                      if (!isNaN(dt)) { dt.setHours(dt.getHours()+1); nextEnd = dt.toISOString().slice(0,16); }
-                    }
-                    return {...p, date:v, endDate:nextEnd};
-                  });
-                }}/>
-            </div>
-            <div className="form-field">
-              <label className="form-label">Ends (optional)</label>
-              <div style={{display:'flex',gap:8,alignItems:'center'}}>
+            <div style={{display:'flex',gap:12}}>
+              <div className="form-field" style={{flex:1}}>
+                <label className="form-label">Start Date &amp; Time</label>
+                <input className="form-input" type="datetime-local" value={form.date}
+                  onChange={e=>{
+                    const v=e.target.value;
+                    setForm(p=>{
+                      let nextEnd = p.endDate;
+                      if (!nextEnd || nextEnd < v) {
+                        const dt = new Date(v);
+                        if (!isNaN(dt)) { dt.setHours(dt.getHours()+1); nextEnd = dt.toISOString().slice(0,16); }
+                      }
+                      return {...p, date:v, endDate:nextEnd};
+                    });
+                  }}/>
+              </div>
+              <div className="form-field" style={{flex:1}}>
+                <label className="form-label">End Date &amp; Time</label>
                 <input className="form-input" type="datetime-local" value={form.endDate}
                   min={form.date}
-                  onChange={e=>setForm(p=>({...p,endDate:e.target.value}))} style={{flex:1}}/>
-                {form.endDate && (
-                  <button type="button" onClick={()=>setForm(p=>({...p,endDate:''}))}
-                    style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.1em',textTransform:'uppercase',padding:'8px 12px',border:'1px solid var(--border2)',color:'var(--text3)',borderRadius:4,background:'transparent',cursor:'pointer'}}>CLEAR</button>
-                )}
+                  onChange={e=>setForm(p=>({...p,endDate:e.target.value}))}/>
               </div>
-              {form.date && form.endDate && form.endDate >= form.date && (
-                <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)',marginTop:4,letterSpacing:'0.04em'}}>
-                  Duration: {(()=>{ const mins = Math.round((new Date(form.endDate) - new Date(form.date))/60000); if(mins<60) return mins+' min'; const h=Math.floor(mins/60), m=mins%60; return h+'h'+(m?' '+m+'m':''); })()}
-                </div>
-              )}
             </div>
->>>>>>> origin/claude/gifted-turing-RIRQn
+            {form.date && form.endDate && form.endDate >= form.date && (
+              <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)',letterSpacing:'0.04em',marginTop:-6,marginBottom:10}}>
+                Duration: {(()=>{ const mins = Math.round((new Date(form.endDate) - new Date(form.date))/60000); if(mins<60) return mins+' min'; const h=Math.floor(mins/60), m=mins%60; return h+'h'+(m?' '+m+'m':''); })()}
+              </div>
+            )}
             {/* Financial toggle */}
             <div className="form-field">
               <label className="form-label">Has Financial Impact?</label>
