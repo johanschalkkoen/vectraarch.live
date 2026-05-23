@@ -1325,7 +1325,7 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
   const [viewDate, setViewDate]       = useState(new Date());
   const [selectedDay, setSelectedDay] = useState(new Date());
   const [showForm, setShowForm]       = useState(false);
-  const [form, setForm]               = useState({title:'',date:now(),type:'personal',color:user?.eventColor||'#448aff',amount:'',finType:'income',financial:false});
+  const [form, setForm]               = useState({title:'',date:now(),endDate:'',type:'personal',color:user?.eventColor||'#448aff',amount:'',finType:'income',financial:false});
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [alert, setAlert]             = useState({msg:'',type:''});
   const [search, setSearch]             = useState('');
@@ -1407,12 +1407,14 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
 
   const handleSave = async()=>{
     if(!form.title||!form.date){msg('Title and date required.','err');return;}
+    if(form.endDate && form.endDate < form.date){ msg('End time must be after start time.','err'); return; }
     try {
       if(editCalId) await axios.delete(`${API}/calendar/${editCalId}`);
       await axios.post(`${API}/calendar`,{
         user:       user.username,
         title:      form.title,
         date:       form.date,
+        endDate:    form.endDate || null,
         financial:  form.financial && !!form.amount,
         finType:    form.finType||'income',
         eventColor: form.color||user.eventColor||'#448aff',
@@ -1421,7 +1423,7 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
       });
       msg(editCalId?'Event updated.':'Event saved.');
       setShowForm(false);setEditCalId(null);
-      setForm({title:'',date:now(),type:'personal',color:user?.eventColor||'#448aff',amount:'',finType:'income',financial:false});
+      setForm({title:'',date:now(),endDate:'',type:'personal',color:user?.eventColor||'#448aff',amount:'',finType:'income',financial:false});
       fetchEvents();
     } catch { msg('Error.','err'); }
   };
@@ -1429,6 +1431,7 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
     setForm({
       title:    e.title||'',
       date:     (e.date||now()).slice(0,19),
+      endDate:  (e.endDate||e.end_date||'').slice(0,19),
       type:     e.financial||e.is_financial ? (e.type||'income') : (e.type||'personal'),
       color:    e.eventColor||e.event_color||user.eventColor||'#448aff',
       amount:   String(e.amount||''),
@@ -1581,17 +1584,24 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
               const isOwn    = (e.user||e.username)===user.username;
               const icon     = getEventIcon(e);
               const isFin    = e.financial||e.is_financial||e.financial==='1'||e.is_financial===1;
-              const timeVal  = fmtTime(e.date);
+              const timeStart = fmtTime(e.date);
+              const endRaw    = e.endDate||e.end_date||'';
+              const timeEnd   = endRaw ? fmtTime(endRaw) : '';
               return (
                 <div key={e.id} className="meal-card" style={{marginBottom:8,borderLeft:`3px solid ${coc}`,cursor:isOwn?'pointer':'default',display:'flex',alignItems:'stretch',padding:0,overflow:'hidden'}}
                   onClick={()=>isOwn&&setActionCalEvent(e)}>
-                  {/* iPhone-style time column for normal events */}
+                  {/* iPhone-style time column — start over end */}
                   {showTime&&(
-                    <div style={{minWidth:46,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',background:'rgba(255,255,255,0.03)',borderRight:'1px solid var(--border)',padding:'8px 4px',flexShrink:0}}>
-                      {timeVal
-                        ? <><div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:18,color:coc,lineHeight:1}}>{timeVal.slice(0,5).split(':')[0]}</div>
-                            <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'var(--text3)',letterSpacing:'0.05em'}}>{timeVal.split(':')[1]}</div></>
-                        : <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:'var(--text3)',letterSpacing:'0.05em',textAlign:'center'}}>ALL{'\n'}DAY</div>
+                    <div style={{minWidth:54,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',background:'rgba(255,255,255,0.03)',borderRight:'1px solid var(--border)',padding:'8px 4px',flexShrink:0,gap:3}}>
+                      {timeStart
+                        ? <>
+                            <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:15,color:coc,lineHeight:1,letterSpacing:'0.02em'}}>{timeStart}</div>
+                            {timeEnd && timeEnd !== timeStart && (<>
+                              <div style={{width:14,height:1,background:coc,opacity:0.35}}/>
+                              <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',letterSpacing:'0.04em'}}>{timeEnd}</div>
+                            </>)}
+                          </>
+                        : <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'var(--text3)',letterSpacing:'0.05em',textAlign:'center',lineHeight:1.2}}>ALL<br/>DAY</div>
                       }
                     </div>
                   )}
@@ -1614,7 +1624,10 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
                     </div>
                     <div className="meal-name" style={{marginBottom:4}}>{(e.title||'Untitled').toUpperCase()}</div>
                     <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-                      <div className="meal-note">{fmtDate(e.date)}</div>
+                      <div className="meal-note">
+                        {fmtDate(e.date)}
+                        {timeStart && <> · <span style={{color:'var(--text2)'}}>{timeStart}{timeEnd && timeEnd !== timeStart ? ` → ${timeEnd}` : ''}</span></>}
+                      </div>
                       {e.amount&&<div style={{fontFamily:"'DM Mono',monospace",fontSize:13,fontWeight:600,
                         color:e.type==='expense'?'var(--red)':'var(--green)'}}>{fmtR(e.amount)}</div>}
                     </div>
@@ -1745,8 +1758,37 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
               <input className="form-input" placeholder="Event name" value={form.title} onChange={e=>setForm(p=>({...p,title:e.target.value}))} autoFocus/>
             </div>
             <div className="form-field">
-              <label className="form-label">Date & Time</label>
-              <input className="form-input" type="datetime-local" value={form.date} onChange={e=>setForm(p=>({...p,date:e.target.value}))}/>
+              <label className="form-label">Starts</label>
+              <input className="form-input" type="datetime-local" value={form.date}
+                onChange={e=>{
+                  const v=e.target.value;
+                  // If end is empty or before new start, default end to start + 1h
+                  setForm(p=>{
+                    let nextEnd = p.endDate;
+                    if (!nextEnd || nextEnd < v) {
+                      const dt = new Date(v);
+                      if (!isNaN(dt)) { dt.setHours(dt.getHours()+1); nextEnd = dt.toISOString().slice(0,16); }
+                    }
+                    return {...p, date:v, endDate:nextEnd};
+                  });
+                }}/>
+            </div>
+            <div className="form-field">
+              <label className="form-label">Ends (optional)</label>
+              <div style={{display:'flex',gap:8,alignItems:'center'}}>
+                <input className="form-input" type="datetime-local" value={form.endDate}
+                  min={form.date}
+                  onChange={e=>setForm(p=>({...p,endDate:e.target.value}))} style={{flex:1}}/>
+                {form.endDate && (
+                  <button type="button" onClick={()=>setForm(p=>({...p,endDate:''}))}
+                    style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.1em',textTransform:'uppercase',padding:'8px 12px',border:'1px solid var(--border2)',color:'var(--text3)',borderRadius:4,background:'transparent',cursor:'pointer'}}>CLEAR</button>
+                )}
+              </div>
+              {form.date && form.endDate && form.endDate >= form.date && (
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)',marginTop:4,letterSpacing:'0.04em'}}>
+                  Duration: {(()=>{ const mins = Math.round((new Date(form.endDate) - new Date(form.date))/60000); if(mins<60) return mins+' min'; const h=Math.floor(mins/60), m=mins%60; return h+'h'+(m?' '+m+'m':''); })()}
+                </div>
+              )}
             </div>
             {/* Financial toggle */}
             <div className="form-field">
@@ -4215,8 +4257,18 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
   const [alert, setAlert]                   = useState({msg:'',type:''});
   const fileInputRef = useRef();
 
-  const COLORS = ['#e74c3c','#00e676','#448aff','#ffd600','#e91e8c','#e040fb','#ff9800','#00bcd4','#b06aff','#1de9b6'];
-  const COLOR_NAMES = {'#e74c3c':'CRIMSON','#ff3b3b':'CRIMSON','#00e676':'NEON','#00ff41':'NEON','#448aff':'OCEAN','#00bfff':'CYAN','#ffd600':'GOLD','#e91e8c':'PINK','#e040fb':'VIOLET','#9b59b6':'PURPLE','#ff9800':'AMBER','#00bcd4':'TEAL','#b06aff':'INDIGO','#1de9b6':'MINT'};
+  const COLORS = [
+    '#e74c3c','#ff3b3b','#ff6b9d','#e91e8c','#d67bff','#b06aff','#e040fb','#9b59b6',
+    '#448aff','#00bfff','#00bcd4','#1de9b6','#00e676','#00ff41','#76ff03','#ffd600',
+    '#ffab00','#ff9800','#ff6d00','#ff5722','#795548','#9e9e9e','#cfd8dc','#ffffff',
+  ];
+  const COLOR_NAMES = {
+    '#e74c3c':'CRIMSON','#ff3b3b':'CRIMSON','#ff6b9d':'ROSE','#e91e8c':'PINK','#d67bff':'LAVENDER',
+    '#b06aff':'INDIGO','#e040fb':'VIOLET','#9b59b6':'PURPLE','#448aff':'OCEAN','#00bfff':'CYAN',
+    '#00bcd4':'TEAL','#1de9b6':'MINT','#00e676':'NEON','#00ff41':'NEON','#76ff03':'LIME',
+    '#ffd600':'GOLD','#ffab00':'AMBER','#ff9800':'AMBER','#ff6d00':'ORANGE','#ff5722':'CORAL',
+    '#795548':'COFFEE','#9e9e9e':'STEEL','#cfd8dc':'ASH','#ffffff':'IVORY',
+  };
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [showTerms, setShowTerms]     = useState(false);
   const msg = (m,t='ok') => { setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
@@ -4654,27 +4706,68 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
           {/* ── ACCENT COLOR ── */}
           <div className="profile-section">
             <div className="profile-section-title">ACCENT COLOR</div>
-            <div style={{padding:'10px 14px 4px',fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)'}}>Personal accent — used on calendar, charts and badges.</div>
-            <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:8,padding:'8px 14px 14px'}}>
+            <div style={{padding:'10px 14px 4px',fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',lineHeight:1.6}}>
+              Personal accent — used on calendar, charts and badges.
+              {allPartners.length>0 && <> Colors used by your partner{allPartners.length>1?'s':''} are blocked.</>}
+            </div>
+            {/* Partner color legend so the user knows what's claimed */}
+            {allPartners.length>0 && (
+              <div style={{display:'flex',gap:8,flexWrap:'wrap',padding:'4px 14px 6px'}}>
+                {allPartners.map(p=>{
+                  const pc = (p.accentColor||p.eventColor||'').toLowerCase();
+                  if (!pc) return null;
+                  return (
+                    <div key={p.username} style={{display:'flex',alignItems:'center',gap:6,padding:'4px 8px',background:'var(--bg3)',borderRadius:12,border:'1px solid var(--border2)'}}>
+                      <span style={{width:10,height:10,borderRadius:'50%',background:pc,display:'inline-block',flexShrink:0}}/>
+                      <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.06em',color:'var(--text2)'}}>{(p.displayName||p.firstName||p.username||'').toUpperCase()}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {/* Preset palette */}
+            <div style={{display:'grid',gridTemplateColumns:'repeat(8,1fr)',gap:6,padding:'8px 14px 12px'}}>
               {COLORS.map(col=>{
-                const takenBy = allPartners.find(p=>(p.accentColor||p.eventColor)===col);
-                const isTaken = !!takenBy && col!==selectedColor;
-                const isActive = selectedColor===col;
+                const takenBy = allPartners.find(p=>((p.accentColor||p.eventColor)||'').toLowerCase()===col.toLowerCase());
+                const isTaken = !!takenBy && col.toLowerCase()!==selectedColor.toLowerCase();
+                const isActive = selectedColor.toLowerCase()===col.toLowerCase();
                 return (
                   <div key={col}
                     style={{aspectRatio:'1',background:col,borderRadius:6,display:'flex',alignItems:'center',justifyContent:'center',
                       cursor:editing&&!isTaken?'pointer':'default',opacity:isTaken?0.18:1,
-                      outline:isActive?'2px solid rgba(255,255,255,0.8)':'none',outlineOffset:'2px',
-                      transition:'transform 0.12s, outline 0.12s',transform:isActive&&editing?'scale(1.06)':'scale(1)',
+                      outline:isActive?'2px solid rgba(255,255,255,0.85)':(col==='#ffffff'?'1px solid var(--border2)':'none'),outlineOffset:isActive?'2px':'0',
+                      transition:'transform 0.12s, outline 0.12s',transform:isActive&&editing?'scale(1.08)':'scale(1)',
+                      position:'relative',
                     }}
-                    title={isTaken?`In use by ${takenBy.displayName||takenBy.username}`:''}
+                    title={isTaken?`In use by ${takenBy.displayName||takenBy.username}`:(COLOR_NAMES[col]||col)}
                     onClick={()=>editing&&!isTaken&&setSelectedColor(col)}>
                     {isActive
-                      ? <span style={{fontSize:18,fontWeight:900,color:'rgba(0,0,0,0.75)'}}>✓</span>
-                      : <span style={{fontSize:14,fontWeight:300,color:'rgba(0,0,0,0.25)'}}>/</span>}
+                      ? <span style={{fontSize:16,fontWeight:900,color:col==='#ffffff'||col==='#cfd8dc'?'rgba(0,0,0,0.85)':'rgba(0,0,0,0.75)'}}>✓</span>
+                      : (isTaken ? <span style={{fontSize:12,fontWeight:900,color:'rgba(0,0,0,0.5)'}}>✕</span> : null)}
                   </div>
                 );
               })}
+            </div>
+            {/* Custom hex picker */}
+            <div style={{padding:'4px 14px 14px',display:'flex',gap:10,alignItems:'center'}}>
+              <input type="color" value={selectedColor} disabled={!editing}
+                onChange={e=>{
+                  const v = e.target.value.toLowerCase();
+                  const taken = allPartners.find(p=>((p.accentColor||p.eventColor)||'').toLowerCase()===v);
+                  if (taken && v !== selectedColor.toLowerCase()) {
+                    msg(`That color is used by ${taken.displayName||taken.username}.`,'err');
+                    return;
+                  }
+                  setSelectedColor(v);
+                }}
+                style={{width:44,height:44,border:'1px solid var(--border2)',borderRadius:6,cursor:editing?'pointer':'default',background:'transparent',padding:2,flexShrink:0}}/>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.18em',textTransform:'uppercase',color:'var(--text3)'}}>Custom hex</div>
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:13,color:'var(--text)',letterSpacing:'0.04em',marginTop:2}}>
+                  {selectedColor.toUpperCase()}
+                  {COLOR_NAMES[selectedColor.toLowerCase()] && <span style={{color:'var(--text3)',marginLeft:8,fontSize:10}}>· {COLOR_NAMES[selectedColor.toLowerCase()]}</span>}
+                </div>
+              </div>
             </div>
             {!editing&&<div style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.14em',color:'var(--text3)',padding:'0 14px 12px'}}>tap EDIT to change accent</div>}
           </div>

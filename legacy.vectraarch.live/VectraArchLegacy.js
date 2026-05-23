@@ -164,6 +164,8 @@ async function ensureSchema() {
         )`,
         `CREATE INDEX IF NOT EXISTS idx_invites_email  ON vectraarchlegacy_invites(LOWER(email))`,
         `CREATE INDEX IF NOT EXISTS idx_invites_status ON vectraarchlegacy_invites(status)`,
+        // ── Calendar: optional end-time so events can have a duration ──
+        `ALTER TABLE vectraarchlegacy_calendar ADD COLUMN IF NOT EXISTS end_date TIMESTAMP`,
     ];
     let failed = 0;
     for (const sql of migrations) {
@@ -952,7 +954,7 @@ app.get('/api/calendar', async (req, res) => {
     if (!user) return res.status(400).json({ success: false, message: 'User required.' });
     try {
         const rows = await dbAll(
-            "SELECT id, username AS user, title, TO_CHAR(date, 'YYYY-MM-DD HH24:MI:SS') AS date, is_financial AS financial, type, amount, event_color AS \"eventColor\" FROM vectraarchlegacy_calendar WHERE username = $1",
+            "SELECT id, username AS user, title, TO_CHAR(date, 'YYYY-MM-DD\"T\"HH24:MI:SS') AS date, TO_CHAR(end_date, 'YYYY-MM-DD\"T\"HH24:MI:SS') AS \"endDate\", is_financial AS financial, type, amount, event_color AS \"eventColor\" FROM vectraarchlegacy_calendar WHERE username = $1",
             [user]
         );
         res.json(rows);
@@ -962,14 +964,14 @@ app.get('/api/calendar', async (req, res) => {
 });
 
 app.post('/api/calendar', async (req, res) => {
-    const { user, title, date, financial, type, amount, eventColor, finType } = req.body;
+    const { user, title, date, endDate, financial, type, amount, eventColor, finType } = req.body;
     if (!user || !title || !date) return res.status(400).json({ success: false, message: 'User, title, and date required.' });
     try {
         const isFinancial = !!(financial && amount && parseFloat(amount) > 0);
         const calType = isFinancial ? (finType || type || 'income') : (type || null);
         const r = await dbRun(
-            'INSERT INTO vectraarchlegacy_calendar (username,title,date,is_financial,type,amount,event_color) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id',
-            [user, title, date, isFinancial ? 1 : 0, calType, amount || null, eventColor || null]
+            'INSERT INTO vectraarchlegacy_calendar (username,title,date,end_date,is_financial,type,amount,event_color) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id',
+            [user, title, date, endDate || null, isFinancial ? 1 : 0, calType, amount || null, eventColor || null]
         );
         const calId = r.rows[0].id;
         // When marked financial, also write to vectraarchlegacy_financial so it appears on Finances tab
