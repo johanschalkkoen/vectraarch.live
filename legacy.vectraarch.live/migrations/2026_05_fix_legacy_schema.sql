@@ -112,6 +112,21 @@ ALTER TABLE vectraarchlegacy_users
 DROP TABLE IF EXISTS vectraarchlegacy_gymprogram_exercise;
 DROP TABLE IF EXISTS vectraarchlegacy_gymprogram;
 
--- ── 6. Sanity report so you can see what we ended up with ────────────────────
+-- ── 6. Naming alignment: legacy_* tables → vectraarchlegacy_* convention ─────
+--      Idempotent: only rename if the old name still exists. Ownership is also
+--      transferred so the app user can ALTER them in future ensureSchema() runs.
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_tables WHERE tablename='legacy_gym_options' AND schemaname='public') THEN
+        ALTER TABLE legacy_gym_options RENAME TO vectraarchlegacy_gym_options;
+    END IF;
+    IF EXISTS (SELECT 1 FROM pg_tables WHERE tablename='legacy_meal_templates' AND schemaname='public') THEN
+        ALTER TABLE legacy_meal_templates RENAME TO vectraarchlegacy_meal_templates;
+    END IF;
+END $$;
+ALTER TABLE IF EXISTS vectraarchlegacy_gym_options    OWNER TO "VectraArchLegacy";
+ALTER TABLE IF EXISTS vectraarchlegacy_meal_templates OWNER TO "VectraArchLegacy";
+
+-- ── 7. Sanity report so you can see what we ended up with ────────────────────
 \d+ vectraarchlegacy_users
 \d+ vectraarchlegacy_calendar

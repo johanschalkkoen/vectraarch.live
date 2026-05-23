@@ -364,6 +364,103 @@ app.post('/api/add-user', requireAdmin, async (req, res) => {
     }
 });
 
+// Full user creation — used by Admin's "Add User" form. Creates the user row
+// AND a vectraarchlegacy_families row (with admin_username = new user) in one
+// transaction so every new user has a hub to populate.
+app.post('/api/admin/create-user', requireAdmin, async (req, res) => {
+    const {
+        username, password, firstName, lastName, email,
+        gender, dateOfBirth, heightCm, weightKg,
+        role, accentColor, currency, timezone,
+        familyName, isAdmin,
+    } = req.body;
+
+    if (!username || username.length < 3) {
+        return res.status(400).json({ success: false, message: 'Username must be at least 3 characters.' });
+    }
+    const clean = username.toLowerCase().trim();
+    if (!/^[a-z0-9._-]+$/.test(clean)) {
+        return res.status(400).json({ success: false, message: 'Username may only contain letters, numbers, dots, dashes and underscores.' });
+    }
+    if (!password || password.length < 6) {
+        return res.status(400).json({ success: false, message: 'Password must be at least 6 characters.' });
+    }
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return res.status(400).json({ success: false, message: 'Email is not valid.' });
+    }
+    const validRoles = ['individual','partner','parent','guardian'];
+    const userRole   = validRoles.includes(role) ? role : 'individual';
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        const existing = await client.query('SELECT username FROM vectraarchlegacy_users WHERE username = $1', [clean]);
+        if (existing.rows.length > 0) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ success: false, message: 'Username already taken.' });
+        }
+        if (email) {
+            const emailDup = await client.query('SELECT username FROM vectraarchlegacy_users WHERE LOWER(email) = LOWER($1)', [email]);
+            if (emailDup.rows.length > 0) {
+                await client.query('ROLLBACK');
+                return res.status(400).json({ success: false, message: `Email already in use by '${emailDup.rows[0].username}'.` });
+            }
+        }
+
+        const hash        = await bcrypt.hash(password, 10);
+        const displayName = `${firstName || ''} ${lastName || ''}`.trim() || clean;
+        const adminFlag   = isAdmin ? 1 : 0;
+
+        await client.query(`
+            INSERT INTO vectraarchlegacy_users
+                (username, password_hash, first_name, last_name, display_name,
+                 email, gender, date_of_birth, height_cm, weight_kg,
+                 role, accent_color, event_color, is_admin, auth_provider)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$12,$13,'password')`,
+            [clean, hash, firstName || null, lastName || null, displayName,
+             email || null, gender || null, dateOfBirth || null,
+             heightCm ? parseFloat(heightCm) : null,
+             weightKg ? parseFloat(weightKg) : null,
+             userRole, accentColor || '#00ff41', adminFlag]
+        );
+
+        // Auto-create the family record for this user. Solo for 'individual'.
+        const famName = (familyName && familyName.trim())
+            ? familyName.trim()
+            : (userRole === 'individual' ? `${firstName || clean}'s Hub` : `${firstName || clean}'s Family`);
+
+        const famRes = await client.query(`
+            INSERT INTO vectraarchlegacy_families
+                (family_name, admin_username, currency, timezone, member_count, enabled_modules)
+            VALUES ($1,$2,$3,$4,1,'fin,cal,bud,gym,eat,cyc')
+            RETURNING id`,
+            [famName, clean, currency || 'ZAR', timezone || 'Africa/Johannesburg']
+        );
+        const familyId = famRes.rows[0].id;
+
+        await client.query('COMMIT');
+        await logTransaction(clean, 'CREATE', 'users',    null,     req.adminUsername);
+        await logTransaction(clean, 'CREATE', 'families', familyId, req.adminUsername);
+        sendTelegramMessage(GROUP_CHAT_ID, `New user ${clean} (${userRole}) added by ${req.adminUsername}; family "${famName}" created.`);
+
+        res.json({
+            success:    true,
+            message:    `User ${clean} created with family "${famName}".`,
+            username:   clean,
+            familyId,
+            familyName: famName,
+            role:       userRole,
+        });
+    } catch (e) {
+        await client.query('ROLLBACK');
+        console.error('[admin/create-user]', e.message);
+        res.status(500).json({ success: false, message: 'Server error creating user.', error: e.message });
+    } finally {
+        client.release();
+    }
+});
+
 app.delete('/api/delete-user/:username', requireAdmin, async (req, res) => {
     const { username } = req.params;
     if (!username) return res.status(400).json({ success: false, message: 'Username required.' });
@@ -1048,7 +1145,7 @@ app.delete('/api/calendar/:id', async (req, res) => {
 // ── GYM WORKOUT & NEW DB OPTIONS OPTIONS ──────────────────────────────────────
 app.get('/api/gym-options', async (req, res) => {
     try {
-        const rows = await dbAll('SELECT category, exercise_value AS value, exercise_label AS label FROM legacy_gym_options ORDER BY id ASC');
+        const rows = await dbAll('SELECT category, exercise_value AS value, exercise_label AS label FROM vectraarchlegacy_gym_options ORDER BY id ASC');
         const grouped = rows.reduce((acc, item) => {
             let group = acc.find(g => g.label === item.category);
             if (!group) {
@@ -1126,7 +1223,7 @@ app.delete('/api/gymworkout/:id', async (req, res) => {
 // ── MEAL PLAN & DB TEMPLATES ──────────────────────────────────────────────────
 app.get('/api/meal-templates', async (req, res) => {
     try {
-        const rows = await dbAll('SELECT category, meal_value AS value, meal_label AS label, calories FROM legacy_meal_templates ORDER BY id ASC');
+        const rows = await dbAll('SELECT category, meal_value AS value, meal_label AS label, calories FROM vectraarchlegacy_meal_templates ORDER BY id ASC');
         const grouped = rows.reduce((acc, item) => {
             let group = acc.find(g => g.label === item.category);
             if (!group) {
