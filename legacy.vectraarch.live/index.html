@@ -5036,7 +5036,12 @@ const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
     try { const r=await axios.get(`${API}/admin/invites`,{params:{adminUsername:user.username}}); if(r.data.success) setInvites(r.data.invites||[]); } catch {}
   },[user.username]);
 
-  useEffect(()=>{ fetchUsers(); fetchAccess(); fetchInvites(); },[fetchUsers,fetchAccess,fetchInvites]);
+  const [auditLog, setAuditLog] = useState([]);
+  const fetchAudit = useCallback(async()=>{
+    try { const r=await axios.get(`${API}/admin/audit`,{params:{adminUsername:user.username,limit:50}}); if(r.data.success) setAuditLog(r.data.audit||[]); } catch {}
+  },[user.username]);
+
+  useEffect(()=>{ fetchUsers(); fetchAccess(); fetchInvites(); fetchAudit(); },[fetchUsers,fetchAccess,fetchInvites,fetchAudit]);
 
   const userOpts = ['',...users.map(u=>u.username)];
 
@@ -5348,6 +5353,33 @@ const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
                       </div>
                     )}
                     {inv.note && <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)',marginTop:6,fontStyle:'italic',letterSpacing:'0.02em'}}>“{inv.note}”</div>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Recent Activity — global audit log */}
+          <div className="profile-section">
+            <div className="profile-section-title">RECENT ACTIVITY · {auditLog.length}</div>
+            <div style={cardBody}>
+              <div style={hintStyle}>Last 50 transactions across all users — from <code style={{color:'var(--text2)',fontSize:9}}>vectraarchlegacy_transaction_history</code>.</div>
+              {auditLog.length===0 && <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',textAlign:'center',padding:'10px 0'}}>No activity yet.</div>}
+              {auditLog.map((a,i)=>{
+                const actionColor = a.action.startsWith('DELETE') ? 'var(--red)'
+                                  : a.action.startsWith('CREATE') || a.action==='SETUP_COMPLETE' || a.action==='GOOGLE_SIGNUP' ? 'var(--green)'
+                                  : a.action==='LOGIN' || a.action==='LOGIN_GOOGLE' ? 'var(--blue)'
+                                  : 'var(--yellow)';
+                return (
+                  <div key={a.id} style={{display:'grid',gridTemplateColumns:'auto 1fr auto',gap:10,padding:'8px 0',borderBottom:i<auditLog.length-1?'1px solid var(--border)':'none',alignItems:'center'}}>
+                    <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.12em',color:actionColor,border:`1px solid ${actionColor}`,padding:'2px 6px',borderRadius:3,background:`${actionColor}10`,whiteSpace:'nowrap'}}>{a.action}</span>
+                    <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text2)',minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                      <span style={{color:'var(--text)'}}>{a.username}</span>
+                      <span style={{color:'var(--text3)'}}> · {a.tableName}</span>
+                      {a.recordId && <span style={{color:'var(--text3)'}}> #{a.recordId}</span>}
+                      {a.modifiedBy && a.modifiedBy !== a.username && <span style={{color:'var(--text3)'}}> · by {a.modifiedBy}</span>}
+                    </div>
+                    <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)',whiteSpace:'nowrap'}}>{fmtDate(a.modifiedAt)}</span>
                   </div>
                 );
               })}

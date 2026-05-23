@@ -82,6 +82,36 @@ BEGIN
     END IF;
 END $$;
 
--- ── 5. Sanity report so you can see what we ended up with ────────────────────
+-- ── 5. Cleanup: drop dead / duplicate columns and orphan tables ──────────────
+--    These were left over from earlier iterations of the schema. None of the
+--    application code reads or writes them; details below per item.
+--
+--    dob / weight / height      — superseded by date_of_birth / weight_kg / height_cm
+--    forge_user_id              — identity bridging moved to VectraArchAPI.identity_links
+--    bio, pronouns, theme,
+--      activity_status, address — backend used to write them but no UI ever
+--                                  surfaced them and the frontend never sends them
+--    vectraarchlegacy_gymprogram(_exercise)
+--                               — orphan tables, never wired into routes or UI
+
+-- Drop the self-referential FK + its partial index before dropping the column
+ALTER TABLE vectraarchlegacy_users DROP CONSTRAINT IF EXISTS vectraarchlegacy_users_forge_user_id_fkey;
+DROP INDEX IF EXISTS idx_val_users_forge_id;
+
+ALTER TABLE vectraarchlegacy_users
+    DROP COLUMN IF EXISTS dob,
+    DROP COLUMN IF EXISTS weight,
+    DROP COLUMN IF EXISTS height,
+    DROP COLUMN IF EXISTS forge_user_id,
+    DROP COLUMN IF EXISTS bio,
+    DROP COLUMN IF EXISTS pronouns,
+    DROP COLUMN IF EXISTS theme,
+    DROP COLUMN IF EXISTS activity_status,
+    DROP COLUMN IF EXISTS address;
+
+DROP TABLE IF EXISTS vectraarchlegacy_gymprogram_exercise;
+DROP TABLE IF EXISTS vectraarchlegacy_gymprogram;
+
+-- ── 6. Sanity report so you can see what we ended up with ────────────────────
 \d+ vectraarchlegacy_users
 \d+ vectraarchlegacy_calendar
