@@ -5082,11 +5082,18 @@ const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
     } catch (e) { msg(e.response?.data?.message || 'Revoke failed.','err'); }
   };
 
-  const btnStyle = (col='var(--green)') => ({fontFamily:"'DM Mono',monospace",fontSize:'10px',letterSpacing:'0.12em',textTransform:'uppercase',padding:'10px 16px',border:`1px solid ${col}`,color:col,background:'transparent',cursor:'pointer',borderRadius:4,width:'100%',marginTop:6});
-  const inputStyle = {width:'100%',background:'var(--bg3)',border:'1px solid var(--border2)',borderRadius:4,padding:'10px 14px',fontFamily:"'DM Mono',monospace",fontSize:'13px',color:'var(--text)',outline:'none',marginBottom:8};
-  const selectStyle = {...inputStyle,marginBottom:8};
-  const cardStyle = {background:'var(--bg2)',borderRadius:6,padding:'16px',marginBottom:12};
-  const labelStyle = {fontFamily:"'DM Mono',monospace",fontSize:'9px',letterSpacing:'0.2em',textTransform:'uppercase',color:'var(--pink)',display:'block',marginBottom:6};
+  // Profile-style design tokens (matches Profile page exactly)
+  const iL = {background:'var(--bg3)',border:'1px solid var(--border2)',borderRadius:4,padding:'10px 12px',width:'100%',boxSizing:'border-box',outline:'none',fontFamily:"'Space Grotesk',sans-serif",fontSize:13,color:'var(--text)',marginBottom:10};
+  const lL = {fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.18em',textTransform:'uppercase',color:'var(--text3)',marginBottom:5,display:'block'};
+  const cardBody = {padding:'14px'};
+  const btnStyle = (col='var(--green)') => ({
+    fontFamily:"'DM Mono',monospace",fontSize:10,letterSpacing:'0.12em',textTransform:'uppercase',
+    padding:'10px 14px',border:`1px solid ${col}`,color:col,background:`${col}12`,
+    cursor:'pointer',borderRadius:4,width:'100%'
+  });
+  const hintStyle = {fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',lineHeight:1.6,marginBottom:12};
+
+  const pendingCount = invites.filter(i=>i.status==='pending' && new Date(i.expires_at)>new Date()).length;
 
   return (
     <div className="page-outer">
@@ -5094,155 +5101,265 @@ const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
         <div className="page-inner">
           <Alert {...alert}/>
 
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-            {/* Add User */}
-            <div style={cardStyle}>
-              <label style={labelStyle}>ADD USER</label>
-              <input style={inputStyle} placeholder="Username" value={newUser.username} onChange={e=>setNewUser(p=>({...p,username:e.target.value}))}/>
-              <input style={inputStyle} type="password" placeholder="Password" value={newUser.password} onChange={e=>setNewUser(p=>({...p,password:e.target.value}))}/>
-              <button style={btnStyle('var(--green)')} onClick={()=>act(()=>axios.post(`${API}/add-user`,{...newUser,adminUsername:user.username}))}>Add User ↗</button>
-            </div>
+          {/* Date header — same style as Profile */}
+          {(() => {
+            const today    = new Date();
+            const weekday  = today.toLocaleDateString('en-US', {weekday:'long'}).toUpperCase();
+            const monthStr = today.toLocaleDateString('en-US', {month:'long'});
+            return (
+              <div style={{padding:'14px 0 12px',marginBottom:8,borderBottom:'1px solid var(--border)',display:'flex',alignItems:'flex-end',justifyContent:'space-between',gap:12}}>
+                <div>
+                  <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:18,color:'var(--text)',letterSpacing:'0.02em'}}>
+                    {weekday} <span style={{color:tabColor}}>{today.getDate()}</span> {monthStr} {today.getFullYear()}
+                  </div>
+                  <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)',marginTop:2,letterSpacing:'0.12em',textTransform:'uppercase'}}>
+                    Admin · {(user.displayName||user.firstName||user.username||'').toString().toUpperCase()}
+                  </div>
+                </div>
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:tabColor,letterSpacing:'0.18em',textTransform:'uppercase',textAlign:'right'}}>
+                  {users.length} users<br/>{pendingCount} pending
+                </div>
+              </div>
+            );
+          })()}
 
-            {/* Grant/Revoke Access */}
-            <div style={cardStyle}>
-              <label style={labelStyle}>MANAGE ACCESS</label>
-              <select style={selectStyle} value={accessForm.viewer} onChange={e=>setAccessForm(p=>({...p,viewer:e.target.value}))}>
-                {userOpts.map(u=><option key={u} value={u}>{u||'— Viewer —'}</option>)}
-              </select>
-              <select style={selectStyle} value={accessForm.target} onChange={e=>setAccessForm(p=>({...p,target:e.target.value}))}>
-                {userOpts.map(u=><option key={u} value={u}>{u||'— Target —'}</option>)}
-              </select>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
-                <button style={{...btnStyle('var(--green)'),width:'auto'}} onClick={()=>act(()=>axios.post(`${API}/grant-access`,{...accessForm,adminUsername:user.username}))}>Grant</button>
-                <button style={{...btnStyle('var(--red)'),width:'auto'}} onClick={()=>act(()=>axios.post(`${API}/revoke-access`,{...accessForm,adminUsername:user.username}))}>Revoke</button>
+          {/* Profile-style summary header card */}
+          <div style={{position:'relative',background:'var(--bg2)',borderRadius:8,overflow:'hidden',marginBottom:12,border:'1px solid var(--border)'}}>
+            <div style={{position:'absolute',top:0,right:0,width:'60%',height:'100%',background:`radial-gradient(ellipse at top right, ${tabColor}22 0%, transparent 65%)`,pointerEvents:'none'}}/>
+            <div style={{padding:'14px 14px 0',position:'relative'}}>
+              <div style={{display:'flex',alignItems:'flex-start',gap:12}}>
+                <div style={{flexShrink:0,width:72,height:72,borderRadius:'50%',border:`3px solid ${tabColor}`,display:'flex',alignItems:'center',justifyContent:'center',background:`${tabColor}12`}}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke={tabColor} strokeWidth="1.8" width="36" height="36"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                </div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.2em',color:'var(--text3)',marginBottom:2}}>ADMIN PANEL</div>
+                  <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:22,letterSpacing:'0.03em',textTransform:'uppercase',color:'var(--text)',lineHeight:1.05,marginBottom:3}}>MANAGEMENT</div>
+                  <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',marginBottom:8}}>Users · access · invites · security</div>
+                  <div style={{display:'flex',flexWrap:'wrap',gap:5}}>
+                    <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.1em',padding:'3px 8px',borderRadius:100,background:`${tabColor}22`,border:`1px solid ${tabColor}55`,color:tabColor}}>◉ {users.length} USERS</span>
+                    <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.1em',padding:'3px 8px',borderRadius:100,background:'rgba(255,214,0,0.14)',border:'1px solid rgba(255,214,0,0.35)',color:'var(--yellow)'}}>✦ {pendingCount} PENDING</span>
+                    <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.08em',padding:'3px 8px',borderRadius:100,background:'var(--bg3)',border:'1px solid var(--border2)',color:'var(--text3)'}}>{accessList.length} access links</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',borderTop:'1px solid var(--border)',padding:'12px 14px',marginTop:14,gap:8}}>
+              {[
+                {l:'USERS',  v:String(users.length)},
+                {l:'INVITES',v:String(invites.length)},
+                {l:'ACCESS', v:String(accessList.length)},
+              ].map(({l,v})=>(
+                <div key={l} style={{textAlign:'center'}}>
+                  <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,letterSpacing:'0.18em',color:'var(--text3)',textTransform:'uppercase',marginBottom:3}}>{l}</div>
+                  <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:15,color:'var(--text)',letterSpacing:'0.03em'}}>{v}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Action cards grid */}
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+
+            {/* Add User */}
+            <div className="profile-section">
+              <div className="profile-section-title">ADD USER</div>
+              <div style={cardBody}>
+                <span style={lL}>USERNAME</span>
+                <input style={iL} placeholder="username" value={newUser.username} onChange={e=>setNewUser(p=>({...p,username:e.target.value}))}/>
+                <span style={lL}>PASSWORD</span>
+                <input style={iL} type="password" placeholder="········" value={newUser.password} onChange={e=>setNewUser(p=>({...p,password:e.target.value}))}/>
+                <button style={btnStyle('var(--green)')} onClick={()=>act(()=>axios.post(`${API}/add-user`,{...newUser,adminUsername:user.username}))}>Add User ↗</button>
               </div>
             </div>
 
-            {/* Admin status */}
-            <div style={cardStyle}>
-              <label style={labelStyle}>ADMIN STATUS</label>
-              <select style={selectStyle} value={adminForm.username} onChange={e=>setAdminForm({username:e.target.value})}>
-                {userOpts.map(u=><option key={u} value={u}>{u||'— Select user —'}</option>)}
-              </select>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
-                <button style={{...btnStyle('var(--yellow)'),width:'auto'}} onClick={()=>act(()=>axios.post(`${API}/grant-admin`,{...adminForm,adminUsername:user.username}))}>Grant</button>
-                <button style={{...btnStyle('var(--red)'),width:'auto'}} onClick={()=>act(()=>axios.post(`${API}/revoke-admin`,{...adminForm,adminUsername:user.username}))}>Revoke</button>
+            {/* Manage Access */}
+            <div className="profile-section">
+              <div className="profile-section-title">MANAGE ACCESS</div>
+              <div style={cardBody}>
+                <span style={lL}>VIEWER</span>
+                <select style={iL} value={accessForm.viewer} onChange={e=>setAccessForm(p=>({...p,viewer:e.target.value}))}>
+                  {userOpts.map(u=><option key={u} value={u}>{u||'— Viewer —'}</option>)}
+                </select>
+                <span style={lL}>TARGET</span>
+                <select style={iL} value={accessForm.target} onChange={e=>setAccessForm(p=>({...p,target:e.target.value}))}>
+                  {userOpts.map(u=><option key={u} value={u}>{u||'— Target —'}</option>)}
+                </select>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
+                  <button style={btnStyle('var(--green)')} onClick={()=>act(()=>axios.post(`${API}/grant-access`,{...accessForm,adminUsername:user.username}))}>Grant</button>
+                  <button style={btnStyle('var(--red)')} onClick={()=>act(()=>axios.post(`${API}/revoke-access`,{...accessForm,adminUsername:user.username}))}>Revoke</button>
+                </div>
+              </div>
+            </div>
+
+            {/* Admin Status */}
+            <div className="profile-section">
+              <div className="profile-section-title">ADMIN STATUS</div>
+              <div style={cardBody}>
+                <span style={lL}>USER</span>
+                <select style={iL} value={adminForm.username} onChange={e=>setAdminForm({username:e.target.value})}>
+                  {userOpts.map(u=><option key={u} value={u}>{u||'— Select user —'}</option>)}
+                </select>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
+                  <button style={btnStyle('var(--yellow)')} onClick={()=>act(()=>axios.post(`${API}/grant-admin`,{...adminForm,adminUsername:user.username}))}>Grant</button>
+                  <button style={btnStyle('var(--red)')} onClick={()=>act(()=>axios.post(`${API}/revoke-admin`,{...adminForm,adminUsername:user.username}))}>Revoke</button>
+                </div>
               </div>
             </div>
 
             {/* Update Password */}
-            <div style={cardStyle}>
-              <label style={labelStyle}>UPDATE PASSWORD</label>
-              <select style={selectStyle} value={pwForm.username} onChange={e=>setPwForm(p=>({...p,username:e.target.value}))}>
-                {userOpts.map(u=><option key={u} value={u}>{u||'— Select user —'}</option>)}
-              </select>
-              <input style={inputStyle} type="password" placeholder="New password" value={pwForm.newPassword} onChange={e=>setPwForm(p=>({...p,newPassword:e.target.value}))}/>
-              <button style={btnStyle('var(--blue)')} onClick={()=>act(()=>axios.post(`${API}/admin-update-password`,{...pwForm,adminUsername:user.username}))}>Update ↗</button>
+            <div className="profile-section">
+              <div className="profile-section-title">UPDATE PASSWORD</div>
+              <div style={cardBody}>
+                <span style={lL}>USER</span>
+                <select style={iL} value={pwForm.username} onChange={e=>setPwForm(p=>({...p,username:e.target.value}))}>
+                  {userOpts.map(u=><option key={u} value={u}>{u||'— Select user —'}</option>)}
+                </select>
+                <span style={lL}>NEW PASSWORD</span>
+                <input style={iL} type="password" placeholder="········" value={pwForm.newPassword} onChange={e=>setPwForm(p=>({...p,newPassword:e.target.value}))}/>
+                <button style={btnStyle('var(--blue)')} onClick={()=>act(()=>axios.post(`${API}/admin-update-password`,{...pwForm,adminUsername:user.username}))}>Update ↗</button>
+              </div>
             </div>
 
             {/* Delete User */}
-            <div style={cardStyle}>
-              <label style={labelStyle}>DELETE USER</label>
-              <select style={selectStyle} value={delUser} onChange={e=>setDelUser(e.target.value)}>
-                {userOpts.map(u=><option key={u} value={u}>{u||'— Select user —'}</option>)}
-              </select>
-              <button style={btnStyle('var(--red)')} onClick={()=>{if(true)act(()=>axios.delete(`${API}/delete-user/${delUser}`,{params:{adminUsername:user.username}}));}}>Delete User</button>
-            </div>
-
-            {/* Access List */}
-            <div style={cardStyle}>
-              <label style={labelStyle}>ACCESS LIST ({accessList.length})</label>
-              {accessList.length===0&&<div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)'}}>No access rules.</div>}
-              {accessList.map((a,i)=>(
-                <div key={i} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid var(--border)',fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text2)'}}>
-                  <span>{a.viewer} → {a.target}</span>
-                  <button onClick={()=>act(()=>axios.post(`${API}/revoke-access`,{viewer:a.viewer,target:a.target,adminUsername:user.username}))} style={{fontFamily:"'DM Mono',monospace",fontSize:'8px',color:'var(--red)',border:'1px solid rgba(255,61,61,0.3)',borderRadius:3,padding:'2px 8px',background:'transparent',cursor:'pointer'}}>×</button>
-                </div>
-              ))}
-            </div>
-
-            {/* Invite by Google email */}
-            <div style={{...cardStyle, gridColumn:'span 2'}}>
-              <label style={labelStyle}>INVITE BY GOOGLE EMAIL</label>
-              <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',lineHeight:1.6,marginBottom:10}}>
-                Send an invitation. Recipient signs in with the matching Google account to create their hub. No password required.
-              </div>
-              <div style={{display:'grid',gridTemplateColumns:'2fr 1fr',gap:6}}>
-                <input style={inputStyle} type="email" placeholder="name@example.com" value={inviteForm.email} onChange={e=>setInviteForm(p=>({...p,email:e.target.value}))}/>
-                <select style={selectStyle} value={inviteForm.role} onChange={e=>setInviteForm(p=>({...p,role:e.target.value}))}>
-                  <option value="user">USER</option>
-                  <option value="admin">ADMIN</option>
+            <div className="profile-section">
+              <div className="profile-section-title">DELETE USER</div>
+              <div style={cardBody}>
+                <span style={lL}>USER</span>
+                <select style={iL} value={delUser} onChange={e=>setDelUser(e.target.value)}>
+                  {userOpts.map(u=><option key={u} value={u}>{u||'— Select user —'}</option>)}
                 </select>
+                <button style={{...btnStyle('var(--red)'),opacity:delUser?1:0.4,cursor:delUser?'pointer':'not-allowed'}} disabled={!delUser}
+                  onClick={()=>delUser && act(()=>axios.delete(`${API}/delete-user/${delUser}`,{params:{adminUsername:user.username}}))}>
+                  Delete User
+                </button>
               </div>
-              <input style={inputStyle} placeholder="Note (optional, only visible to admins)" value={inviteForm.note} onChange={e=>setInviteForm(p=>({...p,note:e.target.value}))}/>
-              <button style={btnStyle('var(--green)')} onClick={sendInvite}>Send Invite ↗</button>
             </div>
 
             {/* Reset 2FA */}
-            <div style={cardStyle}>
-              <label style={labelStyle}>RESET 2FA</label>
-              <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',lineHeight:1.6,marginBottom:8}}>
-                Clears the user's TOTP secret. They can re-enable from their Profile.
+            <div className="profile-section">
+              <div className="profile-section-title">RESET 2FA</div>
+              <div style={cardBody}>
+                <div style={hintStyle}>Clears the user's TOTP secret. They can re-enable from their Profile.</div>
+                <span style={lL}>USER</span>
+                <select style={iL} value={resetUser} onChange={e=>setResetUser(e.target.value)}>
+                  {userOpts.map(u=><option key={u} value={u}>{u||'— Select user —'}</option>)}
+                </select>
+                <button style={{...btnStyle('var(--yellow)'),opacity:resetUser?1:0.4,cursor:resetUser?'pointer':'not-allowed'}} disabled={!resetUser}
+                  onClick={()=>resetUser && act(()=>axios.post(`${API}/2fa/reset`,{username:resetUser,adminUsername:user.username}))}>
+                  Reset 2FA
+                </button>
               </div>
-              <select style={selectStyle} value={resetUser} onChange={e=>setResetUser(e.target.value)}>
-                {userOpts.map(u=><option key={u} value={u}>{u||'— Select user —'}</option>)}
-              </select>
-              <button style={btnStyle('var(--yellow)')} disabled={!resetUser}
-                onClick={()=>resetUser && act(()=>axios.post(`${API}/2fa/reset`,{username:resetUser,adminUsername:user.username}))}>Reset 2FA</button>
+            </div>
+
+            {/* Invite by Google email — full width */}
+            <div className="profile-section" style={{gridColumn:'span 2'}}>
+              <div className="profile-section-title">INVITE BY GOOGLE EMAIL</div>
+              <div style={cardBody}>
+                <div style={hintStyle}>Send an invitation. Recipient signs in with the matching Google account to create their hub. No password required.</div>
+                <div style={{display:'grid',gridTemplateColumns:'2fr 1fr',gap:10,marginBottom:0}}>
+                  <div>
+                    <span style={lL}>EMAIL</span>
+                    <input style={iL} type="email" placeholder="name@example.com" value={inviteForm.email} onChange={e=>setInviteForm(p=>({...p,email:e.target.value}))}/>
+                  </div>
+                  <div>
+                    <span style={lL}>ROLE</span>
+                    <select style={iL} value={inviteForm.role} onChange={e=>setInviteForm(p=>({...p,role:e.target.value}))}>
+                      <option value="user">USER</option>
+                      <option value="admin">ADMIN</option>
+                    </select>
+                  </div>
+                </div>
+                <span style={lL}>NOTE (OPTIONAL)</span>
+                <input style={iL} placeholder="Only visible to admins" value={inviteForm.note} onChange={e=>setInviteForm(p=>({...p,note:e.target.value}))}/>
+                <button style={btnStyle('var(--green)')} onClick={sendInvite}>Send Invite ↗</button>
+              </div>
+            </div>
+
+            {/* Access list */}
+            <div className="profile-section" style={{gridColumn:'span 2'}}>
+              <div className="profile-section-title">ACCESS LIST · {accessList.length}</div>
+              <div style={cardBody}>
+                {accessList.length===0 && <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',textAlign:'center',padding:'10px 0'}}>No access rules.</div>}
+                {accessList.map((a,i)=>(
+                  <div key={i} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 0',borderBottom:i<accessList.length-1?'1px solid var(--border)':'none'}}>
+                    <div style={{display:'flex',alignItems:'center',gap:8,fontFamily:"'Barlow Condensed',sans-serif",fontWeight:600,fontSize:14,color:'var(--text)',letterSpacing:'0.04em'}}>
+                      {a.viewer.toUpperCase()}
+                      <span style={{color:tabColor,fontSize:11,fontFamily:"'DM Mono',monospace"}}>→</span>
+                      {a.target.toUpperCase()}
+                    </div>
+                    <button onClick={()=>act(()=>axios.post(`${API}/revoke-access`,{viewer:a.viewer,target:a.target,adminUsername:user.username}))}
+                      style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.1em',color:'var(--red)',border:'1px solid rgba(255,61,61,0.3)',borderRadius:4,padding:'4px 10px',background:'rgba(255,61,61,0.08)',cursor:'pointer'}}>
+                      REVOKE
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
           {/* Users list */}
-          <div style={{...cardStyle,marginTop:4}}>
-            <label style={labelStyle}>USERS · {users.length}</label>
-            {users.map(u=>(
-              <div key={u.username} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'8px 0',borderBottom:'1px solid var(--border)'}}>
-                <div>
-                  <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:15,letterSpacing:'0.04em',color:'var(--text)'}}>{u.username} {u.isAdmin&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'var(--yellow)',border:'1px solid rgba(255,214,0,0.3)',padding:'1px 6px',borderRadius:3,marginLeft:6}}>ADMIN</span>}</div>
-                  <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)'}}>{u.lastActive?`Last active: ${fmtDate(u.lastActive)}`:''}</div>
+          <div className="profile-section">
+            <div className="profile-section-title">USERS · {users.length}</div>
+            <div style={cardBody}>
+              {users.length===0 && <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',textAlign:'center',padding:'10px 0'}}>No users.</div>}
+              {users.map((u,i)=>(
+                <div key={u.username} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 0',borderBottom:i<users.length-1?'1px solid var(--border)':'none'}}>
+                  <div>
+                    <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:15,letterSpacing:'0.04em',color:'var(--text)',display:'flex',alignItems:'center',gap:8}}>
+                      {u.username}
+                      {u.isAdmin && <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'var(--yellow)',border:'1px solid rgba(255,214,0,0.3)',padding:'1px 6px',borderRadius:3,letterSpacing:'0.12em',background:'rgba(255,214,0,0.08)'}}>ADMIN</span>}
+                    </div>
+                    <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)',marginTop:2,letterSpacing:'0.04em'}}>
+                      {u.lastActive?`Last active · ${fmtDate(u.lastActive)}`:'Never active'}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
 
           {/* Invites list */}
-          <div style={{...cardStyle,marginTop:4}}>
-            <label style={labelStyle}>INVITES · {invites.length}</label>
-            {invites.length===0 && <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)'}}>No invitations sent yet.</div>}
-            {invites.map(inv=>{
-              const statusColor = inv.status==='pending' ? 'var(--yellow)' : inv.status==='accepted' ? 'var(--green)' : 'var(--red)';
-              const isExpired = inv.status==='pending' && new Date(inv.expires_at) < new Date();
-              const displayStatus = isExpired ? 'EXPIRED' : inv.status.toUpperCase();
-              return (
-                <div key={inv.id} style={{padding:'10px 0',borderBottom:'1px solid var(--border)'}}>
-                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10}}>
-                    <div style={{minWidth:0,flex:1}}>
-                      <div style={{fontFamily:"'DM Mono',monospace",fontSize:12,color:'var(--text)',wordBreak:'break-all'}}>{inv.email}</div>
-                      <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)',marginTop:2}}>
-                        by {inv.invited_by} · {inv.role.toUpperCase()} · {fmtDate(inv.created_at)}
-                        {inv.accepted_username && <> · accepted as <strong style={{color:'var(--green)'}}>{inv.accepted_username}</strong></>}
+          <div className="profile-section">
+            <div className="profile-section-title">INVITES · {invites.length}</div>
+            <div style={cardBody}>
+              {invites.length===0 && <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',textAlign:'center',padding:'10px 0'}}>No invitations sent yet.</div>}
+              {invites.map((inv,i)=>{
+                const statusColor = inv.status==='pending' ? 'var(--yellow)' : inv.status==='accepted' ? 'var(--green)' : 'var(--red)';
+                const isExpired = inv.status==='pending' && new Date(inv.expires_at) < new Date();
+                const displayStatus = isExpired ? 'EXPIRED' : inv.status.toUpperCase();
+                const actualColor = isExpired ? 'var(--red)' : statusColor;
+                return (
+                  <div key={inv.id} style={{padding:'12px 0',borderBottom:i<invites.length-1?'1px solid var(--border)':'none'}}>
+                    <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:10}}>
+                      <div style={{minWidth:0,flex:1}}>
+                        <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,color:'var(--text)',wordBreak:'break-all',letterSpacing:'0.02em'}}>{inv.email}</div>
+                        <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)',marginTop:3,letterSpacing:'0.04em'}}>
+                          by <span style={{color:'var(--text2)'}}>{inv.invited_by}</span> · {inv.role.toUpperCase()} · {fmtDate(inv.created_at)}
+                          {inv.accepted_username && <> · accepted as <strong style={{color:'var(--green)'}}>{inv.accepted_username}</strong></>}
+                        </div>
                       </div>
+                      <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.14em',color:actualColor,border:`1px solid ${actualColor}`,padding:'2px 8px',borderRadius:3,whiteSpace:'nowrap',background:`${actualColor}10`}}>{displayStatus}</span>
                     </div>
-                    <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.12em',color:statusColor,border:`1px solid ${statusColor}`,opacity:0.7,padding:'2px 6px',borderRadius:3,whiteSpace:'nowrap'}}>{displayStatus}</span>
+                    {inv.status==='pending' && !isExpired && (
+                      <div style={{display:'flex',gap:6,marginTop:10,flexWrap:'wrap'}}>
+                        <button onClick={()=>copyInviteUrl(inv.invite_url)} style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.12em',padding:'5px 12px',border:'1px solid var(--border2)',color:'var(--text2)',borderRadius:4,background:'var(--bg3)',cursor:'pointer'}}>COPY LINK</button>
+                        <button onClick={()=>resendInvite(inv.id)} style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.12em',padding:'5px 12px',border:'1px solid var(--blue)',color:'var(--blue)',borderRadius:4,background:'rgba(68,138,255,0.08)',cursor:'pointer'}}>RESEND EMAIL</button>
+                        <button onClick={()=>revokeInvite(inv.id)} style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.12em',padding:'5px 12px',border:'1px solid var(--red)',color:'var(--red)',borderRadius:4,background:'rgba(255,61,61,0.08)',cursor:'pointer'}}>REVOKE</button>
+                      </div>
+                    )}
+                    {inv.note && <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)',marginTop:6,fontStyle:'italic',letterSpacing:'0.02em'}}>“{inv.note}”</div>}
                   </div>
-                  {inv.status==='pending' && !isExpired && (
-                    <div style={{display:'flex',gap:6,marginTop:8,flexWrap:'wrap'}}>
-                      <button onClick={()=>copyInviteUrl(inv.invite_url)} style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.1em',padding:'4px 10px',border:'1px solid var(--border2)',color:'var(--text2)',borderRadius:3,background:'transparent',cursor:'pointer'}}>COPY LINK</button>
-                      <button onClick={()=>resendInvite(inv.id)} style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.1em',padding:'4px 10px',border:'1px solid var(--blue)',color:'var(--blue)',borderRadius:3,background:'transparent',cursor:'pointer'}}>RESEND EMAIL</button>
-                      <button onClick={()=>revokeInvite(inv.id)} style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.1em',padding:'4px 10px',border:'1px solid var(--red)',color:'var(--red)',borderRadius:3,background:'transparent',cursor:'pointer'}}>REVOKE</button>
-                    </div>
-                  )}
-                  {inv.note && <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)',marginTop:4,fontStyle:'italic'}}>“{inv.note}”</div>}
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
 
-          <button style={{...btnStyle('var(--red)'),width:'auto',display:'inline-flex',marginTop:16}} onClick={onLogout}>SIGN OUT ×</button>
+          {/* Sign out — same style as Profile's Log Out */}
+          <button className="save-btn" style={{background:'transparent',border:'1px solid var(--red)',color:'var(--red)',marginTop:4}} onClick={onLogout}>SIGN OUT</button>
+
           <div style={{height:'32px'}}/>
         </div>
       </div>
-
     </div>
   );
 };
