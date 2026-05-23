@@ -9,7 +9,13 @@
 const express    = require('express');
 const path       = require('path');
 const crypto     = require('crypto');
-const { Pool }   = require('pg');
+const { Pool, types: pgTypes } = require('pg');
+// Return DATE columns (OID 1082) as plain 'YYYY-MM-DD' strings instead of
+// JavaScript Date objects — pg's default parsing creates a Date at LOCAL
+// midnight, which then JSON-serialises to UTC and shifts the day in any
+// timezone that isn't UTC (e.g. SAST renders 1984-06-29 as
+// '1984-06-28T22:00:00.000Z').
+pgTypes.setTypeParser(1082, v => v);
 const bcrypt     = require('bcrypt');
 const cors       = require('cors');
 const https      = require('https');
