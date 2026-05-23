@@ -239,18 +239,13 @@ function mapUser(row) {
         firstName:        row.first_name        || '',
         lastName:         row.last_name         || '',
         displayName:      row.display_name      || row.username,
-        bio:              row.bio               || '',
-        pronouns:         row.pronouns          || '',
         profilePicUrl:    row.profile_pic_url   || (row.gender === 'Female' ? '/images/female.jpg' : '/images/male.jpg'),
         email:            row.email             || '',
         phone:            row.phone             || '',
-        address:          row.address           || '',
         eventColor:       row.event_color       || '#2dd4bf',
         isAdmin:          !!row.is_admin,
         gender:           row.gender            || '',
         telegram_chat_id: row.telegram_chat_id  || '',
-        theme:            row.theme             || 'dark',
-        activityStatus:   !!row.activity_status,
         lastActive:       row.last_active       || '',
         dateOfBirth:      row.date_of_birth     || '',
         accentColor:      row.accent_color      || '#00ff41',
@@ -342,7 +337,7 @@ app.post('/api/login', async (req, res) => {
 app.get('/api/users', requireAdmin, async (req, res) => {
     try {
         const rows = await dbAll(
-            'SELECT username, first_name AS "firstName", last_name AS "lastName", display_name AS "displayName", is_admin AS "isAdmin", activity_status AS "activityStatus", last_active AS "lastActive" FROM vectraarchlegacy_users'
+            'SELECT username, first_name AS "firstName", last_name AS "lastName", display_name AS "displayName", is_admin AS "isAdmin", last_active AS "lastActive" FROM vectraarchlegacy_users'
         );
         res.json({ success: true, data: rows });
     } catch (e) {
@@ -481,9 +476,9 @@ app.get('/api/profile-pictures', async (req, res) => {
 });
 
 app.post('/api/profile-pictures', async (req, res) => {
-    const { username, firstName, lastName, profilePicUrl, email, phone, address,
-            eventColor, accentColor, gender, telegram_chat_id, displayName, bio, pronouns,
-            theme, activityStatus, dob, weight, height, role } = req.body;
+    const { username, firstName, lastName, profilePicUrl, email, phone,
+            eventColor, accentColor, gender, telegram_chat_id, displayName,
+            dob, weight, height, role } = req.body;
     if (!username) return res.status(400).json({ success: false, message: 'Username required.' });
     if (firstName && firstName.length > 50) return res.status(400).json({ success: false, message: 'First name must be 50 characters or less.' });
     if (lastName  && lastName.length  > 50) return res.status(400).json({ success: false, message: 'Last name must be 50 characters or less.' });
@@ -495,14 +490,14 @@ app.post('/api/profile-pictures', async (req, res) => {
             UPDATE vectraarchlegacy_users SET
                 first_name=$1, last_name=$2,
                 profile_pic_url=COALESCE($3::text, profile_pic_url),
-                email=$4, phone=$5, address=$6,
-                event_color=$7, gender=$8, telegram_chat_id=$9, display_name=$10,
-                bio=$11, pronouns=$12, theme=$13, activity_status=$14, last_active=$15,
-                date_of_birth=$16, height_cm=$17, weight_kg=$18, accent_color=$19, role=$20
-            WHERE username=$21`,
-            [firstName||null, lastName||null, profilePicUrl||null, email||null, phone||null, address||null,
+                email=$4, phone=$5,
+                event_color=$6, gender=$7, telegram_chat_id=$8, display_name=$9,
+                last_active=$10,
+                date_of_birth=$11, height_cm=$12, weight_kg=$13, accent_color=$14, role=$15
+            WHERE username=$16`,
+            [firstName||null, lastName||null, profilePicUrl||null, email||null, phone||null,
              resolvedAccent, gender||null, telegram_chat_id||null, displayName||username,
-             bio||null, pronouns||null, theme||'dark', activityStatus?1:0, new Date().toISOString(),
+             new Date().toISOString(),
              dob||null,
              height ? parseFloat(height) : null,
              weight ? parseFloat(weight) : null,
@@ -756,6 +751,23 @@ app.get('/api/transaction-history', async (req, res) => {
         res.json({ success: true, transactions: rows });
     } catch (e) {
         res.status(500).json({ success: false, message: 'Database error fetching transaction history.', error: e.message });
+    }
+});
+
+// Admin-only global audit log — used by Admin panel's Recent Activity card.
+app.get('/api/admin/audit', requireAdmin, async (req, res) => {
+    const limit = Math.min(500, parseInt(req.query.limit, 10) || 100);
+    try {
+        const rows = await dbAll(
+            `SELECT id, username, action, table_name AS "tableName", record_id AS "recordId",
+                    modified_by AS "modifiedBy", modified_at AS "modifiedAt"
+             FROM vectraarchlegacy_transaction_history
+             ORDER BY modified_at DESC LIMIT $1`,
+            [limit]
+        );
+        res.json({ success: true, audit: rows, limit });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Database error fetching audit log.', error: e.message });
     }
 });
 
@@ -1517,8 +1529,8 @@ app.get('/auth/google/callback', (req, res, next) => {
                     await dbRun(`
                         INSERT INTO vectraarchlegacy_users
                             (username, password_hash, first_name, last_name, display_name,
-                             email, google_id, auth_provider, is_admin, event_color, theme, accent_color)
-                        VALUES ($1,$2,$3,$4,$5,$6,$7,'google',$8,'#2dd4bf','dark','#00ff41')`,
+                             email, google_id, auth_provider, is_admin, event_color, accent_color)
+                        VALUES ($1,$2,$3,$4,$5,$6,$7,'google',$8,'#2dd4bf','#00ff41')`,
                         [username, '', firstName || null, lastName || null,
                          googleUser.name || username, email, googleUser.id, isAdmin]
                     );
@@ -1922,8 +1934,8 @@ app.post('/api/setup', async (req, res) => {
             INSERT INTO vectraarchlegacy_users
                 (username, password_hash, first_name, last_name, display_name,
                  email, phone, gender, date_of_birth, accent_color,
-                 role, height_cm, weight_kg, is_admin, event_color, theme)
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,0,'#2dd4bf','dark')`,
+                 role, height_cm, weight_kg, is_admin, event_color)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,0,'#2dd4bf')`,
             [username, hash,
              profile.firstName || null, profile.lastName || null, displayName,
              profile.email || null, profile.cellNumber || null,
