@@ -805,7 +805,12 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
                             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
                               <div>
                                 <div className="meal-name">{(item.category||'').toUpperCase()}</div>
-                                <div className="meal-note" style={{marginTop:2}}>{fmtDate(item.date)}</div>
+<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+  <div className="meal-note" style={{marginTop:2}}>{fmtDateTime(item.startDate || item.date)}</div>
+  <div style={{ fontFamily: '"DM Mono", monospace', fontSize: '13px', fontWeight: 600, color: 'var(--green)' }}>
+    {fmtR(item.amount)}
+  </div>
+</div>
                               </div>
                               <div style={{display:'flex',alignItems:'center',gap:8}}>
                                 <div className={`item-amount ${item.type}`}>{fmtR(item.amount)}</div>
@@ -1708,11 +1713,9 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
         </div>
       </div>
 
-
-      <button className="fab" style={{background:tabColor,boxShadow:`0 4px 20px ${tabColor}55`}}
-        onClick={()=>{ setForm(p=>({...p,date:dayKey(selectedDay)+'T09:00:00'})); setShowForm(true); }}>
-        + ADD EVENT
-      </button>
+<button className="fab" onClick={()=>setShowForm(true)} style={{background: 'rgb(68, 138, 255)', boxShadow: 'rgba(68, 138, 255, 0.333) 0px 4px 20px'}}>
+  + ADD TIME &amp; EVENT
+</button>
 
       <ActionSheet open={!!actionCalEvent} title={actionCalEvent?.title} tabColor={tabColor}
         onEdit={()=>startEditCalEvent(actionCalEvent)}
@@ -1757,39 +1760,34 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
               <label className="form-label">Title</label>
               <input className="form-input" placeholder="Event name" value={form.title} onChange={e=>setForm(p=>({...p,title:e.target.value}))} autoFocus/>
             </div>
-            <div className="form-field">
-              <label className="form-label">Starts</label>
-              <input className="form-input" type="datetime-local" value={form.date}
-                onChange={e=>{
-                  const v=e.target.value;
-                  // If end is empty or before new start, default end to start + 1h
-                  setForm(p=>{
-                    let nextEnd = p.endDate;
-                    if (!nextEnd || nextEnd < v) {
-                      const dt = new Date(v);
-                      if (!isNaN(dt)) { dt.setHours(dt.getHours()+1); nextEnd = dt.toISOString().slice(0,16); }
-                    }
-                    return {...p, date:v, endDate:nextEnd};
-                  });
-                }}/>
-            </div>
-            <div className="form-field">
-              <label className="form-label">Ends (optional)</label>
-              <div style={{display:'flex',gap:8,alignItems:'center'}}>
+            <div style={{display:'flex',gap:12}}>
+              <div className="form-field" style={{flex:1}}>
+                <label className="form-label">Start Date &amp; Time</label>
+                <input className="form-input" type="datetime-local" value={form.date}
+                  onChange={e=>{
+                    const v=e.target.value;
+                    setForm(p=>{
+                      let nextEnd = p.endDate;
+                      if (!nextEnd || nextEnd < v) {
+                        const dt = new Date(v);
+                        if (!isNaN(dt)) { dt.setHours(dt.getHours()+1); nextEnd = dt.toISOString().slice(0,16); }
+                      }
+                      return {...p, date:v, endDate:nextEnd};
+                    });
+                  }}/>
+              </div>
+              <div className="form-field" style={{flex:1}}>
+                <label className="form-label">End Date &amp; Time</label>
                 <input className="form-input" type="datetime-local" value={form.endDate}
                   min={form.date}
-                  onChange={e=>setForm(p=>({...p,endDate:e.target.value}))} style={{flex:1}}/>
-                {form.endDate && (
-                  <button type="button" onClick={()=>setForm(p=>({...p,endDate:''}))}
-                    style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.1em',textTransform:'uppercase',padding:'8px 12px',border:'1px solid var(--border2)',color:'var(--text3)',borderRadius:4,background:'transparent',cursor:'pointer'}}>CLEAR</button>
-                )}
+                  onChange={e=>setForm(p=>({...p,endDate:e.target.value}))}/>
               </div>
-              {form.date && form.endDate && form.endDate >= form.date && (
-                <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)',marginTop:4,letterSpacing:'0.04em'}}>
-                  Duration: {(()=>{ const mins = Math.round((new Date(form.endDate) - new Date(form.date))/60000); if(mins<60) return mins+' min'; const h=Math.floor(mins/60), m=mins%60; return h+'h'+(m?' '+m+'m':''); })()}
-                </div>
-              )}
             </div>
+            {form.date && form.endDate && form.endDate >= form.date && (
+              <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)',letterSpacing:'0.04em',marginTop:-6,marginBottom:10}}>
+                Duration: {(()=>{ const mins = Math.round((new Date(form.endDate) - new Date(form.date))/60000); if(mins<60) return mins+' min'; const h=Math.floor(mins/60), m=mins%60; return h+'h'+(m?' '+m+'m':''); })()}
+              </div>
+            )}
             {/* Financial toggle */}
             <div className="form-field">
               <label className="form-label">Has Financial Impact?</label>
@@ -4816,7 +4814,7 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
           {/* ── Log out ── */}
           <button className="save-btn" style={{background:'transparent',border:'1px solid var(--red)',color:'var(--red)',marginTop:4}} onClick={onLogout}>LOG OUT</button>
 
-          {/* ── Legal ── */}
+{/* ── Legal ── */}
           <div style={{display:'flex',gap:8,marginTop:10,marginBottom:8}}>
             <button onClick={()=>setShowPrivacy(true)}
               style={{flex:1,fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.12em',textTransform:'uppercase',padding:'10px',border:'1px solid var(--border2)',color:'var(--text3)',borderRadius:4,background:'transparent',cursor:'pointer'}}>
@@ -4834,25 +4832,59 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
       {/* ── Privacy Policy Modal ── */}
       {showPrivacy&&(
         <div className="modal-overlay" onClick={()=>setShowPrivacy(false)}>
-          <div className="modal-sheet" onClick={e=>e.stopPropagation()} style={{maxHeight:'85vh'}}>
+          <div className="modal-sheet" onClick={e=>e.stopPropagation()} style={{maxHeight:'85vh', overflowY:'auto'}}>
             <div className="modal-handle"/>
-            <div className="modal-title">PRIVACY POLICY</div>
+            <div className="modal-title">PRIVACY POLICY (POPIA COMPLIANT)</div>
             <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',lineHeight:1.8,letterSpacing:'0.04em'}}>
-              <div style={{color:'var(--pink)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:8}}>DATA COLLECTED</div>
-              We collect profile data (name, email, gender, date of birth, physical stats), financial records (income, expenses), calendar events, workout logs, meal entries, and — with your explicit consent — menstrual cycle and health data.
-              <div style={{color:'var(--pink)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>HOW WE USE YOUR DATA</div>
-              Your data is used solely to provide the features of this application. We do not sell, rent, or share your personal data with third parties for marketing purposes.
-              <div style={{color:'var(--pink)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>SHARING</div>
-              You control which data categories are shared with linked partners via the Sharing settings in your Profile. Shared data is visible only to users you explicitly link.
-              <div style={{color:'var(--pink)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>STORAGE &amp; SECURITY</div>
-              Data is stored on secured servers. Passwords are hashed and never stored in plain text. All data transmission uses HTTPS encryption.
-              <div style={{color:'var(--pink)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>YOUR RIGHTS</div>
-              You have the right to access, correct, export, and delete your personal data at any time. To request full data deletion, contact your system administrator. Health data consent can be revoked instantly from your Profile settings, which immediately stops processing of that data category.
-              <div style={{color:'var(--pink)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>HEALTH DATA</div>
-              Cycle and health data is only collected with your explicit, granular consent (separate from general Terms). You may revoke this consent at any time. Revoking consent stops further processing; contact admin to request scrubbing of existing health records.
-              <div style={{color:'var(--pink)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>CONTACT</div>
-              For privacy concerns or data requests: admin@vectraarch.live
-              <div style={{color:'var(--text3)',fontSize:8,marginTop:16}}>Last updated: May 2026 · Vectra Arch Legacy</div>
+              
+              <div style={{color:'var(--pink)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:8}}>1. INTRODUCTION &amp; SCOPE</div>
+              This Privacy Policy governs the processing of personal information by Vectra Arch Legacy ("we", "us", "our") in accordance with the Protection of Personal Information Act, No. 4 of 2013 ("POPIA") for data subjects residing within the Republic of South Africa. We act as the "Responsible Party" concerning your data.
+
+              <div style={{color:'var(--pink)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>2. CATEGORIES OF PERSONAL INFORMATION COLLECTED</div>
+              We collect and process the following categories of information under the condition of minimisation:
+              <br />• <strong>General Personal Information:</strong> Account identifiers (username, encrypted passwords, authorization roles, UI preferences like accent color).
+              <br />• <strong>Demographic &amp; Physical Characteristics:</strong> Full names, electronic mail addresses, dates of birth, heights (cm), and weights (kg).
+              <br />• <strong>Operational User Data:</strong> Financial ledger entries (income, historical expenses), calendar schedules, gym exercise logs, and dietary entries.
+              <br />• <strong>Special Personal Information:</strong> Menstrual cycle tracking data, physiological logs, and health-related parameters.
+
+              <div style={{color:'var(--pink)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>3. PURPOSE OF PROCESSING</div>
+              In accordance with Section 9 of POPIA, data processing is restricted to lawful, specified, and explicitly defined purposes connected to our core functions:
+              <br />• To provide user authentication, account recovery, session routing, and operational security.
+              <br />• To compute lifestyle dashboards, render transactional analytics, and synchronize household financial or scheduling metrics.
+              <br />• Processing of Special Personal Information is executed strictly upon obtaining your explicit, voluntary, and specific consent (Section 31 of POPIA), or where processing is necessary for the establishment, exercise, or defense of a right in law.
+
+              <div style={{color:'var(--pink)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>4. GRANULAR SHARING &amp; THIRD PARTIES</div>
+              <br />• <strong>User-Controlled Synchronization:</strong> Data categories are only visible to other platform accounts ("Linked Partners") if you explicitly toggle sharing privileges within your Profile configuration. You retain absolute control over access parameters.
+              <br />• <strong>Commercial Prohibition:</strong> We do not sell, rent, lease, or trade personal or biometric datasets to any corporate entity or third-party marketing brokers.
+              <br />• <strong>Operators:</strong> Third-party infrastructure hosting, transactional mail components, or technical dependencies operate under strict mandates aligned with Section 21 of POPIA, processing information only with our authorization and maintaining equivalent security protocols.
+
+              <div style={{color:'var(--pink)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>5. SECURITY SAFEGUARDS (SECTION 19 POPIA)</div>
+              We secure the integrity and confidentiality of personal information by taking appropriate, reasonable technical and organizational measures:
+              <br />• Cryptographic hashing of user credentials using industry-standard salted hashing algorithms (bcrypt).
+              <br />• Enforcement of mandatory transport layer encryption (HTTPS/TLS 1.3) across all network data transfers.
+              <br />• Relational database constraints and parameterized queries to insulate datasets from malicious injections or cross-tenant exposure.
+              <br />• <strong>Data Breach Protocol:</strong> In the event of a suspected or actual compromise of security safeguards, we will notify the Information Regulator and affected users as soon as reasonably possible, in writing, as required by Section 22 of POPIA.
+
+              <div style={{color:'var(--pink)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>6. TRANSBORDER DATA TRANSFERS (SECTION 72 POPIA)</div>
+              Your information may be transferred to and hosted on computing infrastructure located outside the borders of South Africa. We ensure that foreign cloud operators are bound by strict contractual data frameworks or laws that provide an effective level of data protection substantially similar to POPIA.
+
+              <div style={{color:'var(--pink)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>7. YOUR STATUTORY DATA SUBJECT RIGHTS</div>
+              Under Sections 23 and 24 of POPIA, you possess enforceable legal rights to:
+              <br />• Request free confirmation of whether we hold personal information about you, and access a detailed record of that data.
+              <br />• Request the correction, destruction, or deletion of personal information that is inaccurate, irrelevant, excessive, outdated, incomplete, misleading, or obtained unlawfully.
+              <br />• Object at any time to the processing of personal information for marketing purposes or where processing relies on legitimate interest grounds.
+              <br />• Withdraw consent for the processing of Special Personal Information (health data) at any moment. Withdrawal takes immediate effect for future operations but does not retroactively invalidate prior lawful processing.
+
+              <div style={{color:'var(--pink)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>8. RETENTION &amp; DELETION POLICY</div>
+              Personal information will not be retained any longer than is necessary for achieving the purpose for which it was collected, unless retention is required or authorized by law, or agreed to by contractual consent. Upon termination of an account or an explicit deletion request submitted to the system administrator, database records will be scrubbed, purged, or irreversibly anonymized within reasonable technical constraints.
+
+              <div style={{color:'var(--pink)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>9. CONTACT &amp; REGULATORY LIAISON</div>
+              For inquiries regarding data subjects' rights, POPIA compliance, or to contact our designated Information Officer, please communicate via email: <strong>johan.koen@live.co.za</strong>.
+              <br /><br />If you believe our processing of your information infringes on the terms of POPIA, you have the statutory right to lodge a formal complaint with the South African Information Regulator:
+              <br />JD House, 27 Stiemens Street, Braamfontein, Johannesburg, 2001
+              <br />Email: enquiries@inforegulator.org.za / complaints.IR@inforegulator.org.za
+
+              <div style={{color:'var(--text3)',fontSize:8,marginTop:16}}>Last updated: May 2026 · Vectra Arch Legacy (Pty) Ltd.</div>
             </div>
             <button onClick={()=>setShowPrivacy(false)} style={{width:'100%',padding:'13px',background:'var(--bg3)',border:'1px solid var(--border2)',borderRadius:6,fontFamily:"'DM Mono',monospace",fontSize:10,letterSpacing:'0.14em',color:'var(--text2)',cursor:'pointer',marginTop:20}}>CLOSE</button>
           </div>
@@ -4862,25 +4894,46 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
       {/* ── Terms of Service Modal ── */}
       {showTerms&&(
         <div className="modal-overlay" onClick={()=>setShowTerms(false)}>
-          <div className="modal-sheet" onClick={e=>e.stopPropagation()} style={{maxHeight:'85vh'}}>
+          <div className="modal-sheet" onClick={e=>e.stopPropagation()} style={{maxHeight:'85vh', overflowY:'auto'}}>
             <div className="modal-handle"/>
-            <div className="modal-title">TERMS OF SERVICE</div>
+            <div className="modal-title">TERMS OF SERVICE (ECTA &amp; CPA COMPLIANT)</div>
             <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',lineHeight:1.8,letterSpacing:'0.04em'}}>
-              <div style={{color:'var(--green)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:8}}>ACCEPTANCE</div>
-              By using Vectra Arch Legacy, you agree to these Terms. If you do not agree, do not use the application.
-              <div style={{color:'var(--green)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>PERMITTED USE</div>
-              This application is provided for personal household financial tracking, health monitoring, and lifestyle management. You agree not to use it for commercial data collection, illegal purposes, or to harm other users.
-              <div style={{color:'var(--green)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>ACCOUNT RESPONSIBILITY</div>
-              You are responsible for maintaining the confidentiality of your credentials. You accept full responsibility for all activity that occurs under your account.
-              <div style={{color:'var(--green)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>HEALTH DATA &amp; CONSENT</div>
-              Health and cycle data recording requires separate, explicit opt-in consent. This consent is not bundled into acceptance of these Terms. You may withdraw consent at any time via Profile → Health Data settings.
-              <div style={{color:'var(--green)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>DATA ACCURACY</div>
-              You are responsible for the accuracy of data you enter. Financial and health data is for personal reference only and does not constitute professional financial or medical advice.
-              <div style={{color:'var(--green)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>LIMITATION OF LIABILITY</div>
-              Vectra Arch provides this application "as is." We are not liable for data loss, financial decisions made based on app data, or health outcomes.
-              <div style={{color:'var(--green)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>CHANGES TO TERMS</div>
-              We reserve the right to update these Terms. Continued use after changes constitutes acceptance of the updated Terms.
-              <div style={{color:'var(--text3)',fontSize:8,marginTop:16}}>Effective: May 2026 · Vectra Arch Legacy · South Africa</div>
+              
+              <div style={{color:'var(--green)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:8}}>1. LEGAL AGREEMENT &amp; ACCEPTANCE</div>
+              These Terms of Service constitute a binding contractual agreement between you ("The User") and Vectra Arch Legacy ("Vectra Arch"). By accessing, initiating account setups, logging into, or interacting with this software environment, you acknowledge that you have read, understood, and unreservedly agree to abide by these terms. If you do not accept these provisions, you must immediately cease all interactions with this platform.
+
+              <div style={{color:'var(--green)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>2. STATUTORY DISCLOSURES (SECTION 43 OF ECTA)</div>
+              Pursuant to Section 43 of the Electronic Communications and Transactions Act No. 25 of 2002, the following operational disclosures are recorded for the benefit of consumer verification:
+              <br />• <strong>Full Legal Entity Name:</strong> Vectra Arch Legacy (Pty) Ltd.
+              <br />• <strong>Core Corporate Function:</strong> Delivery of secure private software solutions for household lifecycle, biometric, and internal financial record management.
+              <br />• <strong>Physical and Legal Address:</strong> South Africa (Detailed corporate registry records accessible via administrator documentation).
+              <br />• <strong>Electronic Contact Medium:</strong> admin@vectraarch.live
+              <br />• <strong>Alternative Dispute Resolution:</strong> Disputes arising from these electronic terms shall be referred to arbitration under the rules of the Arbitration Foundation of Southern Africa (AFSA) prior to civil litigation escalation.
+
+              <div style={{color:'var(--green)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>3. PERMITTED USE &amp; CONSUMER RESTRICTIONS</div>
+              In accordance with the Consumer Protection Act No. 68 of 2008, this product is provisioned for individual lifestyle, household financial tracking, physical training records, and personal schedule aggregation.
+              <br />• You may not employ this platform to upload malicious scripts, execute SQL injection attacks, or intercept cryptographic payloads.
+              <br />• You are prohibited from engineering automated scrapers, web spiders, or automated bots to compromise platform infrastructure.
+              <br />• Commercial reselling of backend architectures, distribution of security keys, or utilizing data pipelines for automated commercial profiling is strictly prohibited.
+
+              <div style={{color:'var(--green)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>4. ACCOUNT CREDENTIALS &amp; IDENTITY INTEGRITY</div>
+              Users bear full civil and operational responsibility for sustaining the absolute confidentiality of active access tokens, passkeys, and multi-factor authentication (2FA) profiles. Any transaction or profile alternation executed under an authenticated session is legally deemed to be executed by the authorized account owner. If you detect unauthorized system enumeration or credential exposure, you must report it to the system administrator immediately.
+
+              <div style={{color:'var(--green)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>5. NO WARRANTIES &amp; MEDICAL/FINANCIAL DISCLAIMER</div>
+              <br />• <strong>No Medical Counsel:</strong> Biometric indexes, physical stat calculations, and menstrual cycle configurations are executed through static arithmetic models. They do not constitute diagnostic medical analysis, pharmacological advice, or formal clinical evaluations. Consult an HPCSA-registered health practitioner for medical assessments.
+              <br />• <strong>No Financial Advice:</strong> Ledger calculation functions represent basic budgeting engines. No output from this software environment fulfills the criteria of formal financial planning under the Financial Advisory and Intermediary Services (FAIS) Act.
+              <br />• <strong>"As Is" Metric Delivery:</strong> To the maximum extent permitted by Section 61 of the CPA, the software infrastructure is supplied on an "as is" and "as available" model, absent explicit or implied performance warranties.
+
+              <div style={{color:'var(--green)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>6. LIMITATION OF LIABILITY (CONSUMER SAFETY PRESERVATION)</div>
+              While we implement appropriate backend technical protocols to guard against server failure, we will not be held liable for indirect, incidental, or consequential financial losses, or system database corruption resulting from user-side data inaccuracies, environmental network disconnects, or unmitigated security lapses on your personal host terminal. Nothing in this clause purports to limit or exclude liability for gross negligence or deliberate malfeasance where prohibited by the CPA.
+
+              <div style={{color:'var(--green)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>7. BREACH, SUSPENSION &amp; TERMINATION</div>
+              Failure to comply with any provision of these Terms or the principles of POPIA data ownership gives us the absolute discretion to instantly suspend, lock, or permanently delete your account environment without notice or recourse. Users may voluntarily abandon application use and request total data deletion from the system administrator at any time.
+
+              <div style={{color:'var(--green)',fontSize:9,letterSpacing:'0.18em',marginBottom:6,marginTop:14}}>8. AMENDMENTS &amp; JURISDICTION</div>
+              We reserve the statutory right to modify these contractual parameters periodically to account for legislative shifts in South African cyber law. Notification of modifications will be delivered via platform UI alterations. Continued application interaction following publication updates constitutes legal ratification of the amended Terms. These parameters are governed entirely by the laws of the Republic of South Africa.
+
+              <div style={{color:'var(--text3)',fontSize:8,marginTop:16}}>Effective Term: May 2026 · Vectra Arch Legacy · Republic of South Africa</div>
             </div>
             <button onClick={()=>setShowTerms(false)} style={{width:'100%',padding:'13px',background:'var(--bg3)',border:'1px solid var(--border2)',borderRadius:6,fontFamily:"'DM Mono',monospace",fontSize:10,letterSpacing:'0.14em',color:'var(--text2)',cursor:'pointer',marginTop:20}}>CLOSE</button>
           </div>
