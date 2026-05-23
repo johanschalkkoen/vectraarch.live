@@ -166,6 +166,14 @@ async function ensureSchema() {
         `CREATE INDEX IF NOT EXISTS idx_invites_status ON vectraarchlegacy_invites(status)`,
         // ── Calendar: optional end-time so events can have a duration ──
         `ALTER TABLE vectraarchlegacy_calendar ADD COLUMN IF NOT EXISTS end_date TIMESTAMP`,
+        // ── Calendar: convert date column from DATE to TIMESTAMP so events can store
+        //    their time, not just the day. Idempotent — only runs if still DATE.
+        `DO $$ BEGIN
+            IF (SELECT data_type FROM information_schema.columns
+                WHERE table_name='vectraarchlegacy_calendar' AND column_name='date') = 'date' THEN
+                ALTER TABLE vectraarchlegacy_calendar ALTER COLUMN date TYPE TIMESTAMP USING date::timestamp;
+            END IF;
+         END $$`,
     ];
     let failed = 0;
     for (const sql of migrations) {

@@ -72,6 +72,16 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_id
 ALTER TABLE vectraarchlegacy_calendar
     ADD COLUMN IF NOT EXISTS end_date TIMESTAMP;
 
--- ── 4. Sanity report so you can see what we ended up with ────────────────────
+-- ── 4. Calendar date → TIMESTAMP so events can store their time, not just day
+--      Idempotent: only runs if the column is still DATE.
+DO $$
+BEGIN
+    IF (SELECT data_type FROM information_schema.columns
+        WHERE table_name='vectraarchlegacy_calendar' AND column_name='date') = 'date' THEN
+        ALTER TABLE vectraarchlegacy_calendar ALTER COLUMN date TYPE TIMESTAMP USING date::timestamp;
+    END IF;
+END $$;
+
+-- ── 5. Sanity report so you can see what we ended up with ────────────────────
 \d+ vectraarchlegacy_users
 \d+ vectraarchlegacy_calendar
