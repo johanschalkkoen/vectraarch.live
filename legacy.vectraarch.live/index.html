@@ -1332,7 +1332,7 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
   const [viewDate, setViewDate]       = useState(new Date());
   const [selectedDay, setSelectedDay] = useState(new Date());
   const [showForm, setShowForm]       = useState(false);
-  const [form, setForm]               = useState({title:'',date:now(),endDate:nowPlus(1),type:'personal',color:user?.eventColor||'#448aff',amount:'',finType:'income',financial:false});
+  const [form, setForm]               = useState({title:'',date:now(),endDate:nowPlus(1),allDay:false,type:'personal',color:user?.eventColor||'#448aff',amount:'',finType:'income',financial:false});
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [alert, setAlert]             = useState({msg:'',type:''});
   const [search, setSearch]             = useState('');
@@ -1414,14 +1414,18 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
 
   const handleSave = async()=>{
     if(!form.title||!form.date){msg('Title and date required.','err');return;}
-    if(form.endDate && form.endDate < form.date){ msg('End time must be after start time.','err'); return; }
+    if(!form.allDay && form.endDate && form.endDate < form.date){ msg('End time must be after start time.','err'); return; }
+    // All-day: store midnight start with no end → fmtTime renders 'All day' on cards
+    const day = form.date.slice(0,10);
+    const startToSave = form.allDay ? `${day}T00:00:00` : form.date;
+    const endToSave   = form.allDay ? null : (form.endDate || null);
     try {
       if(editCalId) await axios.delete(`${API}/calendar/${editCalId}`);
       await axios.post(`${API}/calendar`,{
         user:       user.username,
         title:      form.title,
-        date:       form.date,
-        endDate:    form.endDate || null,
+        date:       startToSave,
+        endDate:    endToSave,
         financial:  form.financial && !!form.amount,
         finType:    form.finType||'income',
         eventColor: form.color||user.eventColor||'#448aff',
@@ -1430,15 +1434,22 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
       });
       msg(editCalId?'Event updated.':'Event saved.');
       setShowForm(false);setEditCalId(null);
-      setForm({title:'',date:now(),endDate:nowPlus(1),type:'personal',color:user?.eventColor||'#448aff',amount:'',finType:'income',financial:false});
+      setForm({title:'',date:now(),endDate:nowPlus(1),allDay:false,type:'personal',color:user?.eventColor||'#448aff',amount:'',finType:'income',financial:false});
       fetchEvents();
     } catch { msg('Error.','err'); }
   };
   const startEditCalEvent = (e) => {
+    const start    = (e.date||now()).slice(0,19);
+    const end      = (e.endDate||e.end_date||'').slice(0,19);
+    const startT   = start.slice(11,16);
+    const endT     = end ? end.slice(11,16) : '';
+    // All-day = start is midnight AND end is missing or also midnight
+    const isAllDay = startT === '00:00' && (!endT || endT === '00:00');
     setForm({
       title:    e.title||'',
-      date:     (e.date||now()).slice(0,19),
-      endDate:  (e.endDate||e.end_date||'').slice(0,19),
+      date:     start,
+      endDate:  end,
+      allDay:   isAllDay,
       type:     e.financial||e.is_financial ? (e.type||'income') : (e.type||'personal'),
       color:    e.eventColor||e.event_color||user.eventColor||'#448aff',
       amount:   String(e.amount||''),
@@ -1723,7 +1734,7 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
 <button className="fab" onClick={()=>{
   // Always seed with the actual current time when the user starts a new event
   setEditCalId(null);
-  setForm({title:'',date:now(),endDate:nowPlus(1),type:'personal',color:user?.eventColor||'#448aff',amount:'',finType:'income',financial:false});
+  setForm({title:'',date:now(),endDate:nowPlus(1),allDay:false,type:'personal',color:user?.eventColor||'#448aff',amount:'',finType:'income',financial:false});
   setShowForm(true);
 }} style={{background: 'rgb(68, 138, 255)', boxShadow: 'rgba(68, 138, 255, 0.333) 0px 4px 20px'}}>
   + ADD TIME &amp; EVENT
@@ -1772,33 +1783,74 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
               <label className="form-label">Title</label>
               <input className="form-input" placeholder="Event name" value={form.title} onChange={e=>setForm(p=>({...p,title:e.target.value}))} autoFocus/>
             </div>
-            <div style={{display:'flex',gap:12}}>
-              <div className="form-field" style={{flex:1}}>
-                <label className="form-label">Start Date &amp; Time</label>
-                <input className="form-input" type="datetime-local" value={form.date}
-                  onChange={e=>{
-                    const v=e.target.value;
-                    setForm(p=>{
-                      let nextEnd = p.endDate;
-                      if (!nextEnd || nextEnd < v) {
-                        const dt = new Date(v);
-                        if (!isNaN(dt)) { dt.setHours(dt.getHours()+1); nextEnd = dt.toISOString().slice(0,16); }
-                      }
-                      return {...p, date:v, endDate:nextEnd};
-                    });
-                  }}/>
-              </div>
-              <div className="form-field" style={{flex:1}}>
-                <label className="form-label">End Date &amp; Time</label>
-                <input className="form-input" type="datetime-local" value={form.endDate}
-                  min={form.date}
-                  onChange={e=>setForm(p=>({...p,endDate:e.target.value}))}/>
-              </div>
+            {/* All-day toggle */}
+            <div className="form-field" style={{marginBottom:8}}>
+              <button type="button"
+                onClick={()=>{
+                  setForm(p=>{
+                    if (p.allDay) {
+                      // Toggling OFF → restore a sensible timed window (now / now+1h)
+                      return {...p, allDay:false, date:now(), endDate:nowPlus(1)};
+                    } else {
+                      // Toggling ON → keep the day, drop the time portion
+                      const day = (p.date||now()).slice(0,10);
+                      return {...p, allDay:true, date:day+'T00:00:00', endDate:''};
+                    }
+                  });
+                }}
+                style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',width:'100%',
+                  borderRadius:6,cursor:'pointer',border:`1px solid ${form.allDay?tabColor:'var(--border2)'}`,
+                  background:form.allDay?`${tabColor}18`:'transparent',color:form.allDay?tabColor:'var(--text3)',
+                  fontFamily:"'DM Mono',monospace",fontSize:11,letterSpacing:'0.12em',textTransform:'uppercase'}}>
+                <span style={{display:'inline-flex',alignItems:'center',justifyContent:'center',
+                  width:18,height:18,borderRadius:3,border:`1px solid ${form.allDay?tabColor:'var(--border2)'}`,
+                  background:form.allDay?tabColor:'transparent',color:form.allDay?'#0a0a0a':'var(--text3)',
+                  fontWeight:900,fontSize:13,flexShrink:0}}>
+                  {form.allDay?'✓':''}
+                </span>
+                All day event
+              </button>
             </div>
-            {form.date && form.endDate && form.endDate >= form.date && (
-              <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)',letterSpacing:'0.04em',marginTop:-6,marginBottom:10}}>
-                Duration: {(()=>{ const mins = Math.round((new Date(form.endDate) - new Date(form.date))/60000); if(mins<60) return mins+' min'; const h=Math.floor(mins/60), m=mins%60; return h+'h'+(m?' '+m+'m':''); })()}
+
+            {form.allDay ? (
+              /* Date-only picker when all-day */
+              <div className="form-field">
+                <label className="form-label">Date</label>
+                <input className="form-input" type="date"
+                  value={form.date.slice(0,10)}
+                  onChange={e=>setForm(p=>({...p, date:e.target.value+'T00:00:00', endDate:''}))}/>
               </div>
+            ) : (
+              <>
+                <div style={{display:'flex',gap:12}}>
+                  <div className="form-field" style={{flex:1}}>
+                    <label className="form-label">Start Date &amp; Time</label>
+                    <input className="form-input" type="datetime-local" value={form.date}
+                      onChange={e=>{
+                        const v=e.target.value;
+                        setForm(p=>{
+                          let nextEnd = p.endDate;
+                          if (!nextEnd || nextEnd < v) {
+                            const dt = new Date(v);
+                            if (!isNaN(dt)) { dt.setHours(dt.getHours()+1); nextEnd = dt.toISOString().slice(0,16); }
+                          }
+                          return {...p, date:v, endDate:nextEnd};
+                        });
+                      }}/>
+                  </div>
+                  <div className="form-field" style={{flex:1}}>
+                    <label className="form-label">End Date &amp; Time</label>
+                    <input className="form-input" type="datetime-local" value={form.endDate}
+                      min={form.date}
+                      onChange={e=>setForm(p=>({...p,endDate:e.target.value}))}/>
+                  </div>
+                </div>
+                {form.date && form.endDate && form.endDate >= form.date && (
+                  <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)',letterSpacing:'0.04em',marginTop:-6,marginBottom:10}}>
+                    Duration: {(()=>{ const mins = Math.round((new Date(form.endDate) - new Date(form.date))/60000); if(mins<60) return mins+' min'; const h=Math.floor(mins/60), m=mins%60; return h+'h'+(m?' '+m+'m':''); })()}
+                  </div>
+                )}
+              </>
             )}
             {/* Financial toggle */}
             <div className="form-field">
