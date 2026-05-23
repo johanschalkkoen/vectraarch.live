@@ -68,5 +68,10 @@ ALTER TABLE vectraarchlegacy_users
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_id
     ON vectraarchlegacy_users(google_id) WHERE google_id IS NOT NULL;
 
--- ── 3. Sanity report so you can see what we ended up with ────────────────────
+-- ── 3. Calendar end-date (optional event duration) ───────────────────────────
+ALTER TABLE vectraarchlegacy_calendar
+    ADD COLUMN IF NOT EXISTS end_date TIMESTAMP;
+
+-- ── 4. Sanity report so you can see what we ended up with ────────────────────
 \d+ vectraarchlegacy_users
+\d+ vectraarchlegacy_calendar
