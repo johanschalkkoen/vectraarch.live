@@ -1022,11 +1022,15 @@ app.get(BASE + '/users', isAuth, async (req, res) => {
   const users = result.rows;
 
   // ── Legacy users + access list ──
+  // NB: vectraarchlegacy_users no longer carries activity_status / bio / pronouns /
+  // theme / address / forge_user_id (dropped in the cleanup migration). Keep this
+  // SELECT to only the columns the Conduit page actually renders.
   let legacyUsers = [], accessList = [];
   try {
     const lr = await legacyPool.query(`
       SELECT username, first_name, last_name, display_name, email, is_admin,
-             activity_status, last_active, (twofa_secret IS NOT NULL) AS twofa_enabled
+             role, last_active, (twofa_secret IS NOT NULL) AS twofa_enabled,
+             (google_id  IS NOT NULL) AS google_linked
       FROM vectraarchlegacy_users ORDER BY last_active DESC NULLS LAST
     `);
     legacyUsers = lr.rows;
@@ -1099,7 +1103,10 @@ app.get(BASE + '/users', isAuth, async (req, res) => {
       </td>
       <td style="font-size:11px;color:var(--dim)">${esc(u.email||'—')}</td>
       <td><span class="badge ${u.is_admin?'warn':'info'}">${u.is_admin?'Admin':'User'}</span></td>
-      <td><span class="badge ${u.activity_status?'ok':'info'}">${u.activity_status?'Active':'Inactive'}</span></td>
+      <td>
+        ${u.role?`<span class="badge info" style="font-size:8px;">${esc(u.role.toUpperCase())}</span>`:''}
+        ${u.google_linked?`<span class="badge ok" style="font-size:8px;margin-left:4px;">Google</span>`:''}
+      </td>
       <td>
         <div style="display:flex;align-items:center;gap:6px;">
           <span class="badge ${u.twofa_enabled?'ok':'info'}">${u.twofa_enabled?'ON':'OFF'}</span>
@@ -1241,7 +1248,7 @@ app.get(BASE + '/users', isAuth, async (req, res) => {
       ${legacyUsers.length===0
         ? '<div style="padding:24px;background:var(--bg2);color:var(--dim);text-align:center;letter-spacing:0.1em;font-size:10px;">No Legacy users found</div>'
         : `<table>
-            <thead><tr><th>Username / Name</th><th>Email</th><th>Role</th><th>Activity</th><th>2FA</th><th>Last Active</th><th>Actions</th></tr></thead>
+            <thead><tr><th>Username / Name</th><th>Email</th><th>System</th><th>Role / Auth</th><th>2FA</th><th>Last Active</th><th>Actions</th></tr></thead>
             <tbody>${legacyRows}</tbody>
            </table>`}
     </div>
