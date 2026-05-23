@@ -165,10 +165,23 @@ async function ensureSchema() {
         `CREATE INDEX IF NOT EXISTS idx_invites_email  ON vectraarchlegacy_invites(LOWER(email))`,
         `CREATE INDEX IF NOT EXISTS idx_invites_status ON vectraarchlegacy_invites(status)`,
     ];
+    let failed = 0;
     for (const sql of migrations) {
-        try { await pool.query(sql); } catch (e) { console.error('[schema]', e.message); }
+        try { await pool.query(sql); }
+        catch (e) {
+            failed += 1;
+            console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            console.error('[schema] MIGRATION FAILED — fix this or features will break');
+            console.error('  SQL : ' + sql.replace(/\s+/g, ' ').trim().slice(0, 200));
+            console.error('  CODE: ' + (e.code || '-'));
+            console.error('  ERR : ' + e.message);
+            console.error('  HINT: if "permission denied for table", the table is owned by a different');
+            console.error('        postgres role. See migrations/2026_05_fix_legacy_schema.sql');
+            console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        }
     }
-    console.log('Schema check complete.');
+    if (failed > 0) console.error(`[schema] ${failed} migration(s) failed — app will run but some features may be broken.`);
+    else console.log('Schema check complete.');
 }
 // Schema is awaited before the server accepts any requests (see bottom of file)
 
