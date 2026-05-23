@@ -805,7 +805,12 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
                             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
                               <div>
                                 <div className="meal-name">{(item.category||'').toUpperCase()}</div>
-                                <div className="meal-note" style={{marginTop:2}}>{fmtDate(item.date)}</div>
+<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+  <div className="meal-note" style={{marginTop:2}}>{fmtDateTime(item.startDate || item.date)}</div>
+  <div style={{ fontFamily: '"DM Mono", monospace', fontSize: '13px', fontWeight: 600, color: 'var(--green)' }}>
+    {fmtR(item.amount)}
+  </div>
+</div>
                               </div>
                               <div style={{display:'flex',alignItems:'center',gap:8}}>
                                 <div className={`item-amount ${item.type}`}>{fmtR(item.amount)}</div>
@@ -1694,7 +1699,7 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
           <div style={{height:'80px'}}/>
         </div>
       </div>
-      
+
 <button className="fab" onClick={()=>setShowForm(true)} style={{background: 'rgb(68, 138, 255)', boxShadow: 'rgba(68, 138, 255, 0.333) 0px 4px 20px'}}>
   + ADD TIME &amp; EVENT
 </button>
