@@ -329,6 +329,74 @@ function postTelegram(text) {
 // uses discoverSites() which scans the filesystem directly and reports the
 // newest-mtime across each site's source files.)
 
+// ── DATABASE DISCOVERY ───────────────────────────────────────────────────────
+// One entry per pg database the conduit has credentials for. Each pool was
+// created at module load (see top of file). We query pg_tables + columns +
+// pg_class for each on demand.
+const DB_REGISTRY = [
+  { label:'VectraArchConduit', pool: pool,       purpose:'Conduit admin users & event log'         },
+  { label:'VectraArchForge',   pool: forgePool,  purpose:'Forge users, books, entries'             },
+  { label:'VectraArchAPI',     pool: apiPool,    purpose:'Identity links (Legacy ↔ Forge), audit'  },
+  { label:'VectraArchLegacy',  pool: legacyPool, purpose:'Legacy lifestyle app: users, finances, calendar, etc.' },
+];
+
+async function discoverDatabases() {
+  return Promise.all(DB_REGISTRY.map(async d => {
+    try {
+      const r = await d.pool.query(`
+        SELECT
+          t.schemaname                                AS schema,
+          t.tablename                                 AS name,
+          t.tableowner                                AS owner,
+          pg_total_relation_size(quote_ident(t.schemaname) || '.' || quote_ident(t.tablename))
+                                                      AS bytes,
+          c.reltuples::bigint                         AS rows,
+          (
+            SELECT json_agg(json_build_object(
+                     'name', column_name,
+                     'type', data_type,
+                     'nullable', is_nullable
+                   ) ORDER BY ordinal_position)
+            FROM information_schema.columns col
+            WHERE col.table_schema = t.schemaname AND col.table_name = t.tablename
+          )                                           AS columns
+        FROM pg_tables t
+        JOIN pg_class c ON c.relname = t.tablename
+          AND c.relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = t.schemaname)
+        WHERE t.schemaname NOT IN ('pg_catalog','information_schema')
+        ORDER BY t.schemaname, t.tablename
+      `);
+      // Aggregates for the summary header
+      const totalBytes = r.rows.reduce((s,t)=> s + (parseInt(t.bytes,10) || 0), 0);
+      const totalRows  = r.rows.reduce((s,t)=> s + Math.max(0, parseInt(t.rows,10) || 0), 0);
+      const totalCols  = r.rows.reduce((s,t)=> s + (t.columns?.length || 0), 0);
+      // Group by schema for rendering
+      const bySchema = {};
+      r.rows.forEach(t => { (bySchema[t.schema] ||= []).push(t); });
+      return { label:d.label, db:d.label, purpose:d.purpose, ok:true,
+               tables:r.rows, bySchema, totalBytes, totalRows, totalCols };
+    } catch (e) {
+      return { label:d.label, db:d.label, purpose:d.purpose, ok:false,
+               error:e.message, tables:[], bySchema:{}, totalBytes:0, totalRows:0, totalCols:0 };
+    }
+  }));
+}
+
+function fmtBytes(b) {
+  if (b == null || b === 0) return '—';
+  if (b < 1024)         return b + ' b';
+  if (b < 1024*1024)    return Math.round(b/1024) + ' kb';
+  if (b < 1024*1024*1024) return (b/1024/1024).toFixed(1) + ' mb';
+  return (b/1024/1024/1024).toFixed(2) + ' gb';
+}
+function fmtRows(n) {
+  if (n == null || n < 0) return '—';
+  if (n < 1000)  return String(Math.round(n));
+  if (n < 1e6)   return (n/1000).toFixed(n<10000?1:0) + 'k';
+  if (n < 1e9)   return (n/1e6).toFixed(2) + 'm';
+  return (n/1e9).toFixed(2) + 'b';
+}
+
 // ── PM2 ───────────────────────────────────────────────────────────────────────
 function getPM2List() {
   return new Promise((resolve) => {
@@ -784,10 +852,15 @@ app.post(BASE + '/log/clear', isAuth, async (req, res) => {
 // ── OBSERVATORY ───────────────────────────────────────────────────────────────
 app.get(BASE + '/sites', isAuth, async (req, res) => {
   const flash    = req.session.flash; delete req.session.flash;
-  const pm2List  = await getPM2List();
+  const [pm2List, dbs] = await Promise.all([
+    getPM2List(),
+    discoverDatabases(),                     // live pg introspection
+  ]);
   const sites    = discoverSites();          // live filesystem scan
   const apiByApp = discoverApiRoutes();      // live source-file parse
   const apiTotal = Object.values(apiByApp).reduce((s,r)=>s+r.length, 0);
+  const dbTotalTables  = dbs.reduce((s,d)=>s+d.tables.length, 0);
+  const dbTotalBytes   = dbs.reduce((s,d)=>s+d.totalBytes, 0);
 
   // Quick lookup: pm2 name -> online?
   const pm2Status = Object.fromEntries(pm2List.map(p => [p.name, p.status]));
@@ -841,9 +914,73 @@ app.get(BASE + '/sites', isAuth, async (req, res) => {
       </div>`;
   }).join('');
 
+  // ── Databases section ──
+  const dbSections = dbs.map(d => {
+    if (!d.ok) {
+      return `
+        <div style="margin-bottom:28px;">
+          <div style="font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:var(--accent2);margin-bottom:8px;display:flex;align-items:center;">
+            ${esc(d.label)}
+            <span class="badge err" style="font-size:8px;margin-left:8px;">connect failed</span>
+          </div>
+          <div style="padding:14px;background:var(--bg2);border:1px solid var(--red);border-radius:4px;color:var(--red);font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.04em;">
+            ${esc(d.error)}
+          </div>
+        </div>`;
+    }
+    if (d.tables.length === 0) {
+      return `
+        <div style="margin-bottom:28px;">
+          <div style="font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:var(--accent2);margin-bottom:8px;">
+            ${esc(d.label)}
+            <span style="color:var(--dim);margin-left:8px;font-size:9px;">— no tables visible to this role</span>
+          </div>
+        </div>`;
+    }
+    const schemaSections = Object.entries(d.bySchema).map(([schema, tables]) => `
+      <div style="margin-bottom:12px;">
+        <div style="font-size:9px;letter-spacing:0.14em;color:var(--dim);margin-bottom:6px;">SCHEMA · ${esc(schema)}</div>
+        <table><thead><tr>
+          <th style="width:32%">Table</th>
+          <th style="width:80px">Rows</th>
+          <th style="width:80px">Size</th>
+          <th style="width:90px">Owner</th>
+          <th>Columns</th>
+        </tr></thead><tbody>
+          ${tables.map(t => {
+            const cols = (t.columns || []).map(c => {
+              const type = (c.type || '').replace(/ without time zone$/, '').replace(/ with time zone$/, 'tz');
+              return `<span style="display:inline-flex;align-items:center;gap:3px;padding:1px 6px;margin:2px;border-radius:3px;background:var(--bg3);border:1px solid var(--border);font-size:9px;font-family:'DM Mono',monospace;">
+                <span style="color:var(--text)">${esc(c.name)}</span>
+                <span style="color:var(--dim);font-size:8px;">${esc(type)}</span>
+              </span>`;
+            }).join('');
+            return `<tr>
+              <td style="color:var(--text);font-family:'DM Mono',monospace;font-size:11px;vertical-align:top;padding-top:8px;">${esc(t.name)}</td>
+              <td style="font-size:10px;color:var(--dim);vertical-align:top;padding-top:8px;">${fmtRows(t.rows)}</td>
+              <td style="font-size:10px;color:var(--dim);vertical-align:top;padding-top:8px;">${fmtBytes(parseInt(t.bytes,10))}</td>
+              <td style="font-size:9px;color:var(--dim);vertical-align:top;padding-top:8px;">${esc(t.owner||'')}</td>
+              <td style="vertical-align:top;padding:4px 8px;">${cols || '<span style="color:var(--dim);font-size:9px;">no columns</span>'}</td>
+            </tr>`;
+          }).join('')}
+        </tbody></table>
+      </div>`).join('');
+    return `
+      <div style="margin-bottom:32px;">
+        <div style="display:flex;align-items:baseline;margin-bottom:10px;gap:8px;">
+          <div style="font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:var(--accent2);">${esc(d.label)}</div>
+          <div style="color:var(--dim);font-size:9px;letter-spacing:0.1em;">${esc(d.purpose)}</div>
+          <div style="margin-left:auto;color:var(--dim);font-size:9px;letter-spacing:0.14em;">
+            ${d.tables.length} TABLES · ${d.totalCols} COLS · ${fmtBytes(d.totalBytes)} · ~${fmtRows(d.totalRows)} ROWS
+          </div>
+        </div>
+        ${schemaSections}
+      </div>`;
+  }).join('');
+
   const body = `
     <div class="page-title">Observatory</div>
-    <div class="page-sub">§ Constellation Map · ${sites.length} Sites · ${apiTotal} Endpoints · live filesystem + source scan</div>
+    <div class="page-sub">§ Constellation Map · ${sites.length} Sites · ${apiTotal} Endpoints · ${dbTotalTables} Tables · live</div>
     ${flash?`<div class="alert ${flash.type}">${esc(flash.msg)}</div>`:''}
 
     <div class="section">
@@ -861,6 +998,11 @@ app.get(BASE + '/sites', isAuth, async (req, res) => {
     <div class="section">
       <div class="section-hdr"><span class="sh-num">03</span><span class="sh-title">API Registry · ${apiTotal} Endpoints · parsed from source</span><div class="sh-line"></div></div>
       ${apiSections}
+    </div>
+
+    <div class="section">
+      <div class="section-hdr"><span class="sh-num">04</span><span class="sh-title">Databases · ${dbs.length} DBs · ${dbTotalTables} Tables · ${fmtBytes(dbTotalBytes)}</span><div class="sh-line"></div></div>
+      ${dbSections}
     </div>`;
 
   res.send(layout('Observatory', 'sites', body));
