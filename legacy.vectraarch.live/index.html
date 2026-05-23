@@ -4319,6 +4319,28 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
         <div className="page-inner">
           <Alert {...alert}/>
 
+          {/* ── Date header — matches other tabs ── */}
+          {(() => {
+            const today    = new Date();
+            const weekday  = today.toLocaleDateString('en-US', {weekday:'long'}).toUpperCase();
+            const monthStr = today.toLocaleDateString('en-US', {month:'long'});
+            return (
+              <div style={{padding:'14px 0 12px',marginBottom:8,borderBottom:'1px solid var(--border)',display:'flex',alignItems:'flex-end',justifyContent:'space-between',gap:12}}>
+                <div>
+                  <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:18,color:'var(--text)',letterSpacing:'0.02em'}}>
+                    {weekday} <span style={{color:tabColor}}>{today.getDate()}</span> {monthStr} {today.getFullYear()}
+                  </div>
+                  <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)',marginTop:2,letterSpacing:'0.12em',textTransform:'uppercase'}}>
+                    Profile · {(user.displayName||user.firstName||user.username||'').toString().toUpperCase()}
+                  </div>
+                </div>
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:tabColor,letterSpacing:'0.18em',textTransform:'uppercase'}}>
+                  § {user.role ? user.role.toUpperCase() : 'INDIVIDUAL'}
+                </div>
+              </div>
+            );
+          })()}
+
           {/* ── PROFILE HEADER CARD ── */}
           <div style={{position:'relative',background:'var(--bg2)',borderRadius:8,overflow:'hidden',marginBottom:12,border:'1px solid var(--border)'}}>
             <div style={{position:'absolute',top:0,right:0,width:'60%',height:'100%',background:`radial-gradient(ellipse at top right, ${acColor}22 0%, transparent 65%)`,pointerEvents:'none'}}/>
