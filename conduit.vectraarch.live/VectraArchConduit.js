@@ -1846,7 +1846,7 @@ app.post(BASE + '/users/legacy/add', isAuth, async (req, res) => {
       `INSERT INTO vectraarchlegacy_users
          (username, password_hash, first_name, last_name, display_name, email,
           is_admin, group_id, auth_provider, role, accent_color, event_color)
-       VALUES ($1,$2,$3,$4,$5,$6,$7::integer,$8,'password',$9,$10,$10)`,
+       VALUES ($1,$2,$3,$4,$5,$6,$7::integer,$8,'password',$9,$10::text,$10::text)`,
       [cleanUser, hash, firstName||null, lastName||null, displayName, email||null,
        adminFlag, useGroupId, cleanRole, accent]
     );
