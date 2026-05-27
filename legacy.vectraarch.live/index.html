@@ -1988,9 +1988,18 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
   ,[allBudgets, user.username, selectedPeriod]);
 
   // Every visible user's budget row for the period (used to combine in view mode).
-  const activeBudgetEntries = useMemo(()=>
-    allBudgets.filter(b=>visibleUsers.includes(b.user)&&(b.date||'').startsWith(selectedPeriod))
-  ,[allBudgets, visibleUsers.join(','), selectedPeriod]);
+  // Keep only the LATEST row per user per period — the API returns DESC by date,
+  // so the first match we hit per user wins. Guards against duplicate rows
+  // accumulating in the DB if a user ever ended up with two budgets in one month.
+  const activeBudgetEntries = useMemo(()=>{
+    const byUser = new Map();
+    allBudgets.forEach(b=>{
+      if(!visibleUsers.includes(b.user)) return;
+      if(!(b.date||'').startsWith(selectedPeriod)) return;
+      if(!byUser.has(b.user)) byUser.set(b.user, b);
+    });
+    return Array.from(byUser.values());
+  },[allBudgets, visibleUsers.join(','), selectedPeriod]);
 
   // Every visible user's finances for the period.
   const monthFinances = useMemo(()=>
@@ -5796,7 +5805,11 @@ const App = () => {
   const tabSelected = selectedUsers[activeTab] || new Set([user.username]);
 
   // Partners currently visible = permitted AND selected
-  const activePartners = permittedPartners.filter(p => tabSelected.has(p.username));
+  // De-duplicate by username so any stale duplicate in the partners list can't
+  // cause data to be fetched / counted twice downstream.
+  const activePartners = permittedPartners
+    .filter(p => tabSelected.has(p.username))
+    .filter((p,i,a) => a.findIndex(x => x.username===p.username) === i);
   const selfVisible    = tabSelected.has(user.username);
   const isShared       = activePartners.length > 0;
 
