@@ -4621,8 +4621,7 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
           )}
 
           {/* ── ACCOUNT DETAILS ── */}
-          <div className="profile-section">
-            <div className="profile-section-title">ACCOUNT DETAILS</div>
+          <CollapsibleSection title="ACCOUNT DETAILS" persistKey="profile-account" defaultOpen={true}>
             <div style={{padding:'14px 14px 0'}}>
               {/* First / Last Name */}
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:14}}>
@@ -4792,11 +4791,10 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
                 </div>
               );
             })()}
-          </div>
+          </CollapsibleSection>
 
           {/* ── ACCENT COLOR ── */}
-          <div className="profile-section">
-            <div className="profile-section-title">ACCENT COLOR</div>
+          <CollapsibleSection title="ACCENT COLOR" persistKey="profile-accent" defaultOpen={false}>
             <div style={{padding:'10px 14px 4px',fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',lineHeight:1.6}}>
               Personal accent — used on calendar, charts and badges.
               {allPartners.length>0 && <> Colors used by your partner{allPartners.length>1?'s':''} are blocked.</>}
@@ -4861,11 +4859,10 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
               </div>
             </div>
             {!editing&&<div style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.14em',color:'var(--text3)',padding:'0 14px 12px'}}>tap EDIT to change accent</div>}
-          </div>
+          </CollapsibleSection>
 
           {/* ── Currency ── */}
-          <div className="profile-section">
-            <div className="profile-section-title">CURRENCY</div>
+          <CollapsibleSection title="CURRENCY" persistKey="profile-currency" defaultOpen={false}>
             <div className="profile-field">
               <div className="profile-field-label">Display Currency</div>
               <select className="profile-field-input" style={{background:'transparent',border:'none',outline:'none',color:'var(--text)',fontFamily:"'DM Mono',monospace",fontSize:13,width:'100%',cursor:editing?'pointer':'default'}}
@@ -4878,12 +4875,11 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
                 <option value="KES">KES — Kenyan Shilling (KSh)</option>
               </select>
             </div>
-          </div>
+          </CollapsibleSection>
 
           {/* ── Health data consent ── */}
           {(user.gender||'').toLowerCase()==='female'&&(
-            <div className="profile-section">
-              <div className="profile-section-title">HEALTH DATA</div>
+            <CollapsibleSection title="HEALTH DATA" persistKey="profile-health" defaultOpen={false}>
               <div className="profile-field" style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
                 <div>
                   <div className="profile-field-label">Cycle Tracking Consent</div>
@@ -4898,7 +4894,7 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
                   </button>
                 )}
               </div>
-            </div>
+            </CollapsibleSection>
           )}
 
           {/* ── Security (2FA) ── */}
@@ -5220,11 +5216,10 @@ const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
           </div>
 
           {/* Action cards grid */}
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+          <div style={{display:'flex',flexDirection:'column',gap:12}}>
 
             {/* Add User — full creation: user row + auto group record */}
-            <div className="profile-section" style={{gridColumn:'span 2'}}>
-              <div className="profile-section-title">ADD USER</div>
+            <CollapsibleSection title="ADD USER" persistKey="admin-add-user" defaultOpen={true}>
               <div style={cardBody}>
                 <div style={hintStyle}>
                   Creates a user account and a matching group record (<code style={{color:'var(--text2)',fontSize:9}}>vectraarchlegacy_groups</code>) with this user as its admin.
@@ -5361,11 +5356,10 @@ const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
                   {creating ? 'Creating…' : `Create User + Group ↗`}
                 </button>
               </div>
-            </div>
+            </CollapsibleSection>
 
             {/* Manage Access */}
-            <div className="profile-section">
-              <div className="profile-section-title">MANAGE ACCESS</div>
+            <CollapsibleSection title="MANAGE ACCESS" persistKey="admin-manage-access" defaultOpen={false}>
               <div style={cardBody}>
                 <span style={lL}>VIEWER</span>
                 <select style={iL} value={accessForm.viewer} onChange={e=>setAccessForm(p=>({...p,viewer:e.target.value}))}>
@@ -5380,11 +5374,10 @@ const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
                   <button style={btnStyle('var(--red)')} onClick={()=>act(()=>axios.post(`${API}/revoke-access`,{...accessForm,adminUsername:user.username}))}>Revoke</button>
                 </div>
               </div>
-            </div>
+            </CollapsibleSection>
 
             {/* Admin Status */}
-            <div className="profile-section">
-              <div className="profile-section-title">ADMIN STATUS</div>
+            <CollapsibleSection title="ADMIN STATUS" persistKey="admin-status" defaultOpen={false}>
               <div style={cardBody}>
                 <span style={lL}>USER</span>
                 <select style={iL} value={adminForm.username} onChange={e=>setAdminForm({username:e.target.value})}>
@@ -5395,11 +5388,10 @@ const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
                   <button style={btnStyle('var(--red)')} onClick={()=>act(()=>axios.post(`${API}/revoke-admin`,{...adminForm,adminUsername:user.username}))}>Revoke</button>
                 </div>
               </div>
-            </div>
+            </CollapsibleSection>
 
             {/* Update Password */}
-            <div className="profile-section">
-              <div className="profile-section-title">UPDATE PASSWORD</div>
+            <CollapsibleSection title="UPDATE PASSWORD" persistKey="admin-update-pw" defaultOpen={false}>
               <div style={cardBody}>
                 <span style={lL}>USER</span>
                 <select style={iL} value={pwForm.username} onChange={e=>setPwForm(p=>({...p,username:e.target.value}))}>
@@ -5409,11 +5401,10 @@ const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
                 <input style={iL} type="password" placeholder="········" value={pwForm.newPassword} onChange={e=>setPwForm(p=>({...p,newPassword:e.target.value}))}/>
                 <button style={btnStyle('var(--blue)')} onClick={()=>act(()=>axios.post(`${API}/admin-update-password`,{...pwForm,adminUsername:user.username}))}>Update ↗</button>
               </div>
-            </div>
+            </CollapsibleSection>
 
             {/* Delete User */}
-            <div className="profile-section">
-              <div className="profile-section-title">DELETE USER</div>
+            <CollapsibleSection title="DELETE USER" persistKey="admin-delete-user" defaultOpen={false}>
               <div style={cardBody}>
                 <span style={lL}>USER</span>
                 <select style={iL} value={delUser} onChange={e=>setDelUser(e.target.value)}>
@@ -5424,11 +5415,10 @@ const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
                   Delete User
                 </button>
               </div>
-            </div>
+            </CollapsibleSection>
 
             {/* Reset 2FA */}
-            <div className="profile-section">
-              <div className="profile-section-title">RESET 2FA</div>
+            <CollapsibleSection title="RESET 2FA" persistKey="admin-reset-2fa" defaultOpen={false}>
               <div style={cardBody}>
                 <div style={hintStyle}>Clears the user's TOTP secret. They can re-enable from their Profile.</div>
                 <span style={lL}>USER</span>
@@ -5440,11 +5430,10 @@ const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
                   Reset 2FA
                 </button>
               </div>
-            </div>
+            </CollapsibleSection>
 
             {/* Invite by Google email — full width */}
-            <div className="profile-section" style={{gridColumn:'span 2'}}>
-              <div className="profile-section-title">INVITE BY GOOGLE EMAIL</div>
+            <CollapsibleSection title="INVITE BY GOOGLE EMAIL" persistKey="admin-invite" defaultOpen={false}>
               <div style={cardBody}>
                 <div style={hintStyle}>Send an invitation. Recipient signs in with the matching Google account to create their hub. No password required.</div>
                 <div style={{display:'grid',gridTemplateColumns:'2fr 1fr',gap:10,marginBottom:0}}>
@@ -5464,10 +5453,10 @@ const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
                 <input style={iL} placeholder="Only visible to admins" value={inviteForm.note} onChange={e=>setInviteForm(p=>({...p,note:e.target.value}))}/>
                 <button style={btnStyle('var(--green)')} onClick={sendInvite}>Send Invite ↗</button>
               </div>
-            </div>
+            </CollapsibleSection>
 
             {/* Access list */}
-            <CollapsibleSection persistKey="admin-access-list" defaultOpen={false} style={{gridColumn:'span 2'}}
+            <CollapsibleSection persistKey="admin-access-list" defaultOpen={false}
               title={`ACCESS LIST · ${accessList.length}`}><>
               <div style={cardBody}>
                 {accessList.length===0 && <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',textAlign:'center',padding:'10px 0'}}>No access rules.</div>}
