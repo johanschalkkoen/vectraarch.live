@@ -1947,9 +1947,21 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
 
   const selectedPeriod = `${selectedYear}-${selectedMonth}`;
   const monthLabel = MONTHS.find(m=>m.v===selectedMonth)?.l||'';
-  // Which user's budget to display: own if selfVisible (or fallback), sole partner if only they're selected
-  const viewUser = (!selfVisible&&(activePartners||[]).length===1)
-    ? activePartners[0].username : user.username;
+  // Budget shows one user's plan at a time (allocations are per-user-per-month).
+  // The chip row above multi-selects "whose data to fetch"; viewAs picks who's
+  // currently being inspected. Auto-switches to a newly added partner so
+  // toggling their chip surfaces their budget immediately.
+  const [viewAs, setViewAs] = useState(user.username);
+  const visibleUsers = [...(selfVisible?[user.username]:[]),...(activePartners||[]).map(p=>p.username)];
+  const prevVisibleRef = useRef(visibleUsers.join(','));
+  useEffect(()=>{
+    const prev = (prevVisibleRef.current||'').split(',').filter(Boolean);
+    const added = visibleUsers.filter(u=>!prev.includes(u));
+    if(added.length>0 && added[0]!==user.username) setViewAs(added[0]);
+    else if(!visibleUsers.includes(viewAs)) setViewAs(visibleUsers[0]||user.username);
+    prevVisibleRef.current = visibleUsers.join(',');
+  },[visibleUsers.join(',')]);
+  const viewUser = visibleUsers.includes(viewAs) ? viewAs : (visibleUsers[0]||user.username);
   const canEdit  = viewUser===user.username;
   const viewPartner = viewUser!==user.username
     ? [...(partners||[]),...(permittedPartners||[])].find(p=>p.username===viewUser)||null : null;
@@ -2265,6 +2277,29 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
             else if(curM===1&&newM===12) setSelectedYear(y=>y-1);
             setSelectedMonth(m);
           }} tabColor={tabColor} year={selectedYear} onGoToday={()=>setSelectedYear(new Date().getFullYear())}/>
+
+          {/* ── Viewing-as selector ── shown when more than one user is active */}
+          {visibleUsers.length>1 && (
+            <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12,padding:'10px 12px',background:'var(--bg2)',borderRadius:6,border:`1px solid ${tabColor}33`,borderLeft:`3px solid ${tabColor}`,flexWrap:'wrap'}}>
+              <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.14em',color:'var(--text3)',textTransform:'uppercase'}}>VIEWING</span>
+              {visibleUsers.map(uname=>{
+                const isMe = uname===user.username;
+                const p = isMe ? null : [...(partners||[]),...(permittedPartners||[])].find(x=>x.username===uname);
+                const label = isMe ? 'YOU' : (p?.displayName||p?.firstName||uname);
+                const active = uname===viewUser;
+                return (
+                  <button key={uname} onClick={()=>setViewAs(uname)} style={{
+                    fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:13,letterSpacing:'0.08em',textTransform:'uppercase',
+                    padding:'4px 12px',borderRadius:4,cursor:'pointer',transition:'all 0.15s',
+                    border:`1px solid ${active?tabColor:'rgba(255,255,255,0.12)'}`,
+                    background:active?`${tabColor}22`:'transparent',
+                    color:active?tabColor:'var(--text2)'
+                  }}>{label}</button>
+                );
+              })}
+            </div>
+          )}
+
           <Alert {...alert}/>
 
           {/* ── Income card ── */}
