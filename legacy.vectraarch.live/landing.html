@@ -20,14 +20,14 @@
             bgCard: '#0f0f12',
             borderDark: '#1a1a22',
             textMuted: '#686873',
-            finances: '#00cc88',
-            calendar: '#6a8aff',
-            budget: '#ffb03a',
-            gym: '#ff4a4a',
-            meals: '#00cccc',
-            cycle: '#ff66b2',
-            adminAccent: '#b06aff',
-            profileAccent: '#e5b800',
+            finances: '#ffd600',
+            calendar: '#448aff',
+            budget: '#ff6d00',
+            gym: '#ff4081',
+            meals: '#d67bff',
+            cycle: '#ff3b3b',
+            adminAccent: '#00ff41',
+            profileAccent: '#00ff41',
           },
           fontFamily: {
             bebas: ['"Bebas Neue"', 'sans-serif'],
@@ -64,7 +64,6 @@
       <span class="inline-block w-2 h-2 bg-calendar rounded-full animate-ping"></span>
       <span class="text-neutral-300">ONE APP. NO SHUFFLING.</span>
     </div>
-    <div class="hidden sm:block">LIVE CONFIGURATION // VERSION 1.0</div>
   </div>
 
   <nav class="sticky top-0 z-50 border-b border-borderDark bg-bgDark/95 backdrop-blur-md px-6 py-4">
@@ -80,11 +79,8 @@
         <a href="#control" class="hover:text-white transition">GOVERNANCE</a>
       </div>
 
-      <div class="flex items-center gap-3">
-        <a href="/login.html" class="hidden sm:inline-block font-mono text-xs uppercase tracking-widest text-neutral-300 hover:text-white border border-borderDark px-4 py-3 transition duration-150">
-          SIGN IN
-        </a>
-        <a href="/login.html" class="font-mono text-xs uppercase tracking-widest bg-white text-black px-5 py-3 font-bold hover:bg-neutral-200 transition duration-150 block shadow-[4px_4px_0px_0px_rgba(106,138,255,0.4)]">
+      <div>
+        <a href="/login.html" class="font-mono text-xs uppercase tracking-widest bg-white text-black px-5 py-3 font-bold hover:bg-neutral-200 transition duration-150 block shadow-[4px_4px_0px_0px_rgba(68,138,255,0.4)]">
           LAUNCH SYSTEM //
         </a>
       </div>
@@ -117,92 +113,66 @@
       </div>
 
       <div class="lg:col-span-5 relative w-full h-[520px] flex items-center justify-center mt-8 lg:mt-0">
-        <div class="absolute w-64 sm:w-72 aspect-[9/19] bg-bgCard border-4 border-neutral-800 rounded-[2.2rem] shadow-2xl overflow-hidden transform -rotate-6 transition duration-300 hover:rotate-0 hover:z-30 group">
-          <svg class="illus" viewBox="0 0 270 570" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+        <div class="absolute w-64 sm:w-72 aspect-square bg-bgCard border border-borderDark rounded-3xl shadow-2xl overflow-hidden transform -rotate-3 transition duration-300 hover:rotate-0 hover:z-30">
+          <svg class="illus" viewBox="0 0 320 320" xmlns="http://www.w3.org/2000/svg">
             <defs>
-              <linearGradient id="bgA" x1="0" y1="0" x2="0" y2="1">
+              <radialGradient id="glow1" cx="0.5" cy="0.5" r="0.6">
+                <stop offset="0" stop-color="#448aff" stop-opacity="0.25"/>
+                <stop offset="1" stop-color="#448aff" stop-opacity="0"/>
+              </radialGradient>
+            </defs>
+            <rect width="320" height="320" fill="#0a0a0c"/>
+            <rect width="320" height="320" fill="url(#glow1)"/>
+            <circle cx="160" cy="160" r="120" fill="none" stroke="#1a1a22"/>
+            <circle cx="160" cy="160" r="90"  fill="none" stroke="#1a1a22"/>
+            <circle cx="160" cy="160" r="60"  fill="none" stroke="#1a1a22"/>
+            <g transform="translate(160 160)">
+              <circle cx="0"  cy="-110" r="14" fill="#ffd600"/>
+              <circle cx="95" cy="-55"  r="14" fill="#448aff"/>
+              <circle cx="95" cy="55"   r="14" fill="#ff6d00"/>
+              <circle cx="0"  cy="110"  r="14" fill="#ff4081"/>
+              <circle cx="-95" cy="55"  r="14" fill="#d67bff"/>
+              <circle cx="-95" cy="-55" r="14" fill="#ff3b3b"/>
+              <circle r="32" fill="#070708" stroke="#1a1a22"/>
+              <text y="6" text-anchor="middle" font-family="Bebas Neue, sans-serif" font-size="20" fill="#fff" letter-spacing="2">VA</text>
+            </g>
+            <line x1="160" y1="160" x2="160" y2="50"  stroke="#ffd600" stroke-opacity="0.3"/>
+            <line x1="160" y1="160" x2="255" y2="105" stroke="#448aff" stroke-opacity="0.3"/>
+            <line x1="160" y1="160" x2="255" y2="215" stroke="#ff6d00" stroke-opacity="0.3"/>
+            <line x1="160" y1="160" x2="160" y2="270" stroke="#ff4081" stroke-opacity="0.3"/>
+            <line x1="160" y1="160" x2="65"  y2="215" stroke="#d67bff" stroke-opacity="0.3"/>
+            <line x1="160" y1="160" x2="65"  y2="105" stroke="#ff3b3b" stroke-opacity="0.3"/>
+            <text x="160" y="300" text-anchor="middle" font-family="DM Mono, monospace" font-size="8" fill="#686873" letter-spacing="3">SIX MODULES · ONE CORE</text>
+          </svg>
+        </div>
+
+        <div class="absolute w-56 sm:w-64 aspect-square bg-bgCard border border-borderDark rounded-3xl shadow-2xl overflow-hidden transform translate-x-28 translate-y-28 rotate-3 transition duration-300 hover:rotate-0 hover:z-30">
+          <svg class="illus" viewBox="0 0 280 280" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="bg2" x1="0" y1="0" x2="1" y2="1">
                 <stop offset="0" stop-color="#0f0f12"/>
                 <stop offset="1" stop-color="#070708"/>
               </linearGradient>
             </defs>
-            <rect width="270" height="570" fill="url(#bgA)"/>
-            <text x="20" y="50" font-family="Bebas Neue, sans-serif" font-size="22" fill="#fff" letter-spacing="2">LEGACY</text>
-            <text x="20" y="68" font-family="DM Mono, monospace" font-size="8" fill="#686873" letter-spacing="2">// CORE DASHBOARD</text>
-            <rect x="20" y="90" width="230" height="60" rx="10" fill="#00cc88" fill-opacity="0.12" stroke="#00cc88" stroke-opacity="0.4"/>
-            <text x="34" y="112" font-family="DM Mono, monospace" font-size="8" fill="#00cc88" letter-spacing="2">FINANCES</text>
-            <text x="34" y="136" font-family="Bebas Neue, sans-serif" font-size="22" fill="#fff">R 24 580</text>
-            <rect x="20" y="160" width="110" height="80" rx="10" fill="#6a8aff" fill-opacity="0.12" stroke="#6a8aff" stroke-opacity="0.4"/>
-            <text x="34" y="180" font-family="DM Mono, monospace" font-size="7" fill="#6a8aff" letter-spacing="2">CALENDAR</text>
-            <circle cx="42" cy="200" r="4" fill="#6a8aff"/>
-            <circle cx="58" cy="200" r="4" fill="#ffb03a"/>
-            <circle cx="74" cy="200" r="4" fill="#ff66b2"/>
-            <text x="34" y="226" font-family="Bebas Neue, sans-serif" font-size="14" fill="#fff">5 EVENTS</text>
-            <rect x="140" y="160" width="110" height="80" rx="10" fill="#ffb03a" fill-opacity="0.12" stroke="#ffb03a" stroke-opacity="0.4"/>
-            <text x="154" y="180" font-family="DM Mono, monospace" font-size="7" fill="#ffb03a" letter-spacing="2">BUDGET</text>
-            <rect x="154" y="196" width="80" height="4" rx="2" fill="#ffb03a" fill-opacity="0.3"/>
-            <rect x="154" y="196" width="56" height="4" rx="2" fill="#ffb03a"/>
-            <text x="154" y="226" font-family="Bebas Neue, sans-serif" font-size="14" fill="#fff">70%</text>
-            <rect x="20" y="250" width="110" height="80" rx="10" fill="#ff4a4a" fill-opacity="0.12" stroke="#ff4a4a" stroke-opacity="0.4"/>
-            <text x="34" y="270" font-family="DM Mono, monospace" font-size="7" fill="#ff4a4a" letter-spacing="2">GYM</text>
-            <text x="34" y="298" font-family="Bebas Neue, sans-serif" font-size="20" fill="#fff">14 SETS</text>
-            <text x="34" y="316" font-family="DM Mono, monospace" font-size="7" fill="#ff4a4a">TODAY</text>
-            <rect x="140" y="250" width="110" height="80" rx="10" fill="#00cccc" fill-opacity="0.12" stroke="#00cccc" stroke-opacity="0.4"/>
-            <text x="154" y="270" font-family="DM Mono, monospace" font-size="7" fill="#00cccc" letter-spacing="2">MEALS</text>
-            <text x="154" y="298" font-family="Bebas Neue, sans-serif" font-size="20" fill="#fff">1840</text>
-            <text x="154" y="316" font-family="DM Mono, monospace" font-size="7" fill="#00cccc">KCAL</text>
-            <rect x="20" y="340" width="230" height="60" rx="10" fill="#ff66b2" fill-opacity="0.12" stroke="#ff66b2" stroke-opacity="0.4"/>
-            <text x="34" y="360" font-family="DM Mono, monospace" font-size="7" fill="#ff66b2" letter-spacing="2">CYCLE</text>
-            <text x="34" y="384" font-family="Bebas Neue, sans-serif" font-size="16" fill="#fff">DAY 12 OF 28</text>
-            <rect x="20" y="410" width="230" height="120" rx="10" fill="#0f0f12" stroke="#1a1a22"/>
-            <text x="34" y="430" font-family="DM Mono, monospace" font-size="7" fill="#686873" letter-spacing="2">// VELOCITY</text>
-            <polyline points="34,510 64,495 94,498 124,475 154,468 184,450 214,440 240,425" fill="none" stroke="#6a8aff" stroke-width="2"/>
-            <polyline points="34,510 64,500 94,505 124,490 154,485 184,478 214,470 240,460" fill="none" stroke="#00cc88" stroke-width="1.5" stroke-opacity="0.7"/>
+            <rect width="280" height="280" fill="url(#bg2)"/>
+            <g stroke-linecap="round" stroke-width="3" fill="none">
+              <path d="M 40 80 Q 100 60 160 80 T 250 80"  stroke="#ffd600" stroke-opacity="0.85"/>
+              <path d="M 40 120 Q 100 100 160 120 T 250 120" stroke="#448aff" stroke-opacity="0.85"/>
+              <path d="M 40 160 Q 100 140 160 160 T 250 160" stroke="#ff6d00" stroke-opacity="0.85"/>
+              <path d="M 40 200 Q 100 180 160 200 T 250 200" stroke="#ff4081" stroke-opacity="0.85"/>
+            </g>
+            <g>
+              <circle cx="40" cy="80"  r="5" fill="#ffd600"/>
+              <circle cx="40" cy="120" r="5" fill="#448aff"/>
+              <circle cx="40" cy="160" r="5" fill="#ff6d00"/>
+              <circle cx="40" cy="200" r="5" fill="#ff4081"/>
+              <circle cx="250" cy="80"  r="5" fill="#ffd600"/>
+              <circle cx="250" cy="120" r="5" fill="#448aff"/>
+              <circle cx="250" cy="160" r="5" fill="#ff6d00"/>
+              <circle cx="250" cy="200" r="5" fill="#ff4081"/>
+            </g>
+            <text x="140" y="250" text-anchor="middle" font-family="DM Mono, monospace" font-size="8" fill="#686873" letter-spacing="3">FLOWS IN PARALLEL</text>
           </svg>
-          <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none"></div>
-          <div class="absolute bottom-4 left-4 font-mono text-[9px] uppercase tracking-wider bg-black/90 px-2.5 py-1 text-calendar border border-borderDark">
-            Central Command Tower
-          </div>
-        </div>
-
-        <div class="absolute w-56 sm:w-64 aspect-[9/19] bg-bgCard border-4 border-neutral-800 rounded-[2.2rem] shadow-2xl overflow-hidden transform translate-x-28 translate-y-12 rotate-6 transition duration-300 hover:rotate-0 hover:z-30 group">
-          <svg class="illus" viewBox="0 0 240 510" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
-            <rect width="240" height="510" fill="#0f0f12"/>
-            <text x="18" y="40" font-family="Bebas Neue, sans-serif" font-size="18" fill="#fff" letter-spacing="2">SYNC</text>
-            <text x="18" y="56" font-family="DM Mono, monospace" font-size="7" fill="#686873" letter-spacing="2">// ASYNC TIMELINE</text>
-            <line x1="32" y1="80" x2="32" y2="490" stroke="#1a1a22" stroke-width="1"/>
-            <circle cx="32" cy="100" r="6" fill="#ff66b2"/>
-            <rect x="50" y="86" width="170" height="40" rx="6" fill="#0f0f12" stroke="#1a1a22"/>
-            <text x="60" y="102" font-family="DM Mono, monospace" font-size="7" fill="#ff66b2" letter-spacing="1">06:30 · CYCLE LOG</text>
-            <text x="60" y="118" font-family="Bebas Neue, sans-serif" font-size="12" fill="#fff">Day 12 logged</text>
-            <circle cx="32" cy="160" r="6" fill="#00cccc"/>
-            <rect x="50" y="146" width="170" height="40" rx="6" fill="#0f0f12" stroke="#1a1a22"/>
-            <text x="60" y="162" font-family="DM Mono, monospace" font-size="7" fill="#00cccc" letter-spacing="1">07:45 · MEAL</text>
-            <text x="60" y="178" font-family="Bebas Neue, sans-serif" font-size="12" fill="#fff">Breakfast · 420 kcal</text>
-            <circle cx="32" cy="220" r="6" fill="#6a8aff"/>
-            <rect x="50" y="206" width="170" height="40" rx="6" fill="#0f0f12" stroke="#1a1a22"/>
-            <text x="60" y="222" font-family="DM Mono, monospace" font-size="7" fill="#6a8aff" letter-spacing="1">09:00 · CALENDAR</text>
-            <text x="60" y="238" font-family="Bebas Neue, sans-serif" font-size="12" fill="#fff">Team review</text>
-            <circle cx="32" cy="280" r="6" fill="#00cc88"/>
-            <rect x="50" y="266" width="170" height="40" rx="6" fill="#0f0f12" stroke="#1a1a22"/>
-            <text x="60" y="282" font-family="DM Mono, monospace" font-size="7" fill="#00cc88" letter-spacing="1">11:20 · FINANCE</text>
-            <text x="60" y="298" font-family="Bebas Neue, sans-serif" font-size="12" fill="#fff">+ R 1 280</text>
-            <circle cx="32" cy="340" r="6" fill="#ff4a4a"/>
-            <rect x="50" y="326" width="170" height="40" rx="6" fill="#0f0f12" stroke="#1a1a22"/>
-            <text x="60" y="342" font-family="DM Mono, monospace" font-size="7" fill="#ff4a4a" letter-spacing="1">17:00 · GYM</text>
-            <text x="60" y="358" font-family="Bebas Neue, sans-serif" font-size="12" fill="#fff">Push · 14 sets</text>
-            <circle cx="32" cy="400" r="6" fill="#ffb03a"/>
-            <rect x="50" y="386" width="170" height="40" rx="6" fill="#0f0f12" stroke="#1a1a22"/>
-            <text x="60" y="402" font-family="DM Mono, monospace" font-size="7" fill="#ffb03a" letter-spacing="1">19:30 · BUDGET</text>
-            <text x="60" y="418" font-family="Bebas Neue, sans-serif" font-size="12" fill="#fff">Groceries · 70%</text>
-            <circle cx="32" cy="460" r="6" fill="#b06aff"/>
-            <rect x="50" y="446" width="170" height="40" rx="6" fill="#0f0f12" stroke="#1a1a22"/>
-            <text x="60" y="462" font-family="DM Mono, monospace" font-size="7" fill="#b06aff" letter-spacing="1">22:00 · ADMIN</text>
-            <text x="60" y="478" font-family="Bebas Neue, sans-serif" font-size="12" fill="#fff">Team sync sent</text>
-          </svg>
-          <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none"></div>
-          <div class="absolute bottom-4 left-4 font-mono text-[9px] uppercase tracking-wider bg-black/90 px-2.5 py-1 text-cycle border border-borderDark">
-            Asynchronous Operations
-          </div>
         </div>
       </div>
     </div>
@@ -266,18 +236,32 @@
           <p class="font-barlow text-sm text-neutral-400 font-light leading-relaxed">
             Gain full clarity over cash movement. Monitor macro liquidity shifts, tracking structural financial targets, and record historical ledger transactions seamlessly.
           </p>
-          <div class="rounded-xl overflow-hidden border border-borderDark h-44 bg-neutral-950">
-            <svg class="illus" viewBox="0 0 400 200" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
-              <rect width="400" height="200" fill="#0a0a0c"/>
-              <text x="18" y="28" font-family="DM Mono, monospace" font-size="9" fill="#00cc88" letter-spacing="2">// LIQUIDITY</text>
-              <text x="18" y="64" font-family="Bebas Neue, sans-serif" font-size="34" fill="#fff">R 24 580.40</text>
-              <text x="18" y="82" font-family="DM Mono, monospace" font-size="8" fill="#686873">+ R 1 280 THIS WEEK</text>
-              <polyline points="20,170 60,160 100,155 140,140 180,138 220,120 260,115 300,98 340,88 380,72" fill="none" stroke="#00cc88" stroke-width="2"/>
-              <polyline points="20,180 60,178 100,175 140,168 180,165 220,160 260,156 300,150 340,144 380,138" fill="none" stroke="#00cc88" stroke-width="1" stroke-opacity="0.4"/>
-              <line x1="20" y1="190" x2="380" y2="190" stroke="#1a1a22"/>
-              <g font-family="DM Mono, monospace" font-size="7" fill="#686873">
-                <text x="20" y="200">M</text><text x="76" y="200">T</text><text x="132" y="200">W</text>
-                <text x="188" y="200">T</text><text x="244" y="200">F</text><text x="300" y="200">S</text><text x="356" y="200">S</text>
+          <div class="rounded-xl overflow-hidden border border-borderDark h-44 bg-neutral-950 relative">
+            <svg class="illus" viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <radialGradient id="fg" cx="0.5" cy="0.5" r="0.7">
+                  <stop offset="0" stop-color="#ffd600" stop-opacity="0.18"/>
+                  <stop offset="1" stop-color="#ffd600" stop-opacity="0"/>
+                </radialGradient>
+              </defs>
+              <rect width="320" height="180" fill="url(#fg)"/>
+              <g transform="translate(160 90)">
+                <circle r="48" fill="none" stroke="#ffd600" stroke-opacity="0.35" stroke-width="1.5"/>
+                <circle r="32" fill="none" stroke="#ffd600" stroke-opacity="0.55" stroke-width="1.5"/>
+                <circle r="18" fill="#ffd600" fill-opacity="0.12" stroke="#ffd600"/>
+                <text y="6" text-anchor="middle" font-family="Bebas Neue, sans-serif" font-size="22" fill="#ffd600">R</text>
+              </g>
+              <g stroke="#ffd600" stroke-opacity="0.6" stroke-width="1.5" stroke-linecap="round">
+                <line x1="60"  y1="40"  x2="120" y2="60"/>
+                <line x1="200" y1="60"  x2="260" y2="40"/>
+                <line x1="60"  y1="140" x2="120" y2="120"/>
+                <line x1="200" y1="120" x2="260" y2="140"/>
+              </g>
+              <g fill="#ffd600">
+                <circle cx="60"  cy="40"  r="3"/>
+                <circle cx="260" cy="40"  r="3"/>
+                <circle cx="60"  cy="140" r="3"/>
+                <circle cx="260" cy="140" r="3"/>
               </g>
             </svg>
           </div>
@@ -292,31 +276,47 @@
           <p class="font-barlow text-sm text-neutral-400 font-light leading-relaxed">
             Ditch overlapping schedules. The bold calendar system layers distinct color indicators to ensure group event distributions stay clear and fully synchronized.
           </p>
-          <div class="rounded-xl overflow-hidden border border-borderDark h-44 bg-neutral-950">
-            <svg class="illus" viewBox="0 0 400 200" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
-              <rect width="400" height="200" fill="#0a0a0c"/>
-              <text x="18" y="24" font-family="DM Mono, monospace" font-size="9" fill="#6a8aff" letter-spacing="2">// MAY · 2026</text>
-              <g font-family="DM Mono, monospace" font-size="7" fill="#686873">
-                <text x="22" y="44">M</text><text x="74" y="44">T</text><text x="126" y="44">W</text>
-                <text x="178" y="44">T</text><text x="230" y="44">F</text><text x="282" y="44">S</text><text x="334" y="44">S</text>
+          <div class="rounded-xl overflow-hidden border border-borderDark h-44 bg-neutral-950 relative">
+            <svg class="illus" viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <radialGradient id="cg" cx="0.5" cy="0.5" r="0.7">
+                  <stop offset="0" stop-color="#448aff" stop-opacity="0.18"/>
+                  <stop offset="1" stop-color="#448aff" stop-opacity="0"/>
+                </radialGradient>
+              </defs>
+              <rect width="320" height="180" fill="url(#cg)"/>
+              <g transform="translate(80 50)">
+                <rect width="160" height="100" rx="10" fill="none" stroke="#448aff" stroke-opacity="0.5" stroke-width="1.5"/>
+                <line x1="0" y1="22" x2="160" y2="22" stroke="#448aff" stroke-opacity="0.5"/>
+                <g fill="#448aff" fill-opacity="0.4">
+                  <rect x="8"   y="6"  width="10" height="10" rx="2"/>
+                  <rect x="34"  y="6"  width="10" height="10" rx="2"/>
+                  <rect x="60"  y="6"  width="10" height="10" rx="2"/>
+                  <rect x="86"  y="6"  width="10" height="10" rx="2"/>
+                  <rect x="112" y="6"  width="10" height="10" rx="2"/>
+                  <rect x="138" y="6"  width="10" height="10" rx="2"/>
+                </g>
+                <g>
+                  <circle cx="13"  cy="42" r="3" fill="#ffd600"/>
+                  <circle cx="39"  cy="42" r="3" fill="#1a1a22"/>
+                  <circle cx="65"  cy="42" r="3" fill="#ff4081"/>
+                  <circle cx="91"  cy="42" r="3" fill="#448aff"/>
+                  <circle cx="117" cy="42" r="3" fill="#1a1a22"/>
+                  <circle cx="143" cy="42" r="3" fill="#ff3b3b"/>
+                  <circle cx="13"  cy="62" r="3" fill="#1a1a22"/>
+                  <circle cx="39"  cy="62" r="3" fill="#448aff"/>
+                  <circle cx="65"  cy="62" r="3" fill="#ffd600"/>
+                  <circle cx="91"  cy="62" r="3" fill="#448aff" stroke="#fff" stroke-width="1"/>
+                  <circle cx="117" cy="62" r="3" fill="#ff6d00"/>
+                  <circle cx="143" cy="62" r="3" fill="#1a1a22"/>
+                  <circle cx="13"  cy="82" r="3" fill="#d67bff"/>
+                  <circle cx="39"  cy="82" r="3" fill="#1a1a22"/>
+                  <circle cx="65"  cy="82" r="3" fill="#1a1a22"/>
+                  <circle cx="91"  cy="82" r="3" fill="#ff4081"/>
+                  <circle cx="117" cy="82" r="3" fill="#448aff"/>
+                  <circle cx="143" cy="82" r="3" fill="#ffd600"/>
+                </g>
               </g>
-              <g font-family="Bebas Neue, sans-serif" font-size="14" fill="#fff">
-                <text x="18" y="70">04</text><text x="70" y="70">05</text><text x="122" y="70">06</text><text x="174" y="70">07</text><text x="226" y="70">08</text><text x="278" y="70">09</text><text x="330" y="70">10</text>
-                <text x="18" y="120">11</text><text x="70" y="120">12</text><text x="122" y="120">13</text><text x="174" y="120">14</text><text x="226" y="120">15</text><text x="278" y="120">16</text><text x="330" y="120">17</text>
-                <text x="18" y="170">18</text><text x="70" y="170">19</text><text x="122" y="170">20</text><text x="174" y="170">21</text><text x="226" y="170">22</text><text x="278" y="170">23</text><text x="330" y="170">24</text>
-              </g>
-              <circle cx="32" cy="78" r="3" fill="#6a8aff"/>
-              <circle cx="84" cy="78" r="3" fill="#ffb03a"/>
-              <circle cx="92" cy="78" r="3" fill="#ff66b2"/>
-              <circle cx="188" cy="78" r="3" fill="#00cc88"/>
-              <circle cx="32" cy="128" r="3" fill="#ff4a4a"/>
-              <circle cx="136" cy="128" r="3" fill="#6a8aff"/>
-              <circle cx="240" cy="128" r="3" fill="#00cccc"/>
-              <circle cx="248" cy="128" r="3" fill="#b06aff"/>
-              <circle cx="84" cy="178" r="3" fill="#6a8aff"/>
-              <circle cx="188" cy="178" r="3" fill="#ffb03a"/>
-              <circle cx="292" cy="178" r="3" fill="#ff66b2"/>
-              <rect x="60" y="100" width="48" height="22" rx="3" fill="#6a8aff" fill-opacity="0.18" stroke="#6a8aff" stroke-opacity="0.5"/>
             </svg>
           </div>
         </div>
@@ -330,30 +330,28 @@
           <p class="font-barlow text-sm text-neutral-400 font-light leading-relaxed">
             Set real-time limits and control dynamic outlays. Build dedicated category envelopes to make sure household resources match your high-priority life targets.
           </p>
-          <div class="rounded-xl overflow-hidden border border-borderDark h-44 bg-neutral-950">
-            <svg class="illus" viewBox="0 0 400 200" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
-              <rect width="400" height="200" fill="#0a0a0c"/>
-              <text x="18" y="24" font-family="DM Mono, monospace" font-size="9" fill="#ffb03a" letter-spacing="2">// ENVELOPES</text>
-              <g font-family="DM Mono, monospace" font-size="8" fill="#fff">
-                <text x="18" y="58">GROCERIES</text>
-                <text x="18" y="98">RENT</text>
-                <text x="18" y="138">TRANSPORT</text>
-                <text x="18" y="178">LEISURE</text>
+          <div class="rounded-xl overflow-hidden border border-borderDark h-44 bg-neutral-950 relative">
+            <svg class="illus" viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <radialGradient id="bg3" cx="0.5" cy="0.5" r="0.7">
+                  <stop offset="0" stop-color="#ff6d00" stop-opacity="0.18"/>
+                  <stop offset="1" stop-color="#ff6d00" stop-opacity="0"/>
+                </radialGradient>
+              </defs>
+              <rect width="320" height="180" fill="url(#bg3)"/>
+              <g transform="translate(60 50)">
+                <g stroke="#ff6d00" stroke-opacity="0.4" stroke-width="1">
+                  <line x1="0"   y1="0"  x2="200" y2="0"/>
+                  <line x1="0"   y1="20" x2="200" y2="20"/>
+                  <line x1="0"   y1="40" x2="200" y2="40"/>
+                  <line x1="0"   y1="60" x2="200" y2="60"/>
+                  <line x1="0"   y1="80" x2="200" y2="80"/>
+                </g>
+                <rect x="0" y="6"   width="140" height="8" rx="4" fill="#ff6d00"/>
+                <rect x="0" y="26"  width="90"  height="8" rx="4" fill="#ff6d00" fill-opacity="0.7"/>
+                <rect x="0" y="46"  width="180" height="8" rx="4" fill="#ff6d00" fill-opacity="0.5"/>
+                <rect x="0" y="66"  width="60"  height="8" rx="4" fill="#ff6d00" fill-opacity="0.8"/>
               </g>
-              <g font-family="DM Mono, monospace" font-size="7" fill="#686873">
-                <text x="340" y="58">70%</text>
-                <text x="340" y="98">95%</text>
-                <text x="340" y="138">42%</text>
-                <text x="340" y="178">88%</text>
-              </g>
-              <rect x="100" y="50" width="220" height="8" rx="2" fill="#1a1a22"/>
-              <rect x="100" y="50" width="154" height="8" rx="2" fill="#ffb03a"/>
-              <rect x="100" y="90" width="220" height="8" rx="2" fill="#1a1a22"/>
-              <rect x="100" y="90" width="209" height="8" rx="2" fill="#ff4a4a"/>
-              <rect x="100" y="130" width="220" height="8" rx="2" fill="#1a1a22"/>
-              <rect x="100" y="130" width="92" height="8" rx="2" fill="#00cc88"/>
-              <rect x="100" y="170" width="220" height="8" rx="2" fill="#1a1a22"/>
-              <rect x="100" y="170" width="194" height="8" rx="2" fill="#ffb03a"/>
             </svg>
           </div>
         </div>
@@ -367,29 +365,31 @@
           <p class="font-barlow text-sm text-neutral-400 font-light leading-relaxed">
             Log athletic physical output, manage heavy working sets, and plot muscle matrix growth profiles smoothly over time with no clutter in your way.
           </p>
-          <div class="rounded-xl overflow-hidden border border-borderDark h-44 bg-neutral-950">
-            <svg class="illus" viewBox="0 0 400 200" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
-              <rect width="400" height="200" fill="#0a0a0c"/>
-              <text x="18" y="24" font-family="DM Mono, monospace" font-size="9" fill="#ff4a4a" letter-spacing="2">// PUSH DAY · WK 12</text>
-              <text x="18" y="56" font-family="Bebas Neue, sans-serif" font-size="32" fill="#fff">14</text>
-              <text x="60" y="56" font-family="DM Mono, monospace" font-size="9" fill="#686873">SETS</text>
-              <text x="100" y="56" font-family="Bebas Neue, sans-serif" font-size="32" fill="#fff">4.2t</text>
-              <text x="160" y="56" font-family="DM Mono, monospace" font-size="9" fill="#686873">VOL</text>
-              <g>
-                <rect x="20" y="120" width="22" height="50" fill="#ff4a4a" fill-opacity="0.4"/>
-                <rect x="50" y="100" width="22" height="70" fill="#ff4a4a" fill-opacity="0.55"/>
-                <rect x="80" y="85" width="22" height="85" fill="#ff4a4a" fill-opacity="0.7"/>
-                <rect x="110" y="105" width="22" height="65" fill="#ff4a4a" fill-opacity="0.5"/>
-                <rect x="140" y="78" width="22" height="92" fill="#ff4a4a" fill-opacity="0.8"/>
-                <rect x="170" y="92" width="22" height="78" fill="#ff4a4a" fill-opacity="0.65"/>
-                <rect x="200" y="70" width="22" height="100" fill="#ff4a4a"/>
-                <rect x="230" y="88" width="22" height="82" fill="#ff4a4a" fill-opacity="0.7"/>
-                <rect x="260" y="74" width="22" height="96" fill="#ff4a4a" fill-opacity="0.85"/>
-                <rect x="290" y="68" width="22" height="102" fill="#ff4a4a"/>
-                <rect x="320" y="80" width="22" height="90" fill="#ff4a4a" fill-opacity="0.75"/>
-                <rect x="350" y="60" width="22" height="110" fill="#ff4a4a"/>
+          <div class="rounded-xl overflow-hidden border border-borderDark h-44 bg-neutral-950 relative">
+            <svg class="illus" viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <radialGradient id="bg4" cx="0.5" cy="0.5" r="0.7">
+                  <stop offset="0" stop-color="#ff4081" stop-opacity="0.18"/>
+                  <stop offset="1" stop-color="#ff4081" stop-opacity="0"/>
+                </radialGradient>
+              </defs>
+              <rect width="320" height="180" fill="url(#bg4)"/>
+              <g transform="translate(110 90)" stroke="#ff4081" stroke-width="6" stroke-linecap="round">
+                <line x1="-50" y1="0" x2="50" y2="0"/>
+                <line x1="-50" y1="-20" x2="-50" y2="20"/>
+                <line x1="50"  y1="-20" x2="50"  y2="20"/>
+                <line x1="-60" y1="-12" x2="-60" y2="12"/>
+                <line x1="60"  y1="-12" x2="60"  y2="12"/>
               </g>
-              <line x1="20" y1="172" x2="380" y2="172" stroke="#1a1a22"/>
+              <g transform="translate(110 90)" fill="#ff4081">
+                <circle cx="-50" cy="0" r="3"/>
+                <circle cx="50"  cy="0" r="3"/>
+              </g>
+              <g transform="translate(220 90)">
+                <circle r="32" fill="none" stroke="#ff4081" stroke-opacity="0.3" stroke-width="6"/>
+                <circle r="32" fill="none" stroke="#ff4081" stroke-width="6" stroke-dasharray="140 201" transform="rotate(-90)" stroke-linecap="round"/>
+                <text y="6" text-anchor="middle" font-family="Bebas Neue, sans-serif" font-size="18" fill="#fff">PR</text>
+              </g>
             </svg>
           </div>
         </div>
@@ -403,25 +403,21 @@
           <p class="font-barlow text-sm text-neutral-400 font-light leading-relaxed">
             Lock in your baseline macro-nutritional goals, build dynamic food schedules, and log metabolic calorie counts seamlessly to keep health velocity consistent.
           </p>
-          <div class="rounded-xl overflow-hidden border border-borderDark h-44 bg-neutral-950">
-            <svg class="illus" viewBox="0 0 400 200" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
-              <rect width="400" height="200" fill="#0a0a0c"/>
-              <text x="18" y="24" font-family="DM Mono, monospace" font-size="9" fill="#00cccc" letter-spacing="2">// DAILY FUEL</text>
-              <g transform="translate(110, 105)">
-                <circle r="60" fill="none" stroke="#1a1a22" stroke-width="14"/>
-                <circle r="60" fill="none" stroke="#00cccc" stroke-width="14" stroke-dasharray="150 377" stroke-dashoffset="0" transform="rotate(-90)"/>
-                <circle r="60" fill="none" stroke="#ffb03a" stroke-width="14" stroke-dasharray="100 377" stroke-dashoffset="-150" transform="rotate(-90)"/>
-                <circle r="60" fill="none" stroke="#ff66b2" stroke-width="14" stroke-dasharray="80 377" stroke-dashoffset="-250" transform="rotate(-90)"/>
-                <text x="0" y="-2" font-family="Bebas Neue, sans-serif" font-size="26" fill="#fff" text-anchor="middle">1840</text>
-                <text x="0" y="14" font-family="DM Mono, monospace" font-size="7" fill="#686873" text-anchor="middle">KCAL</text>
-              </g>
-              <g font-family="DM Mono, monospace" font-size="9" fill="#fff">
-                <circle cx="220" cy="60" r="4" fill="#00cccc"/>
-                <text x="232" y="64">PROTEIN 165g</text>
-                <circle cx="220" cy="100" r="4" fill="#ffb03a"/>
-                <text x="232" y="104">CARBS 180g</text>
-                <circle cx="220" cy="140" r="4" fill="#ff66b2"/>
-                <text x="232" y="144">FAT 62g</text>
+          <div class="rounded-xl overflow-hidden border border-borderDark h-44 bg-neutral-950 relative">
+            <svg class="illus" viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <radialGradient id="bg5" cx="0.5" cy="0.5" r="0.7">
+                  <stop offset="0" stop-color="#d67bff" stop-opacity="0.18"/>
+                  <stop offset="1" stop-color="#d67bff" stop-opacity="0"/>
+                </radialGradient>
+              </defs>
+              <rect width="320" height="180" fill="url(#bg5)"/>
+              <g transform="translate(160 90)">
+                <circle r="50" fill="none" stroke="#1a1a22" stroke-width="10"/>
+                <circle r="50" fill="none" stroke="#d67bff" stroke-width="10" stroke-dasharray="140 314" stroke-linecap="round" transform="rotate(-90)"/>
+                <circle r="50" fill="none" stroke="#ffd600" stroke-width="10" stroke-dasharray="80 314" stroke-dashoffset="-140" stroke-linecap="round" transform="rotate(-90)"/>
+                <circle r="50" fill="none" stroke="#ff4081" stroke-width="10" stroke-dasharray="50 314" stroke-dashoffset="-220" stroke-linecap="round" transform="rotate(-90)"/>
+                <text y="6" text-anchor="middle" font-family="Bebas Neue, sans-serif" font-size="22" fill="#fff">P · C · F</text>
               </g>
             </svg>
           </div>
@@ -436,28 +432,28 @@
           <p class="font-barlow text-sm text-neutral-400 font-light leading-relaxed">
             Monitor fundamental biometric lifecycles asynchronously alongside structural tasks to ensure teams and partners maintain continuous sync seamlessly.
           </p>
-          <div class="rounded-xl overflow-hidden border border-borderDark h-44 bg-neutral-950">
-            <svg class="illus" viewBox="0 0 400 200" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
-              <rect width="400" height="200" fill="#0a0a0c"/>
-              <text x="18" y="24" font-family="DM Mono, monospace" font-size="9" fill="#ff66b2" letter-spacing="2">// CYCLE · DAY 12 / 28</text>
-              <g transform="translate(200,120)">
-                <circle r="70" fill="none" stroke="#1a1a22" stroke-width="2"/>
-                <circle r="70" fill="none" stroke="#ff66b2" stroke-width="3" stroke-dasharray="188 440" transform="rotate(-90)"/>
-                <text x="0" y="-4" font-family="Bebas Neue, sans-serif" font-size="28" fill="#fff" text-anchor="middle">12</text>
-                <text x="0" y="16" font-family="DM Mono, monospace" font-size="7" fill="#ff66b2" text-anchor="middle">OF 28 DAYS</text>
+          <div class="rounded-xl overflow-hidden border border-borderDark h-44 bg-neutral-950 relative">
+            <svg class="illus" viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <radialGradient id="bg6" cx="0.5" cy="0.5" r="0.7">
+                  <stop offset="0" stop-color="#ff3b3b" stop-opacity="0.18"/>
+                  <stop offset="1" stop-color="#ff3b3b" stop-opacity="0"/>
+                </radialGradient>
+              </defs>
+              <rect width="320" height="180" fill="url(#bg6)"/>
+              <g transform="translate(160 90)">
+                <circle r="56" fill="none" stroke="#1a1a22" stroke-width="2"/>
+                <g stroke-width="6" stroke-linecap="round" fill="none">
+                  <path d="M 0 -56 A 56 56 0 0 1 33 -45" stroke="#ff3b3b"/>
+                  <path d="M 33 -45 A 56 56 0 0 1 53 -16" stroke="#ff3b3b" stroke-opacity="0.7"/>
+                  <path d="M 53 -16 A 56 56 0 0 1 53 16"  stroke="#1de9b6" stroke-opacity="0.7"/>
+                  <path d="M 53 16  A 56 56 0 0 1 33 45"  stroke="#1de9b6"/>
+                  <path d="M 33 45  A 56 56 0 0 1 -33 45" stroke="#448aff" stroke-opacity="0.5"/>
+                  <path d="M -33 45 A 56 56 0 0 1 -56 0"  stroke="#448aff" stroke-opacity="0.7"/>
+                  <path d="M -56 0  A 56 56 0 0 1 0 -56"  stroke="#ff3b3b" stroke-opacity="0.4"/>
+                </g>
+                <path d="M 0 -10 C 0 -10 -8 0 -8 5 a 8 8 0 0 0 16 0 C 8 0 0 -10 0 -10 z" fill="#ff3b3b"/>
               </g>
-              <g>
-                <circle cx="130" cy="80" r="3" fill="#ff66b2"/>
-                <circle cx="142" cy="60" r="3" fill="#ff66b2" fill-opacity="0.7"/>
-                <circle cx="158" cy="48" r="3" fill="#ff66b2" fill-opacity="0.5"/>
-                <circle cx="178" cy="44" r="3" fill="#6a8aff" fill-opacity="0.7"/>
-                <circle cx="202" cy="44" r="3" fill="#6a8aff"/>
-                <circle cx="222" cy="48" r="3" fill="#6a8aff" fill-opacity="0.7"/>
-                <circle cx="242" cy="60" r="3" fill="#00cc88" fill-opacity="0.7"/>
-                <circle cx="258" cy="80" r="3" fill="#00cc88"/>
-                <circle cx="270" cy="105" r="3" fill="#00cc88" fill-opacity="0.7"/>
-              </g>
-              <text x="120" y="180" font-family="DM Mono, monospace" font-size="7" fill="#ff66b2">PHASE · FOLLICULAR</text>
             </svg>
           </div>
         </div>
@@ -488,58 +484,42 @@
               Perfect for group leads, parents, or coaches. Oversee systemwide visibility rules, configure shared multi-user permissions, and organize global event layouts across the network effortlessly.
             </p>
           </div>
-          <div class="rounded-2xl overflow-hidden border border-borderDark bg-neutral-950 shadow-2xl h-72">
-            <svg class="illus" viewBox="0 0 500 280" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
-              <rect width="500" height="280" fill="#0a0a0c"/>
-              <text x="22" y="32" font-family="DM Mono, monospace" font-size="9" fill="#b06aff" letter-spacing="2">// TEAM MATRIX</text>
-              <text x="22" y="62" font-family="Bebas Neue, sans-serif" font-size="22" fill="#fff">CORE GROUP · 6 MEMBERS</text>
-              <g transform="translate(22,86)">
-                <rect x="0" y="0" width="220" height="42" rx="6" fill="#0f0f12" stroke="#1a1a22"/>
-                <circle cx="22" cy="21" r="12" fill="#b06aff" fill-opacity="0.25" stroke="#b06aff"/>
-                <text x="22" y="25" font-family="Bebas Neue, sans-serif" font-size="13" fill="#b06aff" text-anchor="middle">SK</text>
-                <text x="44" y="20" font-family="DM Mono, monospace" font-size="9" fill="#fff">Schalk Koen</text>
-                <text x="44" y="34" font-family="DM Mono, monospace" font-size="7" fill="#686873">OWNER · ALL ACCESS</text>
-                <text x="200" y="25" font-family="DM Mono, monospace" font-size="7" fill="#b06aff" text-anchor="end">●●●●●●</text>
+          <div class="rounded-2xl overflow-hidden border border-borderDark bg-neutral-950 shadow-2xl h-56 relative">
+            <svg class="illus" viewBox="0 0 500 240" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <radialGradient id="bgA1" cx="0.5" cy="0.5" r="0.7">
+                  <stop offset="0" stop-color="#00ff41" stop-opacity="0.12"/>
+                  <stop offset="1" stop-color="#00ff41" stop-opacity="0"/>
+                </radialGradient>
+              </defs>
+              <rect width="500" height="240" fill="url(#bgA1)"/>
+              <g transform="translate(250 120)">
+                <circle r="32" fill="#00ff41" fill-opacity="0.12" stroke="#00ff41"/>
+                <text y="6" text-anchor="middle" font-family="Bebas Neue, sans-serif" font-size="18" fill="#00ff41">ADMIN</text>
               </g>
-              <g transform="translate(22,138)">
-                <rect x="0" y="0" width="220" height="42" rx="6" fill="#0f0f12" stroke="#1a1a22"/>
-                <circle cx="22" cy="21" r="12" fill="#6a8aff" fill-opacity="0.25" stroke="#6a8aff"/>
-                <text x="22" y="25" font-family="Bebas Neue, sans-serif" font-size="13" fill="#6a8aff" text-anchor="middle">MJ</text>
-                <text x="44" y="20" font-family="DM Mono, monospace" font-size="9" fill="#fff">Marie Jansen</text>
-                <text x="44" y="34" font-family="DM Mono, monospace" font-size="7" fill="#686873">PARTNER · SHARED</text>
-                <text x="200" y="25" font-family="DM Mono, monospace" font-size="7" fill="#6a8aff" text-anchor="end">●●●●●○</text>
+              <g stroke="#00ff41" stroke-opacity="0.35" stroke-width="1.5" fill="none">
+                <line x1="250" y1="88"  x2="120" y2="50"/>
+                <line x1="250" y1="88"  x2="250" y2="40"/>
+                <line x1="250" y1="88"  x2="380" y2="50"/>
+                <line x1="250" y1="152" x2="120" y2="200"/>
+                <line x1="250" y1="152" x2="250" y2="210"/>
+                <line x1="250" y1="152" x2="380" y2="200"/>
               </g>
-              <g transform="translate(22,190)">
-                <rect x="0" y="0" width="220" height="42" rx="6" fill="#0f0f12" stroke="#1a1a22"/>
-                <circle cx="22" cy="21" r="12" fill="#00cc88" fill-opacity="0.25" stroke="#00cc88"/>
-                <text x="22" y="25" font-family="Bebas Neue, sans-serif" font-size="13" fill="#00cc88" text-anchor="middle">DK</text>
-                <text x="44" y="20" font-family="DM Mono, monospace" font-size="9" fill="#fff">Daniel Koen</text>
-                <text x="44" y="34" font-family="DM Mono, monospace" font-size="7" fill="#686873">CHILD · LIMITED</text>
-                <text x="200" y="25" font-family="DM Mono, monospace" font-size="7" fill="#00cc88" text-anchor="end">●●○○○○</text>
+              <g>
+                <circle cx="120" cy="50"  r="18" fill="#ffd600" fill-opacity="0.15" stroke="#ffd600"/>
+                <circle cx="250" cy="40"  r="18" fill="#448aff" fill-opacity="0.15" stroke="#448aff"/>
+                <circle cx="380" cy="50"  r="18" fill="#ff6d00" fill-opacity="0.15" stroke="#ff6d00"/>
+                <circle cx="120" cy="200" r="18" fill="#ff4081" fill-opacity="0.15" stroke="#ff4081"/>
+                <circle cx="250" cy="210" r="18" fill="#d67bff" fill-opacity="0.15" stroke="#d67bff"/>
+                <circle cx="380" cy="200" r="18" fill="#ff3b3b" fill-opacity="0.15" stroke="#ff3b3b"/>
               </g>
-              <g transform="translate(266,86)">
-                <rect x="0" y="0" width="212" height="146" rx="6" fill="#0f0f12" stroke="#1a1a22"/>
-                <text x="14" y="22" font-family="DM Mono, monospace" font-size="8" fill="#b06aff" letter-spacing="1">// MODULE FLAGS</text>
-                <g font-family="DM Mono, monospace" font-size="8" fill="#fff">
-                  <text x="14" y="42">FINANCES</text>
-                  <text x="14" y="60">CALENDAR</text>
-                  <text x="14" y="78">BUDGET</text>
-                  <text x="14" y="96">GYM</text>
-                  <text x="14" y="114">MEALS</text>
-                  <text x="14" y="132">CYCLE</text>
-                </g>
-                <g font-family="DM Mono, monospace" font-size="7" text-anchor="end">
-                  <text x="196" y="42" fill="#00cc88">SHARED</text>
-                  <text x="196" y="60" fill="#00cc88">SHARED</text>
-                  <text x="196" y="78" fill="#00cc88">SHARED</text>
-                  <text x="196" y="96" fill="#ffb03a">PRIVATE</text>
-                  <text x="196" y="114" fill="#00cc88">SHARED</text>
-                  <text x="196" y="132" fill="#ffb03a">PRIVATE</text>
-                </g>
-              </g>
-              <g transform="translate(266,238)">
-                <rect x="0" y="0" width="212" height="32" rx="6" fill="#b06aff" fill-opacity="0.12" stroke="#b06aff" stroke-opacity="0.4"/>
-                <text x="106" y="20" font-family="DM Mono, monospace" font-size="8" fill="#b06aff" text-anchor="middle" letter-spacing="2">SAVE CONFIGURATION</text>
+              <g font-family="DM Mono, monospace" font-size="8" fill="#686873" letter-spacing="1.5" text-anchor="middle">
+                <text x="120" y="20">FIN</text>
+                <text x="250" y="10">CAL</text>
+                <text x="380" y="20">BUD</text>
+                <text x="120" y="232">GYM</text>
+                <text x="250" y="232">MEAL</text>
+                <text x="380" y="232">CYCLE</text>
               </g>
             </svg>
           </div>
@@ -556,49 +536,51 @@
               Your own personal dashboard profile space. Manage individual credentials securely, configure exactly what data maps get shared with partners, and adjust custom dashboard view colors cleanly.
             </p>
           </div>
-          <div class="rounded-2xl overflow-hidden border border-borderDark bg-neutral-950 shadow-2xl h-72">
-            <svg class="illus" viewBox="0 0 500 280" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
-              <rect width="500" height="280" fill="#0a0a0c"/>
-              <text x="22" y="32" font-family="DM Mono, monospace" font-size="9" fill="#e5b800" letter-spacing="2">// SOVEREIGN PROFILE</text>
-              <g transform="translate(22,52)">
-                <circle cx="42" cy="42" r="36" fill="#e5b800" fill-opacity="0.15" stroke="#e5b800"/>
-                <text x="42" y="48" font-family="Bebas Neue, sans-serif" font-size="28" fill="#e5b800" text-anchor="middle">SK</text>
-                <text x="96" y="34" font-family="Bebas Neue, sans-serif" font-size="20" fill="#fff">SCHALK KOEN</text>
-                <text x="96" y="50" font-family="DM Mono, monospace" font-size="8" fill="#686873">sovereign · since 2026</text>
-                <text x="96" y="68" font-family="DM Mono, monospace" font-size="8" fill="#e5b800">● VERIFIED · 2FA ENABLED</text>
+          <div class="rounded-2xl overflow-hidden border border-borderDark bg-neutral-950 shadow-2xl h-56 relative">
+            <svg class="illus" viewBox="0 0 500 240" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <radialGradient id="bgP1" cx="0.5" cy="0.5" r="0.7">
+                  <stop offset="0" stop-color="#00ff41" stop-opacity="0.12"/>
+                  <stop offset="1" stop-color="#00ff41" stop-opacity="0"/>
+                </radialGradient>
+              </defs>
+              <rect width="500" height="240" fill="url(#bgP1)"/>
+              <g transform="translate(160 120)">
+                <circle r="48" fill="none" stroke="#00ff41" stroke-opacity="0.4" stroke-width="1.5"/>
+                <circle r="36" fill="#00ff41" fill-opacity="0.1" stroke="#00ff41"/>
+                <circle cx="0" cy="-8"  r="10" fill="none" stroke="#00ff41" stroke-width="2"/>
+                <path d="M -15 18 Q 0 8 15 18" fill="none" stroke="#00ff41" stroke-width="2"/>
               </g>
-              <g transform="translate(22,156)">
-                <text x="0" y="0" font-family="DM Mono, monospace" font-size="8" fill="#e5b800" letter-spacing="2">// SHARE MAP</text>
-                <g font-family="DM Mono, monospace" font-size="8" fill="#fff">
-                  <text x="0" y="20">CALENDAR</text>
-                  <text x="0" y="42">FINANCES</text>
-                  <text x="0" y="64">CYCLE</text>
+              <g transform="translate(280 60)">
+                <text font-family="DM Mono, monospace" font-size="9" fill="#00ff41" letter-spacing="2">// SHARE</text>
+                <g transform="translate(0 18)">
+                  <rect width="32" height="12" rx="6" fill="#00ff41"/>
+                  <circle cx="26" cy="6" r="4" fill="#fff"/>
                 </g>
-                <g>
-                  <rect x="140" y="12" width="40" height="14" rx="7" fill="#00cc88"/>
-                  <circle cx="170" cy="19" r="5" fill="#fff"/>
-                  <rect x="140" y="34" width="40" height="14" rx="7" fill="#1a1a22"/>
-                  <circle cx="148" cy="41" r="5" fill="#686873"/>
-                  <rect x="140" y="56" width="40" height="14" rx="7" fill="#00cc88"/>
-                  <circle cx="170" cy="63" r="5" fill="#fff"/>
+                <g transform="translate(50 18)">
+                  <rect width="32" height="12" rx="6" fill="#1a1a22"/>
+                  <circle cx="6" cy="6" r="4" fill="#686873"/>
+                </g>
+                <g transform="translate(100 18)">
+                  <rect width="32" height="12" rx="6" fill="#00ff41"/>
+                  <circle cx="26" cy="6" r="4" fill="#fff"/>
                 </g>
               </g>
-              <g transform="translate(266,52)">
-                <rect x="0" y="0" width="212" height="200" rx="6" fill="#0f0f12" stroke="#1a1a22"/>
-                <text x="14" y="22" font-family="DM Mono, monospace" font-size="8" fill="#e5b800" letter-spacing="1">// THEME PALETTE</text>
-                <g>
-                  <rect x="14" y="36" width="42" height="42" rx="6" fill="#00cc88"/>
-                  <rect x="62" y="36" width="42" height="42" rx="6" fill="#6a8aff"/>
-                  <rect x="110" y="36" width="42" height="42" rx="6" fill="#ffb03a"/>
-                  <rect x="158" y="36" width="42" height="42" rx="6" fill="#ff4a4a"/>
-                  <rect x="14" y="84" width="42" height="42" rx="6" fill="#00cccc"/>
-                  <rect x="62" y="84" width="42" height="42" rx="6" fill="#ff66b2"/>
-                  <rect x="110" y="84" width="42" height="42" rx="6" fill="#b06aff"/>
-                  <rect x="158" y="84" width="42" height="42" rx="6" fill="#e5b800" stroke="#fff" stroke-width="2"/>
+              <g transform="translate(280 110)">
+                <text font-family="DM Mono, monospace" font-size="9" fill="#00ff41" letter-spacing="2">// THEME</text>
+                <g transform="translate(0 14)">
+                  <rect width="22" height="22" rx="4" fill="#ffd600"/>
+                  <rect x="28" width="22" height="22" rx="4" fill="#448aff"/>
+                  <rect x="56" width="22" height="22" rx="4" fill="#ff6d00"/>
+                  <rect x="84" width="22" height="22" rx="4" fill="#ff4081"/>
+                  <rect x="112" width="22" height="22" rx="4" fill="#d67bff"/>
+                  <rect x="140" width="22" height="22" rx="4" fill="#ff3b3b"/>
+                  <rect x="168" width="22" height="22" rx="4" fill="#00ff41" stroke="#fff" stroke-width="2"/>
                 </g>
-                <text x="14" y="148" font-family="DM Mono, monospace" font-size="8" fill="#e5b800" letter-spacing="1">// CURRENCY</text>
-                <text x="14" y="172" font-family="Bebas Neue, sans-serif" font-size="20" fill="#fff">ZAR · R</text>
-                <text x="14" y="190" font-family="DM Mono, monospace" font-size="7" fill="#686873">en-ZA · 2 DECIMAL</text>
+              </g>
+              <g transform="translate(280 180)">
+                <text font-family="DM Mono, monospace" font-size="9" fill="#00ff41" letter-spacing="2">// CURRENCY</text>
+                <text y="22" font-family="Bebas Neue, sans-serif" font-size="22" fill="#fff">ZAR · USD · EUR · GBP</text>
               </g>
             </svg>
           </div>
@@ -610,74 +592,70 @@
   <section class="py-20 px-6 border-b border-borderDark bg-black relative">
     <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
       <div class="lg:col-span-4 space-y-4">
-        <span class="font-mono text-xs text-meals font-bold uppercase tracking-widest">// VELOCITY CHARTS</span>
-        <h2 class="font-bebas text-4xl sm:text-5xl text-white uppercase tracking-wide">REAL TIME COMPASS ANALYTICS</h2>
+        <span class="font-mono text-xs text-meals font-bold uppercase tracking-widest">// CROSS-MODULE VIEW</span>
+        <h2 class="font-bebas text-4xl sm:text-5xl text-white uppercase tracking-wide">EVERYTHING TALKS TO EVERYTHING.</h2>
         <p class="font-barlow text-base text-neutral-400 font-light leading-relaxed">
-          Legacy turns your raw tracking entries into crisp, immediate historical data streams. Know precisely where your resources flow, how your training progresses, and what tasks require attention instantly.
+          Modules aren't silos. Calendar pulls cycle phase and gym sessions. Budget reconciles against actual finance transactions. Meals log into the same date stream as everything else. One coordinated record, six entry points.
         </p>
       </div>
 
       <div class="lg:col-span-8 grid grid-cols-1 sm:grid-cols-2 gap-6">
-        <div class="rounded-2xl overflow-hidden border border-borderDark bg-bgCard hover:border-neutral-700 transition h-64">
-          <svg class="illus" viewBox="0 0 500 280" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
-            <rect width="500" height="280" fill="#0f0f12"/>
-            <text x="22" y="32" font-family="DM Mono, monospace" font-size="9" fill="#00cccc" letter-spacing="2">// QUARTERLY VELOCITY</text>
-            <g font-family="DM Mono, monospace" font-size="8" fill="#fff">
-              <circle cx="22" cy="52" r="4" fill="#00cc88"/><text x="32" y="56">FINANCES</text>
-              <circle cx="120" cy="52" r="4" fill="#6a8aff"/><text x="130" y="56">CALENDAR</text>
-              <circle cx="220" cy="52" r="4" fill="#ff4a4a"/><text x="230" y="56">GYM</text>
+        <div class="rounded-2xl overflow-hidden border border-borderDark bg-bgCard hover:border-neutral-700 transition h-56 relative">
+          <svg class="illus" viewBox="0 0 500 240" xmlns="http://www.w3.org/2000/svg">
+            <rect width="500" height="240" fill="#0f0f12"/>
+            <g transform="translate(60 120)">
+              <circle r="80" fill="none" stroke="#1a1a22"/>
+              <circle r="55" fill="none" stroke="#1a1a22"/>
+              <circle r="30" fill="none" stroke="#1a1a22"/>
+              <circle cx="0"   cy="-80" r="10" fill="#ffd600"/>
+              <circle cx="70"  cy="-40" r="10" fill="#448aff"/>
+              <circle cx="70"  cy="40"  r="10" fill="#ff6d00"/>
+              <circle cx="0"   cy="80"  r="10" fill="#ff4081"/>
+              <circle cx="-70" cy="40"  r="10" fill="#d67bff"/>
+              <circle cx="-70" cy="-40" r="10" fill="#ff3b3b"/>
             </g>
-            <line x1="22" y1="240" x2="478" y2="240" stroke="#1a1a22"/>
-            <line x1="22" y1="80" x2="22" y2="240" stroke="#1a1a22"/>
-            <polyline points="22,220 80,210 138,200 196,180 254,170 312,148 370,128 428,108 478,90" fill="none" stroke="#00cc88" stroke-width="2.5"/>
-            <polyline points="22,200 80,190 138,180 196,182 254,160 312,140 370,138 428,118 478,108" fill="none" stroke="#6a8aff" stroke-width="2.5"/>
-            <polyline points="22,230 80,220 138,210 196,195 254,200 312,170 370,160 428,140 478,128" fill="none" stroke="#ff4a4a" stroke-width="2.5"/>
-            <g font-family="DM Mono, monospace" font-size="7" fill="#686873">
-              <text x="22" y="258">JAN</text>
-              <text x="80" y="258">FEB</text>
-              <text x="138" y="258">MAR</text>
-              <text x="196" y="258">APR</text>
-              <text x="254" y="258">MAY</text>
-              <text x="312" y="258">JUN</text>
-              <text x="370" y="258">JUL</text>
-              <text x="428" y="258">AUG</text>
-              <text x="470" y="258">SEP</text>
+            <g transform="translate(280 30)" font-family="DM Mono, monospace" font-size="11" fill="#fff">
+              <text>SHARED RECORDS</text>
+              <g font-size="9" fill="#686873" transform="translate(0 22)">
+                <text>1 · partner</text>
+                <text y="20">2 · family</text>
+                <text y="40">3 · team</text>
+                <text y="60">4 · solo</text>
+              </g>
+            </g>
+            <g transform="translate(280 160)">
+              <line x1="0" y1="0"   x2="180" y2="0"   stroke="#448aff"/>
+              <line x1="0" y1="14"  x2="180" y2="14"  stroke="#ff6d00"/>
+              <line x1="0" y1="28"  x2="180" y2="28"  stroke="#ffd600"/>
+              <line x1="0" y1="42"  x2="180" y2="42"  stroke="#ff3b3b"/>
             </g>
           </svg>
         </div>
-        <div class="rounded-2xl overflow-hidden border border-borderDark bg-bgCard hover:border-neutral-700 transition h-64">
-          <svg class="illus" viewBox="0 0 500 280" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
-            <rect width="500" height="280" fill="#0f0f12"/>
-            <text x="22" y="32" font-family="DM Mono, monospace" font-size="9" fill="#ffb03a" letter-spacing="2">// CATEGORY DISTRIBUTION</text>
-            <line x1="22" y1="240" x2="478" y2="240" stroke="#1a1a22"/>
-            <g>
-              <rect x="40"  y="120" width="38" height="120" fill="#00cc88" fill-opacity="0.85"/>
-              <rect x="40"  y="90"  width="38" height="30"  fill="#6a8aff" fill-opacity="0.85"/>
-              <rect x="100" y="150" width="38" height="90"  fill="#00cc88" fill-opacity="0.85"/>
-              <rect x="100" y="110" width="38" height="40"  fill="#6a8aff" fill-opacity="0.85"/>
-              <rect x="160" y="140" width="38" height="100" fill="#00cc88" fill-opacity="0.85"/>
-              <rect x="160" y="80"  width="38" height="60"  fill="#6a8aff" fill-opacity="0.85"/>
-              <rect x="220" y="100" width="38" height="140" fill="#00cc88" fill-opacity="0.85"/>
-              <rect x="220" y="70"  width="38" height="30"  fill="#6a8aff" fill-opacity="0.85"/>
-              <rect x="280" y="130" width="38" height="110" fill="#00cc88" fill-opacity="0.85"/>
-              <rect x="280" y="80"  width="38" height="50"  fill="#6a8aff" fill-opacity="0.85"/>
-              <rect x="340" y="90"  width="38" height="150" fill="#00cc88" fill-opacity="0.85"/>
-              <rect x="340" y="60"  width="38" height="30"  fill="#6a8aff" fill-opacity="0.85"/>
-              <rect x="400" y="110" width="38" height="130" fill="#00cc88" fill-opacity="0.85"/>
-              <rect x="400" y="68"  width="38" height="42"  fill="#6a8aff" fill-opacity="0.85"/>
+        <div class="rounded-2xl overflow-hidden border border-borderDark bg-bgCard hover:border-neutral-700 transition h-56 relative">
+          <svg class="illus" viewBox="0 0 500 240" xmlns="http://www.w3.org/2000/svg">
+            <rect width="500" height="240" fill="#0f0f12"/>
+            <g transform="translate(60 200)">
+              <line x1="0" y1="0" x2="380" y2="0" stroke="#1a1a22"/>
+              <line x1="0" y1="0" x2="0" y2="-160" stroke="#1a1a22"/>
+              <g stroke-width="3" fill="none" stroke-linecap="round">
+                <path d="M 0 -40 Q 60 -50 120 -60 T 240 -70 T 380 -100" stroke="#ffd600"/>
+                <path d="M 0 -60 Q 60 -55 120 -75 T 240 -90 T 380 -120" stroke="#448aff"/>
+                <path d="M 0 -30 Q 60 -45 120 -50 T 240 -80 T 380 -130" stroke="#ff4081"/>
+              </g>
+              <g fill="#fff">
+                <circle cx="0"   cy="-40"  r="3" fill="#ffd600"/>
+                <circle cx="120" cy="-60"  r="3" fill="#ffd600"/>
+                <circle cx="240" cy="-70"  r="3" fill="#ffd600"/>
+                <circle cx="380" cy="-100" r="3" fill="#ffd600"/>
+              </g>
             </g>
-            <g font-family="DM Mono, monospace" font-size="7" fill="#686873">
-              <text x="44" y="258">W1</text>
-              <text x="104" y="258">W2</text>
-              <text x="164" y="258">W3</text>
-              <text x="224" y="258">W4</text>
-              <text x="284" y="258">W5</text>
-              <text x="344" y="258">W6</text>
-              <text x="404" y="258">W7</text>
-            </g>
-            <g font-family="DM Mono, monospace" font-size="8" fill="#fff">
-              <circle cx="350" cy="52" r="4" fill="#00cc88"/><text x="360" y="56">INFLOW</text>
-              <circle cx="410" cy="52" r="4" fill="#6a8aff"/><text x="420" y="56">SCHEDULED</text>
+            <g transform="translate(60 30)" font-family="DM Mono, monospace" font-size="10" fill="#fff">
+              <text>HISTORICAL VELOCITY</text>
+              <g font-size="8" transform="translate(0 18)">
+                <circle cx="4" cy="-4" r="3" fill="#ffd600"/><text x="14">finances</text>
+                <circle cx="84" cy="-4" r="3" fill="#448aff"/><text x="94">calendar</text>
+                <circle cx="170" cy="-4" r="3" fill="#ff4081"/><text x="180">gym</text>
+              </g>
             </g>
           </svg>
         </div>
@@ -695,7 +673,7 @@
 
       <div class="flex flex-col sm:flex-row justify-center gap-4 max-w-md mx-auto pt-4">
         <input type="email" placeholder="YOUR PREMIUM EMAIL ADDRESS" class="bg-black border border-borderDark text-white placeholder-neutral-800 px-5 py-4 focus:outline-none focus:border-calendar transition duration-150 w-full font-mono text-xs tracking-widest uppercase rounded-none" />
-        <a href="/setup.html" class="bg-white text-black font-mono text-xs font-bold tracking-widest uppercase px-8 py-4 hover:bg-calendar hover:text-white transition duration-150 whitespace-nowrap flex items-center justify-center shadow-[4px_4px_0px_0px_rgba(106,138,255,1)]">
+        <a href="/setup.html" class="bg-white text-black font-mono text-xs font-bold tracking-widest uppercase px-8 py-4 hover:bg-calendar hover:text-white transition duration-150 whitespace-nowrap flex items-center justify-center shadow-[4px_4px_0px_0px_rgba(68,138,255,1)]">
           INITIALIZE NOW //
         </a>
       </div>
