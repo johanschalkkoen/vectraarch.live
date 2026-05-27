@@ -1422,6 +1422,8 @@ app.get(BASE + '/users', isAuth, async (req, res) => {
       // ── Collapsible sections: every .section can be opened/closed and the
       //    open/closed state survives across reloads via localStorage. The
       //    .section-hdr stays visible; .section-body underneath is toggled.
+      //    The header gets a clear hover state + an obvious chevron button on
+      //    the right so it actually looks clickable.
       (function(){
         var KEY = 'conduit.sectionState.v1';
         var state; try { state = JSON.parse(localStorage.getItem(KEY)||'{}'); } catch { state = {}; }
@@ -1431,6 +1433,16 @@ app.get(BASE + '/users', isAuth, async (req, res) => {
           var n = sec.querySelector('.sh-num');
           return ((n?n.textContent:'') + ' ' + (t?t.textContent:'')).trim().slice(0,80);
         }
+        // Inject the styles we need (hover + chevron button look)
+        var css = document.createElement('style');
+        css.textContent = ''
+          + '.section-hdr.clickable{cursor:pointer;user-select:none;transition:background 0.15s,border-color 0.15s;border-radius:3px;padding:6px 8px;margin-left:-8px;margin-right:-8px;}'
+          + '.section-hdr.clickable:hover{background:rgba(255,255,255,0.04);}'
+          + '.section-hdr.clickable .section-chev{margin-left:auto;display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:4px;border:1px solid var(--border2);background:var(--bg3);color:var(--accent);font-size:11px;transition:transform 0.2s,background 0.15s,border-color 0.15s;}'
+          + '.section-hdr.clickable:hover .section-chev{background:var(--bg2);border-color:var(--accent);}'
+          + '.section-hdr.clickable .section-chev.collapsed{transform:rotate(-90deg);}'
+          + '.section.collapsed .section-hdr{margin-bottom:0;border-bottom-color:transparent;opacity:0.85;}';
+        document.head.appendChild(css);
         document.querySelectorAll('.section').forEach(function(sec){
           var hdr = sec.querySelector('.section-hdr');
           if (!hdr) return;
@@ -1442,19 +1454,19 @@ app.get(BASE + '/users', isAuth, async (req, res) => {
             var n; while ((n = hdr.nextSibling)) body.appendChild(n);
             sec.appendChild(body);
           }
-          // Chevron indicator
+          // Chevron indicator — visible "button" on the right edge of the header
           var chev = document.createElement('span');
           chev.className = 'section-chev';
-          chev.style.cssText = 'margin-left:auto;color:var(--dim);font-size:11px;transition:transform 0.15s;display:inline-block;';
           chev.textContent = '▾';
-          hdr.style.cursor = 'pointer';
-          hdr.style.userSelect = 'none';
+          chev.setAttribute('aria-label', 'Toggle section');
+          hdr.classList.add('clickable');
           hdr.appendChild(chev);
           var k = sectionKey(sec);
           var collapsed = !!state[k];
           function apply() {
             body.style.display = collapsed ? 'none' : '';
-            chev.style.transform = collapsed ? 'rotate(-90deg)' : 'rotate(0deg)';
+            if (collapsed) { chev.classList.add('collapsed'); sec.classList.add('collapsed'); }
+            else            { chev.classList.remove('collapsed'); sec.classList.remove('collapsed'); }
           }
           apply();
           hdr.addEventListener('click', function(e){
