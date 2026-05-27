@@ -127,6 +127,88 @@ END $$;
 ALTER TABLE IF EXISTS vectraarchlegacy_gym_options    OWNER TO "VectraArchLegacy";
 ALTER TABLE IF EXISTS vectraarchlegacy_meal_templates OWNER TO "VectraArchLegacy";
 
--- ── 7. Sanity report so you can see what we ended up with ────────────────────
+-- ── 7. Family-based access architecture ──────────────────────────────────────
+--    Add family_id to users so every account is jailed to a family. Family
+--    membership becomes the SOURCE OF TRUTH for who-can-see-whom; the access
+--    table is auto-populated by syncFamilyAccess() in app code, marked with
+--    source='family' so future changes don't clobber manual cross-family
+--    grants (source='manual').
+
+ALTER TABLE vectraarchlegacy_users
+    ADD COLUMN IF NOT EXISTS family_id INTEGER;
+
+CREATE INDEX IF NOT EXISTS idx_users_family_id ON vectraarchlegacy_users(family_id);
+
+-- Source column on access table so we can tell auto (family) rows apart from
+-- manually-granted rows. Existing rows are treated as manual.
+ALTER TABLE vectraarchlegacy_access
+    ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'manual';
+
+-- Make (viewer,target) unique so ON CONFLICT INSERTs from app code work
+-- predictably. Wrap in a DO block so re-runs don't error if it already exists.
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conrelid = 'vectraarchlegacy_access'::regclass
+          AND contype = 'u'
+          AND conname  = 'vectraarchlegacy_access_uniq'
+    ) THEN
+        -- De-dupe first in case anything slipped through without a constraint
+        DELETE FROM vectraarchlegacy_access a USING vectraarchlegacy_access b
+        WHERE a.ctid < b.ctid AND a.viewer = b.viewer AND a.target = b.target;
+        ALTER TABLE vectraarchlegacy_access
+            ADD CONSTRAINT vectraarchlegacy_access_uniq UNIQUE (viewer, target);
+    END IF;
+END $$;
+
+-- Backfill: every user without a family gets a solo family. Admin can then
+-- merge / move users into shared families via the Conduit UI.
+INSERT INTO vectraarchlegacy_families (family_name, admin_username, currency, timezone, member_count, enabled_modules)
+SELECT
+    COALESCE(NULLIF(u.display_name, ''), u.username) || ' Hub' AS family_name,
+    u.username,
+    'ZAR',
+    'Africa/Johannesburg',
+    1,
+    'fin,cal,bud,gym,eat,cyc'
+FROM vectraarchlegacy_users u
+WHERE u.family_id IS NULL
+  AND NOT EXISTS (SELECT 1 FROM vectraarchlegacy_families f WHERE f.admin_username = u.username);
+
+-- Link each user to their (solo) family.
+UPDATE vectraarchlegacy_users u
+SET family_id = (
+    SELECT id FROM vectraarchlegacy_families f
+    WHERE f.admin_username = u.username
+    ORDER BY id ASC
+    LIMIT 1
+)
+WHERE u.family_id IS NULL;
+
+-- FK on family_id (deferred to here so the backfill could run on a still-empty column).
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'vectraarchlegacy_users_family_fk'
+    ) THEN
+        ALTER TABLE vectraarchlegacy_users
+            ADD CONSTRAINT vectraarchlegacy_users_family_fk
+            FOREIGN KEY (family_id) REFERENCES vectraarchlegacy_families(id) ON DELETE SET NULL;
+    END IF;
+END $$;
+
+-- Ensure pairwise access rows for every family that has multiple members.
+-- (Marks them source='family' so a future family change can rebuild cleanly.)
+INSERT INTO vectraarchlegacy_access (viewer, target, source)
+SELECT a.username, b.username, 'family'
+FROM vectraarchlegacy_users a, vectraarchlegacy_users b
+WHERE a.family_id = b.family_id
+  AND a.family_id IS NOT NULL
+  AND a.username <> b.username
+ON CONFLICT (viewer, target) DO NOTHING;
+
+-- ── 8. Sanity report so you can see what we ended up with ────────────────────
 \d+ vectraarchlegacy_users
 \d+ vectraarchlegacy_calendar

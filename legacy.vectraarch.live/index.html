@@ -4282,7 +4282,7 @@ const SecuritySection = ({user, setUser, onAlert}) => {
   );
 };
 
-const ROLE_OPTIONS = ['individual', 'partner', 'parent', 'guardian'];
+const ROLE_OPTIONS = ['individual', 'partner', 'parent', 'guardian', 'ceo', 'manager', 'coach'];
 
 // If the user has a linked partner but role is still the default 'individual',
 // treat it as 'partner' for display & as the seed value when entering edit mode.
@@ -4517,7 +4517,7 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
           {(partners.length===0&&!partner)&&(
             <div style={{background:'var(--bg2)',border:'1px solid var(--border2)',borderRadius:6,padding:'14px 16px',marginBottom:14}}>
               <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:18,letterSpacing:'0.02em',color:'var(--text)',marginBottom:8}}>PARTNER SHARING</div>
-              <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',lineHeight:1.6}}>No partners linked yet. An admin can set up access links at <strong style={{color:'var(--text2)'}}>vectraarch.live/conduit/users</strong></div>
+              <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',lineHeight:1.6}}>No partners linked yet. Anyone added to your family will appear here automatically. Ask your family admin to add a member, or contact the system admin to merge you into an existing family.</div>
             </div>
           )}
           {(partners.length>0?partners:partner?[partner]:[]).length>0&&(
@@ -5205,8 +5205,8 @@ const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
                   <div>
                     <span style={lL}>USERNAME</span>
-                    <input style={iL} placeholder="lowercase, letters / dots / dashes" value={newUser.username}
-                      onChange={e=>setNewUser(p=>({...p,username:e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g,'')}))}/>
+                    <input style={iL} placeholder="e.g. Anel@Koen" value={newUser.username}
+                      onChange={e=>setNewUser(p=>({...p,username:e.target.value.replace(/[^A-Za-z0-9._@-]/g,'')}))}/>
                   </div>
                   <div>
                     <span style={lL}>PASSWORD</span>
@@ -5271,7 +5271,7 @@ const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
                 {/* Role chip group */}
                 <span style={lL}>ROLE</span>
                 <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:10}}>
-                  {['individual','partner','parent','guardian'].map(r=>(
+                  {ROLE_OPTIONS.map(r=>(
                     <button key={r} type="button" onClick={()=>setNewUser(p=>({...p,role:r}))}
                       style={{fontFamily:"'DM Mono',monospace",fontSize:10,letterSpacing:'0.12em',textTransform:'uppercase',
                         padding:'8px 14px',borderRadius:4,cursor:'pointer',
