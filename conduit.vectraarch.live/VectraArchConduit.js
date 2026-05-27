@@ -798,7 +798,7 @@ app.get(BASE + '/', isAuth, async (req, res) => {
           </div>
         </div>
         <div>${has2FA
-          ? `<form method="POST" action="${BASE}/auth/2fa/disable"><button class="btn danger" type="submit" onclick="return confirm('Disable 2FA?')">Disable 2FA</button></form>`
+          ? `<form method="POST" action="${BASE}/auth/2fa/disable" data-confirm="Disable two-factor authentication on this account?"><button class="btn danger" type="submit">Disable 2FA</button></form>`
           : `<a href="${BASE}/auth/2fa/setup" class="btn primary">Enable 2FA ↗</a>`}
         </div>
       </div>
@@ -814,8 +814,8 @@ app.get(BASE + '/', isAuth, async (req, res) => {
     <div class="section">
       <div class="section-hdr">
         <span class="sh-num">02</span><span class="sh-title">Trigger Log · Last 20 Events</span><div class="sh-line"></div>
-        <form method="POST" action="${BASE}/log/clear" style="margin-left:auto;">
-          <button class="btn danger" type="submit" onclick="return confirm('Clear all logs?')">Clear Log</button>
+        <form method="POST" action="${BASE}/log/clear" data-confirm="Permanently delete all event log entries?" style="margin-left:auto;">
+          <button class="btn danger" type="submit">Clear Log</button>
         </form>
       </div>
       ${logs.rows.length === 0
@@ -1025,27 +1025,27 @@ app.get(BASE + '/users', isAuth, async (req, res) => {
   // NB: vectraarchlegacy_users no longer carries activity_status / bio / pronouns /
   // theme / address / forge_user_id (dropped in the cleanup migration). Keep this
   // SELECT to only the columns the Conduit page actually renders.
-  let legacyUsers = [], accessList = [], legacyFamilies = [];
+  let legacyUsers = [], accessList = [], legacyGroups = [];
   try {
     const lr = await legacyPool.query(`
       SELECT u.username, u.first_name, u.last_name, u.display_name, u.email, u.is_admin,
-             u.role, u.last_active, u.family_id,
-             f.family_name,
+             u.role, u.last_active, u.group_id,
+             f.group_name,
              (u.twofa_secret IS NOT NULL) AS twofa_enabled,
              (u.google_id    IS NOT NULL) AS google_linked
       FROM vectraarchlegacy_users u
-      LEFT JOIN vectraarchlegacy_families f ON f.id = u.family_id
+      LEFT JOIN vectraarchlegacy_groups f ON f.id = u.group_id
       ORDER BY u.last_active DESC NULLS LAST
     `);
     legacyUsers = lr.rows;
     const ar = await legacyPool.query("SELECT viewer, target, source FROM vectraarchlegacy_access ORDER BY source DESC, viewer");
     accessList = ar.rows;
     const fr = await legacyPool.query(`
-      SELECT id, family_name, admin_username,
-             (SELECT COUNT(*) FROM vectraarchlegacy_users WHERE family_id = f.id)::int AS member_count
-      FROM vectraarchlegacy_families f ORDER BY id ASC
+      SELECT id, group_name, admin_username,
+             (SELECT COUNT(*) FROM vectraarchlegacy_users WHERE group_id = f.id)::int AS member_count
+      FROM vectraarchlegacy_groups f ORDER BY id ASC
     `);
-    legacyFamilies = fr.rows;
+    legacyGroups = fr.rows;
   } catch(e) { console.error('[conduit] Legacy DB error:', e.message); }
 
   const usernames = legacyUsers.map(u => u.username);
@@ -1067,14 +1067,14 @@ app.get(BASE + '/users', isAuth, async (req, res) => {
       <td style="white-space:nowrap;">
         <div style="display:flex;gap:6px;flex-wrap:wrap;">
           <button class="btn" onclick="toggleEdit('forge_${esc(u.id)}')" type="button">Edit</button>
-          ${u.twofa_enabled?`<form method="POST" action="${BASE}/users/reset-2fa/${encodeURIComponent(u.id)}" style="display:inline;">
-            <button class="btn" type="submit" onclick="return confirm('Reset 2FA?')">2FA ✕</button></form>`:''}
+          ${u.twofa_enabled?`<form method="POST" action="${BASE}/users/reset-2fa/${encodeURIComponent(u.id)}" data-confirm="Reset two-factor for ${esc(u.name)}? They'll have to enrol again." style="display:inline;">
+            <button class="btn" type="submit">2FA ✕</button></form>`:''}
           <form method="POST" action="${BASE}/users/toggle/${encodeURIComponent(u.id)}" style="display:inline;">
             <input type="hidden" name="status" value="${u.status==='enabled'?'disabled':'enabled'}"/>
             <button class="btn ${u.status==='enabled'?'danger':''}" type="submit">${u.status==='enabled'?'Disable':'Enable'}</button>
           </form>
-          ${u.id!==req.session.conduitUser.id?`<form method="POST" action="${BASE}/users/delete/${encodeURIComponent(u.id)}" style="display:inline;">
-            <button class="btn danger" type="submit" onclick="return confirm('Delete ${esc(u.name)}?')">Delete</button></form>`
+          ${u.id!==req.session.conduitUser.id?`<form method="POST" action="${BASE}/users/delete/${encodeURIComponent(u.id)}" data-confirm="Permanently delete Forge user '${esc(u.name)}' and all their books? This cannot be undone." style="display:inline;">
+            <button class="btn danger" type="submit">Delete</button></form>`
           :'<span style="font-size:9px;color:var(--dim);padding:8px 0;">(you)</span>'}
         </div>
         <div id="edit-forge_${esc(u.id)}" style="display:none;margin-top:12px;background:var(--bg3);border:1px solid var(--border2);padding:16px;">
@@ -1118,13 +1118,13 @@ app.get(BASE + '/users', isAuth, async (req, res) => {
         ${u.google_linked?`<span class="badge ok" style="font-size:8px;margin-left:4px;">Google</span>`:''}
       </td>
       <td>
-        ${u.family_name
-          ? `<div style="font-size:11px;color:var(--text)">${esc(u.family_name)}</div>
-             <div style="font-size:9px;color:var(--dim)">#${u.family_id}</div>`
-          : '<span class="badge err" style="font-size:8px;">no family</span>'}
-        <form method="POST" action="${BASE}/users/legacy/move-family/${encodeURIComponent(u.username)}" style="display:flex;gap:4px;margin-top:6px;align-items:center;">
-          <select name="familyId" class="form-input" style="font-size:10px;padding:3px 6px;height:auto;width:auto;flex:1;">
-            ${legacyFamilies.map(f=>`<option value="${f.id}" ${f.id===u.family_id?'selected':''}>${esc(f.family_name)} (${f.member_count})</option>`).join('')}
+        ${u.group_name
+          ? `<div style="font-size:11px;color:var(--text)">${esc(u.group_name)}</div>
+             <div style="font-size:9px;color:var(--dim)">#${u.group_id}</div>`
+          : '<span class="badge err" style="font-size:8px;">no group</span>'}
+        <form method="POST" action="${BASE}/users/legacy/move-group/${encodeURIComponent(u.username)}" style="display:flex;gap:4px;margin-top:6px;align-items:center;">
+          <select name="groupId" class="form-input" style="font-size:10px;padding:3px 6px;height:auto;width:auto;flex:1;">
+            ${legacyGroups.map(f=>`<option value="${f.id}" ${f.id===u.group_id?'selected':''}>${esc(f.group_name)} (${f.member_count})</option>`).join('')}
           </select>
           <button class="btn" type="submit" style="font-size:9px;padding:3px 8px;">Move</button>
         </form>
@@ -1132,9 +1132,9 @@ app.get(BASE + '/users', isAuth, async (req, res) => {
       <td>
         <div style="display:flex;align-items:center;gap:6px;">
           <span class="badge ${u.twofa_enabled?'ok':'info'}">${u.twofa_enabled?'ON':'OFF'}</span>
-          ${u.twofa_enabled?`<form method="POST" action="${BASE}/users/legacy/toggle-2fa/${encodeURIComponent(u.username)}" style="display:inline;">
+          ${u.twofa_enabled?`<form method="POST" action="${BASE}/users/legacy/toggle-2fa/${encodeURIComponent(u.username)}" data-confirm="Disable two-factor authentication for '${esc(u.username)}'? They will be able to sign in with just their password." style="display:inline;">
             <input type="hidden" name="action" value="disable"/>
-            <button class="btn" style="padding:3px 8px;font-size:9px;" type="submit" onclick="return confirm('Disable 2FA for ${esc(u.username)}?')">Disable</button>
+            <button class="btn" style="padding:3px 8px;font-size:9px;" type="submit">Disable</button>
           </form>`:'<span style="font-size:9px;color:var(--dim);">—</span>'}
         </div>
       </td>
@@ -1143,16 +1143,16 @@ app.get(BASE + '/users', isAuth, async (req, res) => {
         <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
           <button class="btn" onclick="toggleEdit('leg_${esc(u.username)}')" type="button">Edit</button>
           ${u.is_admin
-            ? `<form method="POST" action="${BASE}/users/legacy/set-admin/${encodeURIComponent(u.username)}" style="display:inline;">
+            ? `<form method="POST" action="${BASE}/users/legacy/set-admin/${encodeURIComponent(u.username)}" data-confirm="Remove system-admin privileges from '${esc(u.username)}'?" style="display:inline;">
                 <input type="hidden" name="isAdmin" value="0"/>
-                <button class="btn warn" type="submit" onclick="return confirm('Remove admin from ${esc(u.username)}?')" style="font-size:9px;padding:4px 10px;">− Admin</button>
+                <button class="btn warn" type="submit" style="font-size:9px;padding:4px 10px;">− Admin</button>
                </form>`
             : `<form method="POST" action="${BASE}/users/legacy/set-admin/${encodeURIComponent(u.username)}" style="display:inline;">
                 <input type="hidden" name="isAdmin" value="1"/>
                 <button class="btn" type="submit" style="font-size:9px;padding:4px 10px;border-color:var(--warn);color:var(--warn);">+ Admin</button>
                </form>`}
-          <form method="POST" action="${BASE}/users/legacy/delete/${encodeURIComponent(u.username)}" style="display:inline;">
-            <button class="btn danger" type="submit" onclick="return confirm('Permanently delete Legacy user ${esc(u.username)} and ALL their data?')">Delete</button>
+          <form method="POST" action="${BASE}/users/legacy/delete/${encodeURIComponent(u.username)}" data-confirm="Permanently delete Legacy user '${esc(u.username)}' and ALL their finance / calendar / gym / meal data? This cannot be undone." style="display:inline;">
+            <button class="btn danger" type="submit">Delete</button>
           </form>
         </div>
         <div id="edit-leg_${esc(u.username)}" style="display:none;margin-top:12px;background:var(--bg3);border:1px solid var(--border2);padding:16px;">
@@ -1188,21 +1188,21 @@ app.get(BASE + '/users', isAuth, async (req, res) => {
     </tr>`).join('');
 
   // ── Access pairs ──
-  // 'family'-sourced rows are derived from family membership — managed by the
+  // 'group'-sourced rows are derived from group membership — managed by the
   // Move dropdown above, not editable here (revoke is blocked server-side).
   // 'manual' rows are the only ones an admin grants/revokes by hand here.
-  const familyAccess = accessList.filter(a => a.source === 'family');
-  const manualAccess = accessList.filter(a => a.source !== 'family');
+  const groupAccess = accessList.filter(a => a.source === 'group');
+  const manualAccess = accessList.filter(a => a.source !== 'group');
   const renderAccessRow = (a) => {
-    const isFamily = a.source === 'family';
+    const isGroup = a.source === 'group';
     return `
     <tr>
       <td style="color:var(--text);font-size:11px;">${esc(a.viewer)}</td>
       <td style="color:var(--dim);font-size:12px;">→</td>
       <td style="color:var(--text);font-size:11px;">${esc(a.target)}</td>
-      <td><span class="badge ${isFamily?'ok':'info'}" style="font-size:8px;">${isFamily?'family':'manual'}</span></td>
+      <td><span class="badge ${isGroup?'ok':'info'}" style="font-size:8px;">${isGroup?'group':'manual'}</span></td>
       <td>
-        ${isFamily
+        ${isGroup
           ? '<span style="color:var(--dim);font-size:9px;letter-spacing:0.1em;">via Move</span>'
           : `<form method="POST" action="${BASE}/users/legacy/revoke-access" style="display:inline;">
                <input type="hidden" name="viewer" value="${esc(a.viewer)}"/>
@@ -1283,10 +1283,10 @@ app.get(BASE + '/users', isAuth, async (req, res) => {
                 <option value="manager">Manager</option>
                 <option value="coach">Coach</option>
               </select></div>
-            <div class="form-group" style="margin:0;"><label class="form-label">Family</label>
-              <select class="form-select" name="familyId">
-                <option value="">— Auto-create solo family —</option>
-                ${legacyFamilies.map(f=>`<option value="${f.id}">${esc(f.family_name)} (${f.member_count})</option>`).join('')}
+            <div class="form-group" style="margin:0;"><label class="form-label">Group</label>
+              <select class="form-select" name="groupId">
+                <option value="">— Auto-create solo group —</option>
+                ${legacyGroups.map(f=>`<option value="${f.id}">${esc(f.group_name)} (${f.member_count})</option>`).join('')}
               </select></div>
             <div class="form-group" style="margin:0;"><label class="form-label">System</label>
               <select class="form-select" name="isAdmin">
@@ -1302,14 +1302,14 @@ app.get(BASE + '/users', isAuth, async (req, res) => {
 
     <!-- ── LEGACY FAMILIES ── -->
     <div class="section">
-      <div class="section-hdr"><span class="sh-num">02b</span><span class="sh-title">Legacy Families · ${legacyFamilies.length} Groups</span><div class="sh-line"></div></div>
+      <div class="section-hdr"><span class="sh-num">02b</span><span class="sh-title">Legacy Families · ${legacyGroups.length} Groups</span><div class="sh-line"></div></div>
       <div class="form-wrap" style="padding:24px 32px;">
         <table style="margin-bottom:18px;">
           <thead><tr><th style="width:40px">#</th><th>Name</th><th>Primary Admin</th><th>Currency</th><th>Members</th><th>Actions</th></tr></thead>
-          <tbody>${legacyFamilies.map(f=>`
+          <tbody>${legacyGroups.map(f=>`
             <tr>
               <td style="font-size:10px;color:var(--dim);">${f.id}</td>
-              <td style="color:var(--text);font-weight:500;">${esc(f.family_name)}</td>
+              <td style="color:var(--text);font-weight:500;">${esc(f.group_name)}</td>
               <td style="font-size:11px;color:var(--dim);">${esc(f.admin_username||'—')}</td>
               <td style="font-size:10px;color:var(--dim);">${esc(f.currency||'—')}</td>
               <td><span class="badge ${f.member_count>0?'ok':'info'}">${f.member_count} ${f.member_count===1?'member':'members'}</span></td>
@@ -1318,15 +1318,15 @@ app.get(BASE + '/users', isAuth, async (req, res) => {
                   <button class="btn" onclick="toggleEdit('fam_${f.id}')" type="button" style="font-size:9px;padding:4px 10px;">Edit</button>
                   ${f.member_count > 0
                     ? `<button class="btn" disabled title="Move all members out before deleting" style="font-size:9px;padding:4px 10px;opacity:0.4;cursor:not-allowed;">Delete</button>`
-                    : `<form method="POST" action="${BASE}/users/legacy/family/delete/${f.id}" style="display:inline;" onsubmit="return confirm('Delete family — this cannot be undone.');">
+                    : `<form method="POST" action="${BASE}/users/legacy/group/delete/${f.id}" data-confirm="Delete group ${esc(f.group_name)}? This cannot be undone." style="display:inline;">
                         <button class="btn danger" type="submit" style="font-size:9px;padding:4px 10px;">Delete</button>
                       </form>`}
                 </div>
                 <div id="edit-fam_${f.id}" style="display:none;margin-top:10px;background:var(--bg3);border:1px solid var(--border2);padding:12px;text-align:left;">
-                  <form method="POST" action="${BASE}/users/legacy/family/edit/${f.id}">
+                  <form method="POST" action="${BASE}/users/legacy/group/edit/${f.id}">
                     <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:8px;margin-bottom:10px;">
-                      <div><div class="form-label" style="margin-bottom:4px;">Family Name</div>
-                        <input class="form-input" name="familyName" value="${esc(f.family_name)}" required/></div>
+                      <div><div class="form-label" style="margin-bottom:4px;">Group Name</div>
+                        <input class="form-input" name="groupName" value="${esc(f.group_name)}" required/></div>
                       <div><div class="form-label" style="margin-bottom:4px;">Primary Admin</div>
                         <input class="form-input" name="adminUsername" value="${esc(f.admin_username||'')}" placeholder="username"/></div>
                       <div><div class="form-label" style="margin-bottom:4px;">Currency</div>
@@ -1346,16 +1346,16 @@ app.get(BASE + '/users', isAuth, async (req, res) => {
             </tr>`).join('')||'<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--dim);">No families yet</td></tr>'}
           </tbody>
         </table>
-        <form method="POST" action="${BASE}/users/legacy/family/create" style="display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:12px;align-items:end;">
-          <div class="form-group" style="margin:0;"><label class="form-label">New family name</label>
-            <input class="form-input" name="familyName" placeholder="The Koen Family" required/></div>
+        <form method="POST" action="${BASE}/users/legacy/group/create" style="display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:12px;align-items:end;">
+          <div class="form-group" style="margin:0;"><label class="form-label">New group name</label>
+            <input class="form-input" name="groupName" placeholder="The Koen Group" required/></div>
           <div class="form-group" style="margin:0;"><label class="form-label">Primary admin (optional)</label>
             <input class="form-input" name="adminUsername" placeholder="Johan@Koen"/></div>
           <div class="form-group" style="margin:0;"><label class="form-label">Currency</label>
             <select class="form-select" name="currency">
               ${['ZAR','USD','EUR','GBP','NGN','KES'].map(c=>`<option value="${c}" ${c==='ZAR'?'selected':''}>${c}</option>`).join('')}
             </select></div>
-          <button class="btn primary" type="submit" style="padding:10px 20px;">+ Family</button>
+          <button class="btn primary" type="submit" style="padding:10px 20px;">+ Group</button>
         </form>
       </div>
     </div>
@@ -1375,23 +1375,23 @@ app.get(BASE + '/users', isAuth, async (req, res) => {
       ${legacyUsers.length===0
         ? '<div style="padding:24px;background:var(--bg2);color:var(--dim);text-align:center;letter-spacing:0.1em;font-size:10px;">No Legacy users found</div>'
         : `<table>
-            <thead><tr><th>Username / Name</th><th>Email</th><th>System</th><th>Role / Auth</th><th>Family</th><th>2FA</th><th>Last Active</th><th>Actions</th></tr></thead>
+            <thead><tr><th>Username / Name</th><th>Email</th><th>System</th><th>Role / Auth</th><th>Group</th><th>2FA</th><th>Last Active</th><th>Actions</th></tr></thead>
             <tbody>${legacyRows}</tbody>
            </table>`}
     </div>
 
     <!-- ── PARTNER SHARING / ACCESS LINKS ── -->
     <div class="section">
-      <div class="section-hdr"><span class="sh-num">05</span><span class="sh-title">Partner Sharing · Access Links · ${manualAccess.length} manual · ${familyAccess.length} auto</span><div class="sh-line"></div></div>
+      <div class="section-hdr"><span class="sh-num">05</span><span class="sh-title">Partner Sharing · Access Links · ${manualAccess.length} manual · ${groupAccess.length} auto</span><div class="sh-line"></div></div>
       <div class="form-wrap" style="padding:20px 32px 24px;">
         <div style="color:var(--dim);font-size:10px;line-height:1.6;margin-bottom:16px;letter-spacing:0.04em;">
-          Most partner sharing is now driven by family membership — every member of a family can see every other member automatically (rows tagged
-          <span class="badge ok" style="font-size:8px;">family</span>). Use this section only for one-off cross-family grants
-          (rows tagged <span class="badge info" style="font-size:8px;">manual</span>). To change family rows, use the Move dropdown in the user table above.
+          Most partner sharing is now driven by group membership — every member of a group can see every other member automatically (rows tagged
+          <span class="badge ok" style="font-size:8px;">group</span>). Use this section only for one-off cross-group grants
+          (rows tagged <span class="badge info" style="font-size:8px;">manual</span>). To change group rows, use the Move dropdown in the user table above.
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
           <div>
-            <div class="form-label" style="margin-bottom:12px;font-size:10px;letter-spacing:0.15em;">GRANT MANUAL ACCESS (cross-family)</div>
+            <div class="form-label" style="margin-bottom:12px;font-size:10px;letter-spacing:0.15em;">GRANT MANUAL ACCESS (cross-group)</div>
             <form method="POST" action="${BASE}/users/legacy/grant-access">
               <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end;">
                 <div><div class="form-label" style="margin-bottom:4px;">Viewer</div>
@@ -1403,7 +1403,7 @@ app.get(BASE + '/users', isAuth, async (req, res) => {
             </form>
           </div>
           <div>
-            <div class="form-label" style="margin-bottom:12px;font-size:10px;letter-spacing:0.15em;">CURRENT LINKS · ${manualAccess.length} manual + ${familyAccess.length} auto</div>
+            <div class="form-label" style="margin-bottom:12px;font-size:10px;letter-spacing:0.15em;">CURRENT LINKS · ${manualAccess.length} manual + ${groupAccess.length} auto</div>
             ${accessList.length===0
               ? '<div style="color:var(--dim);font-size:10px;padding:8px 0;">No partner links configured.</div>'
               : `<table style="width:100%;">
@@ -1415,7 +1415,94 @@ app.get(BASE + '/users', isAuth, async (req, res) => {
       </div>
     </div>
 
-    <script>function toggleEdit(id){var el=document.getElementById('edit-'+id);el.style.display=el.style.display==='none'?'block':'none';}</script>`;
+    <script>
+      // ── Inline-edit toggles ──────────────────────────────────────────────
+      function toggleEdit(id){var el=document.getElementById('edit-'+id);if(el)el.style.display=el.style.display==='none'?'block':'none';}
+
+      // ── Collapsible sections: every .section can be opened/closed and the
+      //    open/closed state survives across reloads via localStorage. The
+      //    .section-hdr stays visible; .section-body underneath is toggled.
+      (function(){
+        var KEY = 'conduit.sectionState.v1';
+        var state; try { state = JSON.parse(localStorage.getItem(KEY)||'{}'); } catch { state = {}; }
+        function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {} }
+        function sectionKey(sec) {
+          var t = sec.querySelector('.sh-title');
+          var n = sec.querySelector('.sh-num');
+          return ((n?n.textContent:'') + ' ' + (t?t.textContent:'')).trim().slice(0,80);
+        }
+        document.querySelectorAll('.section').forEach(function(sec){
+          var hdr = sec.querySelector('.section-hdr');
+          if (!hdr) return;
+          // Wrap everything after the header in a .section-body if not already
+          var body = sec.querySelector('.section-body');
+          if (!body) {
+            body = document.createElement('div');
+            body.className = 'section-body';
+            var n; while ((n = hdr.nextSibling)) body.appendChild(n);
+            sec.appendChild(body);
+          }
+          // Chevron indicator
+          var chev = document.createElement('span');
+          chev.className = 'section-chev';
+          chev.style.cssText = 'margin-left:auto;color:var(--dim);font-size:11px;transition:transform 0.15s;display:inline-block;';
+          chev.textContent = '▾';
+          hdr.style.cursor = 'pointer';
+          hdr.style.userSelect = 'none';
+          hdr.appendChild(chev);
+          var k = sectionKey(sec);
+          var collapsed = !!state[k];
+          function apply() {
+            body.style.display = collapsed ? 'none' : '';
+            chev.style.transform = collapsed ? 'rotate(-90deg)' : 'rotate(0deg)';
+          }
+          apply();
+          hdr.addEventListener('click', function(e){
+            // Don't toggle if the click was on a form / input / button inside the header
+            if (e.target.closest('form, input, select, textarea, button, a')) return;
+            collapsed = !collapsed;
+            state[k] = collapsed;
+            save();
+            apply();
+          });
+        });
+      })();
+
+      // ── Styled confirm modal — replaces native window.confirm() for any
+      //    form with [data-confirm="message"]. Submission is held until the
+      //    user clicks the Confirm button in the overlay.
+      (function(){
+        function buildModal(msg, onConfirm) {
+          var overlay = document.createElement('div');
+          overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:9999;backdrop-filter:blur(2px);';
+          var sheet = document.createElement('div');
+          sheet.style.cssText = 'background:var(--bg2);border:1px solid var(--border2);padding:28px 32px;max-width:420px;width:calc(100% - 40px);text-align:center;box-shadow:0 16px 48px rgba(0,0,0,0.5);';
+          sheet.innerHTML = ''
+            + '<div style="font-size:28px;margin-bottom:14px;">⚠️</div>'
+            + '<div style="font-family:Barlow Condensed,sans-serif;font-weight:700;font-size:18px;letter-spacing:0.04em;color:var(--text);margin-bottom:8px;text-transform:uppercase;">Confirm</div>'
+            + '<div style="font-family:DM Mono,monospace;font-size:11px;letter-spacing:0.04em;color:var(--dim);line-height:1.7;margin-bottom:24px;"></div>'
+            + '<div style="display:flex;gap:10px;">'
+              + '<button data-act="cancel" class="btn" style="flex:1;padding:12px;letter-spacing:0.14em;">Cancel</button>'
+              + '<button data-act="ok" class="btn danger" style="flex:1;padding:12px;letter-spacing:0.14em;">Confirm</button>'
+            + '</div>';
+          sheet.querySelector('div:nth-child(3)').textContent = msg;
+          overlay.appendChild(sheet);
+          document.body.appendChild(overlay);
+          function close() { try { document.body.removeChild(overlay); } catch {} }
+          sheet.querySelector('[data-act=cancel]').onclick = close;
+          sheet.querySelector('[data-act=ok]').onclick = function(){ close(); onConfirm(); };
+          overlay.addEventListener('click', function(e){ if (e.target === overlay) close(); });
+          document.addEventListener('keydown', function esc(e){ if (e.key === 'Escape') { close(); document.removeEventListener('keydown', esc); } });
+        }
+        document.addEventListener('submit', function(e){
+          var f = e.target;
+          var msg = f.getAttribute && f.getAttribute('data-confirm');
+          if (!msg || f.dataset.__conduitConfirmed === '1') return;
+          e.preventDefault();
+          buildModal(msg, function(){ f.dataset.__conduitConfirmed = '1'; f.submit(); });
+        }, true);
+      })();
+    </script>`;
 
   res.send(layout('Users', 'users', body));
 });
@@ -1495,165 +1582,165 @@ app.post(BASE + '/users/delete/:id', isAuth, async (req, res) => {
 // ── LEGACY USER MANAGEMENT ROUTES ────────────────────────────────────────────
 
 // POST: Set/unset admin for a Legacy user (quick toggle)
-// Move a Legacy user into a different family. Auto-syncs family-sourced access rows
-// so every member of the target family becomes mutually visible to the user, and
-// family-sourced rows linking to the old family are removed.
-app.post(BASE + '/users/legacy/move-family/:username', isAuth, async (req, res) => {
+// Move a Legacy user into a different group. Auto-syncs group-sourced access rows
+// so every member of the target group becomes mutually visible to the user, and
+// group-sourced rows linking to the old group are removed.
+app.post(BASE + '/users/legacy/move-group/:username', isAuth, async (req, res) => {
   const { username } = req.params;
-  const familyId = parseInt(req.body.familyId, 10);
-  if (!familyId) {
-    req.session.flash = { type:'err', msg:'familyId required.' };
+  const groupId = parseInt(req.body.groupId, 10);
+  if (!groupId) {
+    req.session.flash = { type:'err', msg:'groupId required.' };
     return res.redirect(BASE + '/users');
   }
   try {
-    // Read old family before update
+    // Read old group before update
     const userRow = await legacyPool.query(
-      'SELECT family_id FROM vectraarchlegacy_users WHERE LOWER(username) = LOWER($1)', [username]
+      'SELECT group_id FROM vectraarchlegacy_users WHERE LOWER(username) = LOWER($1)', [username]
     );
     if (userRow.rowCount === 0) {
       req.session.flash = { type:'err', msg:`User "${username}" not found.` };
       return res.redirect(BASE + '/users');
     }
     const famRow = await legacyPool.query(
-      'SELECT id, family_name FROM vectraarchlegacy_families WHERE id = $1', [familyId]
+      'SELECT id, group_name FROM vectraarchlegacy_groups WHERE id = $1', [groupId]
     );
     if (famRow.rowCount === 0) {
-      req.session.flash = { type:'err', msg:`Family #${familyId} not found.` };
+      req.session.flash = { type:'err', msg:`Group #${groupId} not found.` };
       return res.redirect(BASE + '/users');
     }
-    const oldFamilyId = userRow.rows[0].family_id || null;
-    if (oldFamilyId === familyId) {
-      req.session.flash = { type:'ok', msg:`User is already in "${famRow.rows[0].family_name}".` };
+    const oldGroupId = userRow.rows[0].group_id || null;
+    if (oldGroupId === groupId) {
+      req.session.flash = { type:'ok', msg:`User is already in "${famRow.rows[0].group_name}".` };
       return res.redirect(BASE + '/users');
     }
     // Update + sync access rows in one client/transaction so a mid-flight crash
-    // doesn't leave the access table out of sync with family membership.
+    // doesn't leave the access table out of sync with group membership.
     const client = await legacyPool.connect();
     try {
       await client.query('BEGIN');
-      await client.query('UPDATE vectraarchlegacy_users SET family_id = $1 WHERE LOWER(username) = LOWER($2)', [familyId, username]);
-      if (oldFamilyId) {
+      await client.query('UPDATE vectraarchlegacy_users SET group_id = $1 WHERE LOWER(username) = LOWER($2)', [groupId, username]);
+      if (oldGroupId) {
         await client.query(`
           DELETE FROM vectraarchlegacy_access
-          WHERE source = 'family'
-            AND ((viewer = $1 AND target IN (SELECT username FROM vectraarchlegacy_users WHERE family_id = $2))
-              OR (target = $1 AND viewer IN (SELECT username FROM vectraarchlegacy_users WHERE family_id = $2)))`,
-          [username, oldFamilyId]);
+          WHERE source = 'group'
+            AND ((viewer = $1 AND target IN (SELECT username FROM vectraarchlegacy_users WHERE group_id = $2))
+              OR (target = $1 AND viewer IN (SELECT username FROM vectraarchlegacy_users WHERE group_id = $2)))`,
+          [username, oldGroupId]);
       }
       await client.query(`
         INSERT INTO vectraarchlegacy_access (viewer, target, source)
-        SELECT $1, u.username, 'family' FROM vectraarchlegacy_users u
-        WHERE u.family_id = $2 AND u.username <> $1
-        ON CONFLICT (viewer, target) DO NOTHING`, [username, familyId]);
+        SELECT $1, u.username, 'group' FROM vectraarchlegacy_users u
+        WHERE u.group_id = $2 AND u.username <> $1
+        ON CONFLICT (viewer, target) DO NOTHING`, [username, groupId]);
       await client.query(`
         INSERT INTO vectraarchlegacy_access (viewer, target, source)
-        SELECT u.username, $1, 'family' FROM vectraarchlegacy_users u
-        WHERE u.family_id = $2 AND u.username <> $1
-        ON CONFLICT (viewer, target) DO NOTHING`, [username, familyId]);
+        SELECT u.username, $1, 'group' FROM vectraarchlegacy_users u
+        WHERE u.group_id = $2 AND u.username <> $1
+        ON CONFLICT (viewer, target) DO NOTHING`, [username, groupId]);
       await client.query('COMMIT');
     } catch (e) {
       await client.query('ROLLBACK'); throw e;
     } finally { client.release(); }
     try {
       await pool.query('INSERT INTO conduit_log (event,payload,status) VALUES ($1,$2,$3)',
-        ['legacy_move_family', `username:${username} family:${familyId}`, 'ok']);
+        ['legacy_move_group', `username:${username} group:${groupId}`, 'ok']);
     } catch {}
-    req.session.flash = { type:'ok', msg:`✓ "${username}" moved to "${famRow.rows[0].family_name}"` };
+    req.session.flash = { type:'ok', msg:`✓ "${username}" moved to "${famRow.rows[0].group_name}"` };
   } catch (e) {
-    console.error('[conduit] move-family ERROR:', e.message);
+    console.error('[conduit] move-group ERROR:', e.message);
     req.session.flash = { type:'err', msg:`DB Error: ${e.message}` };
   }
   res.redirect(BASE + '/users');
 });
 
-// Create a new Legacy family.
-app.post(BASE + '/users/legacy/family/create', isAuth, async (req, res) => {
-  const { familyName, adminUsername, currency } = req.body;
-  if (!familyName || !familyName.trim()) {
-    req.session.flash = { type:'err', msg:'Family name required.' };
+// Create a new Legacy group.
+app.post(BASE + '/users/legacy/group/create', isAuth, async (req, res) => {
+  const { groupName, adminUsername, currency } = req.body;
+  if (!groupName || !groupName.trim()) {
+    req.session.flash = { type:'err', msg:'Group name required.' };
     return res.redirect(BASE + '/users');
   }
   const cleanCurrency = ['ZAR','USD','EUR','GBP','NGN','KES'].includes(currency) ? currency : 'ZAR';
   try {
     const r = await legacyPool.query(`
-      INSERT INTO vectraarchlegacy_families
-        (family_name, admin_username, currency, timezone, member_count, enabled_modules)
+      INSERT INTO vectraarchlegacy_groups
+        (group_name, admin_username, currency, timezone, member_count, enabled_modules)
       VALUES ($1, $2, $3, 'Africa/Johannesburg', 0, 'fin,cal,bud,gym,eat,cyc')
-      RETURNING id, family_name`,
-      [familyName.trim(), adminUsername || 'admin', cleanCurrency]
+      RETURNING id, group_name`,
+      [groupName.trim(), adminUsername || 'admin', cleanCurrency]
     );
-    req.session.flash = { type:'ok', msg:`✓ Family "${r.rows[0].family_name}" created (#${r.rows[0].id})` };
+    req.session.flash = { type:'ok', msg:`✓ Group "${r.rows[0].group_name}" created (#${r.rows[0].id})` };
   } catch (e) {
-    console.error('[conduit] family create ERROR:', e.message);
+    console.error('[conduit] group create ERROR:', e.message);
     req.session.flash = { type:'err', msg:`DB Error: ${e.message}` };
   }
   res.redirect(BASE + '/users');
 });
 
-// POST: Edit an existing family's metadata.
-app.post(BASE + '/users/legacy/family/edit/:id', isAuth, async (req, res) => {
+// POST: Edit an existing group's metadata.
+app.post(BASE + '/users/legacy/group/edit/:id', isAuth, async (req, res) => {
   const id = parseInt(req.params.id, 10);
   if (!id) {
-    req.session.flash = { type:'err', msg:'Invalid family id.' };
+    req.session.flash = { type:'err', msg:'Invalid group id.' };
     return res.redirect(BASE + '/users');
   }
-  const { familyName, adminUsername, currency, timezone } = req.body;
-  if (!familyName || !familyName.trim()) {
-    req.session.flash = { type:'err', msg:'Family name required.' };
+  const { groupName, adminUsername, currency, timezone } = req.body;
+  if (!groupName || !groupName.trim()) {
+    req.session.flash = { type:'err', msg:'Group name required.' };
     return res.redirect(BASE + '/users');
   }
   const cleanCurrency = ['ZAR','USD','EUR','GBP','NGN','KES'].includes(currency) ? currency : 'ZAR';
   try {
     const r = await legacyPool.query(`
-      UPDATE vectraarchlegacy_families
-      SET family_name = $1, admin_username = $2, currency = $3, timezone = $4
+      UPDATE vectraarchlegacy_groups
+      SET group_name = $1, admin_username = $2, currency = $3, timezone = $4
       WHERE id = $5
-      RETURNING family_name`,
-      [familyName.trim(), adminUsername || null, cleanCurrency, timezone || 'Africa/Johannesburg', id]
+      RETURNING group_name`,
+      [groupName.trim(), adminUsername || null, cleanCurrency, timezone || 'Africa/Johannesburg', id]
     );
     if (r.rowCount === 0) {
-      req.session.flash = { type:'err', msg:`Family #${id} not found.` };
+      req.session.flash = { type:'err', msg:`Group #${id} not found.` };
     } else {
       await pool.query('INSERT INTO conduit_log (event,payload,status) VALUES ($1,$2,$3)',
-        ['legacy_family_edit', `id:${id} name:${familyName}`, 'ok']);
-      req.session.flash = { type:'ok', msg:`✓ Family #${id} "${r.rows[0].family_name}" updated.` };
+        ['legacy_group_edit', `id:${id} name:${groupName}`, 'ok']);
+      req.session.flash = { type:'ok', msg:`✓ Group #${id} "${r.rows[0].group_name}" updated.` };
     }
   } catch (e) {
-    console.error('[conduit] family edit ERROR:', e.message);
+    console.error('[conduit] group edit ERROR:', e.message);
     req.session.flash = { type:'err', msg:`DB Error: ${e.message}` };
   }
   res.redirect(BASE + '/users');
 });
 
-// POST: Delete an empty family. Refuses if the family still has members
-// (admin must move them out via the Family dropdown first).
-app.post(BASE + '/users/legacy/family/delete/:id', isAuth, async (req, res) => {
+// POST: Delete an empty group. Refuses if the group still has members
+// (admin must move them out via the Group dropdown first).
+app.post(BASE + '/users/legacy/group/delete/:id', isAuth, async (req, res) => {
   const id = parseInt(req.params.id, 10);
   if (!id) {
-    req.session.flash = { type:'err', msg:'Invalid family id.' };
+    req.session.flash = { type:'err', msg:'Invalid group id.' };
     return res.redirect(BASE + '/users');
   }
   try {
     const mr = await legacyPool.query(
-      'SELECT COUNT(*)::int AS n FROM vectraarchlegacy_users WHERE family_id = $1', [id]
+      'SELECT COUNT(*)::int AS n FROM vectraarchlegacy_users WHERE group_id = $1', [id]
     );
     if (mr.rows[0].n > 0) {
       req.session.flash = { type:'err',
-        msg:`⚠ Cannot delete family #${id} — ${mr.rows[0].n} member${mr.rows[0].n===1?'':'s'} still assigned. Move them to another family first.` };
+        msg:`⚠ Cannot delete group #${id} — ${mr.rows[0].n} member${mr.rows[0].n===1?'':'s'} still assigned. Move them to another group first.` };
       return res.redirect(BASE + '/users');
     }
     const r = await legacyPool.query(
-      'DELETE FROM vectraarchlegacy_families WHERE id = $1 RETURNING family_name', [id]
+      'DELETE FROM vectraarchlegacy_groups WHERE id = $1 RETURNING group_name', [id]
     );
     if (r.rowCount === 0) {
-      req.session.flash = { type:'err', msg:`Family #${id} not found.` };
+      req.session.flash = { type:'err', msg:`Group #${id} not found.` };
     } else {
       await pool.query('INSERT INTO conduit_log (event,payload,status) VALUES ($1,$2,$3)',
-        ['legacy_family_delete', `id:${id} name:${r.rows[0].family_name}`, 'ok']);
-      req.session.flash = { type:'ok', msg:`✓ Family #${id} "${r.rows[0].family_name}" deleted.` };
+        ['legacy_group_delete', `id:${id} name:${r.rows[0].group_name}`, 'ok']);
+      req.session.flash = { type:'ok', msg:`✓ Group #${id} "${r.rows[0].group_name}" deleted.` };
     }
   } catch (e) {
-    console.error('[conduit] family delete ERROR:', e.message);
+    console.error('[conduit] group delete ERROR:', e.message);
     req.session.flash = { type:'err', msg:`DB Error: ${e.message}` };
   }
   res.redirect(BASE + '/users');
@@ -1690,10 +1777,10 @@ app.post(BASE + '/users/legacy/set-admin/:username', isAuth, async (req, res) =>
 
 
 // POST: Add a new Legacy user. Preserves the username's case (Anel@Koen),
-// honours role / family / system-admin / accent inputs, and auto-creates a
-// solo family if no existing family was picked.
+// honours role / group / system-admin / accent inputs, and auto-creates a
+// solo group if no existing group was picked.
 app.post(BASE + '/users/legacy/add', isAuth, async (req, res) => {
-  const { username, firstName, lastName, email, password, isAdmin, role, familyId, accentColor } = req.body;
+  const { username, firstName, lastName, email, password, isAdmin, role, groupId, accentColor } = req.body;
   if (!username || !password) {
     req.session.flash = { type:'err', msg:'Username and password are required.' };
     return res.redirect(BASE + '/users');
@@ -1705,7 +1792,7 @@ app.post(BASE + '/users/legacy/add', isAuth, async (req, res) => {
   }
   const validRoles = ['individual','partner','parent','guardian','ceo','manager','coach'];
   const cleanRole  = validRoles.includes((role||'').toLowerCase()) ? role.toLowerCase() : 'individual';
-  const targetFam  = familyId ? parseInt(familyId, 10) : null;
+  const targetFam  = groupId ? parseInt(groupId, 10) : null;
   const accent     = /^#[0-9A-Fa-f]{6}$/.test(accentColor||'') ? accentColor : '#00ff41';
 
   const client = await legacyPool.connect();
@@ -1716,59 +1803,59 @@ app.post(BASE + '/users/legacy/add', isAuth, async (req, res) => {
     const displayName = (firstName && lastName) ? `${firstName} ${lastName}` : cleanUser;
     const adminFlag   = (isAdmin==='1'||isAdmin===true||isAdmin===1) ? 1 : 0;
 
-    // Find or create the target family BEFORE inserting the user, so family_id
+    // Find or create the target group BEFORE inserting the user, so group_id
     // can be set on the INSERT.
-    let useFamilyId   = null;
-    let useFamilyName = null;
+    let useGroupId   = null;
+    let useGroupName = null;
     if (targetFam) {
-      const fr = await client.query('SELECT id, family_name FROM vectraarchlegacy_families WHERE id = $1', [targetFam]);
+      const fr = await client.query('SELECT id, group_name FROM vectraarchlegacy_groups WHERE id = $1', [targetFam]);
       if (!fr.rows[0]) {
         await client.query('ROLLBACK');
-        req.session.flash = { type:'err', msg:`Family #${targetFam} not found.` };
+        req.session.flash = { type:'err', msg:`Group #${targetFam} not found.` };
         return res.redirect(BASE + '/users');
       }
-      useFamilyId   = fr.rows[0].id;
-      useFamilyName = fr.rows[0].family_name;
+      useGroupId   = fr.rows[0].id;
+      useGroupName = fr.rows[0].group_name;
     } else {
       const famLabel = firstName || displayName || cleanUser;
-      const famName  = cleanRole === 'individual' ? `${famLabel}'s Hub` : `${famLabel}'s Family`;
+      const famName  = cleanRole === 'individual' ? `${famLabel}'s Hub` : `${famLabel}'s Group`;
       const famRes = await client.query(`
-        INSERT INTO vectraarchlegacy_families
-          (family_name, admin_username, currency, timezone, member_count, enabled_modules)
+        INSERT INTO vectraarchlegacy_groups
+          (group_name, admin_username, currency, timezone, member_count, enabled_modules)
         VALUES ($1, $2, 'ZAR', 'Africa/Johannesburg', 1, 'fin,cal,bud,gym,eat,cyc')
-        RETURNING id, family_name`,
+        RETURNING id, group_name`,
         [famName, cleanUser]
       );
-      useFamilyId   = famRes.rows[0].id;
-      useFamilyName = famRes.rows[0].family_name;
+      useGroupId   = famRes.rows[0].id;
+      useGroupName = famRes.rows[0].group_name;
     }
 
     await client.query(
       `INSERT INTO vectraarchlegacy_users
          (username, password_hash, first_name, last_name, display_name, email,
-          is_admin, family_id, auth_provider, role, accent_color, event_color)
+          is_admin, group_id, auth_provider, role, accent_color, event_color)
        VALUES ($1,$2,$3,$4,$5,$6,$7::integer,$8,'password',$9,$10,$10)`,
       [cleanUser, hash, firstName||null, lastName||null, displayName, email||null,
-       adminFlag, useFamilyId, cleanRole, accent]
+       adminFlag, useGroupId, cleanRole, accent]
     );
 
-    // Auto-link this user to every other current member of the family.
+    // Auto-link this user to every other current member of the group.
     await client.query(`
       INSERT INTO vectraarchlegacy_access (viewer, target, source)
-      SELECT $1, u.username, 'family' FROM vectraarchlegacy_users u
-      WHERE u.family_id = $2 AND u.username <> $1
-      ON CONFLICT (viewer, target) DO NOTHING`, [cleanUser, useFamilyId]);
+      SELECT $1, u.username, 'group' FROM vectraarchlegacy_users u
+      WHERE u.group_id = $2 AND u.username <> $1
+      ON CONFLICT (viewer, target) DO NOTHING`, [cleanUser, useGroupId]);
     await client.query(`
       INSERT INTO vectraarchlegacy_access (viewer, target, source)
-      SELECT u.username, $1, 'family' FROM vectraarchlegacy_users u
-      WHERE u.family_id = $2 AND u.username <> $1
-      ON CONFLICT (viewer, target) DO NOTHING`, [cleanUser, useFamilyId]);
+      SELECT u.username, $1, 'group' FROM vectraarchlegacy_users u
+      WHERE u.group_id = $2 AND u.username <> $1
+      ON CONFLICT (viewer, target) DO NOTHING`, [cleanUser, useGroupId]);
 
     await client.query('COMMIT');
     await pool.query('INSERT INTO conduit_log (event,payload,status) VALUES ($1,$2,$3)',
-      ['legacy_user_add', `username:${cleanUser} role:${cleanRole} family:${useFamilyId}`, 'ok']);
+      ['legacy_user_add', `username:${cleanUser} role:${cleanRole} group:${useGroupId}`, 'ok']);
     req.session.flash = { type:'ok',
-      msg:`✓ "${cleanUser}" created · ${cleanRole.toUpperCase()} · family "${useFamilyName}" (#${useFamilyId})` };
+      msg:`✓ "${cleanUser}" created · ${cleanRole.toUpperCase()} · group "${useGroupName}" (#${useGroupId})` };
   } catch(e) {
     try { await client.query('ROLLBACK'); } catch {}
     req.session.flash = { type:'err', msg:`Error: ${e.message}` };
@@ -1779,8 +1866,8 @@ app.post(BASE + '/users/legacy/add', isAuth, async (req, res) => {
 });
 
 // POST: Edit Legacy user fields. Supports updating role in addition to the
-// previous fields. Family is changed via /users/legacy/move-family (separate
-// dropdown), not here, so family-access stays in sync.
+// previous fields. Group is changed via /users/legacy/move-group (separate
+// dropdown), not here, so group-access stays in sync.
 app.post(BASE + '/users/legacy/edit/:username', isAuth, async (req, res) => {
   const { username } = req.params;
   const { firstName, lastName, email, isAdmin, password, role } = req.body;
@@ -1841,8 +1928,8 @@ app.post(BASE + '/users/legacy/toggle-2fa/:username', isAuth, async (req, res) =
 });
 
 // POST: Grant Legacy access (partner sharing)
-// POST: Grant a MANUAL cross-family link. Family-induced rows are auto-managed
-// by family membership; this endpoint only writes source='manual'.
+// POST: Grant a MANUAL cross-group link. Group-induced rows are auto-managed
+// by group membership; this endpoint only writes source='manual'.
 app.post(BASE + '/users/legacy/grant-access', isAuth, async (req, res) => {
   const { viewer, target } = req.body;
   if (!viewer || !target || viewer === target) {
@@ -1861,17 +1948,17 @@ app.post(BASE + '/users/legacy/grant-access', isAuth, async (req, res) => {
   res.redirect(BASE + '/users');
 });
 
-// POST: Revoke a Legacy access pair. Refuses to delete family-source rows so
-// auto-managed visibility can only be changed via the user's Family dropdown.
+// POST: Revoke a Legacy access pair. Refuses to delete group-source rows so
+// auto-managed visibility can only be changed via the user's Group dropdown.
 app.post(BASE + '/users/legacy/revoke-access', isAuth, async (req, res) => {
   const { viewer, target } = req.body;
   try {
     const r = await legacyPool.query(
-      "DELETE FROM vectraarchlegacy_access WHERE viewer=$1 AND target=$2 AND source <> 'family'",
+      "DELETE FROM vectraarchlegacy_access WHERE viewer=$1 AND target=$2 AND source <> 'group'",
       [viewer, target]
     );
     if (r.rowCount === 0) {
-      req.session.flash = { type:'err', msg:`⚠ ${viewer} → ${target} is a family-managed link. Move the user out of the family to remove it.` };
+      req.session.flash = { type:'err', msg:`⚠ ${viewer} → ${target} is a group-managed link. Move the user out of the group to remove it.` };
     } else {
       req.session.flash = { type:'ok', msg:`✓ Manual access revoked: ${viewer} → ${target}` };
     }

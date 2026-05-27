@@ -104,9 +104,9 @@ async function ensureSchema() {
         `ALTER TABLE vectraarchlegacy_users ADD COLUMN IF NOT EXISTS height_cm NUMERIC`,
         `ALTER TABLE vectraarchlegacy_users ADD COLUMN IF NOT EXISTS weight_kg NUMERIC`,
         // ── Family tables ──
-        `CREATE TABLE IF NOT EXISTS vectraarchlegacy_families (
+        `CREATE TABLE IF NOT EXISTS vectraarchlegacy_groups (
             id              SERIAL PRIMARY KEY,
-            family_name     TEXT NOT NULL,
+            group_name     TEXT NOT NULL,
             admin_username  TEXT NOT NULL,
             currency        TEXT NOT NULL DEFAULT 'ZAR',
             timezone        TEXT NOT NULL DEFAULT 'Africa/Johannesburg',
@@ -114,10 +114,10 @@ async function ensureSchema() {
             enabled_modules TEXT NOT NULL DEFAULT 'fin,cal,bud,gym,eat,cyc',
             created_at      TIMESTAMPTZ DEFAULT NOW()
         )`,
-        `CREATE INDEX IF NOT EXISTS idx_families_admin ON vectraarchlegacy_families(admin_username)`,
-        `CREATE TABLE IF NOT EXISTS vectraarchlegacy_family_members (
+        `CREATE INDEX IF NOT EXISTS idx_families_admin ON vectraarchlegacy_groups(admin_username)`,
+        `CREATE TABLE IF NOT EXISTS vectraarchlegacy_group_members (
             id            SERIAL PRIMARY KEY,
-            family_id     INT NOT NULL,
+            group_id     INT NOT NULL,
             username      TEXT,
             member_type   TEXT NOT NULL DEFAULT 'other',
             name          TEXT NOT NULL,
@@ -130,17 +130,17 @@ async function ensureSchema() {
             invite_token  TEXT,
             created_at    TIMESTAMPTZ DEFAULT NOW()
         )`,
-        `CREATE INDEX IF NOT EXISTS idx_fam_members_fid ON vectraarchlegacy_family_members(family_id)`,
+        `CREATE INDEX IF NOT EXISTS idx_fam_members_fid ON vectraarchlegacy_group_members(group_id)`,
         `CREATE TABLE IF NOT EXISTS vectraarchlegacy_module_access (
             id              SERIAL PRIMARY KEY,
-            family_id       INT NOT NULL,
+            group_id       INT NOT NULL,
             owner_username  TEXT NOT NULL,
             member_id       INT NOT NULL,
             module          TEXT NOT NULL,
             enabled         BOOLEAN NOT NULL DEFAULT TRUE,
-            UNIQUE(family_id, owner_username, member_id, module)
+            UNIQUE(group_id, owner_username, member_id, module)
         )`,
-        `CREATE INDEX IF NOT EXISTS idx_mod_access_owner ON vectraarchlegacy_module_access(family_id, owner_username)`,
+        `CREATE INDEX IF NOT EXISTS idx_mod_access_owner ON vectraarchlegacy_module_access(group_id, owner_username)`,
         `CREATE TABLE IF NOT EXISTS vectraarchlegacy_partner_sharing (
             id      SERIAL PRIMARY KEY,
             owner   TEXT NOT NULL,
@@ -255,7 +255,7 @@ function mapUser(row) {
         authProvider:     row.auth_provider     || 'password',
         hasGoogle:        !!row.google_id,
         twoFactorEnabled: !!row.twofa_secret,
-        familyId:         row.family_id          || null,
+        groupId:         row.group_id          || null,
     };
 }
 
@@ -342,43 +342,43 @@ async function sendNuntlyEmail({ to, subject, text, html }) {
 // family id. Used by every code path that creates a user so no account is
 // ever orphaned (per the "I do not want users to not be part of a family"
 // rule). Safe to call inside a transaction (accepts an optional client).
-async function ensureSoloFamily({ username, firstName, displayName, role, currency, timezone, client }) {
+async function ensureSoloGroup({ username, firstName, displayName, role, currency, timezone, client }) {
     const q = client ? client.query.bind(client) : pool.query.bind(pool);
-    const existing = await q('SELECT family_id FROM vectraarchlegacy_users WHERE LOWER(username) = LOWER($1)', [username]);
-    if (existing.rows[0]?.family_id) return existing.rows[0].family_id;
+    const existing = await q('SELECT group_id FROM vectraarchlegacy_users WHERE LOWER(username) = LOWER($1)', [username]);
+    if (existing.rows[0]?.group_id) return existing.rows[0].group_id;
     const label   = firstName || displayName || username;
     const isIndiv = !role || role === 'individual';
     const famName = isIndiv ? `${label}'s Hub` : `${label}'s Family`;
     const fam = await q(`
-        INSERT INTO vectraarchlegacy_families
-            (family_name, admin_username, currency, timezone, member_count, enabled_modules)
+        INSERT INTO vectraarchlegacy_groups
+            (group_name, admin_username, currency, timezone, member_count, enabled_modules)
         VALUES ($1,$2,$3,$4,1,'fin,cal,bud,gym,eat,cyc')
         RETURNING id`,
         [famName, username, currency || 'ZAR', timezone || 'Africa/Johannesburg']
     );
     const id = fam.rows[0].id;
-    await q('UPDATE vectraarchlegacy_users SET family_id = $1 WHERE LOWER(username) = LOWER($2)', [id, username]);
+    await q('UPDATE vectraarchlegacy_users SET group_id = $1 WHERE LOWER(username) = LOWER($2)', [id, username]);
     return id;
 }
 
 // ── Family-driven access sync ────────────────────────────────────────────────
 // Family membership is the source of truth for who-can-see-whom. Whenever a
-// user's family_id changes (or a new user joins a family), we:
+// user's group_id changes (or a new user joins a family), we:
 //   1. Add 'family'-sourced rows in both directions between this user and
 //      every OTHER member of the new family.
 //   2. Remove any 'family'-sourced rows between this user and members of any
 //      family they're no longer a member of. Manual ('manual') rows are
 //      preserved.
 // Note: manual rows added via /api/grant-access are left untouched.
-async function syncUserFamilyAccess(username, newFamilyId, oldFamilyId = null) {
+async function syncUserGroupAccess(username, newFamilyId, oldFamilyId = null) {
     if (oldFamilyId && oldFamilyId !== newFamilyId) {
         // Drop family-sourced rows that link this user to the old family.
         await dbRun(
             `DELETE FROM vectraarchlegacy_access
              WHERE source = 'family'
                AND (
-                   (viewer = $1 AND target IN (SELECT username FROM vectraarchlegacy_users WHERE family_id = $2))
-                OR (target = $1 AND viewer IN (SELECT username FROM vectraarchlegacy_users WHERE family_id = $2))
+                   (viewer = $1 AND target IN (SELECT username FROM vectraarchlegacy_users WHERE group_id = $2))
+                OR (target = $1 AND viewer IN (SELECT username FROM vectraarchlegacy_users WHERE group_id = $2))
                )`,
             [username, oldFamilyId]
         );
@@ -389,7 +389,7 @@ async function syncUserFamilyAccess(username, newFamilyId, oldFamilyId = null) {
         `INSERT INTO vectraarchlegacy_access (viewer, target, source)
          SELECT $1, u.username, 'family'
          FROM vectraarchlegacy_users u
-         WHERE u.family_id = $2 AND u.username <> $1
+         WHERE u.group_id = $2 AND u.username <> $1
          ON CONFLICT (viewer, target) DO NOTHING`,
         [username, newFamilyId]
     );
@@ -397,7 +397,7 @@ async function syncUserFamilyAccess(username, newFamilyId, oldFamilyId = null) {
         `INSERT INTO vectraarchlegacy_access (viewer, target, source)
          SELECT u.username, $1, 'family'
          FROM vectraarchlegacy_users u
-         WHERE u.family_id = $2 AND u.username <> $1
+         WHERE u.group_id = $2 AND u.username <> $1
          ON CONFLICT (viewer, target) DO NOTHING`,
         [username, newFamilyId]
     );
@@ -454,8 +454,8 @@ app.post('/api/login', async (req, res) => {
 // reserved for future use) to see everything.
 app.get('/api/users', requireAdmin, async (req, res) => {
     try {
-        const meRow = await dbQuery('SELECT family_id FROM vectraarchlegacy_users WHERE username = $1', [req.adminUsername]);
-        const myFamily = meRow?.family_id || null;
+        const meRow = await dbQuery('SELECT group_id FROM vectraarchlegacy_users WHERE username = $1', [req.adminUsername]);
+        const myFamily = meRow?.group_id || null;
         const rows = await dbAll(
             `SELECT u.username,
                     u.first_name      AS "firstName",
@@ -464,11 +464,11 @@ app.get('/api/users', requireAdmin, async (req, res) => {
                     u.is_admin        AS "isAdmin",
                     u.last_active     AS "lastActive",
                     u.role            AS "role",
-                    u.family_id       AS "familyId",
-                    f.family_name     AS "familyName"
+                    u.group_id       AS "groupId",
+                    f.group_name     AS "groupName"
              FROM vectraarchlegacy_users u
-             LEFT JOIN vectraarchlegacy_families f ON f.id = u.family_id
-             ${myFamily ? 'WHERE u.family_id = $1' : ''}`,
+             LEFT JOIN vectraarchlegacy_groups f ON f.id = u.group_id
+             ${myFamily ? 'WHERE u.group_id = $1' : ''}`,
             myFamily ? [myFamily] : []
         );
         res.json({ success: true, data: rows, scopedToFamily: myFamily });
@@ -478,14 +478,14 @@ app.get('/api/users', requireAdmin, async (req, res) => {
 });
 
 // List families (used by Conduit + Admin panel for "move to family" dropdowns).
-app.get('/api/admin/families', requireAdmin, async (req, res) => {
+app.get('/api/admin/groups', requireAdmin, async (req, res) => {
     try {
         const rows = await dbAll(`
-            SELECT f.id, f.family_name AS "familyName", f.admin_username AS "adminUsername",
+            SELECT f.id, f.group_name AS "groupName", f.admin_username AS "adminUsername",
                    f.currency, f.timezone, f.member_count AS "memberCount",
                    f.created_at AS "createdAt",
-                   (SELECT COUNT(*) FROM vectraarchlegacy_users u WHERE u.family_id = f.id)::int AS "actualMembers"
-            FROM vectraarchlegacy_families f
+                   (SELECT COUNT(*) FROM vectraarchlegacy_users u WHERE u.group_id = f.id)::int AS "actualMembers"
+            FROM vectraarchlegacy_groups f
             ORDER BY f.id ASC
         `);
         res.json({ success: true, families: rows });
@@ -495,22 +495,22 @@ app.get('/api/admin/families', requireAdmin, async (req, res) => {
 });
 
 // Move (or initially place) a user into a family. Auto-syncs family-sourced
-// access rows. Body: { username, familyId, adminUsername }
-app.post('/api/admin/assign-family', requireAdmin, async (req, res) => {
-    const { username, familyId } = req.body;
-    if (!username || !familyId) return res.status(400).json({ success: false, message: 'username and familyId required.' });
+// access rows. Body: { username, groupId, adminUsername }
+app.post('/api/admin/assign-group', requireAdmin, async (req, res) => {
+    const { username, groupId } = req.body;
+    if (!username || !groupId) return res.status(400).json({ success: false, message: 'username and groupId required.' });
     try {
-        const userRow = await dbQuery('SELECT family_id FROM vectraarchlegacy_users WHERE LOWER(username) = LOWER($1)', [username]);
+        const userRow = await dbQuery('SELECT group_id FROM vectraarchlegacy_users WHERE LOWER(username) = LOWER($1)', [username]);
         if (!userRow) return res.status(404).json({ success: false, message: 'User not found.' });
-        const famRow = await dbQuery('SELECT id, family_name FROM vectraarchlegacy_families WHERE id = $1', [familyId]);
+        const famRow = await dbQuery('SELECT id, group_name FROM vectraarchlegacy_groups WHERE id = $1', [groupId]);
         if (!famRow)  return res.status(404).json({ success: false, message: 'Family not found.' });
 
-        const oldFamilyId = userRow.family_id || null;
-        await dbRun('UPDATE vectraarchlegacy_users SET family_id = $1 WHERE LOWER(username) = LOWER($2)', [familyId, username]);
-        await syncUserFamilyAccess(username, familyId, oldFamilyId);
+        const oldFamilyId = userRow.group_id || null;
+        await dbRun('UPDATE vectraarchlegacy_users SET group_id = $1 WHERE LOWER(username) = LOWER($2)', [groupId, username]);
+        await syncUserGroupAccess(username, groupId, oldFamilyId);
 
         await logTransaction(username, 'ASSIGN_FAMILY', 'users', null, req.adminUsername);
-        res.json({ success: true, username, familyId: famRow.id, familyName: famRow.family_name, oldFamilyId });
+        res.json({ success: true, username, groupId: famRow.id, groupName: famRow.group_name, oldFamilyId });
     } catch (e) {
         console.error('[assign-family]', e.message);
         res.status(500).json({ success: false, message: 'Error assigning family.', error: e.message });
@@ -519,16 +519,16 @@ app.post('/api/admin/assign-family', requireAdmin, async (req, res) => {
 
 // Create a new family (no user attached). Useful for setting up "The Koen Family"
 // in Conduit before reassigning existing users into it.
-app.post('/api/admin/families', requireAdmin, async (req, res) => {
-    const { familyName, adminUsername: famAdmin, currency, timezone } = req.body;
-    if (!familyName) return res.status(400).json({ success: false, message: 'familyName required.' });
+app.post('/api/admin/groups', requireAdmin, async (req, res) => {
+    const { groupName, adminUsername: famAdmin, currency, timezone } = req.body;
+    if (!groupName) return res.status(400).json({ success: false, message: 'groupName required.' });
     try {
         const r = await pool.query(`
-            INSERT INTO vectraarchlegacy_families
-                (family_name, admin_username, currency, timezone, member_count, enabled_modules)
+            INSERT INTO vectraarchlegacy_groups
+                (group_name, admin_username, currency, timezone, member_count, enabled_modules)
             VALUES ($1,$2,$3,$4,0,'fin,cal,bud,gym,eat,cyc')
-            RETURNING id, family_name AS "familyName"`,
-            [familyName.trim(), famAdmin || req.adminUsername,
+            RETURNING id, group_name AS "groupName"`,
+            [groupName.trim(), famAdmin || req.adminUsername,
              currency || 'ZAR', timezone || 'Africa/Johannesburg']
         );
         await logTransaction(req.adminUsername, 'CREATE', 'families', r.rows[0].id, req.adminUsername);
@@ -550,28 +550,28 @@ app.post('/api/add-user', requireAdmin, async (req, res) => {
             [username, hash, firstName || null, lastName || null, displayName || username]
         );
         // No user without a family: spin up a solo family + sync family-sourced access.
-        const familyId = await ensureSoloFamily({
+        const groupId = await ensureSoloGroup({
             username, firstName, displayName: displayName || username, role: 'individual',
         });
-        await syncUserFamilyAccess(username, familyId, null);
+        await syncUserGroupAccess(username, groupId, null);
         await logTransaction(username, 'CREATE', 'users',    null,     req.adminUsername);
-        await logTransaction(username, 'CREATE', 'families', familyId, req.adminUsername);
-        sendTelegramMessage(GROUP_CHAT_ID, `New user added: ${username} by ${req.adminUsername} (family #${familyId})`);
-        res.json({ success: true, message: 'User added successfully!', familyId });
+        await logTransaction(username, 'CREATE', 'families', groupId, req.adminUsername);
+        sendTelegramMessage(GROUP_CHAT_ID, `New user added: ${username} by ${req.adminUsername} (family #${groupId})`);
+        res.json({ success: true, message: 'User added successfully!', groupId });
     } catch (e) {
         res.status(500).json({ success: false, message: 'Server error adding user.', error: e.message });
     }
 });
 
 // Full user creation — used by Admin's "Add User" form. Creates the user row
-// AND a vectraarchlegacy_families row (with admin_username = new user) in one
+// AND a vectraarchlegacy_groups row (with admin_username = new user) in one
 // transaction so every new user has a hub to populate.
 app.post('/api/admin/create-user', requireAdmin, async (req, res) => {
     const {
         username, password, firstName, lastName, email,
         gender, dateOfBirth, heightCm, weightKg,
         role, accentColor, currency, timezone,
-        familyName, familyId, isAdmin,
+        groupName, groupId, isAdmin,
     } = req.body;
 
     if (!username) {
@@ -615,37 +615,37 @@ app.post('/api/admin/create-user', requireAdmin, async (req, res) => {
         const displayName = `${firstName || ''} ${lastName || ''}`.trim() || clean;
         const adminFlag   = isAdmin ? 1 : 0;
 
-        // Pick or create a family BEFORE inserting the user, so we can set family_id directly.
+        // Pick or create a family BEFORE inserting the user, so we can set group_id directly.
         let useFamilyId  = null;
         let useFamilyName = null;
-        if (familyId) {
-            const fr = await client.query('SELECT id, family_name FROM vectraarchlegacy_families WHERE id = $1', [familyId]);
+        if (groupId) {
+            const fr = await client.query('SELECT id, group_name FROM vectraarchlegacy_groups WHERE id = $1', [groupId]);
             if (!fr.rows[0]) {
                 await client.query('ROLLBACK');
-                return res.status(400).json({ success: false, message: `Family ${familyId} not found.` });
+                return res.status(400).json({ success: false, message: `Family ${groupId} not found.` });
             }
             useFamilyId   = fr.rows[0].id;
-            useFamilyName = fr.rows[0].family_name;
+            useFamilyName = fr.rows[0].group_name;
         } else {
-            const famName = (familyName && familyName.trim())
-                ? familyName.trim()
+            const famName = (groupName && groupName.trim())
+                ? groupName.trim()
                 : (userRole === 'individual' ? `${firstName || clean}'s Hub` : `${firstName || clean}'s Family`);
             const famRes = await client.query(`
-                INSERT INTO vectraarchlegacy_families
-                    (family_name, admin_username, currency, timezone, member_count, enabled_modules)
+                INSERT INTO vectraarchlegacy_groups
+                    (group_name, admin_username, currency, timezone, member_count, enabled_modules)
                 VALUES ($1,$2,$3,$4,1,'fin,cal,bud,gym,eat,cyc')
-                RETURNING id, family_name`,
+                RETURNING id, group_name`,
                 [famName, clean, currency || 'ZAR', timezone || 'Africa/Johannesburg']
             );
             useFamilyId   = famRes.rows[0].id;
-            useFamilyName = famRes.rows[0].family_name;
+            useFamilyName = famRes.rows[0].group_name;
         }
 
         await client.query(`
             INSERT INTO vectraarchlegacy_users
                 (username, password_hash, first_name, last_name, display_name,
                  email, gender, date_of_birth, height_cm, weight_kg,
-                 role, accent_color, event_color, is_admin, auth_provider, family_id)
+                 role, accent_color, event_color, is_admin, auth_provider, group_id)
             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$12,$13,'password',$14)`,
             [clean, hash, firstName || null, lastName || null, displayName,
              email || null, gender || null, dateOfBirth || null,
@@ -658,7 +658,7 @@ app.post('/api/admin/create-user', requireAdmin, async (req, res) => {
 
         // Build family-sourced access rows for the new user (outside the transaction
         // so we can use the helper; idempotent and bounded by current membership).
-        await syncUserFamilyAccess(clean, useFamilyId, null);
+        await syncUserGroupAccess(clean, useFamilyId, null);
 
         await logTransaction(clean, 'CREATE', 'users',    null,        req.adminUsername);
         await logTransaction(clean, 'CREATE', 'families', useFamilyId, req.adminUsername);
@@ -668,8 +668,8 @@ app.post('/api/admin/create-user', requireAdmin, async (req, res) => {
             success:    true,
             message:    `User ${clean} created in family "${useFamilyName}".`,
             username:   clean,
-            familyId:   useFamilyId,
-            familyName: useFamilyName,
+            groupId:   useFamilyId,
+            groupName: useFamilyName,
             role:       userRole,
         });
     } catch (e) {
@@ -2264,44 +2264,44 @@ app.post('/api/setup', async (req, res) => {
              profile.weightKg ? parseFloat(profile.weightKg) : null]
         );
 
-        let familyId = null;
-        if (profile.role !== 'individual' && family?.familyName) {
+        let groupId = null;
+        if (profile.role !== 'individual' && family?.groupName) {
             const famRes = await client.query(`
-                INSERT INTO vectraarchlegacy_families
-                    (family_name, admin_username, currency, timezone, member_count, enabled_modules)
+                INSERT INTO vectraarchlegacy_groups
+                    (group_name, admin_username, currency, timezone, member_count, enabled_modules)
                 VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
-                [family.familyName, username,
+                [family.groupName, username,
                  family.currency || 'ZAR',
                  family.timezone || 'Africa/Johannesburg',
                  family.memberCount || 1,
                  Array.isArray(enabledModules) ? enabledModules.join(',') : 'fin,cal,bud,gym,eat,cyc']
             );
-            familyId = famRes.rows[0].id;
+            groupId = famRes.rows[0].id;
         } else if (enabledModules?.length > 0) {
             // Individual — store a solo family record for module prefs
             const famRes = await client.query(`
-                INSERT INTO vectraarchlegacy_families
-                    (family_name, admin_username, currency, timezone, member_count, enabled_modules)
+                INSERT INTO vectraarchlegacy_groups
+                    (group_name, admin_username, currency, timezone, member_count, enabled_modules)
                 VALUES ($1,$2,$3,$4,1,$5) RETURNING id`,
                 [displayName + "'s Hub", username,
                  family?.currency || 'ZAR',
                  family?.timezone || 'Africa/Johannesburg',
                  enabledModules.join(',')]
             );
-            familyId = famRes.rows[0].id;
+            groupId = famRes.rows[0].id;
         }
 
         const memberIdMap = {};
-        if (familyId && Array.isArray(members) && members.length > 0) {
+        if (groupId && Array.isArray(members) && members.length > 0) {
             for (let i = 0; i < members.length; i++) {
                 const m = members[i];
                 const token = require('crypto').randomBytes(24).toString('hex');
                 const memRes = await client.query(`
-                    INSERT INTO vectraarchlegacy_family_members
-                        (family_id, member_type, name, sex, date_of_birth,
+                    INSERT INTO vectraarchlegacy_group_members
+                        (group_id, member_type, name, sex, date_of_birth,
                          accent_color, invite_email, invite_cell, invite_sent, invite_token)
                     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id`,
-                    [familyId, m.type || 'other', m.name || 'Member',
+                    [groupId, m.type || 'other', m.name || 'Member',
                      m.sex || null, m.dateOfBirth || null,
                      m.accentColor || '#00ff41',
                      m.inviteEmail || null, m.inviteCell || null,
@@ -2311,7 +2311,7 @@ app.post('/api/setup', async (req, res) => {
             }
         }
 
-        if (familyId && moduleAccess && Object.keys(moduleAccess).length > 0) {
+        if (groupId && moduleAccess && Object.keys(moduleAccess).length > 0) {
             for (const [idxStr, mods] of Object.entries(moduleAccess)) {
                 const idx = parseInt(idxStr, 10);
                 const memberId = memberIdMap[idx];
@@ -2319,11 +2319,11 @@ app.post('/api/setup', async (req, res) => {
                 for (const [mod, enabled] of Object.entries(mods)) {
                     await client.query(`
                         INSERT INTO vectraarchlegacy_module_access
-                            (family_id, owner_username, member_id, module, enabled)
+                            (group_id, owner_username, member_id, module, enabled)
                         VALUES ($1,$2,$3,$4,$5)
-                        ON CONFLICT (family_id, owner_username, member_id, module)
+                        ON CONFLICT (group_id, owner_username, member_id, module)
                         DO UPDATE SET enabled = EXCLUDED.enabled`,
-                        [familyId, username, memberId, mod, !!enabled]
+                        [groupId, username, memberId, mod, !!enabled]
                     );
                 }
             }
