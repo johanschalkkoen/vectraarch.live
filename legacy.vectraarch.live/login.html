@@ -76,8 +76,21 @@
     </a>
     <div style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.12em;color:rgba(255,255,255,0.35);text-align:center;margin-top:8px;text-transform:uppercase;">Invite-only · ask your admin</div>
 
-    <a href="https://forge.vectraarch.live/" class="auth-back">← Back to Forge</a>
-    <a href="/setup" class="auth-back" style="margin-top:6px;color:var(--accent);opacity:.7">New here? Create your hub →</a>
+    <div style="display:flex;align-items:center;gap:10px;margin:18px 0 10px;">
+      <div style="flex:1;height:1px;background:rgba(255,255,255,0.08)"></div>
+      <div style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.2em;color:rgba(255,255,255,0.35);text-transform:uppercase">New here?</div>
+      <div style="flex:1;height:1px;background:rgba(255,255,255,0.08)"></div>
+    </div>
+
+    <a href="/setup" style="display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:12px 18px;background:rgba(212,160,23,0.08);color:#d4a017;border:1px solid #d4a017;border-radius:6px;font-family:'DM Mono',monospace;font-size:13px;letter-spacing:.06em;text-decoration:none;box-sizing:border-box;font-weight:500;text-transform:uppercase;">
+      + Create Your Hub
+    </a>
+
+    <a href="/landing" style="display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:12px 18px;background:transparent;color:rgba(255,255,255,0.78);border:1px solid rgba(255,255,255,0.2);border-radius:6px;font-family:'DM Mono',monospace;font-size:13px;letter-spacing:.06em;text-decoration:none;box-sizing:border-box;font-weight:500;text-transform:uppercase;margin-top:10px;">
+      See What Legacy Can Do →
+    </a>
+
+    <a href="https://vectraarch.live/" class="auth-back">← Back to Vectra Arch </a>
   </div>
 </div>
 
@@ -89,7 +102,7 @@
       if (!raw) return;
       var user = JSON.parse(raw);
       if (user && user.username && user.success !== false) {
-        window.location.replace('/app.html');
+        window.location.replace('/');
       }
     } catch (e) { localStorage.removeItem('user'); }
   })();
@@ -159,7 +172,7 @@
         var dg = await rg.json();
         if (rg.ok && dg.success) {
           localStorage.setItem('user', JSON.stringify(dg));
-          window.location.replace('/app.html');
+          window.location.replace('/');
         } else {
           errEl.textContent   = '⚠ ' + (dg.message || 'Invalid code.');
           errEl.style.display = 'block';
@@ -194,7 +207,7 @@
         if (r2.ok && d2.success) {
           // Store exactly as the existing app does
           localStorage.setItem('user', JSON.stringify(d2));
-          window.location.replace('/app.html');
+          window.location.replace('/');
         } else {
           errEl.textContent   = '⚠ ' + (d2.message || 'Invalid code.');
           errEl.style.display = 'block';
@@ -248,7 +261,7 @@
 
       // Success — store exactly as the existing app does
       localStorage.setItem('user', JSON.stringify(data));
-      window.location.replace('/app.html');
+      window.location.replace('/');
 
     } catch (e) {
       errEl.textContent   = '⚠ Connection error — try again.';

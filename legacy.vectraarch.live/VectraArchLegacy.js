@@ -67,6 +67,8 @@ app.use('/shared', express.static(path.join(__dirname, '..', 'vectraarch.live', 
 app.use('/images', express.static(path.join(__dirname, 'images')));
 app.get('/',               (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 app.get('/app.html',       (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
+app.get('/landing',        (req, res) => res.sendFile(path.join(__dirname, 'landing.html')));
+app.get('/landing.html',   (req, res) => res.sendFile(path.join(__dirname, 'landing.html')));
 app.get('/login.html',     (req, res) => res.sendFile(path.join(__dirname, 'login.html')));
 app.get('/auth-guard.js',  (req, res) => res.sendFile(path.join(__dirname, 'VectraArchLegacyAuthGuard.js')));
 
@@ -1908,7 +1910,7 @@ app.get('/auth/google/callback', (req, res, next) => {
                     return res.redirect('/login.html?stage=2fa&from=google');
                 }
 
-                return res.send(renderHandoffPage({ success: true, ...mapUser(user) }, '/app.html'));
+                return res.send(renderHandoffPage({ success: true, ...mapUser(user) }, '/'));
             } catch (e) {
                 console.error('[google-oauth] handler error:', e.message);
                 return res.redirect('/login.html?error=google_server');

@@ -1566,7 +1566,7 @@ async function submitSetup() {
 
     // Store session data and redirect
     localStorage.setItem('user', JSON.stringify(data));
-    window.location.href = '/app.html';
+    window.location.href = '/';
 
   } catch (e) {
     showError('Connection error — please try again.');
@@ -1580,7 +1580,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Redirect if already logged in
   try {
     const u = JSON.parse(localStorage.getItem('user') || 'null');
-    if (u && u.username && u.success !== false) window.location.replace('/app.html');
+    if (u && u.username && u.success !== false) window.location.replace('/');
   } catch (e) { /* ignore */ }
 
   initProgress();
