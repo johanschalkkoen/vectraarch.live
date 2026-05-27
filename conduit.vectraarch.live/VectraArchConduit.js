@@ -1038,7 +1038,7 @@ app.get(BASE + '/users', isAuth, async (req, res) => {
       ORDER BY u.last_active DESC NULLS LAST
     `);
     legacyUsers = lr.rows;
-    const ar = await legacyPool.query('SELECT viewer, target FROM vectraarchlegacy_access ORDER BY viewer');
+    const ar = await legacyPool.query("SELECT viewer, target, source FROM vectraarchlegacy_access ORDER BY source DESC, viewer");
     accessList = ar.rows;
     const fr = await legacyPool.query(`
       SELECT id, family_name, admin_username,
@@ -1182,19 +1182,31 @@ app.get(BASE + '/users', isAuth, async (req, res) => {
     </tr>`).join('');
 
   // ── Access pairs ──
-  const accessRows = accessList.map(a => `
+  // 'family'-sourced rows are derived from family membership — managed by the
+  // Move dropdown above, not editable here (revoke is blocked server-side).
+  // 'manual' rows are the only ones an admin grants/revokes by hand here.
+  const familyAccess = accessList.filter(a => a.source === 'family');
+  const manualAccess = accessList.filter(a => a.source !== 'family');
+  const renderAccessRow = (a) => {
+    const isFamily = a.source === 'family';
+    return `
     <tr>
       <td style="color:var(--text);font-size:11px;">${esc(a.viewer)}</td>
       <td style="color:var(--dim);font-size:12px;">→</td>
       <td style="color:var(--text);font-size:11px;">${esc(a.target)}</td>
+      <td><span class="badge ${isFamily?'ok':'info'}" style="font-size:8px;">${isFamily?'family':'manual'}</span></td>
       <td>
-        <form method="POST" action="${BASE}/users/legacy/revoke-access" style="display:inline;">
-          <input type="hidden" name="viewer" value="${esc(a.viewer)}"/>
-          <input type="hidden" name="target" value="${esc(a.target)}"/>
-          <button class="btn danger" style="padding:3px 10px;font-size:9px;" type="submit">Revoke</button>
-        </form>
+        ${isFamily
+          ? '<span style="color:var(--dim);font-size:9px;letter-spacing:0.1em;">via Move</span>'
+          : `<form method="POST" action="${BASE}/users/legacy/revoke-access" style="display:inline;">
+               <input type="hidden" name="viewer" value="${esc(a.viewer)}"/>
+               <input type="hidden" name="target" value="${esc(a.target)}"/>
+               <button class="btn danger" style="padding:3px 10px;font-size:9px;" type="submit">Revoke</button>
+             </form>`}
       </td>
-    </tr>`).join('');
+    </tr>`;
+  };
+  const accessRows = accessList.map(renderAccessRow).join('');
 
   const usernameOpts = usernames.map(u => `<option value="${esc(u)}">${esc(u)}</option>`).join('');
 
@@ -1302,11 +1314,16 @@ app.get(BASE + '/users', isAuth, async (req, res) => {
 
     <!-- ── PARTNER SHARING / ACCESS LINKS ── -->
     <div class="section">
-      <div class="section-hdr"><span class="sh-num">05</span><span class="sh-title">Partner Sharing · Access Links · ${accessList.length} pairs</span><div class="sh-line"></div></div>
+      <div class="section-hdr"><span class="sh-num">05</span><span class="sh-title">Partner Sharing · Access Links · ${manualAccess.length} manual · ${familyAccess.length} auto</span><div class="sh-line"></div></div>
       <div class="form-wrap" style="padding:20px 32px 24px;">
+        <div style="color:var(--dim);font-size:10px;line-height:1.6;margin-bottom:16px;letter-spacing:0.04em;">
+          Most partner sharing is now driven by family membership — every member of a family can see every other member automatically (rows tagged
+          <span class="badge ok" style="font-size:8px;">family</span>). Use this section only for one-off cross-family grants
+          (rows tagged <span class="badge info" style="font-size:8px;">manual</span>). To change family rows, use the Move dropdown in the user table above.
+        </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
           <div>
-            <div class="form-label" style="margin-bottom:12px;font-size:10px;letter-spacing:0.15em;">GRANT ACCESS (viewer can see target's data)</div>
+            <div class="form-label" style="margin-bottom:12px;font-size:10px;letter-spacing:0.15em;">GRANT MANUAL ACCESS (cross-family)</div>
             <form method="POST" action="${BASE}/users/legacy/grant-access">
               <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end;">
                 <div><div class="form-label" style="margin-bottom:4px;">Viewer</div>
@@ -1318,11 +1335,11 @@ app.get(BASE + '/users', isAuth, async (req, res) => {
             </form>
           </div>
           <div>
-            <div class="form-label" style="margin-bottom:12px;font-size:10px;letter-spacing:0.15em;">CURRENT LINKS · ${accessList.length} pairs</div>
+            <div class="form-label" style="margin-bottom:12px;font-size:10px;letter-spacing:0.15em;">CURRENT LINKS · ${manualAccess.length} manual + ${familyAccess.length} auto</div>
             ${accessList.length===0
               ? '<div style="color:var(--dim);font-size:10px;padding:8px 0;">No partner links configured.</div>'
               : `<table style="width:100%;">
-                  <thead><tr><th>Viewer</th><th></th><th>Target</th><th>Action</th></tr></thead>
+                  <thead><tr><th>Viewer</th><th></th><th>Target</th><th>Source</th><th>Action</th></tr></thead>
                   <tbody>${accessRows}</tbody>
                  </table>`}
           </div>
@@ -1637,30 +1654,40 @@ app.post(BASE + '/users/legacy/toggle-2fa/:username', isAuth, async (req, res) =
 });
 
 // POST: Grant Legacy access (partner sharing)
+// POST: Grant a MANUAL cross-family link. Family-induced rows are auto-managed
+// by family membership; this endpoint only writes source='manual'.
 app.post(BASE + '/users/legacy/grant-access', isAuth, async (req, res) => {
   const { viewer, target } = req.body;
-  if (!viewer||!target||viewer===target) {
+  if (!viewer || !target || viewer === target) {
     req.session.flash = { type:'err', msg:'Viewer and target must be different users.' };
     return res.redirect(BASE + '/users');
   }
   try {
     await legacyPool.query(
-      'INSERT INTO vectraarchlegacy_access (viewer,target) VALUES ($1,$2) ON CONFLICT DO NOTHING',
+      "INSERT INTO vectraarchlegacy_access (viewer,target,source) VALUES ($1,$2,'manual') ON CONFLICT (viewer,target) DO NOTHING",
       [viewer, target]
     );
-    req.session.flash = { type:'ok', msg:`✓ Access granted: ${viewer} → ${target}` };
+    req.session.flash = { type:'ok', msg:`✓ Manual access granted: ${viewer} → ${target}` };
   } catch(e) {
     req.session.flash = { type:'err', msg:`Error: ${e.message}` };
   }
   res.redirect(BASE + '/users');
 });
 
-// POST: Revoke Legacy access
+// POST: Revoke a Legacy access pair. Refuses to delete family-source rows so
+// auto-managed visibility can only be changed via the user's Family dropdown.
 app.post(BASE + '/users/legacy/revoke-access', isAuth, async (req, res) => {
   const { viewer, target } = req.body;
   try {
-    await legacyPool.query('DELETE FROM vectraarchlegacy_access WHERE viewer=$1 AND target=$2', [viewer, target]);
-    req.session.flash = { type:'ok', msg:`✓ Access revoked: ${viewer} → ${target}` };
+    const r = await legacyPool.query(
+      "DELETE FROM vectraarchlegacy_access WHERE viewer=$1 AND target=$2 AND source <> 'family'",
+      [viewer, target]
+    );
+    if (r.rowCount === 0) {
+      req.session.flash = { type:'err', msg:`⚠ ${viewer} → ${target} is a family-managed link. Move the user out of the family to remove it.` };
+    } else {
+      req.session.flash = { type:'ok', msg:`✓ Manual access revoked: ${viewer} → ${target}` };
+    }
   } catch(e) {
     req.session.flash = { type:'err', msg:`Error: ${e.message}` };
   }
