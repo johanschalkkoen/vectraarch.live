@@ -646,7 +646,7 @@ app.post('/api/admin/create-user', requireAdmin, async (req, res) => {
                 (username, password_hash, first_name, last_name, display_name,
                  email, gender, date_of_birth, height_cm, weight_kg,
                  role, accent_color, event_color, is_admin, auth_provider, group_id)
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$12,$13,'password',$14)`,
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::text,$12::text,$13,'password',$14)`,
             [clean, hash, firstName || null, lastName || null, displayName,
              email || null, gender || null, dateOfBirth || null,
              heightCm ? parseFloat(heightCm) : null,
