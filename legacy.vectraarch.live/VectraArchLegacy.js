@@ -255,6 +255,7 @@ function mapUser(row) {
         authProvider:     row.auth_provider     || 'password',
         hasGoogle:        !!row.google_id,
         twoFactorEnabled: !!row.twofa_secret,
+        familyId:         row.family_id          || null,
     };
 }
 
@@ -284,9 +285,122 @@ function sendTelegramMessage(chatId, message) {
 }
 
 async function sendEmailNotification(email, subject, message) {
+    // Prefer Nuntly if configured; fall back to nodemailer/Gmail.
+    if (process.env.NUNTLY_API_KEY) {
+        const r = await sendNuntlyEmail({ to: email, subject, text: message });
+        if (r.sent) return;
+        console.error('[email] Nuntly send failed, falling back to SMTP:', r.reason);
+    }
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) return;
     try {
         await transporter.sendMail({ from: process.env.EMAIL_USER, to: email, subject, text: message });
     } catch (e) { console.error('Email error:', e.message); }
+}
+
+// ── Nuntly transactional email ───────────────────────────────────────────────
+// Best-effort REST client. If Nuntly's docs say a different endpoint/payload,
+// override via NUNTLY_API_URL in .env — the rest of the code calls this
+// wrapper and doesn't care.
+async function sendNuntlyEmail({ to, subject, text, html }) {
+    const apiKey = process.env.NUNTLY_API_KEY;
+    if (!apiKey) return { sent: false, reason: 'NUNTLY_API_KEY not set' };
+    const url      = process.env.NUNTLY_API_URL || 'https://api.nuntly.com/v1/email/send';
+    const fromAddr = process.env.NUNTLY_FROM_EMAIL || 'noreply@vectraarch.live';
+    const fromName = process.env.NUNTLY_FROM_NAME  || 'VectraArch Legacy';
+    // 8 second timeout — Nuntly stalling should never hang the calling request.
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 8000);
+    try {
+        const resp = await fetch(url, {
+            method:  'POST',
+            signal:  ctl.signal,
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type':  'application/json',
+            },
+            body: JSON.stringify({
+                from:    { email: fromAddr, name: fromName },
+                to:      [{ email: to }],
+                subject,
+                text:    text || undefined,
+                html:    html || undefined,
+            }),
+        });
+        const data = await resp.json().catch(() => null);
+        if (!resp.ok) {
+            return { sent: false, reason: data?.error?.message || data?.message || `HTTP ${resp.status}` };
+        }
+        return { sent: true, id: data?.id || data?.messageId || null };
+    } catch (e) {
+        return { sent: false, reason: e.name === 'AbortError' ? 'Nuntly timed out after 8s' : e.message };
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
+// Ensure the user has a family; create a solo one if missing. Returns the
+// family id. Used by every code path that creates a user so no account is
+// ever orphaned (per the "I do not want users to not be part of a family"
+// rule). Safe to call inside a transaction (accepts an optional client).
+async function ensureSoloFamily({ username, firstName, displayName, role, currency, timezone, client }) {
+    const q = client ? client.query.bind(client) : pool.query.bind(pool);
+    const existing = await q('SELECT family_id FROM vectraarchlegacy_users WHERE LOWER(username) = LOWER($1)', [username]);
+    if (existing.rows[0]?.family_id) return existing.rows[0].family_id;
+    const label   = firstName || displayName || username;
+    const isIndiv = !role || role === 'individual';
+    const famName = isIndiv ? `${label}'s Hub` : `${label}'s Family`;
+    const fam = await q(`
+        INSERT INTO vectraarchlegacy_families
+            (family_name, admin_username, currency, timezone, member_count, enabled_modules)
+        VALUES ($1,$2,$3,$4,1,'fin,cal,bud,gym,eat,cyc')
+        RETURNING id`,
+        [famName, username, currency || 'ZAR', timezone || 'Africa/Johannesburg']
+    );
+    const id = fam.rows[0].id;
+    await q('UPDATE vectraarchlegacy_users SET family_id = $1 WHERE LOWER(username) = LOWER($2)', [id, username]);
+    return id;
+}
+
+// ── Family-driven access sync ────────────────────────────────────────────────
+// Family membership is the source of truth for who-can-see-whom. Whenever a
+// user's family_id changes (or a new user joins a family), we:
+//   1. Add 'family'-sourced rows in both directions between this user and
+//      every OTHER member of the new family.
+//   2. Remove any 'family'-sourced rows between this user and members of any
+//      family they're no longer a member of. Manual ('manual') rows are
+//      preserved.
+// Note: manual rows added via /api/grant-access are left untouched.
+async function syncUserFamilyAccess(username, newFamilyId, oldFamilyId = null) {
+    if (oldFamilyId && oldFamilyId !== newFamilyId) {
+        // Drop family-sourced rows that link this user to the old family.
+        await dbRun(
+            `DELETE FROM vectraarchlegacy_access
+             WHERE source = 'family'
+               AND (
+                   (viewer = $1 AND target IN (SELECT username FROM vectraarchlegacy_users WHERE family_id = $2))
+                OR (target = $1 AND viewer IN (SELECT username FROM vectraarchlegacy_users WHERE family_id = $2))
+               )`,
+            [username, oldFamilyId]
+        );
+    }
+    if (!newFamilyId) return;
+    // Add reciprocal access rows to every other current member of the new family.
+    await dbRun(
+        `INSERT INTO vectraarchlegacy_access (viewer, target, source)
+         SELECT $1, u.username, 'family'
+         FROM vectraarchlegacy_users u
+         WHERE u.family_id = $2 AND u.username <> $1
+         ON CONFLICT (viewer, target) DO NOTHING`,
+        [username, newFamilyId]
+    );
+    await dbRun(
+        `INSERT INTO vectraarchlegacy_access (viewer, target, source)
+         SELECT u.username, $1, 'family'
+         FROM vectraarchlegacy_users u
+         WHERE u.family_id = $2 AND u.username <> $1
+         ON CONFLICT (viewer, target) DO NOTHING`,
+        [username, newFamilyId]
+    );
 }
 
 async function logTransaction(username, action, tableName, recordId, modifiedBy) {
@@ -317,16 +431,17 @@ app.post('/api/login', async (req, res) => {
     const { username, password } = req.body;
     if (!username || !password) return res.status(400).json({ success: false, message: 'Username and password required.' });
     try {
-        const row = await dbQuery('SELECT * FROM vectraarchlegacy_users WHERE username = $1', [username]);
+        // Case-insensitive lookup so 'Johan@Koen' and 'johan@koen' both work.
+        const row = await dbQuery('SELECT * FROM vectraarchlegacy_users WHERE LOWER(username) = LOWER($1)', [username]);
         if (!row) return res.status(404).json({ success: false, message: 'User not found.' });
         if (!row.password_hash) {
             return res.status(401).json({ success: false, message: 'This account uses Google sign-in. Please continue with Google.' });
         }
         const match = await bcrypt.compare(password, row.password_hash);
         if (!match) return res.status(401).json({ success: false, message: 'Authentication failed: Incorrect password.' });
-        await dbRun('UPDATE vectraarchlegacy_users SET last_active = $1 WHERE username = $2', [new Date().toISOString(), username]);
-        await logTransaction(username, 'LOGIN', 'users', null, username);
-        if (row.twofa_secret) return res.json({ success: true, requires2FA: true, username });
+        await dbRun('UPDATE vectraarchlegacy_users SET last_active = $1 WHERE username = $2', [new Date().toISOString(), row.username]);
+        await logTransaction(row.username, 'LOGIN', 'users', null, row.username);
+        if (row.twofa_secret) return res.json({ success: true, requires2FA: true, username: row.username });
         res.json({ success: true, ...mapUser(row) });
     } catch (e) {
         res.status(500).json({ success: false, message: 'Server error during login.', error: e.message });
@@ -334,14 +449,92 @@ app.post('/api/login', async (req, res) => {
 });
 
 // ── USERS ─────────────────────────────────────────────────────────────────────
+// Legacy Admin scope: a family admin only sees users in THEIR family. Pass
+// ?global=true (only honoured if the admin is a master / Conduit-level role —
+// reserved for future use) to see everything.
 app.get('/api/users', requireAdmin, async (req, res) => {
     try {
+        const meRow = await dbQuery('SELECT family_id FROM vectraarchlegacy_users WHERE username = $1', [req.adminUsername]);
+        const myFamily = meRow?.family_id || null;
         const rows = await dbAll(
-            'SELECT username, first_name AS "firstName", last_name AS "lastName", display_name AS "displayName", is_admin AS "isAdmin", last_active AS "lastActive" FROM vectraarchlegacy_users'
+            `SELECT u.username,
+                    u.first_name      AS "firstName",
+                    u.last_name       AS "lastName",
+                    u.display_name    AS "displayName",
+                    u.is_admin        AS "isAdmin",
+                    u.last_active     AS "lastActive",
+                    u.role            AS "role",
+                    u.family_id       AS "familyId",
+                    f.family_name     AS "familyName"
+             FROM vectraarchlegacy_users u
+             LEFT JOIN vectraarchlegacy_families f ON f.id = u.family_id
+             ${myFamily ? 'WHERE u.family_id = $1' : ''}`,
+            myFamily ? [myFamily] : []
         );
-        res.json({ success: true, data: rows });
+        res.json({ success: true, data: rows, scopedToFamily: myFamily });
     } catch (e) {
         res.status(500).json({ success: false, message: 'Database error fetching users.', error: e.message });
+    }
+});
+
+// List families (used by Conduit + Admin panel for "move to family" dropdowns).
+app.get('/api/admin/families', requireAdmin, async (req, res) => {
+    try {
+        const rows = await dbAll(`
+            SELECT f.id, f.family_name AS "familyName", f.admin_username AS "adminUsername",
+                   f.currency, f.timezone, f.member_count AS "memberCount",
+                   f.created_at AS "createdAt",
+                   (SELECT COUNT(*) FROM vectraarchlegacy_users u WHERE u.family_id = f.id)::int AS "actualMembers"
+            FROM vectraarchlegacy_families f
+            ORDER BY f.id ASC
+        `);
+        res.json({ success: true, families: rows });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Error listing families.', error: e.message });
+    }
+});
+
+// Move (or initially place) a user into a family. Auto-syncs family-sourced
+// access rows. Body: { username, familyId, adminUsername }
+app.post('/api/admin/assign-family', requireAdmin, async (req, res) => {
+    const { username, familyId } = req.body;
+    if (!username || !familyId) return res.status(400).json({ success: false, message: 'username and familyId required.' });
+    try {
+        const userRow = await dbQuery('SELECT family_id FROM vectraarchlegacy_users WHERE LOWER(username) = LOWER($1)', [username]);
+        if (!userRow) return res.status(404).json({ success: false, message: 'User not found.' });
+        const famRow = await dbQuery('SELECT id, family_name FROM vectraarchlegacy_families WHERE id = $1', [familyId]);
+        if (!famRow)  return res.status(404).json({ success: false, message: 'Family not found.' });
+
+        const oldFamilyId = userRow.family_id || null;
+        await dbRun('UPDATE vectraarchlegacy_users SET family_id = $1 WHERE LOWER(username) = LOWER($2)', [familyId, username]);
+        await syncUserFamilyAccess(username, familyId, oldFamilyId);
+
+        await logTransaction(username, 'ASSIGN_FAMILY', 'users', null, req.adminUsername);
+        res.json({ success: true, username, familyId: famRow.id, familyName: famRow.family_name, oldFamilyId });
+    } catch (e) {
+        console.error('[assign-family]', e.message);
+        res.status(500).json({ success: false, message: 'Error assigning family.', error: e.message });
+    }
+});
+
+// Create a new family (no user attached). Useful for setting up "The Koen Family"
+// in Conduit before reassigning existing users into it.
+app.post('/api/admin/families', requireAdmin, async (req, res) => {
+    const { familyName, adminUsername: famAdmin, currency, timezone } = req.body;
+    if (!familyName) return res.status(400).json({ success: false, message: 'familyName required.' });
+    try {
+        const r = await pool.query(`
+            INSERT INTO vectraarchlegacy_families
+                (family_name, admin_username, currency, timezone, member_count, enabled_modules)
+            VALUES ($1,$2,$3,$4,0,'fin,cal,bud,gym,eat,cyc')
+            RETURNING id, family_name AS "familyName"`,
+            [familyName.trim(), famAdmin || req.adminUsername,
+             currency || 'ZAR', timezone || 'Africa/Johannesburg']
+        );
+        await logTransaction(req.adminUsername, 'CREATE', 'families', r.rows[0].id, req.adminUsername);
+        res.json({ success: true, family: r.rows[0] });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Error creating family.', error: e.message });
     }
 });
 
@@ -349,16 +542,22 @@ app.post('/api/add-user', requireAdmin, async (req, res) => {
     const { username, password, firstName, lastName, displayName } = req.body;
     if (!username || !password) return res.status(400).json({ success: false, message: 'Username and password required.' });
     try {
-        const existing = await dbQuery('SELECT username FROM vectraarchlegacy_users WHERE username = $1', [username]);
+        const existing = await dbQuery('SELECT username FROM vectraarchlegacy_users WHERE LOWER(username) = LOWER($1)', [username]);
         if (existing) return res.status(400).json({ success: false, message: 'User already exists.' });
         const hash = await bcrypt.hash(password, 10);
         await dbRun(
             'INSERT INTO vectraarchlegacy_users (username, password_hash, first_name, last_name, display_name, is_admin) VALUES ($1,$2,$3,$4,$5,0)',
             [username, hash, firstName || null, lastName || null, displayName || username]
         );
-        await logTransaction(username, 'CREATE', 'users', null, req.adminUsername);
-        sendTelegramMessage(GROUP_CHAT_ID, `New user added: ${username} by ${req.adminUsername}`);
-        res.json({ success: true, message: 'User added successfully!' });
+        // No user without a family: spin up a solo family + sync family-sourced access.
+        const familyId = await ensureSoloFamily({
+            username, firstName, displayName: displayName || username, role: 'individual',
+        });
+        await syncUserFamilyAccess(username, familyId, null);
+        await logTransaction(username, 'CREATE', 'users',    null,     req.adminUsername);
+        await logTransaction(username, 'CREATE', 'families', familyId, req.adminUsername);
+        sendTelegramMessage(GROUP_CHAT_ID, `New user added: ${username} by ${req.adminUsername} (family #${familyId})`);
+        res.json({ success: true, message: 'User added successfully!', familyId });
     } catch (e) {
         res.status(500).json({ success: false, message: 'Server error adding user.', error: e.message });
     }
@@ -372,15 +571,18 @@ app.post('/api/admin/create-user', requireAdmin, async (req, res) => {
         username, password, firstName, lastName, email,
         gender, dateOfBirth, heightCm, weightKg,
         role, accentColor, currency, timezone,
-        familyName, isAdmin,
+        familyName, familyId, isAdmin,
     } = req.body;
 
-    if (!username || username.length < 3) {
+    if (!username) {
+        return res.status(400).json({ success: false, message: 'Username required.' });
+    }
+    const clean = username.trim();  // preserve case as typed (e.g. Anel@Koen)
+    if (clean.length < 3) {
         return res.status(400).json({ success: false, message: 'Username must be at least 3 characters.' });
     }
-    const clean = username.toLowerCase().trim();
-    if (!/^[a-z0-9._-]+$/.test(clean)) {
-        return res.status(400).json({ success: false, message: 'Username may only contain letters, numbers, dots, dashes and underscores.' });
+    if (!/^[A-Za-z0-9._@-]+$/.test(clean)) {
+        return res.status(400).json({ success: false, message: 'Username may only contain letters, numbers, @, dots, dashes and underscores.' });
     }
     if (!password || password.length < 6) {
         return res.status(400).json({ success: false, message: 'Password must be at least 6 characters.' });
@@ -388,17 +590,18 @@ app.post('/api/admin/create-user', requireAdmin, async (req, res) => {
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
         return res.status(400).json({ success: false, message: 'Email is not valid.' });
     }
-    const validRoles = ['individual','partner','parent','guardian'];
-    const userRole   = validRoles.includes(role) ? role : 'individual';
+    const validRoles = ['individual','partner','parent','guardian','ceo','manager','coach'];
+    const userRole   = validRoles.includes((role || '').toLowerCase()) ? role.toLowerCase() : 'individual';
 
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
 
-        const existing = await client.query('SELECT username FROM vectraarchlegacy_users WHERE username = $1', [clean]);
+        // Case-insensitive username check so 'Anel@Koen' and 'anel@koen' can't both exist
+        const existing = await client.query('SELECT username FROM vectraarchlegacy_users WHERE LOWER(username) = LOWER($1)', [clean]);
         if (existing.rows.length > 0) {
             await client.query('ROLLBACK');
-            return res.status(400).json({ success: false, message: 'Username already taken.' });
+            return res.status(400).json({ success: false, message: `Username already taken (as '${existing.rows[0].username}').` });
         }
         if (email) {
             const emailDup = await client.query('SELECT username FROM vectraarchlegacy_users WHERE LOWER(email) = LOWER($1)', [email]);
@@ -412,44 +615,61 @@ app.post('/api/admin/create-user', requireAdmin, async (req, res) => {
         const displayName = `${firstName || ''} ${lastName || ''}`.trim() || clean;
         const adminFlag   = isAdmin ? 1 : 0;
 
+        // Pick or create a family BEFORE inserting the user, so we can set family_id directly.
+        let useFamilyId  = null;
+        let useFamilyName = null;
+        if (familyId) {
+            const fr = await client.query('SELECT id, family_name FROM vectraarchlegacy_families WHERE id = $1', [familyId]);
+            if (!fr.rows[0]) {
+                await client.query('ROLLBACK');
+                return res.status(400).json({ success: false, message: `Family ${familyId} not found.` });
+            }
+            useFamilyId   = fr.rows[0].id;
+            useFamilyName = fr.rows[0].family_name;
+        } else {
+            const famName = (familyName && familyName.trim())
+                ? familyName.trim()
+                : (userRole === 'individual' ? `${firstName || clean}'s Hub` : `${firstName || clean}'s Family`);
+            const famRes = await client.query(`
+                INSERT INTO vectraarchlegacy_families
+                    (family_name, admin_username, currency, timezone, member_count, enabled_modules)
+                VALUES ($1,$2,$3,$4,1,'fin,cal,bud,gym,eat,cyc')
+                RETURNING id, family_name`,
+                [famName, clean, currency || 'ZAR', timezone || 'Africa/Johannesburg']
+            );
+            useFamilyId   = famRes.rows[0].id;
+            useFamilyName = famRes.rows[0].family_name;
+        }
+
         await client.query(`
             INSERT INTO vectraarchlegacy_users
                 (username, password_hash, first_name, last_name, display_name,
                  email, gender, date_of_birth, height_cm, weight_kg,
-                 role, accent_color, event_color, is_admin, auth_provider)
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$12,$13,'password')`,
+                 role, accent_color, event_color, is_admin, auth_provider, family_id)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$12,$13,'password',$14)`,
             [clean, hash, firstName || null, lastName || null, displayName,
              email || null, gender || null, dateOfBirth || null,
              heightCm ? parseFloat(heightCm) : null,
              weightKg ? parseFloat(weightKg) : null,
-             userRole, accentColor || '#00ff41', adminFlag]
+             userRole, accentColor || '#00ff41', adminFlag, useFamilyId]
         );
-
-        // Auto-create the family record for this user. Solo for 'individual'.
-        const famName = (familyName && familyName.trim())
-            ? familyName.trim()
-            : (userRole === 'individual' ? `${firstName || clean}'s Hub` : `${firstName || clean}'s Family`);
-
-        const famRes = await client.query(`
-            INSERT INTO vectraarchlegacy_families
-                (family_name, admin_username, currency, timezone, member_count, enabled_modules)
-            VALUES ($1,$2,$3,$4,1,'fin,cal,bud,gym,eat,cyc')
-            RETURNING id`,
-            [famName, clean, currency || 'ZAR', timezone || 'Africa/Johannesburg']
-        );
-        const familyId = famRes.rows[0].id;
 
         await client.query('COMMIT');
-        await logTransaction(clean, 'CREATE', 'users',    null,     req.adminUsername);
-        await logTransaction(clean, 'CREATE', 'families', familyId, req.adminUsername);
-        sendTelegramMessage(GROUP_CHAT_ID, `New user ${clean} (${userRole}) added by ${req.adminUsername}; family "${famName}" created.`);
+
+        // Build family-sourced access rows for the new user (outside the transaction
+        // so we can use the helper; idempotent and bounded by current membership).
+        await syncUserFamilyAccess(clean, useFamilyId, null);
+
+        await logTransaction(clean, 'CREATE', 'users',    null,        req.adminUsername);
+        await logTransaction(clean, 'CREATE', 'families', useFamilyId, req.adminUsername);
+        sendTelegramMessage(GROUP_CHAT_ID, `New user ${clean} (${userRole}) added by ${req.adminUsername}; family "${useFamilyName}" (#${useFamilyId}).`);
 
         res.json({
             success:    true,
-            message:    `User ${clean} created with family "${famName}".`,
+            message:    `User ${clean} created in family "${useFamilyName}".`,
             username:   clean,
-            familyId,
-            familyName: famName,
+            familyId:   useFamilyId,
+            familyName: useFamilyName,
             role:       userRole,
         });
     } catch (e) {
@@ -1988,10 +2208,11 @@ app.get('/setup.html', (req, res) => res.sendFile(path.join(__dirname, 'setup.ht
 app.get('/api/check-username', async (req, res) => {
     const { username } = req.query;
     if (!username || username.length < 3) return res.json({ available: false });
-    const clean = username.toLowerCase().replace(/[^a-z0-9._-]/g, '');
-    if (clean !== username.toLowerCase()) return res.json({ available: false, reason: 'invalid' });
+    // Allow letters (any case), digits, @, dot, dash, underscore
+    if (!/^[A-Za-z0-9._@-]+$/.test(username)) return res.json({ available: false, reason: 'invalid' });
     try {
-        const row = await dbQuery('SELECT username FROM vectraarchlegacy_users WHERE username = $1', [clean]);
+        // Case-insensitive uniqueness
+        const row = await dbQuery('SELECT username FROM vectraarchlegacy_users WHERE LOWER(username) = LOWER($1)', [username]);
         res.json({ available: !row });
     } catch (e) {
         res.status(500).json({ available: false });

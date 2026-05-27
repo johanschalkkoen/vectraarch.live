@@ -1167,7 +1167,7 @@ function collectStep(s) {
     D.profile.dateOfBirth = document.getElementById('p-dob').value.trim();
     D.profile.heightCm  = document.getElementById('p-height').value;
     D.profile.weightKg  = document.getElementById('p-weight').value;
-    D.profile.username  = document.getElementById('p-username').value.trim().toLowerCase();
+    D.profile.username  = document.getElementById('p-username').value.trim();  // preserve case
     D.profile.password  = document.getElementById('p-password').value;
   }
   if (s === 3) {
@@ -1203,8 +1203,9 @@ function onNameInput() {
   const name = document.getElementById('p-fullname').value.trim();
   const parts = name.split(/\s+/).filter(Boolean);
   if (parts.length >= 2 && !usernameManuallySet) {
+    // Suggest e.g. "Anel.Koen" — preserves case, allows @ . _ -
     const suggested = (parts[0] + '.' + parts[parts.length - 1])
-      .toLowerCase().replace(/[^a-z0-9._-]/g, '');
+      .replace(/[^A-Za-z0-9._@-]/g, '');
     document.getElementById('p-username').value = suggested;
     scheduleUsernameCheck(suggested);
   }
@@ -1223,7 +1224,7 @@ function scheduleUsernameCheck(val) {
 }
 
 async function checkUsername(val) {
-  val = val || document.getElementById('p-username').value.trim().toLowerCase();
+  val = val || document.getElementById('p-username').value.trim();
   const hint = document.getElementById('username-hint');
   if (!val || val.length < 3) { usernameOk = false; hint.className = 'field-hint'; return; }
   try {
@@ -1589,7 +1590,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const uInput = document.getElementById('p-username');
   uInput.addEventListener('input', () => {
     usernameManuallySet = true;
-    scheduleUsernameCheck(uInput.value.trim().toLowerCase());
+    scheduleUsernameCheck(uInput.value.trim());
   });
 
   // Default member count chip

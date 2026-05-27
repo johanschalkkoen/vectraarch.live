@@ -1021,21 +1021,31 @@ app.get(BASE + '/users', isAuth, async (req, res) => {
   `);
   const users = result.rows;
 
-  // ── Legacy users + access list ──
+  // ── Legacy users + access list + families ──
   // NB: vectraarchlegacy_users no longer carries activity_status / bio / pronouns /
   // theme / address / forge_user_id (dropped in the cleanup migration). Keep this
   // SELECT to only the columns the Conduit page actually renders.
-  let legacyUsers = [], accessList = [];
+  let legacyUsers = [], accessList = [], legacyFamilies = [];
   try {
     const lr = await legacyPool.query(`
-      SELECT username, first_name, last_name, display_name, email, is_admin,
-             role, last_active, (twofa_secret IS NOT NULL) AS twofa_enabled,
-             (google_id  IS NOT NULL) AS google_linked
-      FROM vectraarchlegacy_users ORDER BY last_active DESC NULLS LAST
+      SELECT u.username, u.first_name, u.last_name, u.display_name, u.email, u.is_admin,
+             u.role, u.last_active, u.family_id,
+             f.family_name,
+             (u.twofa_secret IS NOT NULL) AS twofa_enabled,
+             (u.google_id    IS NOT NULL) AS google_linked
+      FROM vectraarchlegacy_users u
+      LEFT JOIN vectraarchlegacy_families f ON f.id = u.family_id
+      ORDER BY u.last_active DESC NULLS LAST
     `);
     legacyUsers = lr.rows;
     const ar = await legacyPool.query('SELECT viewer, target FROM vectraarchlegacy_access ORDER BY viewer');
     accessList = ar.rows;
+    const fr = await legacyPool.query(`
+      SELECT id, family_name, admin_username,
+             (SELECT COUNT(*) FROM vectraarchlegacy_users WHERE family_id = f.id)::int AS member_count
+      FROM vectraarchlegacy_families f ORDER BY id ASC
+    `);
+    legacyFamilies = fr.rows;
   } catch(e) { console.error('[conduit] Legacy DB error:', e.message); }
 
   const usernames = legacyUsers.map(u => u.username);
@@ -1106,6 +1116,18 @@ app.get(BASE + '/users', isAuth, async (req, res) => {
       <td>
         ${u.role?`<span class="badge info" style="font-size:8px;">${esc(u.role.toUpperCase())}</span>`:''}
         ${u.google_linked?`<span class="badge ok" style="font-size:8px;margin-left:4px;">Google</span>`:''}
+      </td>
+      <td>
+        ${u.family_name
+          ? `<div style="font-size:11px;color:var(--text)">${esc(u.family_name)}</div>
+             <div style="font-size:9px;color:var(--dim)">#${u.family_id}</div>`
+          : '<span class="badge err" style="font-size:8px;">no family</span>'}
+        <form method="POST" action="${BASE}/users/legacy/move-family/${encodeURIComponent(u.username)}" style="display:flex;gap:4px;margin-top:6px;align-items:center;">
+          <select name="familyId" class="form-input" style="font-size:10px;padding:3px 6px;height:auto;width:auto;flex:1;">
+            ${legacyFamilies.map(f=>`<option value="${f.id}" ${f.id===u.family_id?'selected':''}>${esc(f.family_name)} (${f.member_count})</option>`).join('')}
+          </select>
+          <button class="btn" type="submit" style="font-size:9px;padding:3px 8px;">Move</button>
+        </form>
       </td>
       <td>
         <div style="display:flex;align-items:center;gap:6px;">
@@ -1218,7 +1240,7 @@ app.get(BASE + '/users', isAuth, async (req, res) => {
         <form method="POST" action="${BASE}/users/legacy/add">
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr auto;gap:12px;align-items:end;">
             <div class="form-group" style="margin:0;"><label class="form-label">Username <span class="req">*</span></label>
-              <input class="form-input" name="username" placeholder="username" required/></div>
+              <input class="form-input" name="username" placeholder="Anel@Koen" required/></div>
             <div class="form-group" style="margin:0;"><label class="form-label">First Name</label>
               <input class="form-input" name="firstName" placeholder="First"/></div>
             <div class="form-group" style="margin:0;"><label class="form-label">Last Name</label>
@@ -1229,6 +1251,31 @@ app.get(BASE + '/users', isAuth, async (req, res) => {
               <input class="form-input" name="password" type="password" required/></div>
             <button class="btn primary" type="submit" style="padding:10px 20px;">Add ↗</button>
           </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ── LEGACY FAMILIES ── -->
+    <div class="section">
+      <div class="section-hdr"><span class="sh-num">02b</span><span class="sh-title">Legacy Families · ${legacyFamilies.length} Groups</span><div class="sh-line"></div></div>
+      <div class="form-wrap" style="padding:24px 32px;">
+        <table style="margin-bottom:18px;">
+          <thead><tr><th>#</th><th>Name</th><th>Primary Admin</th><th>Members</th></tr></thead>
+          <tbody>${legacyFamilies.map(f=>`
+            <tr>
+              <td style="font-size:10px;color:var(--dim);">${f.id}</td>
+              <td style="color:var(--text);font-weight:500;">${esc(f.family_name)}</td>
+              <td style="font-size:11px;color:var(--dim);">${esc(f.admin_username||'—')}</td>
+              <td><span class="badge ${f.member_count>0?'ok':'info'}">${f.member_count} ${f.member_count===1?'member':'members'}</span></td>
+            </tr>`).join('')||'<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--dim);">No families yet</td></tr>'}
+          </tbody>
+        </table>
+        <form method="POST" action="${BASE}/users/legacy/family/create" style="display:grid;grid-template-columns:2fr 1fr auto;gap:12px;align-items:end;">
+          <div class="form-group" style="margin:0;"><label class="form-label">New family name</label>
+            <input class="form-input" name="familyName" placeholder="The Koen Family" required/></div>
+          <div class="form-group" style="margin:0;"><label class="form-label">Primary admin (optional)</label>
+            <input class="form-input" name="adminUsername" placeholder="Johan@Koen"/></div>
+          <button class="btn primary" type="submit" style="padding:10px 20px;">+ Family</button>
         </form>
       </div>
     </div>
@@ -1248,7 +1295,7 @@ app.get(BASE + '/users', isAuth, async (req, res) => {
       ${legacyUsers.length===0
         ? '<div style="padding:24px;background:var(--bg2);color:var(--dim);text-align:center;letter-spacing:0.1em;font-size:10px;">No Legacy users found</div>'
         : `<table>
-            <thead><tr><th>Username / Name</th><th>Email</th><th>System</th><th>Role / Auth</th><th>2FA</th><th>Last Active</th><th>Actions</th></tr></thead>
+            <thead><tr><th>Username / Name</th><th>Email</th><th>System</th><th>Role / Auth</th><th>Family</th><th>2FA</th><th>Last Active</th><th>Actions</th></tr></thead>
             <tbody>${legacyRows}</tbody>
            </table>`}
     </div>
@@ -1361,6 +1408,100 @@ app.post(BASE + '/users/delete/:id', isAuth, async (req, res) => {
 // ── LEGACY USER MANAGEMENT ROUTES ────────────────────────────────────────────
 
 // POST: Set/unset admin for a Legacy user (quick toggle)
+// Move a Legacy user into a different family. Auto-syncs family-sourced access rows
+// so every member of the target family becomes mutually visible to the user, and
+// family-sourced rows linking to the old family are removed.
+app.post(BASE + '/users/legacy/move-family/:username', isAuth, async (req, res) => {
+  const { username } = req.params;
+  const familyId = parseInt(req.body.familyId, 10);
+  if (!familyId) {
+    req.session.flash = { type:'err', msg:'familyId required.' };
+    return res.redirect(BASE + '/users');
+  }
+  try {
+    // Read old family before update
+    const userRow = await legacyPool.query(
+      'SELECT family_id FROM vectraarchlegacy_users WHERE LOWER(username) = LOWER($1)', [username]
+    );
+    if (userRow.rowCount === 0) {
+      req.session.flash = { type:'err', msg:`User "${username}" not found.` };
+      return res.redirect(BASE + '/users');
+    }
+    const famRow = await legacyPool.query(
+      'SELECT id, family_name FROM vectraarchlegacy_families WHERE id = $1', [familyId]
+    );
+    if (famRow.rowCount === 0) {
+      req.session.flash = { type:'err', msg:`Family #${familyId} not found.` };
+      return res.redirect(BASE + '/users');
+    }
+    const oldFamilyId = userRow.rows[0].family_id || null;
+    if (oldFamilyId === familyId) {
+      req.session.flash = { type:'ok', msg:`User is already in "${famRow.rows[0].family_name}".` };
+      return res.redirect(BASE + '/users');
+    }
+    // Update + sync access rows in one client/transaction so a mid-flight crash
+    // doesn't leave the access table out of sync with family membership.
+    const client = await legacyPool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('UPDATE vectraarchlegacy_users SET family_id = $1 WHERE LOWER(username) = LOWER($2)', [familyId, username]);
+      if (oldFamilyId) {
+        await client.query(`
+          DELETE FROM vectraarchlegacy_access
+          WHERE source = 'family'
+            AND ((viewer = $1 AND target IN (SELECT username FROM vectraarchlegacy_users WHERE family_id = $2))
+              OR (target = $1 AND viewer IN (SELECT username FROM vectraarchlegacy_users WHERE family_id = $2)))`,
+          [username, oldFamilyId]);
+      }
+      await client.query(`
+        INSERT INTO vectraarchlegacy_access (viewer, target, source)
+        SELECT $1, u.username, 'family' FROM vectraarchlegacy_users u
+        WHERE u.family_id = $2 AND u.username <> $1
+        ON CONFLICT (viewer, target) DO NOTHING`, [username, familyId]);
+      await client.query(`
+        INSERT INTO vectraarchlegacy_access (viewer, target, source)
+        SELECT u.username, $1, 'family' FROM vectraarchlegacy_users u
+        WHERE u.family_id = $2 AND u.username <> $1
+        ON CONFLICT (viewer, target) DO NOTHING`, [username, familyId]);
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK'); throw e;
+    } finally { client.release(); }
+    try {
+      await pool.query('INSERT INTO conduit_log (event,payload,status) VALUES ($1,$2,$3)',
+        ['legacy_move_family', `username:${username} family:${familyId}`, 'ok']);
+    } catch {}
+    req.session.flash = { type:'ok', msg:`✓ "${username}" moved to "${famRow.rows[0].family_name}"` };
+  } catch (e) {
+    console.error('[conduit] move-family ERROR:', e.message);
+    req.session.flash = { type:'err', msg:`DB Error: ${e.message}` };
+  }
+  res.redirect(BASE + '/users');
+});
+
+// Create a new Legacy family.
+app.post(BASE + '/users/legacy/family/create', isAuth, async (req, res) => {
+  const { familyName, adminUsername } = req.body;
+  if (!familyName || !familyName.trim()) {
+    req.session.flash = { type:'err', msg:'Family name required.' };
+    return res.redirect(BASE + '/users');
+  }
+  try {
+    const r = await legacyPool.query(`
+      INSERT INTO vectraarchlegacy_families
+        (family_name, admin_username, currency, timezone, member_count, enabled_modules)
+      VALUES ($1, $2, 'ZAR', 'Africa/Johannesburg', 0, 'fin,cal,bud,gym,eat,cyc')
+      RETURNING id, family_name`,
+      [familyName.trim(), adminUsername || 'admin']
+    );
+    req.session.flash = { type:'ok', msg:`✓ Family "${r.rows[0].family_name}" created (#${r.rows[0].id})` };
+  } catch (e) {
+    console.error('[conduit] family create ERROR:', e.message);
+    req.session.flash = { type:'err', msg:`DB Error: ${e.message}` };
+  }
+  res.redirect(BASE + '/users');
+});
+
 app.post(BASE + '/users/legacy/set-admin/:username', isAuth, async (req, res) => {
   const { username } = req.params;
   const rawVal   = req.body.isAdmin;
@@ -1391,26 +1532,51 @@ app.post(BASE + '/users/legacy/set-admin/:username', isAuth, async (req, res) =>
 });
 
 
-// POST: Add a new Legacy user
+// POST: Add a new Legacy user. Preserves the username's case (Anel@Koen)
+// and auto-creates a solo family so the user is never orphaned.
 app.post(BASE + '/users/legacy/add', isAuth, async (req, res) => {
   const { username, firstName, lastName, email, password, isAdmin } = req.body;
   if (!username || !password) {
     req.session.flash = { type:'err', msg:'Username and password are required.' };
     return res.redirect(BASE + '/users');
   }
+  const cleanUser = username.trim();
+  if (!/^[A-Za-z0-9._@-]+$/.test(cleanUser) || cleanUser.length < 3) {
+    req.session.flash = { type:'err', msg:'Username must be 3+ chars and only letters / digits / . _ @ -' };
+    return res.redirect(BASE + '/users');
+  }
+  const client = await legacyPool.connect();
   try {
+    await client.query('BEGIN');
     const bcrypt = require('bcrypt');
     const hash = await bcrypt.hash(password, 10);
-    await legacyPool.query(
-      'INSERT INTO vectraarchlegacy_users (username, password_hash, first_name, last_name, display_name, email, is_admin) VALUES ($1,$2,$3,$4,$5,$6,$7::integer)',
-      [username.toLowerCase().trim(), hash, firstName||null, lastName||null,
-       (firstName&&lastName)?`${firstName} ${lastName}`:username, email||null, isAdmin?1:0]
+    const displayName = (firstName && lastName) ? `${firstName} ${lastName}` : cleanUser;
+    const adminFlag = isAdmin ? 1 : 0;
+    // Solo family first so we can set family_id in the user INSERT.
+    const famLabel = firstName || displayName || cleanUser;
+    const famRes = await client.query(`
+      INSERT INTO vectraarchlegacy_families
+        (family_name, admin_username, currency, timezone, member_count, enabled_modules)
+      VALUES ($1, $2, 'ZAR', 'Africa/Johannesburg', 1, 'fin,cal,bud,gym,eat,cyc')
+      RETURNING id`,
+      [`${famLabel}'s Hub`, cleanUser]
     );
+    const familyId = famRes.rows[0].id;
+    await client.query(
+      `INSERT INTO vectraarchlegacy_users
+         (username, password_hash, first_name, last_name, display_name, email, is_admin, family_id, auth_provider)
+       VALUES ($1,$2,$3,$4,$5,$6,$7::integer,$8,'password')`,
+      [cleanUser, hash, firstName||null, lastName||null, displayName, email||null, adminFlag, familyId]
+    );
+    await client.query('COMMIT');
     await pool.query('INSERT INTO conduit_log (event,payload,status) VALUES ($1,$2,$3)',
-      ['legacy_user_add', `username:${username}`, 'ok']);
-    req.session.flash = { type:'ok', msg:`✓ Legacy user "${username}" created` };
+      ['legacy_user_add', `username:${cleanUser} family:${familyId}`, 'ok']);
+    req.session.flash = { type:'ok', msg:`✓ Legacy user "${cleanUser}" created in solo family #${familyId}` };
   } catch(e) {
+    try { await client.query('ROLLBACK'); } catch {}
     req.session.flash = { type:'err', msg:`Error: ${e.message}` };
+  } finally {
+    client.release();
   }
   res.redirect(BASE + '/users');
 });
