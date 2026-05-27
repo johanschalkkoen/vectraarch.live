@@ -5859,7 +5859,7 @@ const App = () => {
     <div className="app-shell">
       <div className="top-bar">
         <div style={{display:'flex',alignItems:'center',gap:8,flex:1,minWidth:0}}>
-          <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.18em',color:tabColor,flexShrink:0,fontWeight:500}}>VECTRA ARCH</span>
+          <a href="https://vectraarch.live/" title="VectraArch landing page" style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.18em',color:tabColor,flexShrink:0,fontWeight:500,textDecoration:'none',cursor:'pointer'}}>VECTRA ARCH</a>
           <span style={{color:'rgba(255,255,255,0.12)',flexShrink:0}}>·</span>
           <div style={{minWidth:0,flex:1,overflow:'hidden'}}>
             <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:17,letterSpacing:'0.04em',textTransform:'uppercase',color:'var(--text)',lineHeight:1,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{pageInfo.title}</div>
@@ -5867,10 +5867,6 @@ const App = () => {
           </div>
         </div>
         <div style={{display:'flex',alignItems:'center',gap:4,flexShrink:0,marginLeft:8}}>
-          <a href="https://vectraarch.live/" title="VectraArch landing page" style={{display:'flex',flexDirection:'column',alignItems:'center',gap:2,padding:'4px 8px',border:'1px solid rgba(255,255,255,0.1)',borderRadius:4,background:'transparent',color:'rgba(255,255,255,0.55)',cursor:'pointer',transition:'all 0.15s',textDecoration:'none'}}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="16" height="16"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-            <span style={{fontFamily:"'DM Mono',monospace",fontSize:7,letterSpacing:'0.1em',textTransform:'uppercase'}}>HOME</span>
-          </a>
           <button onClick={()=>setActiveTab('profile')} title="Profile" style={{display:'flex',flexDirection:'column',alignItems:'center',gap:2,padding:'4px 8px',border:`1px solid ${activeTab==='profile'?'#00ff41':'rgba(255,255,255,0.1)'}`,borderRadius:4,background:activeTab==='profile'?'rgba(0,255,65,0.14)':'transparent',color:activeTab==='profile'?'#00ff41':'rgba(255,255,255,0.4)',cursor:'pointer',transition:'all 0.15s'}}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="16" height="16"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             <span style={{fontFamily:"'DM Mono',monospace",fontSize:7,letterSpacing:'0.1em',textTransform:'uppercase'}}>PROFILE</span>
