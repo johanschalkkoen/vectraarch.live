@@ -1023,10 +1023,19 @@ app.get('/api/shared-with-me', async (req, res) => {
     if (!username) return res.status(400).json({ success: false, message: 'Username required.' });
     const ALL_MODULES = ['Finances','Calendar','Budget','Gym','Meals','Cycle'];
     try {
-        // Who has granted me full access (they appear as target when I am viewer)
-        const accessRows = await dbAll(
-            'SELECT target FROM vectraarchlegacy_access WHERE viewer = $1', [username]
-        );
+        // Who has granted me full access (they appear as target when I am viewer).
+        // Includes group-derived rows so a fresh group member is recognised even
+        // when sync helpers haven't materialised access rows yet.
+        const accessRows = await dbAll(`
+            SELECT target FROM vectraarchlegacy_access WHERE viewer = $1
+            UNION
+            SELECT u2.username AS target
+              FROM vectraarchlegacy_users u1
+              JOIN vectraarchlegacy_users u2 ON u1.group_id = u2.group_id
+             WHERE u1.username = $1
+               AND u2.username <> u1.username
+               AND u1.group_id IS NOT NULL
+        `, [username]);
         // Explicit per-module config set by each owner for me
         const moduleRows = await dbAll(
             'SELECT owner, module, enabled FROM vectraarchlegacy_partner_sharing WHERE partner = $1', [username]
