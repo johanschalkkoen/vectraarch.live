@@ -4152,6 +4152,34 @@ const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPart
 
 /* ── PROFILE PAGE ── */
 // ── Security section: enable / disable TOTP 2FA ───────────────────────────
+// Collapsible card — same visual language as profile-section. Click the title
+// to open/close; state persists across renders via localStorage. Used in
+// AdminPage to mirror the collapsing behaviour Finances / Gym / Meals use.
+const CollapsibleSection = ({title, defaultOpen=true, persistKey, accent, style, children}) => {
+  const storageKey = persistKey ? `legacy.collapsible.${persistKey}` : null;
+  const [open, setOpen] = useState(() => {
+    if (!storageKey) return defaultOpen;
+    try { const v = localStorage.getItem(storageKey); return v === null ? defaultOpen : v === '1'; }
+    catch { return defaultOpen; }
+  });
+  const toggle = () => setOpen(o => {
+    const n = !o;
+    if (storageKey) { try { localStorage.setItem(storageKey, n ? '1' : '0'); } catch {} }
+    return n;
+  });
+  return (
+    <div className="profile-section" style={style}>
+      <div className="profile-section-title"
+        onClick={toggle}
+        style={{cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'space-between',userSelect:'none',gap:8}}>
+        <span style={accent?{color:accent}:undefined}>{title}</span>
+        <span style={{fontSize:12,color:'var(--text3)',transition:'transform 0.15s',transform:open?'rotate(0deg)':'rotate(-90deg)'}}>▾</span>
+      </div>
+      {open && children}
+    </div>
+  );
+};
+
 const SecuritySection = ({user, setUser, onAlert}) => {
   const [enabled, setEnabled] = useState(!!user.twoFactorEnabled);
   const [stage, setStage] = useState('idle'); // idle | setup | disabling
@@ -4488,6 +4516,7 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
                   <div style={{display:'flex',flexWrap:'wrap',gap:5}}>
                     <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.1em',padding:'3px 8px',borderRadius:100,background:`${acColor}22`,border:`1px solid ${acColor}55`,color:acColor}}>◉ {colorName}</span>
                     {form.role&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.1em',padding:'3px 8px',borderRadius:100,background:'rgba(233,30,140,0.14)',border:'1px solid rgba(233,30,140,0.35)',color:'var(--pink)'}}>✦ {form.role.toUpperCase()}</span>}
+                    {user.groupId&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.1em',padding:'3px 8px',borderRadius:100,background:`${tabColor}1a`,border:`1px solid ${tabColor}55`,color:tabColor}}>⌂ GROUP #{user.groupId}</span>}
                     {form.phone&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.08em',padding:'3px 8px',borderRadius:100,background:'var(--bg3)',border:'1px solid var(--border2)',color:'var(--text3)'}}>{form.phone}</span>}
                   </div>
                   {picFile&&<div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'var(--green)',letterSpacing:'0.1em',marginTop:6}}>NEW PHOTO — SAVE TO APPLY</div>}
@@ -4517,7 +4546,7 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
           {(partners.length===0&&!partner)&&(
             <div style={{background:'var(--bg2)',border:'1px solid var(--border2)',borderRadius:6,padding:'14px 16px',marginBottom:14}}>
               <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:18,letterSpacing:'0.02em',color:'var(--text)',marginBottom:8}}>PARTNER SHARING</div>
-              <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',lineHeight:1.6}}>No partners linked yet. Anyone added to your family will appear here automatically. Ask your family admin to add a member, or contact the system admin to merge you into an existing family.</div>
+              <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',lineHeight:1.6}}>No partners linked yet. Anyone added to your group will appear here automatically. Ask your group admin to add a member, or contact the system admin to merge you into an existing group.</div>
             </div>
           )}
           {(partners.length>0?partners:partner?[partner]:[]).length>0&&(
@@ -5018,7 +5047,7 @@ const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
     role:'individual', gender:'', dateOfBirth:'',
     heightCm:'', weightKg:'',
     currency:'ZAR', accentColor:'#00ff41',
-    familyName:'', isAdmin:false,
+    groupName:'', isAdmin:false,
   };
   const [newUser, setNewUser]   = useState(blankNewUser);
   const [creating, setCreating] = useState(false);
@@ -5035,7 +5064,7 @@ const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
     try {
       const r = await axios.post(`${API}/admin/create-user`, {...newUser, adminUsername:user.username});
       if (r.data.success) {
-        msg(r.data.message || `Created ${r.data.username} + family ${r.data.familyName}.`, 'ok');
+        msg(r.data.message || `Created ${r.data.username} + group ${r.data.groupName}.`, 'ok');
         setNewUser(blankNewUser);
         fetchUsers();
       } else msg(r.data.message || 'Failed.','err');
@@ -5193,12 +5222,12 @@ const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
           {/* Action cards grid */}
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
 
-            {/* Add User — full creation: user row + auto family record */}
+            {/* Add User — full creation: user row + auto group record */}
             <div className="profile-section" style={{gridColumn:'span 2'}}>
               <div className="profile-section-title">ADD USER</div>
               <div style={cardBody}>
                 <div style={hintStyle}>
-                  Creates a user account and a matching family record (<code style={{color:'var(--text2)',fontSize:9}}>vectraarchlegacy_families</code>) with this user as its admin.
+                  Creates a user account and a matching group record (<code style={{color:'var(--text2)',fontSize:9}}>vectraarchlegacy_groups</code>) with this user as its admin.
                 </div>
 
                 {/* Row 1: username / password */}
@@ -5283,13 +5312,13 @@ const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
                   ))}
                 </div>
 
-                {/* Row 5: family name / currency */}
+                {/* Row 5: group name / currency */}
                 <div style={{display:'grid',gridTemplateColumns:'2fr 1fr',gap:10}}>
                   <div>
-                    <span style={lL}>FAMILY NAME</span>
-                    <input style={iL} value={newUser.familyName}
-                      placeholder={newUser.firstName ? (newUser.role==='individual' ? `${newUser.firstName}'s Hub` : `${newUser.firstName}'s Family`) : 'auto if blank'}
-                      onChange={e=>setNewUser(p=>({...p,familyName:e.target.value}))}/>
+                    <span style={lL}>GROUP NAME</span>
+                    <input style={iL} value={newUser.groupName}
+                      placeholder={newUser.firstName ? (newUser.role==='individual' ? `${newUser.firstName}'s Hub` : `${newUser.firstName}'s Group`) : 'auto if blank'}
+                      onChange={e=>setNewUser(p=>({...p,groupName:e.target.value}))}/>
                   </div>
                   <div>
                     <span style={lL}>CURRENCY</span>
@@ -5329,7 +5358,7 @@ const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
 
                 <button type="button" disabled={creating} onClick={createUser}
                   style={{...btnStyle('var(--green)'),opacity:creating?0.5:1,cursor:creating?'wait':'pointer'}}>
-                  {creating ? 'Creating…' : `Create User + Family ↗`}
+                  {creating ? 'Creating…' : `Create User + Group ↗`}
                 </button>
               </div>
             </div>
@@ -5438,8 +5467,8 @@ const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
             </div>
 
             {/* Access list */}
-            <div className="profile-section" style={{gridColumn:'span 2'}}>
-              <div className="profile-section-title">ACCESS LIST · {accessList.length}</div>
+            <CollapsibleSection persistKey="admin-access-list" defaultOpen={false} style={{gridColumn:'span 2'}}
+              title={`ACCESS LIST · ${accessList.length}`}><>
               <div style={cardBody}>
                 {accessList.length===0 && <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',textAlign:'center',padding:'10px 0'}}>No access rules.</div>}
                 {accessList.map((a,i)=>(
@@ -5456,12 +5485,12 @@ const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
                   </div>
                 ))}
               </div>
-            </div>
+            </></CollapsibleSection>
           </div>
 
           {/* Users list */}
-          <div className="profile-section">
-            <div className="profile-section-title">USERS · {users.length}</div>
+          <CollapsibleSection persistKey="admin-users-list" defaultOpen={true}
+            title={`USERS · ${users.length}`}><>
             <div style={cardBody}>
               {users.length===0 && <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',textAlign:'center',padding:'10px 0'}}>No users.</div>}
               {users.map((u,i)=>(
@@ -5478,11 +5507,11 @@ const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
                 </div>
               ))}
             </div>
-          </div>
+          </></CollapsibleSection>
 
           {/* Invites list */}
-          <div className="profile-section">
-            <div className="profile-section-title">INVITES · {invites.length}</div>
+          <CollapsibleSection persistKey="admin-invites-list" defaultOpen={false}
+            title={`INVITES · ${invites.length}`}><>
             <div style={cardBody}>
               {invites.length===0 && <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',textAlign:'center',padding:'10px 0'}}>No invitations sent yet.</div>}
               {invites.map((inv,i)=>{
@@ -5514,11 +5543,11 @@ const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
                 );
               })}
             </div>
-          </div>
+          </></CollapsibleSection>
 
           {/* Recent Activity — global audit log */}
-          <div className="profile-section">
-            <div className="profile-section-title">RECENT ACTIVITY · {auditLog.length}</div>
+          <CollapsibleSection persistKey="admin-recent-activity" defaultOpen={false}
+            title={`RECENT ACTIVITY · ${auditLog.length}`}><>
             <div style={cardBody}>
               <div style={hintStyle}>Last 50 transactions across all users — from <code style={{color:'var(--text2)',fontSize:9}}>vectraarchlegacy_transaction_history</code>.</div>
               {auditLog.length===0 && <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',textAlign:'center',padding:'10px 0'}}>No activity yet.</div>}
@@ -5541,7 +5570,7 @@ const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
                 );
               })}
             </div>
-          </div>
+          </></CollapsibleSection>
 
           {/* Sign out — same style as Profile's Log Out */}
           <button className="save-btn" style={{background:'transparent',border:'1px solid var(--red)',color:'var(--red)',marginTop:4}} onClick={onLogout}>SIGN OUT</button>
