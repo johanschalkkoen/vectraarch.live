@@ -850,12 +850,13 @@ app.get('/api/get-access', async (req, res) => {
     // vectraarchlegacy_access rows with group-derived rows computed from
     // vectraarchlegacy_users.group_id, so partner-sharing is self-healing
     // even when sync helpers haven't populated the access table.
+    // `source` deliberately omitted from the projection so identical
+    // (viewer,target) pairs from both sources collapse via UNION.
     const { viewer, adminUsername } = req.query;
     const perViewerSQL = `
-        SELECT viewer, target, COALESCE(source,'manual') AS source
-          FROM vectraarchlegacy_access WHERE viewer = $1
+        SELECT viewer, target FROM vectraarchlegacy_access WHERE viewer = $1
         UNION
-        SELECT $1::text AS viewer, u2.username AS target, 'group' AS source
+        SELECT $1::text AS viewer, u2.username AS target
           FROM vectraarchlegacy_users u1
           JOIN vectraarchlegacy_users u2 ON u1.group_id = u2.group_id
          WHERE u1.username = $1
@@ -863,9 +864,9 @@ app.get('/api/get-access', async (req, res) => {
            AND u1.group_id IS NOT NULL
     `;
     const allSQL = `
-        SELECT viewer, target, COALESCE(source,'manual') AS source FROM vectraarchlegacy_access
+        SELECT viewer, target FROM vectraarchlegacy_access
         UNION
-        SELECT u1.username AS viewer, u2.username AS target, 'group' AS source
+        SELECT u1.username AS viewer, u2.username AS target
           FROM vectraarchlegacy_users u1
           JOIN vectraarchlegacy_users u2 ON u1.group_id = u2.group_id
          WHERE u1.username <> u2.username AND u1.group_id IS NOT NULL
@@ -1050,12 +1051,14 @@ app.get('/api/shared-with-me', async (req, res) => {
         const sharedWithMe = {};
         accessRows.forEach(r => {
             const owner = r.target;
-            if (explicit[owner] && Object.keys(explicit[owner]).length > 0) {
-                sharedWithMe[owner] = explicit[owner];
-            } else {
-                // No explicit config yet — backward-compatible default: all modules on
-                sharedWithMe[owner] = Object.fromEntries(ALL_MODULES.map(m => [m, true]));
-            }
+            // Group-mates default to all-modules-on. Explicit per-module config
+            // overlays the default so a user who configured ONE module doesn't
+            // silently hide all the others. Set a module to false explicitly
+            // to opt out of sharing it.
+            const base = Object.fromEntries(ALL_MODULES.map(m => [m, true]));
+            sharedWithMe[owner] = explicit[owner]
+                ? { ...base, ...explicit[owner] }
+                : base;
         });
         res.json({ success: true, sharedWithMe });
     } catch (e) {
