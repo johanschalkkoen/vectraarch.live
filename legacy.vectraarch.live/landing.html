@@ -36,6 +36,7 @@
             okGreen: '#00e676',
             errRed:  '#ff3b3b',
             teal:    '#1de9b6',
+            pink:    '#e91e8c',
           },
           fontFamily: {
             bebas: ['"Bebas Neue"', 'sans-serif'],
@@ -89,6 +90,16 @@
     </div>
   </nav>
 
+  <!--
+    SVG TEMPLATE NOTES — every illustration uses the actual app shell:
+      • Top bar: 40px high, "VECTRA ARCH" in module accent, "·", TITLE + sub,
+        PROFILE + OUT buttons on the right
+      • Bottom tabs: 6 modules in order CAL · BUD · FIN · GYM · EAT · CYC
+      • FAB: pill-shaped, padding 12 18, module accent bg, glow shadow,
+        text label like "+ ADD ITEM"
+      • Calendar today: module-color 24px circle on day number itself
+  -->
+
   <!-- ─────────────── HERO ─────────────── -->
   <header class="relative border-b border-borderDark py-16 lg:py-28 px-6 overflow-hidden">
     <div class="absolute inset-0 grid-lines opacity-20 pointer-events-none"></div>
@@ -121,143 +132,159 @@
         <div class="absolute w-64 sm:w-72 aspect-[9/19] bg-appBg border-[10px] border-neutral-900 rounded-[2.4rem] shadow-2xl overflow-hidden transform -rotate-6 -translate-x-10 transition duration-300 hover:rotate-0 hover:z-30">
           <svg class="illus" viewBox="0 0 320 680" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
             <rect width="320" height="680" fill="#0d0e10"/>
-            <!-- App top status bar -->
-            <text x="16" y="26" font-family="DM Mono, monospace" font-size="9" fill="#5a5f65" letter-spacing="2">LEGACY</text>
-            <text x="304" y="26" text-anchor="end" font-family="DM Mono, monospace" font-size="11" fill="#f0f0f0" font-weight="500" letter-spacing="1">SCHALK</text>
-            <line x1="0" y1="40" x2="320" y2="40" stroke="rgba(255,255,255,0.06)"/>
 
-            <!-- Month nav -->
-            <circle cx="32"  cy="74" r="14" fill="#1e2023"/>
-            <text x="32" y="79" text-anchor="middle" font-family="DM Mono, monospace" font-size="14" fill="#a0a4a8">‹</text>
-            <text x="160" y="82" text-anchor="middle" font-family="Barlow Condensed, sans-serif" font-size="22" font-weight="800" fill="#f0f0f0" letter-spacing="2">JANUARY 2026</text>
-            <rect x="240" y="62" width="44" height="24" rx="12" fill="#ffd600"/>
-            <text x="262" y="78" text-anchor="middle" font-family="DM Mono, monospace" font-size="9" fill="#ffffff" font-weight="600" letter-spacing="1">TODAY</text>
+            <!-- TOP BAR (40px) -->
+            <g>
+              <text x="10" y="16" font-family="DM Mono, monospace" font-size="8" fill="#ffd600" font-weight="500" letter-spacing="1.5">VECTRA ARCH</text>
+              <text x="72" y="16" font-family="DM Mono, monospace" font-size="10" fill="rgba(255,255,255,0.12)">·</text>
+              <text x="80" y="17" font-family="Barlow Condensed, sans-serif" font-size="14" font-weight="800" fill="#f0f0f0" letter-spacing="0.5">FINANCES</text>
+              <text x="80" y="30" font-family="DM Mono, monospace" font-size="6" fill="#5a5f65" letter-spacing="1">INCOME · EXPENSES</text>
+              <g transform="translate(220 5)">
+                <rect width="36" height="30" rx="3" fill="none" stroke="rgba(255,255,255,0.1)"/>
+                <g transform="translate(18 11)" stroke="rgba(255,255,255,0.4)" stroke-width="1.4" fill="none">
+                  <circle cx="0" cy="-2" r="3"/>
+                  <path d="M -5 6 Q 0 1 5 6"/>
+                </g>
+                <text x="18" y="26" text-anchor="middle" font-family="DM Mono, monospace" font-size="6" fill="rgba(255,255,255,0.4)" letter-spacing="0.5">PROFILE</text>
+              </g>
+              <g transform="translate(262 5)">
+                <line x1="0" y1="2" x2="0" y2="33" stroke="rgba(255,255,255,0.08)"/>
+                <g transform="translate(20 11)" stroke="#e91e8c" stroke-width="1.4" fill="none">
+                  <path d="M -3 -5 L -3 5 L 4 0 Z"/>
+                </g>
+                <text x="20" y="26" text-anchor="middle" font-family="DM Mono, monospace" font-size="6" fill="#e91e8c" letter-spacing="0.5">OUT</text>
+              </g>
+              <line x1="0" y1="40" x2="320" y2="40" stroke="#1a1a22"/>
+            </g>
+
+            <!-- PAGE: Month nav -->
+            <g transform="translate(0 56)">
+              <circle cx="28" cy="14" r="13" fill="#1e2023"/>
+              <text x="28" y="19" text-anchor="middle" font-family="DM Mono, monospace" font-size="14" fill="#a0a4a8">‹</text>
+              <text x="160" y="20" text-anchor="middle" font-family="Barlow Condensed, sans-serif" font-size="22" font-weight="800" fill="#f0f0f0" letter-spacing="2">JANUARY 2026</text>
+              <rect x="234" y="2" width="44" height="24" rx="12" fill="#ffd600"/>
+              <text x="256" y="18" text-anchor="middle" font-family="DM Mono, monospace" font-size="9" fill="#000" font-weight="600" letter-spacing="1">TODAY</text>
+              <circle cx="292" cy="14" r="13" fill="#1e2023"/>
+              <text x="292" y="19" text-anchor="middle" font-family="DM Mono, monospace" font-size="14" fill="#a0a4a8">›</text>
+            </g>
 
             <!-- Section pills -->
-            <g transform="translate(16 110)">
+            <g transform="translate(16 100)">
               <rect width="76" height="26" rx="13" fill="#ffd600" fill-opacity="0.18" stroke="#ffd600"/>
               <text x="38" y="17" text-anchor="middle" font-family="DM Mono, monospace" font-size="9" fill="#ffd600" font-weight="600" letter-spacing="1">OVERVIEW</text>
             </g>
-            <g transform="translate(98 110)">
+            <g transform="translate(98 100)">
               <rect width="60" height="26" rx="13" fill="none" stroke="rgba(255,255,255,0.12)"/>
               <text x="30" y="17" text-anchor="middle" font-family="DM Mono, monospace" font-size="9" fill="#5a5f65" letter-spacing="1">TRENDS</text>
             </g>
-            <g transform="translate(164 110)">
+            <g transform="translate(164 100)">
               <rect width="86" height="26" rx="13" fill="none" stroke="rgba(255,255,255,0.12)"/>
               <text x="43" y="17" text-anchor="middle" font-family="DM Mono, monospace" font-size="9" fill="#5a5f65" letter-spacing="1">CATEGORIES</text>
             </g>
 
             <!-- Overview summary card -->
-            <g transform="translate(16 152)">
-              <rect width="288" height="92" rx="10" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
-              <line x1="96"  y1="16" x2="96"  y2="76" stroke="rgba(255,255,255,0.06)"/>
-              <line x1="192" y1="16" x2="192" y2="76" stroke="rgba(255,255,255,0.06)"/>
-              <text x="48"  y="32" text-anchor="middle" font-family="DM Mono, monospace" font-size="9" fill="#5a5f65" letter-spacing="1">INCOME</text>
+            <g transform="translate(16 144)">
+              <rect width="288" height="88" rx="8" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
+              <line x1="96"  y1="14" x2="96"  y2="74" stroke="rgba(255,255,255,0.06)"/>
+              <line x1="192" y1="14" x2="192" y2="74" stroke="rgba(255,255,255,0.06)"/>
+              <text x="48"  y="32" text-anchor="middle" font-family="DM Mono, monospace" font-size="9" fill="#a0a4a8" letter-spacing="1">INCOME</text>
               <text x="48"  y="62" text-anchor="middle" font-family="Bebas Neue, sans-serif" font-size="24" fill="#00e676">R 4 250</text>
-              <text x="144" y="32" text-anchor="middle" font-family="DM Mono, monospace" font-size="9" fill="#5a5f65" letter-spacing="1">EXPENSES</text>
+              <text x="144" y="32" text-anchor="middle" font-family="DM Mono, monospace" font-size="9" fill="#a0a4a8" letter-spacing="1">EXPENSES</text>
               <text x="144" y="62" text-anchor="middle" font-family="Bebas Neue, sans-serif" font-size="24" fill="#ff3b3b">R 2 100</text>
-              <text x="240" y="32" text-anchor="middle" font-family="DM Mono, monospace" font-size="9" fill="#5a5f65" letter-spacing="1">NET</text>
+              <text x="240" y="32" text-anchor="middle" font-family="DM Mono, monospace" font-size="9" fill="#a0a4a8" letter-spacing="1">NET</text>
               <text x="240" y="62" text-anchor="middle" font-family="Bebas Neue, sans-serif" font-size="24" fill="#00e676">R 2 150</text>
             </g>
 
-            <!-- Section label -->
-            <text x="16" y="272" font-family="DM Mono, monospace" font-size="9" fill="#5a5f65" letter-spacing="2">ITEMS  4</text>
+            <text x="16" y="260" font-family="Barlow Condensed, sans-serif" font-size="14" font-weight="800" fill="#f0f0f0" letter-spacing="1">ITEMS <tspan fill="#ffd600">4</tspan></text>
 
             <!-- Transaction list -->
-            <g transform="translate(16 286)">
-              <rect width="288" height="56" rx="8" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
-              <circle cx="22" cy="28" r="12" fill="none" stroke="#ffd600" stroke-width="2"/>
-              <text x="22" y="32" text-anchor="middle" font-family="Bebas Neue, sans-serif" font-size="11" fill="#ffd600">SK</text>
-              <text x="42" y="22" font-family="Barlow Condensed, sans-serif" font-size="13" font-weight="700" fill="#f0f0f0" letter-spacing="1">RENT</text>
-              <text x="42" y="38" font-family="DM Mono, monospace" font-size="9" fill="#5a5f65">Rent / Bond</text>
+            <g transform="translate(16 276)">
+              <rect width="288" height="58" rx="6" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
+              <circle cx="26" cy="29" r="16" fill="#1e2023" stroke="#ffd600" stroke-width="2"/>
+              <text x="26" y="33" text-anchor="middle" font-family="Bebas Neue, sans-serif" font-size="13" fill="#ffd600" data-r-initials="1">AK</text>
+              <text x="50" y="22" font-family="Barlow Condensed, sans-serif" font-size="13" font-weight="700" fill="#f0f0f0" letter-spacing="1">RENT</text>
+              <text x="50" y="38" font-family="DM Mono, monospace" font-size="9" fill="#5a5f65">Rent / Bond</text>
               <text x="280" y="24" text-anchor="end" font-family="Bebas Neue, sans-serif" font-size="18" fill="#ff3b3b">R 1 200.00</text>
               <text x="280" y="42" text-anchor="end" font-family="DM Mono, monospace" font-size="8" fill="#5a5f65">04 Jan</text>
             </g>
 
-            <g transform="translate(16 350)">
-              <rect width="288" height="56" rx="8" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
-              <circle cx="22" cy="28" r="12" fill="none" stroke="#ffd600" stroke-width="2"/>
-              <text x="22" y="32" text-anchor="middle" font-family="Bebas Neue, sans-serif" font-size="11" fill="#ffd600">SK</text>
-              <text x="42" y="22" font-family="Barlow Condensed, sans-serif" font-size="13" font-weight="700" fill="#f0f0f0" letter-spacing="1">SALARY</text>
-              <text x="42" y="38" font-family="DM Mono, monospace" font-size="9" fill="#5a5f65">Income</text>
+            <g transform="translate(16 342)">
+              <rect width="288" height="58" rx="6" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
+              <circle cx="26" cy="29" r="16" fill="#1e2023" stroke="#ffd600" stroke-width="2"/>
+              <text x="26" y="33" text-anchor="middle" font-family="Bebas Neue, sans-serif" font-size="13" fill="#ffd600" data-r-initials="1">AK</text>
+              <text x="50" y="22" font-family="Barlow Condensed, sans-serif" font-size="13" font-weight="700" fill="#f0f0f0" letter-spacing="1">SALARY</text>
+              <text x="50" y="38" font-family="DM Mono, monospace" font-size="9" fill="#5a5f65">Income</text>
               <text x="280" y="24" text-anchor="end" font-family="Bebas Neue, sans-serif" font-size="18" fill="#00e676">R 4 250.00</text>
               <text x="280" y="42" text-anchor="end" font-family="DM Mono, monospace" font-size="8" fill="#5a5f65">01 Jan</text>
             </g>
 
-            <g transform="translate(16 414)">
-              <rect width="288" height="56" rx="8" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
-              <circle cx="22" cy="28" r="12" fill="none" stroke="#ffd600" stroke-width="2"/>
-              <text x="22" y="32" text-anchor="middle" font-family="Bebas Neue, sans-serif" font-size="11" fill="#ffd600">SK</text>
-              <text x="42" y="22" font-family="Barlow Condensed, sans-serif" font-size="13" font-weight="700" fill="#f0f0f0" letter-spacing="1">GROCERIES</text>
-              <text x="42" y="38" font-family="DM Mono, monospace" font-size="9" fill="#5a5f65">Food</text>
+            <g transform="translate(16 408)">
+              <rect width="288" height="58" rx="6" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
+              <circle cx="26" cy="29" r="16" fill="#1e2023" stroke="#ffd600" stroke-width="2"/>
+              <text x="26" y="33" text-anchor="middle" font-family="Bebas Neue, sans-serif" font-size="13" fill="#ffd600" data-r-initials="1">AK</text>
+              <text x="50" y="22" font-family="Barlow Condensed, sans-serif" font-size="13" font-weight="700" fill="#f0f0f0" letter-spacing="1">GROCERIES</text>
+              <text x="50" y="38" font-family="DM Mono, monospace" font-size="9" fill="#5a5f65">Food</text>
               <text x="280" y="24" text-anchor="end" font-family="Bebas Neue, sans-serif" font-size="18" fill="#ff3b3b">R 620.50</text>
               <text x="280" y="42" text-anchor="end" font-family="DM Mono, monospace" font-size="8" fill="#5a5f65">08 Jan</text>
             </g>
 
-            <g transform="translate(16 478)">
-              <rect width="288" height="56" rx="8" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
-              <circle cx="22" cy="28" r="12" fill="none" stroke="#ffd600" stroke-width="2"/>
-              <text x="22" y="32" text-anchor="middle" font-family="Bebas Neue, sans-serif" font-size="11" fill="#ffd600">SK</text>
-              <text x="42" y="22" font-family="Barlow Condensed, sans-serif" font-size="13" font-weight="700" fill="#f0f0f0" letter-spacing="1">NETFLIX</text>
-              <text x="42" y="38" font-family="DM Mono, monospace" font-size="9" fill="#5a5f65">Subscriptions</text>
+            <g transform="translate(16 474)">
+              <rect width="288" height="58" rx="6" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
+              <circle cx="26" cy="29" r="16" fill="#1e2023" stroke="#ffd600" stroke-width="2"/>
+              <text x="26" y="33" text-anchor="middle" font-family="Bebas Neue, sans-serif" font-size="13" fill="#ffd600" data-r-initials="1">AK</text>
+              <text x="50" y="22" font-family="Barlow Condensed, sans-serif" font-size="13" font-weight="700" fill="#f0f0f0" letter-spacing="1">NETFLIX</text>
+              <text x="50" y="38" font-family="DM Mono, monospace" font-size="9" fill="#5a5f65">Subscriptions</text>
               <text x="280" y="24" text-anchor="end" font-family="Bebas Neue, sans-serif" font-size="18" fill="#ff3b3b">R 199.00</text>
               <text x="280" y="42" text-anchor="end" font-family="DM Mono, monospace" font-size="8" fill="#5a5f65">12 Jan</text>
             </g>
 
-            <!-- FAB -->
-            <g transform="translate(252 552)">
-              <rect width="48" height="48" rx="8" fill="#ffd600"/>
-              <text x="24" y="32" text-anchor="middle" font-family="Bebas Neue, sans-serif" font-size="28" fill="#ffffff">+</text>
+            <!-- FAB (pill with text) -->
+            <g transform="translate(212 552)">
+              <rect width="92" height="38" rx="6" fill="#ffd600"/>
+              <text x="46" y="24" text-anchor="middle" font-family="DM Mono, monospace" font-size="11" fill="#000" font-weight="500" letter-spacing="1.5">+ ADD ITEM</text>
             </g>
 
-            <!-- Bottom tab bar -->
-            <line x1="0" y1="616" x2="320" y2="616" stroke="rgba(255,255,255,0.06)"/>
-            <g font-family="DM Mono, monospace" font-size="7" letter-spacing="1">
-              <rect x="0" y="616" width="40" height="2" fill="#ffd600"/>
-              <g transform="translate(20 642)" stroke="#ffd600" stroke-width="1.5" fill="none">
-                <rect x="-7" y="-8" width="6" height="6"/>
-                <rect x="1"  y="-8" width="6" height="6"/>
-                <rect x="-7" y="0"  width="6" height="6"/>
-                <rect x="1"  y="0"  width="6" height="6"/>
+            <!-- BOTTOM TABS (64px) — 6 modules: CAL · BUD · FIN(active) · GYM · EAT · CYC -->
+            <g transform="translate(0 616)">
+              <rect width="320" height="64" fill="#161719"/>
+              <line x1="0" y1="0" x2="320" y2="0" stroke="#1a1a22"/>
+              <!-- Active indicator bar (FIN) -->
+              <rect x="115" y="0" width="38" height="2" fill="#ffd600" rx="0"/>
+              <!-- Tab 1: CAL -->
+              <g transform="translate(26 26)" stroke="#5a5f65" stroke-width="1.5" fill="none">
+                <rect x="-9" y="-9" width="18" height="18" rx="2"/>
+                <line x1="-9" y1="-3" x2="9" y2="-3"/>
+                <line x1="-4" y1="-12" x2="-4" y2="-7"/>
+                <line x1="4"  y1="-12" x2="4"  y2="-7"/>
               </g>
-              <text x="20" y="664" text-anchor="middle" fill="#ffd600">FIN</text>
-
-              <g transform="translate(60 642)" stroke="#5a5f65" stroke-width="1.5" fill="none">
-                <rect x="-7" y="-6" width="14" height="12" rx="1"/>
-                <line x1="-7" y1="-2" x2="7" y2="-2"/>
+              <!-- Tab 2: BUD -->
+              <g transform="translate(80 26)" stroke="#5a5f65" stroke-width="1.5" fill="none">
+                <rect x="-9" y="-9" width="8" height="8" rx="1"/>
+                <rect x="1"  y="-9" width="8" height="8" rx="1"/>
+                <rect x="-9" y="1"  width="8" height="8" rx="1"/>
+                <rect x="1"  y="1"  width="8" height="8" rx="1"/>
               </g>
-
-              <g transform="translate(100 642)" stroke="#5a5f65" stroke-width="1.5" fill="none">
-                <rect x="-7" y="-7" width="6" height="6"/>
-                <rect x="1"  y="-7" width="6" height="6"/>
-                <rect x="-7" y="1"  width="6" height="6"/>
-                <rect x="1"  y="1"  width="6" height="6"/>
+              <!-- Tab 3: FIN (active, scaled 1.12) -->
+              <g transform="translate(134 26) scale(1.12)" stroke="#ffd600" stroke-width="1.6" fill="none">
+                <rect x="-10" y="-7" width="20" height="14" rx="2"/>
+                <line x1="-10" y1="-2" x2="10" y2="-2"/>
               </g>
-
-              <g transform="translate(140 642)" stroke="#5a5f65" stroke-width="1.5" fill="none">
-                <line x1="-8" y1="0" x2="8" y2="0"/>
-                <line x1="-5" y1="-4" x2="-5" y2="4"/>
-                <line x1="5" y1="-4" x2="5" y2="4"/>
+              <text x="134" y="56" text-anchor="middle" font-family="DM Mono, monospace" font-size="8" fill="#ffd600" font-weight="500" letter-spacing="1">FIN</text>
+              <!-- Tab 4: GYM -->
+              <g transform="translate(187 26)" stroke="#5a5f65" stroke-width="1.5" fill="none">
+                <path d="M -7 -8 L -7 8 M 7 -8 L 7 8 M -10 -3 L -7 -3 M 7 -3 L 10 -3 M -10 3 L -7 3 M 7 3 L 10 3 M -7 0 L 7 0"/>
               </g>
-
-              <g transform="translate(180 642)" stroke="#5a5f65" stroke-width="1.5" fill="none">
-                <path d="M -6 -6 L 0 4 L 6 -6"/>
-                <line x1="-6" y1="-6" x2="6" y2="-6"/>
+              <!-- Tab 5: EAT -->
+              <g transform="translate(240 26)" stroke="#5a5f65" stroke-width="1.5" fill="none">
+                <path d="M 4 -4 h 1 a 3 3 0 0 1 0 6 h -1"/>
+                <path d="M -9 -4 h 13 v 8 a 3 3 0 0 1 -3 3 h -7 a 3 3 0 0 1 -3 -3 z"/>
+                <line x1="-7" y1="-9" x2="-7" y2="-6"/>
+                <line x1="-3" y1="-9" x2="-3" y2="-6"/>
+                <line x1="1"  y1="-9" x2="1"  y2="-6"/>
               </g>
-
-              <g transform="translate(220 642)" fill="#5a5f65">
-                <path d="M 0 -8 C 0 -8 -6 0 -6 4 a 6 6 0 0 0 12 0 C 6 0 0 -8 0 -8 z"/>
-              </g>
-
-              <g transform="translate(260 642)" stroke="#5a5f65" stroke-width="1.5" fill="none">
-                <circle cx="0" cy="-3" r="4"/>
-                <path d="M -6 6 Q 0 0 6 6"/>
-              </g>
-
-              <line x1="282" y1="624" x2="282" y2="668" stroke="rgba(255,255,255,0.06)"/>
-              <g transform="translate(302 642)" stroke="#e91e8c" stroke-width="1.5" fill="none">
-                <path d="M -6 -6 L -2 0 L -6 6"/>
-                <line x1="-2" y1="0" x2="6" y2="0"/>
+              <!-- Tab 6: CYC -->
+              <g transform="translate(294 26)" fill="#5a5f65">
+                <path d="M 0 -9 C 0 -9 -7 -1 -7 4 a 7 7 0 0 0 14 0 C 7 -1 0 -9 0 -9 z"/>
               </g>
             </g>
           </svg>
@@ -267,15 +294,35 @@
         <div class="absolute w-56 sm:w-64 aspect-[9/19] bg-appBg border-[10px] border-neutral-900 rounded-[2.4rem] shadow-2xl overflow-hidden transform translate-x-24 translate-y-20 rotate-6 transition duration-300 hover:rotate-0 hover:z-30">
           <svg class="illus" viewBox="0 0 280 590" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
             <rect width="280" height="590" fill="#0d0e10"/>
-            <text x="14" y="24" font-family="DM Mono, monospace" font-size="9" fill="#5a5f65" letter-spacing="2">LEGACY</text>
-            <text x="266" y="24" text-anchor="end" font-family="DM Mono, monospace" font-size="11" fill="#f0f0f0" font-weight="500">MARIE</text>
-            <line x1="0" y1="38" x2="280" y2="38" stroke="rgba(255,255,255,0.06)"/>
 
-            <circle cx="28" cy="68" r="13" fill="#1e2023"/>
-            <text x="28" y="73" text-anchor="middle" font-family="DM Mono, monospace" font-size="13" fill="#a0a4a8">‹</text>
+            <!-- TOP BAR -->
+            <text x="8"  y="16" font-family="DM Mono, monospace" font-size="8" fill="#448aff" font-weight="500" letter-spacing="1.5">VECTRA ARCH</text>
+            <text x="68" y="16" font-family="DM Mono, monospace" font-size="10" fill="rgba(255,255,255,0.12)">·</text>
+            <text x="76" y="17" font-family="Barlow Condensed, sans-serif" font-size="14" font-weight="800" fill="#f0f0f0" letter-spacing="0.5">CALENDAR</text>
+            <text x="76" y="30" font-family="DM Mono, monospace" font-size="6" fill="#5a5f65" letter-spacing="1">EVENT · SCHEDULE</text>
+            <g transform="translate(188 5)">
+              <rect width="34" height="30" rx="3" fill="none" stroke="rgba(255,255,255,0.1)"/>
+              <g transform="translate(17 11)" stroke="rgba(255,255,255,0.4)" stroke-width="1.4" fill="none">
+                <circle cx="0" cy="-2" r="3"/>
+                <path d="M -5 6 Q 0 1 5 6"/>
+              </g>
+              <text x="17" y="26" text-anchor="middle" font-family="DM Mono, monospace" font-size="6" fill="rgba(255,255,255,0.4)" letter-spacing="0.5">PROFILE</text>
+            </g>
+            <g transform="translate(228 5)">
+              <line x1="0" y1="2" x2="0" y2="33" stroke="rgba(255,255,255,0.08)"/>
+              <g transform="translate(20 11)" stroke="#e91e8c" stroke-width="1.4" fill="none">
+                <path d="M -3 -5 L -3 5 L 4 0 Z"/>
+              </g>
+              <text x="20" y="26" text-anchor="middle" font-family="DM Mono, monospace" font-size="6" fill="#e91e8c" letter-spacing="0.5">OUT</text>
+            </g>
+            <line x1="0" y1="40" x2="280" y2="40" stroke="#1a1a22"/>
+
+            <!-- Month nav -->
+            <circle cx="26" cy="68" r="12" fill="#1e2023"/>
+            <text x="26" y="73" text-anchor="middle" font-family="DM Mono, monospace" font-size="13" fill="#a0a4a8">‹</text>
             <text x="140" y="76" text-anchor="middle" font-family="Barlow Condensed, sans-serif" font-size="20" font-weight="800" fill="#f0f0f0" letter-spacing="2">JANUARY 2026</text>
             <rect x="210" y="56" width="42" height="24" rx="12" fill="#448aff"/>
-            <text x="231" y="72" text-anchor="middle" font-family="DM Mono, monospace" font-size="9" fill="#ffffff" font-weight="600">TODAY</text>
+            <text x="231" y="72" text-anchor="middle" font-family="DM Mono, monospace" font-size="9" fill="#fff" font-weight="600">TODAY</text>
 
             <!-- Day-of-week headers -->
             <g font-family="DM Mono, monospace" font-size="9" letter-spacing="1" text-anchor="middle">
@@ -288,92 +335,70 @@
               <text x="248" y="108" fill="#ff3b3b">S</text>
             </g>
 
-            <!-- Calendar grid (6 rows × 7 cols, ~36×42 cells) -->
             <g transform="translate(14 120)">
-              <!-- Row 1: Dec 29 - Jan 04 -->
+              <!-- Row 1 -->
               <g font-family="Barlow Condensed, sans-serif" font-size="13" fill="#5a5f65" text-anchor="middle">
-                <text x="18" y="22">29</text>
-                <text x="54" y="22">30</text>
-                <text x="90" y="22">31</text>
+                <text x="18" y="22">29</text><text x="54" y="22">30</text><text x="90" y="22">31</text>
               </g>
               <g font-family="Barlow Condensed, sans-serif" font-size="13" font-weight="500" fill="#f0f0f0" text-anchor="middle">
-                <text x="126" y="22">1</text>
-                <text x="162" y="22">2</text>
+                <text x="126" y="22">1</text><text x="162" y="22">2</text>
               </g>
               <g font-family="Barlow Condensed, sans-serif" font-size="13" font-weight="500" fill="#ff3b3b" text-anchor="middle">
-                <text x="198" y="22">3</text>
-                <text x="234" y="22">4</text>
+                <text x="198" y="22">3</text><text x="234" y="22">4</text>
               </g>
               <circle cx="126" cy="32" r="2" fill="#00e676"/>
               <circle cx="162" cy="32" r="2" fill="#448aff"/>
 
               <!-- Row 2 -->
               <g font-family="Barlow Condensed, sans-serif" font-size="13" font-weight="500" fill="#f0f0f0" text-anchor="middle">
-                <text x="18" y="64">5</text>
-                <text x="54" y="64">6</text>
-                <text x="90" y="64">7</text>
-                <text x="126" y="64">8</text>
-                <text x="162" y="64">9</text>
+                <text x="18" y="64">5</text><text x="54" y="64">6</text><text x="90" y="64">7</text>
+                <text x="126" y="64">8</text><text x="162" y="64">9</text>
               </g>
               <g font-family="Barlow Condensed, sans-serif" font-size="13" font-weight="500" fill="#ff3b3b" text-anchor="middle">
-                <text x="198" y="64">10</text>
-                <text x="234" y="64">11</text>
+                <text x="198" y="64">10</text><text x="234" y="64">11</text>
               </g>
               <circle cx="54"  cy="74" r="2" fill="#ffd600"/>
               <circle cx="90"  cy="74" r="2" fill="#448aff"/>
               <circle cx="126" cy="74" r="2" fill="#ff4081"/>
 
-              <!-- Row 3: with cycle period bg -->
+              <!-- Row 3: cycle period bg -->
               <rect x="0"  y="84" width="36" height="42" rx="2" fill="#ff3b3b" fill-opacity="0.22"/>
               <rect x="36" y="84" width="36" height="42" rx="2" fill="#ff3b3b" fill-opacity="0.22"/>
               <rect x="72" y="84" width="36" height="42" rx="2" fill="#ff3b3b" fill-opacity="0.22"/>
               <g font-family="Barlow Condensed, sans-serif" font-size="13" font-weight="700" fill="#ffffff" text-anchor="middle">
-                <text x="18" y="106">12</text>
-                <text x="54" y="106">13</text>
-                <text x="90" y="106">14</text>
+                <text x="18" y="106">12</text><text x="54" y="106">13</text><text x="90" y="106">14</text>
               </g>
               <g font-family="Barlow Condensed, sans-serif" font-size="13" font-weight="500" fill="#f0f0f0" text-anchor="middle">
-                <text x="126" y="106">15</text>
-                <text x="162" y="106">16</text>
+                <text x="126" y="106">15</text><text x="162" y="106">16</text>
               </g>
               <g font-family="Barlow Condensed, sans-serif" font-size="13" font-weight="500" fill="#ff3b3b" text-anchor="middle">
-                <text x="198" y="106">17</text>
-                <text x="234" y="106">18</text>
+                <text x="198" y="106">17</text><text x="234" y="106">18</text>
               </g>
               <path d="M 16 116 C 16 116 13 119 13 121 a 3 3 0 0 0 6 0 C 19 119 16 116 16 116 z" fill="#ff3b3b"/>
               <path d="M 52 116 C 52 116 49 119 49 121 a 3 3 0 0 0 6 0 C 55 119 52 116 52 116 z" fill="#ff3b3b"/>
               <path d="M 88 116 C 88 116 85 119 85 121 a 3 3 0 0 0 6 0 C 91 119 88 116 88 116 z" fill="#ff3b3b"/>
 
-              <!-- Row 4: today highlight on 21 -->
-              <rect x="72" y="126" width="36" height="42" rx="2" fill="#448aff" fill-opacity="0.08" stroke="#448aff" stroke-width="1.5"/>
+              <!-- Row 4: today (21) is a circle on the number -->
+              <circle cx="90" cy="143" r="12" fill="#448aff"/>
               <g font-family="Barlow Condensed, sans-serif" font-size="13" font-weight="500" fill="#f0f0f0" text-anchor="middle">
-                <text x="18" y="148">19</text>
-                <text x="54" y="148">20</text>
-                <text x="126" y="148">22</text>
-                <text x="162" y="148">23</text>
+                <text x="18" y="148">19</text><text x="54" y="148">20</text>
+                <text x="126" y="148">22</text><text x="162" y="148">23</text>
               </g>
               <text x="90" y="148" text-anchor="middle" font-family="Barlow Condensed, sans-serif" font-size="14" font-weight="800" fill="#ffffff">21</text>
               <g font-family="Barlow Condensed, sans-serif" font-size="13" font-weight="500" fill="#ff3b3b" text-anchor="middle">
-                <text x="198" y="148">24</text>
-                <text x="234" y="148">25</text>
+                <text x="198" y="148">24</text><text x="234" y="148">25</text>
               </g>
-              <circle cx="90"  cy="158" r="2" fill="#ffd600"/>
               <circle cx="126" cy="158" r="2" fill="#1de9b6"/>
 
               <!-- Row 5 -->
               <g font-family="Barlow Condensed, sans-serif" font-size="13" font-weight="500" fill="#f0f0f0" text-anchor="middle">
-                <text x="18"  y="190">26</text>
-                <text x="54"  y="190">27</text>
-                <text x="90"  y="190">28</text>
-                <text x="126" y="190">29</text>
-                <text x="162" y="190">30</text>
+                <text x="18"  y="190">26</text><text x="54" y="190">27</text>
+                <text x="90"  y="190">28</text><text x="126" y="190">29</text><text x="162" y="190">30</text>
               </g>
               <g font-family="Barlow Condensed, sans-serif" font-size="13" font-weight="500" fill="#ff3b3b" text-anchor="middle">
                 <text x="198" y="190">31</text>
               </g>
-              <g font-family="Barlow Condensed, sans-serif" font-size="13" fill="#5a5f65" text-anchor="middle">
-                <text x="234" y="190">1</text>
-              </g>
+              <text x="234" y="190" text-anchor="middle" font-family="Barlow Condensed, sans-serif" font-size="13" fill="#5a5f65">1</text>
               <circle cx="54"  cy="200" r="2" fill="#d67bff"/>
               <circle cx="162" cy="200" r="2" fill="#448aff"/>
             </g>
@@ -382,18 +407,16 @@
             <g transform="translate(14 358)" font-family="DM Mono, monospace" font-size="8" letter-spacing="1">
               <path d="M 4 0 C 4 0 0 4 0 7 a 4 4 0 0 0 8 0 C 8 4 4 0 4 0 z" fill="#ff3b3b"/>
               <text x="14" y="10" fill="#a0a4a8">MENSTRUATION</text>
-              <circle cx="86" cy="6" r="3" fill="none" stroke="#1de9b6" stroke-width="1.5"/>
-              <text x="94" y="10" fill="#a0a4a8">OVULATION</text>
-              <circle cx="158" cy="6" r="3" fill="#ffd600"/>
-              <text x="166" y="10" fill="#a0a4a8">PERSONAL</text>
+              <circle cx="90" cy="6" r="3" fill="none" stroke="#1de9b6" stroke-width="1.5"/>
+              <text x="98" y="10" fill="#a0a4a8">OVULATION</text>
+              <circle cx="166" cy="6" r="3" fill="#ffd600"/>
+              <text x="174" y="10" fill="#a0a4a8">PERSONAL</text>
               <circle cx="4" cy="26" r="3" fill="#448aff"/>
               <text x="14" y="30" fill="#a0a4a8">WORK</text>
               <circle cx="60" cy="26" r="3" fill="#ff4081"/>
               <text x="70" y="30" fill="#a0a4a8">HEALTH</text>
               <circle cx="126" cy="26" r="3" fill="#00e676"/>
               <text x="136" y="30" fill="#a0a4a8">INCOME</text>
-              <circle cx="194" cy="26" r="3" fill="#ff3b3b"/>
-              <text x="204" y="30" fill="#a0a4a8">EXPENSE</text>
             </g>
 
             <!-- Selected day header -->
@@ -402,7 +425,7 @@
 
             <!-- Event card -->
             <g transform="translate(14 450)">
-              <rect width="252" height="50" rx="8" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
+              <rect width="252" height="50" rx="6" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
               <line x1="50" y1="6" x2="50" y2="44" stroke="rgba(255,255,255,0.06)"/>
               <text x="25" y="22" text-anchor="middle" font-family="Barlow Condensed, sans-serif" font-size="13" font-weight="700" fill="#448aff">09:00</text>
               <text x="25" y="36" text-anchor="middle" font-family="DM Mono, monospace" font-size="8" fill="#5a5f65">— 10:00</text>
@@ -411,7 +434,7 @@
               <text x="80" y="38" text-anchor="middle" font-family="DM Mono, monospace" font-size="8" fill="#448aff" letter-spacing="1">WORK</text>
             </g>
             <g transform="translate(14 506)">
-              <rect width="252" height="50" rx="8" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
+              <rect width="252" height="50" rx="6" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
               <line x1="50" y1="6" x2="50" y2="44" stroke="rgba(255,255,255,0.06)"/>
               <text x="25" y="22" text-anchor="middle" font-family="Barlow Condensed, sans-serif" font-size="13" font-weight="700" fill="#448aff">17:30</text>
               <text x="25" y="36" text-anchor="middle" font-family="DM Mono, monospace" font-size="8" fill="#5a5f65">— 18:30</text>
@@ -420,9 +443,13 @@
               <text x="83" y="38" text-anchor="middle" font-family="DM Mono, monospace" font-size="8" fill="#ff4081" letter-spacing="1">HEALTH</text>
             </g>
 
-            <!-- Bottom tab bar (mini) -->
-            <line x1="0" y1="568" x2="280" y2="568" stroke="rgba(255,255,255,0.06)"/>
-            <rect x="35" y="568" width="35" height="2" fill="#448aff"/>
+            <!-- Bottom tabs -->
+            <g transform="translate(0 568)">
+              <rect width="280" height="22" fill="#161719"/>
+              <line x1="0" y1="0" x2="280" y2="0" stroke="#1a1a22"/>
+              <!-- Active CAL indicator -->
+              <rect x="7" y="0" width="32" height="2" fill="#448aff"/>
+            </g>
           </svg>
         </div>
 
@@ -494,32 +521,45 @@
           <div class="rounded-xl overflow-hidden border border-borderDark h-56 bg-appBg relative">
             <svg class="illus" viewBox="0 0 320 240" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
               <rect width="320" height="240" fill="#0d0e10"/>
-              <text x="14" y="20" font-family="DM Mono, monospace" font-size="8" fill="#5a5f65" letter-spacing="2">LEGACY · FINANCES</text>
-              <line x1="0" y1="28" x2="320" y2="28" stroke="rgba(255,255,255,0.06)"/>
-              <text x="160" y="50" text-anchor="middle" font-family="Barlow Condensed, sans-serif" font-size="16" font-weight="800" fill="#f0f0f0" letter-spacing="2">JANUARY 2026</text>
+              <!-- Top bar -->
+              <text x="10" y="16" font-family="DM Mono, monospace" font-size="8" fill="#ffd600" font-weight="500" letter-spacing="1.5">VECTRA ARCH</text>
+              <text x="72" y="16" font-family="DM Mono, monospace" font-size="10" fill="rgba(255,255,255,0.12)">·</text>
+              <text x="80" y="17" font-family="Barlow Condensed, sans-serif" font-size="13" font-weight="800" fill="#f0f0f0" letter-spacing="0.5">FINANCES</text>
+              <text x="80" y="29" font-family="DM Mono, monospace" font-size="6" fill="#5a5f65" letter-spacing="1">INCOME · EXPENSES</text>
+              <g transform="translate(260 6)" stroke="#e91e8c" stroke-width="1.4" fill="none">
+                <path d="M -3 -2 L -3 8 L 4 3 Z"/>
+              </g>
+              <text x="259" y="26" text-anchor="middle" font-family="DM Mono, monospace" font-size="6" fill="#e91e8c">OUT</text>
+              <line x1="0" y1="40" x2="320" y2="40" stroke="#1a1a22"/>
 
-              <g transform="translate(14 70)">
-                <rect width="292" height="68" rx="8" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
-                <line x1="97"  y1="12" x2="97"  y2="56" stroke="rgba(255,255,255,0.06)"/>
-                <line x1="195" y1="12" x2="195" y2="56" stroke="rgba(255,255,255,0.06)"/>
-                <text x="49"  y="26" text-anchor="middle" font-family="DM Mono, monospace" font-size="8" fill="#5a5f65" letter-spacing="1">INCOME</text>
-                <text x="49"  y="50" text-anchor="middle" font-family="Bebas Neue, sans-serif" font-size="22" fill="#00e676">R 4 250</text>
-                <text x="146" y="26" text-anchor="middle" font-family="DM Mono, monospace" font-size="8" fill="#5a5f65" letter-spacing="1">EXPENSES</text>
-                <text x="146" y="50" text-anchor="middle" font-family="Bebas Neue, sans-serif" font-size="22" fill="#ff3b3b">R 2 100</text>
-                <text x="244" y="26" text-anchor="middle" font-family="DM Mono, monospace" font-size="8" fill="#5a5f65" letter-spacing="1">NET</text>
-                <text x="244" y="50" text-anchor="middle" font-family="Bebas Neue, sans-serif" font-size="22" fill="#00e676">R 2 150</text>
+              <!-- Month nav -->
+              <text x="160" y="62" text-anchor="middle" font-family="Barlow Condensed, sans-serif" font-size="16" font-weight="800" fill="#f0f0f0" letter-spacing="2">JANUARY 2026</text>
+
+              <g transform="translate(14 76)">
+                <rect width="292" height="72" rx="6" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
+                <line x1="97"  y1="12" x2="97"  y2="60" stroke="rgba(255,255,255,0.06)"/>
+                <line x1="195" y1="12" x2="195" y2="60" stroke="rgba(255,255,255,0.06)"/>
+                <text x="49"  y="28" text-anchor="middle" font-family="DM Mono, monospace" font-size="8" fill="#a0a4a8" letter-spacing="1">INCOME</text>
+                <text x="49"  y="54" text-anchor="middle" font-family="Bebas Neue, sans-serif" font-size="22" fill="#00e676">R 4 250</text>
+                <text x="146" y="28" text-anchor="middle" font-family="DM Mono, monospace" font-size="8" fill="#a0a4a8" letter-spacing="1">EXPENSES</text>
+                <text x="146" y="54" text-anchor="middle" font-family="Bebas Neue, sans-serif" font-size="22" fill="#ff3b3b">R 2 100</text>
+                <text x="244" y="28" text-anchor="middle" font-family="DM Mono, monospace" font-size="8" fill="#a0a4a8" letter-spacing="1">NET</text>
+                <text x="244" y="54" text-anchor="middle" font-family="Bebas Neue, sans-serif" font-size="22" fill="#00e676">R 2 150</text>
               </g>
 
-              <g transform="translate(14 154)">
+              <g transform="translate(14 160)">
                 <rect width="292" height="32" rx="6" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
-                <text x="14" y="20" font-family="Barlow Condensed, sans-serif" font-size="12" font-weight="700" fill="#f0f0f0" letter-spacing="1">RENT</text>
-                <text x="14" y="32"/>
-                <text x="278" y="20" text-anchor="end" font-family="Bebas Neue, sans-serif" font-size="16" fill="#ff3b3b">R 1 200.00</text>
+                <circle cx="20" cy="16" r="10" fill="#1e2023" stroke="#ffd600" stroke-width="1.5"/>
+                <text x="20" y="20" text-anchor="middle" font-family="Bebas Neue, sans-serif" font-size="10" fill="#ffd600" data-r-initials="1">AK</text>
+                <text x="38" y="20" font-family="Barlow Condensed, sans-serif" font-size="12" font-weight="700" fill="#f0f0f0" letter-spacing="1">RENT</text>
+                <text x="278" y="20" text-anchor="end" font-family="Bebas Neue, sans-serif" font-size="14" fill="#ff3b3b">R 1 200.00</text>
               </g>
-              <g transform="translate(14 192)">
+              <g transform="translate(14 198)">
                 <rect width="292" height="32" rx="6" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
-                <text x="14" y="20" font-family="Barlow Condensed, sans-serif" font-size="12" font-weight="700" fill="#f0f0f0" letter-spacing="1">SALARY</text>
-                <text x="278" y="20" text-anchor="end" font-family="Bebas Neue, sans-serif" font-size="16" fill="#00e676">R 4 250.00</text>
+                <circle cx="20" cy="16" r="10" fill="#1e2023" stroke="#ffd600" stroke-width="1.5"/>
+                <text x="20" y="20" text-anchor="middle" font-family="Bebas Neue, sans-serif" font-size="10" fill="#ffd600" data-r-initials="1">AK</text>
+                <text x="38" y="20" font-family="Barlow Condensed, sans-serif" font-size="12" font-weight="700" fill="#f0f0f0" letter-spacing="1">SALARY</text>
+                <text x="278" y="20" text-anchor="end" font-family="Bebas Neue, sans-serif" font-size="14" fill="#00e676">R 4 250.00</text>
               </g>
             </svg>
           </div>
@@ -538,53 +578,60 @@
           <div class="rounded-xl overflow-hidden border border-borderDark h-56 bg-appBg relative">
             <svg class="illus" viewBox="0 0 320 240" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
               <rect width="320" height="240" fill="#0d0e10"/>
-              <text x="14" y="20" font-family="DM Mono, monospace" font-size="8" fill="#5a5f65" letter-spacing="2">LEGACY · CALENDAR</text>
-              <line x1="0" y1="28" x2="320" y2="28" stroke="rgba(255,255,255,0.06)"/>
-              <text x="160" y="50" text-anchor="middle" font-family="Barlow Condensed, sans-serif" font-size="16" font-weight="800" fill="#f0f0f0" letter-spacing="2">JANUARY 2026</text>
+              <text x="10" y="16" font-family="DM Mono, monospace" font-size="8" fill="#448aff" font-weight="500" letter-spacing="1.5">VECTRA ARCH</text>
+              <text x="72" y="16" font-family="DM Mono, monospace" font-size="10" fill="rgba(255,255,255,0.12)">·</text>
+              <text x="80" y="17" font-family="Barlow Condensed, sans-serif" font-size="13" font-weight="800" fill="#f0f0f0" letter-spacing="0.5">CALENDAR</text>
+              <text x="80" y="29" font-family="DM Mono, monospace" font-size="6" fill="#5a5f65" letter-spacing="1">EVENT · SCHEDULE</text>
+              <g transform="translate(260 6)" stroke="#e91e8c" stroke-width="1.4" fill="none">
+                <path d="M -3 -2 L -3 8 L 4 3 Z"/>
+              </g>
+              <text x="259" y="26" text-anchor="middle" font-family="DM Mono, monospace" font-size="6" fill="#e91e8c">OUT</text>
+              <line x1="0" y1="40" x2="320" y2="40" stroke="#1a1a22"/>
+
+              <text x="160" y="62" text-anchor="middle" font-family="Barlow Condensed, sans-serif" font-size="16" font-weight="800" fill="#f0f0f0" letter-spacing="2">JANUARY 2026</text>
 
               <g font-family="DM Mono, monospace" font-size="9" letter-spacing="1" text-anchor="middle">
-                <text x="32"  y="74" fill="#5a5f65">M</text>
-                <text x="74"  y="74" fill="#5a5f65">T</text>
-                <text x="116" y="74" fill="#5a5f65">W</text>
-                <text x="158" y="74" fill="#5a5f65">T</text>
-                <text x="200" y="74" fill="#5a5f65">F</text>
-                <text x="242" y="74" fill="#ff3b3b">S</text>
-                <text x="284" y="74" fill="#ff3b3b">S</text>
+                <text x="32"  y="86" fill="#5a5f65">M</text>
+                <text x="74"  y="86" fill="#5a5f65">T</text>
+                <text x="116" y="86" fill="#5a5f65">W</text>
+                <text x="158" y="86" fill="#5a5f65">T</text>
+                <text x="200" y="86" fill="#5a5f65">F</text>
+                <text x="242" y="86" fill="#ff3b3b">S</text>
+                <text x="284" y="86" fill="#ff3b3b">S</text>
               </g>
 
               <g font-family="Barlow Condensed, sans-serif" font-size="13" font-weight="500" fill="#f0f0f0" text-anchor="middle">
-                <text x="32"  y="100">5</text><text x="74"  y="100">6</text><text x="116" y="100">7</text>
-                <text x="158" y="100">8</text><text x="200" y="100">9</text>
-                <text x="242" y="100" fill="#ff3b3b">10</text><text x="284" y="100" fill="#ff3b3b">11</text>
-                <text x="32"  y="138">12</text><text x="74"  y="138">13</text><text x="116" y="138">14</text>
-                <text x="158" y="138">15</text><text x="200" y="138">16</text>
-                <text x="242" y="138" fill="#ff3b3b">17</text><text x="284" y="138" fill="#ff3b3b">18</text>
-                <text x="32"  y="176">19</text><text x="74"  y="176">20</text>
+                <text x="32"  y="112">5</text><text x="74"  y="112">6</text><text x="116" y="112">7</text>
+                <text x="158" y="112">8</text><text x="200" y="112">9</text>
+                <text x="242" y="112" fill="#ff3b3b">10</text><text x="284" y="112" fill="#ff3b3b">11</text>
+                <text x="32"  y="150">12</text><text x="74"  y="150">13</text><text x="116" y="150">14</text>
+                <text x="158" y="150">15</text><text x="200" y="150">16</text>
+                <text x="242" y="150" fill="#ff3b3b">17</text><text x="284" y="150" fill="#ff3b3b">18</text>
+                <text x="32"  y="188">19</text><text x="74"  y="188">20</text>
               </g>
 
-              <!-- today highlight -->
-              <rect x="100" y="156" width="32" height="32" rx="2" fill="#448aff" fill-opacity="0.08" stroke="#448aff" stroke-width="1.5"/>
-              <text x="116" y="176" text-anchor="middle" font-family="Barlow Condensed, sans-serif" font-size="13" font-weight="800" fill="#ffffff">21</text>
+              <!-- cycle period -->
+              <rect x="16"  y="128" width="32" height="32" rx="2" fill="#ff3b3b" fill-opacity="0.22"/>
+              <rect x="58"  y="128" width="32" height="32" rx="2" fill="#ff3b3b" fill-opacity="0.22"/>
+              <rect x="100" y="128" width="32" height="32" rx="2" fill="#ff3b3b" fill-opacity="0.22"/>
+
+              <!-- today: 21 inside a blue circle -->
+              <circle cx="116" cy="184" r="11" fill="#448aff"/>
+              <text x="116" y="188" text-anchor="middle" font-family="Barlow Condensed, sans-serif" font-size="13" font-weight="800" fill="#ffffff">21</text>
               <g font-family="Barlow Condensed, sans-serif" font-size="13" font-weight="500" fill="#f0f0f0" text-anchor="middle">
-                <text x="158" y="176">22</text><text x="200" y="176">23</text>
-                <text x="242" y="176" fill="#ff3b3b">24</text><text x="284" y="176" fill="#ff3b3b">25</text>
+                <text x="158" y="188">22</text><text x="200" y="188">23</text>
+                <text x="242" y="188" fill="#ff3b3b">24</text><text x="284" y="188" fill="#ff3b3b">25</text>
               </g>
-
-              <!-- cycle period row -->
-              <rect x="16"  y="116" width="32" height="32" rx="2" fill="#ff3b3b" fill-opacity="0.22"/>
-              <rect x="58"  y="116" width="32" height="32" rx="2" fill="#ff3b3b" fill-opacity="0.22"/>
-              <rect x="100" y="116" width="32" height="32" rx="2" fill="#ff3b3b" fill-opacity="0.22"/>
 
               <!-- event dots -->
-              <circle cx="32"  cy="108" r="2" fill="#ffd600"/>
-              <circle cx="74"  cy="108" r="2" fill="#448aff"/>
-              <circle cx="158" cy="108" r="2" fill="#ff4081"/>
-              <circle cx="200" cy="146" r="2" fill="#d67bff"/>
-              <circle cx="116" cy="184" r="2" fill="#ffd600"/>
-              <circle cx="158" cy="184" r="2" fill="#1de9b6"/>
+              <circle cx="32"  cy="120" r="2" fill="#ffd600"/>
+              <circle cx="74"  cy="120" r="2" fill="#448aff"/>
+              <circle cx="158" cy="120" r="2" fill="#ff4081"/>
+              <circle cx="200" cy="158" r="2" fill="#d67bff"/>
+              <circle cx="158" cy="196" r="2" fill="#1de9b6"/>
 
-              <line x1="14" y1="208" x2="306" y2="208" stroke="rgba(255,255,255,0.06)"/>
-              <g transform="translate(14 218)" font-family="DM Mono, monospace" font-size="8" letter-spacing="1">
+              <line x1="14" y1="216" x2="306" y2="216" stroke="rgba(255,255,255,0.06)"/>
+              <g transform="translate(14 226)" font-family="DM Mono, monospace" font-size="8" letter-spacing="1">
                 <circle cx="3" cy="-2" r="3" fill="#ffd600"/><text x="10" y="2" fill="#a0a4a8">PERSONAL</text>
                 <circle cx="68" cy="-2" r="3" fill="#448aff"/><text x="75" y="2" fill="#a0a4a8">WORK</text>
                 <circle cx="118" cy="-2" r="3" fill="#ff4081"/><text x="125" y="2" fill="#a0a4a8">HEALTH</text>
@@ -608,14 +655,21 @@
           <div class="rounded-xl overflow-hidden border border-borderDark h-56 bg-appBg relative">
             <svg class="illus" viewBox="0 0 320 240" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
               <rect width="320" height="240" fill="#0d0e10"/>
-              <text x="14" y="20" font-family="DM Mono, monospace" font-size="8" fill="#5a5f65" letter-spacing="2">LEGACY · BUDGET</text>
-              <line x1="0" y1="28" x2="320" y2="28" stroke="rgba(255,255,255,0.06)"/>
-              <text x="14" y="50" font-family="DM Mono, monospace" font-size="8" fill="#5a5f65" letter-spacing="1">INCOME</text>
-              <text x="306" y="50" text-anchor="end" font-family="Bebas Neue, sans-serif" font-size="20" fill="#00e676">R 8 500.00</text>
+              <text x="10" y="16" font-family="DM Mono, monospace" font-size="8" fill="#ff6d00" font-weight="500" letter-spacing="1.5">VECTRA ARCH</text>
+              <text x="72" y="16" font-family="DM Mono, monospace" font-size="10" fill="rgba(255,255,255,0.12)">·</text>
+              <text x="80" y="17" font-family="Barlow Condensed, sans-serif" font-size="13" font-weight="800" fill="#f0f0f0" letter-spacing="0.5">BUDGET</text>
+              <text x="80" y="29" font-family="DM Mono, monospace" font-size="6" fill="#5a5f65" letter-spacing="1">PLAN · TRACK</text>
+              <g transform="translate(260 6)" stroke="#e91e8c" stroke-width="1.4" fill="none">
+                <path d="M -3 -2 L -3 8 L 4 3 Z"/>
+              </g>
+              <text x="259" y="26" text-anchor="middle" font-family="DM Mono, monospace" font-size="6" fill="#e91e8c">OUT</text>
+              <line x1="0" y1="40" x2="320" y2="40" stroke="#1a1a22"/>
 
-              <!-- NEEDS section -->
-              <g transform="translate(14 68)">
-                <rect width="292" height="44" rx="8" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
+              <text x="14" y="60" font-family="DM Mono, monospace" font-size="8" fill="#a0a4a8" letter-spacing="1">INCOME</text>
+              <text x="306" y="60" text-anchor="end" font-family="Bebas Neue, sans-serif" font-size="20" fill="#00e676">R 8 500.00</text>
+
+              <g transform="translate(14 76)">
+                <rect width="292" height="44" rx="6" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
                 <rect x="10" y="14" width="10" height="10" rx="2" fill="#00e676"/>
                 <text x="26" y="24" font-family="Barlow Condensed, sans-serif" font-size="13" font-weight="700" fill="#00e676" letter-spacing="1">NEEDS</text>
                 <text x="74" y="24" font-family="DM Mono, monospace" font-size="8" fill="#5a5f65">50% TARGET</text>
@@ -624,9 +678,8 @@
                 <rect x="10" y="32" width="218" height="4" rx="2" fill="#00e676"/>
               </g>
 
-              <!-- WANTS section -->
-              <g transform="translate(14 124)">
-                <rect width="292" height="44" rx="8" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
+              <g transform="translate(14 130)">
+                <rect width="292" height="44" rx="6" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
                 <rect x="10" y="14" width="10" height="10" rx="2" fill="#ff6d00"/>
                 <text x="26" y="24" font-family="Barlow Condensed, sans-serif" font-size="13" font-weight="700" fill="#ff6d00" letter-spacing="1">WANTS</text>
                 <text x="78" y="24" font-family="DM Mono, monospace" font-size="8" fill="#5a5f65">20% TARGET</text>
@@ -635,9 +688,8 @@
                 <rect x="10" y="32" width="120" height="4" rx="2" fill="#ff6d00"/>
               </g>
 
-              <!-- SAVINGS section -->
-              <g transform="translate(14 180)">
-                <rect width="292" height="44" rx="8" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
+              <g transform="translate(14 184)">
+                <rect width="292" height="44" rx="6" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
                 <rect x="10" y="14" width="10" height="10" rx="2" fill="#448aff"/>
                 <text x="26" y="24" font-family="Barlow Condensed, sans-serif" font-size="13" font-weight="700" fill="#448aff" letter-spacing="1">SAVINGS</text>
                 <text x="86" y="24" font-family="DM Mono, monospace" font-size="8" fill="#5a5f65">30% TARGET</text>
@@ -662,45 +714,61 @@
           <div class="rounded-xl overflow-hidden border border-borderDark h-56 bg-appBg relative">
             <svg class="illus" viewBox="0 0 320 240" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
               <rect width="320" height="240" fill="#0d0e10"/>
-              <text x="14" y="20" font-family="DM Mono, monospace" font-size="8" fill="#5a5f65" letter-spacing="2">LEGACY · GYM</text>
-              <line x1="0" y1="28" x2="320" y2="28" stroke="rgba(255,255,255,0.06)"/>
+              <text x="10" y="16" font-family="DM Mono, monospace" font-size="8" fill="#ff4081" font-weight="500" letter-spacing="1.5">VECTRA ARCH</text>
+              <text x="72" y="16" font-family="DM Mono, monospace" font-size="10" fill="rgba(255,255,255,0.12)">·</text>
+              <text x="80" y="17" font-family="Barlow Condensed, sans-serif" font-size="13" font-weight="800" fill="#f0f0f0" letter-spacing="0.5">GYM</text>
+              <text x="80" y="29" font-family="DM Mono, monospace" font-size="6" fill="#5a5f65" letter-spacing="1">EXERCISES · PROGRESS</text>
+              <g transform="translate(260 6)" stroke="#e91e8c" stroke-width="1.4" fill="none">
+                <path d="M -3 -2 L -3 8 L 4 3 Z"/>
+              </g>
+              <text x="259" y="26" text-anchor="middle" font-family="DM Mono, monospace" font-size="6" fill="#e91e8c">OUT</text>
+              <line x1="0" y1="40" x2="320" y2="40" stroke="#1a1a22"/>
+
+              <!-- Search bar -->
+              <g transform="translate(14 50)">
+                <rect width="292" height="26" rx="6" fill="#161719" stroke="rgba(255,255,255,0.12)"/>
+                <g transform="translate(14 13)" stroke="#5a5f65" stroke-width="1.4" fill="none">
+                  <circle cx="0" cy="0" r="4"/>
+                  <line x1="3" y1="3" x2="6" y2="6"/>
+                </g>
+                <text x="28" y="17" font-family="DM Mono, monospace" font-size="10" fill="#5a5f65">Search exercises...</text>
+              </g>
 
               <!-- Day header: today -->
-              <g transform="translate(14 40)">
-                <line x1="0" y1="0" x2="0" y2="36" stroke="#ff4081" stroke-width="2"/>
-                <text x="10" y="16" font-family="Barlow Condensed, sans-serif" font-size="14" font-weight="700" fill="#ff4081" letter-spacing="1">WEDNESDAY</text>
-                <rect x="98" y="6" width="36" height="14" rx="3" fill="#ff4081" fill-opacity="0.2"/>
-                <text x="116" y="16" text-anchor="middle" font-family="DM Mono, monospace" font-size="8" fill="#ff4081" font-weight="600" letter-spacing="1">TODAY</text>
-                <text x="146" y="16" font-family="DM Mono, monospace" font-size="9" fill="#5a5f65">3 EX</text>
-                <text x="290" y="16" text-anchor="end" font-family="DM Mono, monospace" font-size="9" fill="#ff4081">+ ADD</text>
-              </g>
-
-              <!-- Workout cards -->
               <g transform="translate(14 84)">
-                <rect width="292" height="36" rx="8" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
-                <line x1="0" y1="6" x2="0" y2="30" stroke="#ff4081" stroke-width="3"/>
-                <rect x="10" y="10" width="62" height="16" rx="3" fill="#ff4081" fill-opacity="0.18" stroke="#ff4081" stroke-opacity="0.5"/>
-                <text x="41" y="22" text-anchor="middle" font-family="DM Mono, monospace" font-size="8" fill="#ff4081" font-weight="600" letter-spacing="1">STRENGTH</text>
-                <text x="80" y="22" font-family="Barlow Condensed, sans-serif" font-size="12" font-weight="700" fill="#f0f0f0" letter-spacing="1">BENCH PRESS</text>
-                <text x="280" y="22" text-anchor="end" font-family="DM Mono, monospace" font-size="10" fill="#a0a4a8">3 × 10 × 60 kg</text>
+                <line x1="0" y1="0" x2="0" y2="32" stroke="#ff4081" stroke-width="2"/>
+                <text x="8" y="14" font-family="Barlow Condensed, sans-serif" font-size="13" font-weight="700" fill="#ff4081" letter-spacing="1">WEDNESDAY</text>
+                <rect x="92" y="4" width="36" height="14" rx="3" fill="#ff4081" fill-opacity="0.2"/>
+                <text x="110" y="14" text-anchor="middle" font-family="DM Mono, monospace" font-size="8" fill="#ff4081" font-weight="600" letter-spacing="1">TODAY</text>
+                <text x="140" y="14" font-family="DM Mono, monospace" font-size="9" fill="#5a5f65">3 EX</text>
+                <text x="282" y="14" text-anchor="end" font-family="DM Mono, monospace" font-size="9" fill="#ff4081">+ ADD</text>
               </g>
 
-              <g transform="translate(14 126)">
-                <rect width="292" height="36" rx="8" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
-                <line x1="0" y1="6" x2="0" y2="30" stroke="#ff4081" stroke-width="3"/>
-                <rect x="10" y="10" width="62" height="16" rx="3" fill="#ff4081" fill-opacity="0.18" stroke="#ff4081" stroke-opacity="0.5"/>
-                <text x="41" y="22" text-anchor="middle" font-family="DM Mono, monospace" font-size="8" fill="#ff4081" font-weight="600" letter-spacing="1">STRENGTH</text>
-                <text x="80" y="22" font-family="Barlow Condensed, sans-serif" font-size="12" font-weight="700" fill="#f0f0f0" letter-spacing="1">OVERHEAD PRESS</text>
-                <text x="280" y="22" text-anchor="end" font-family="DM Mono, monospace" font-size="10" fill="#a0a4a8">4 × 8 × 40 kg</text>
+              <g transform="translate(14 122)">
+                <rect width="292" height="32" rx="6" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
+                <line x1="0" y1="4" x2="0" y2="28" stroke="#ff4081" stroke-width="3"/>
+                <rect x="10" y="9" width="62" height="14" rx="3" fill="#ff4081" fill-opacity="0.18" stroke="#ff4081" stroke-opacity="0.5"/>
+                <text x="41" y="20" text-anchor="middle" font-family="DM Mono, monospace" font-size="8" fill="#ff4081" font-weight="600" letter-spacing="1">STRENGTH</text>
+                <text x="80" y="20" font-family="Barlow Condensed, sans-serif" font-size="12" font-weight="700" fill="#f0f0f0" letter-spacing="1">BENCH PRESS</text>
+                <text x="280" y="20" text-anchor="end" font-family="DM Mono, monospace" font-size="10" fill="#a0a4a8">3 × 10 × 60 kg</text>
               </g>
 
-              <g transform="translate(14 168)">
-                <rect width="292" height="36" rx="8" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
-                <line x1="0" y1="6" x2="0" y2="30" stroke="#448aff" stroke-width="3"/>
-                <rect x="10" y="10" width="48" height="16" rx="3" fill="#448aff" fill-opacity="0.18" stroke="#448aff" stroke-opacity="0.5"/>
-                <text x="34" y="22" text-anchor="middle" font-family="DM Mono, monospace" font-size="8" fill="#448aff" font-weight="600" letter-spacing="1">CARDIO</text>
-                <text x="66" y="22" font-family="Barlow Condensed, sans-serif" font-size="12" font-weight="700" fill="#f0f0f0" letter-spacing="1">TREADMILL</text>
-                <text x="280" y="22" text-anchor="end" font-family="DM Mono, monospace" font-size="10" fill="#a0a4a8">30 min · 5 km</text>
+              <g transform="translate(14 162)">
+                <rect width="292" height="32" rx="6" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
+                <line x1="0" y1="4" x2="0" y2="28" stroke="#ff4081" stroke-width="3"/>
+                <rect x="10" y="9" width="62" height="14" rx="3" fill="#ff4081" fill-opacity="0.18" stroke="#ff4081" stroke-opacity="0.5"/>
+                <text x="41" y="20" text-anchor="middle" font-family="DM Mono, monospace" font-size="8" fill="#ff4081" font-weight="600" letter-spacing="1">STRENGTH</text>
+                <text x="80" y="20" font-family="Barlow Condensed, sans-serif" font-size="12" font-weight="700" fill="#f0f0f0" letter-spacing="1">OVERHEAD PRESS</text>
+                <text x="280" y="20" text-anchor="end" font-family="DM Mono, monospace" font-size="10" fill="#a0a4a8">4 × 8 × 40 kg</text>
+              </g>
+
+              <g transform="translate(14 202)">
+                <rect width="292" height="32" rx="6" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
+                <line x1="0" y1="4" x2="0" y2="28" stroke="#448aff" stroke-width="3"/>
+                <rect x="10" y="9" width="48" height="14" rx="3" fill="#448aff" fill-opacity="0.18" stroke="#448aff" stroke-opacity="0.5"/>
+                <text x="34" y="20" text-anchor="middle" font-family="DM Mono, monospace" font-size="8" fill="#448aff" font-weight="600" letter-spacing="1">CARDIO</text>
+                <text x="66" y="20" font-family="Barlow Condensed, sans-serif" font-size="12" font-weight="700" fill="#f0f0f0" letter-spacing="1">TREADMILL</text>
+                <text x="280" y="20" text-anchor="end" font-family="DM Mono, monospace" font-size="10" fill="#a0a4a8">30 min · 5 km</text>
               </g>
             </svg>
           </div>
@@ -719,58 +787,62 @@
           <div class="rounded-xl overflow-hidden border border-borderDark h-56 bg-appBg relative">
             <svg class="illus" viewBox="0 0 320 240" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
               <rect width="320" height="240" fill="#0d0e10"/>
-              <text x="14" y="20" font-family="DM Mono, monospace" font-size="8" fill="#5a5f65" letter-spacing="2">LEGACY · MEALS</text>
-              <line x1="0" y1="28" x2="320" y2="28" stroke="rgba(255,255,255,0.06)"/>
+              <text x="10" y="16" font-family="DM Mono, monospace" font-size="8" fill="#d67bff" font-weight="500" letter-spacing="1.5">VECTRA ARCH</text>
+              <text x="72" y="16" font-family="DM Mono, monospace" font-size="10" fill="rgba(255,255,255,0.12)">·</text>
+              <text x="80" y="17" font-family="Barlow Condensed, sans-serif" font-size="13" font-weight="800" fill="#f0f0f0" letter-spacing="0.5">MEALS</text>
+              <text x="80" y="29" font-family="DM Mono, monospace" font-size="6" fill="#5a5f65" letter-spacing="1">FOOD LOG · NUTRITION</text>
+              <g transform="translate(260 6)" stroke="#e91e8c" stroke-width="1.4" fill="none">
+                <path d="M -3 -2 L -3 8 L 4 3 Z"/>
+              </g>
+              <text x="259" y="26" text-anchor="middle" font-family="DM Mono, monospace" font-size="6" fill="#e91e8c">OUT</text>
+              <line x1="0" y1="40" x2="320" y2="40" stroke="#1a1a22"/>
 
-              <!-- TDEE bar -->
-              <text x="14" y="46" font-family="DM Mono, monospace" font-size="8" fill="#5a5f65" letter-spacing="1">DAILY TARGET</text>
-              <text x="306" y="46" text-anchor="end" font-family="DM Mono, monospace" font-size="10" fill="#f0f0f0">1250 / 2100 kcal · 60%</text>
-              <rect x="14"  y="54" width="292" height="6" rx="3" fill="#1e2023"/>
-              <rect x="14"  y="54" width="175" height="6" rx="3" fill="#00e676"/>
+              <text x="14" y="58" font-family="DM Mono, monospace" font-size="8" fill="#a0a4a8" letter-spacing="1">DAILY TARGET</text>
+              <text x="306" y="58" text-anchor="end" font-family="DM Mono, monospace" font-size="10" fill="#f0f0f0">1250 / 2100 kcal · 60%</text>
+              <rect x="14"  y="66" width="292" height="6" rx="3" fill="#1e2023"/>
+              <rect x="14"  y="66" width="175" height="6" rx="3" fill="#00e676"/>
 
-              <!-- Macro grid -->
-              <g transform="translate(14 72)">
-                <rect width="68" height="48" rx="8" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
+              <g transform="translate(14 84)">
+                <rect width="68" height="48" rx="6" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
                 <text x="34" y="18" text-anchor="middle" font-family="DM Mono, monospace" font-size="7" fill="#5a5f65" letter-spacing="1">KCAL</text>
                 <text x="34" y="38" text-anchor="middle" font-family="Bebas Neue, sans-serif" font-size="16" fill="#ffd600">1250</text>
               </g>
-              <g transform="translate(90 72)">
-                <rect width="68" height="48" rx="8" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
+              <g transform="translate(90 84)">
+                <rect width="68" height="48" rx="6" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
                 <text x="34" y="18" text-anchor="middle" font-family="DM Mono, monospace" font-size="7" fill="#5a5f65" letter-spacing="1">PROTEIN</text>
                 <text x="34" y="38" text-anchor="middle" font-family="Bebas Neue, sans-serif" font-size="16" fill="#00e676">112g</text>
               </g>
-              <g transform="translate(166 72)">
-                <rect width="68" height="48" rx="8" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
+              <g transform="translate(166 84)">
+                <rect width="68" height="48" rx="6" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
                 <text x="34" y="18" text-anchor="middle" font-family="DM Mono, monospace" font-size="7" fill="#5a5f65" letter-spacing="1">CARBS</text>
                 <text x="34" y="38" text-anchor="middle" font-family="Bebas Neue, sans-serif" font-size="16" fill="#448aff">142g</text>
               </g>
-              <g transform="translate(242 72)">
-                <rect width="64" height="48" rx="8" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
+              <g transform="translate(242 84)">
+                <rect width="64" height="48" rx="6" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
                 <text x="32" y="18" text-anchor="middle" font-family="DM Mono, monospace" font-size="7" fill="#5a5f65" letter-spacing="1">FAT</text>
                 <text x="32" y="38" text-anchor="middle" font-family="Bebas Neue, sans-serif" font-size="16" fill="#ff3b3b">38g</text>
               </g>
 
-              <!-- Meal card -->
-              <g transform="translate(14 134)">
-                <rect width="292" height="44" rx="8" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
-                <rect x="10" y="14" width="62" height="16" rx="3" fill="#d67bff" fill-opacity="0.2" stroke="#d67bff" stroke-opacity="0.5"/>
-                <text x="41" y="26" text-anchor="middle" font-family="DM Mono, monospace" font-size="8" fill="#d67bff" font-weight="600" letter-spacing="1">BREAKFAST</text>
-                <text x="80" y="26" font-family="Barlow Condensed, sans-serif" font-size="12" font-weight="700" fill="#f0f0f0" letter-spacing="1">OATS &amp; BERRIES</text>
-                <rect x="208" y="14" width="34" height="14" rx="3" fill="#ffd600" fill-opacity="0.18"/>
-                <text x="225" y="24" text-anchor="middle" font-family="DM Mono, monospace" font-size="7" fill="#ffd600" font-weight="600">420 kcal</text>
-                <rect x="246" y="14" width="44" height="14" rx="3" fill="#00e676" fill-opacity="0.18"/>
-                <text x="268" y="24" text-anchor="middle" font-family="DM Mono, monospace" font-size="7" fill="#00e676" font-weight="600">18g prot</text>
+              <g transform="translate(14 144)">
+                <rect width="292" height="40" rx="6" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
+                <rect x="10" y="12" width="62" height="16" rx="3" fill="#d67bff" fill-opacity="0.2" stroke="#d67bff" stroke-opacity="0.5"/>
+                <text x="41" y="24" text-anchor="middle" font-family="DM Mono, monospace" font-size="8" fill="#d67bff" font-weight="600" letter-spacing="1">BREAKFAST</text>
+                <text x="80" y="24" font-family="Barlow Condensed, sans-serif" font-size="12" font-weight="700" fill="#f0f0f0" letter-spacing="1">OATS &amp; BERRIES</text>
+                <rect x="208" y="12" width="34" height="14" rx="3" fill="#ffd600" fill-opacity="0.18"/>
+                <text x="225" y="22" text-anchor="middle" font-family="DM Mono, monospace" font-size="7" fill="#ffd600" font-weight="600">420 kcal</text>
+                <rect x="246" y="12" width="44" height="14" rx="3" fill="#00e676" fill-opacity="0.18"/>
+                <text x="268" y="22" text-anchor="middle" font-family="DM Mono, monospace" font-size="7" fill="#00e676" font-weight="600">18g prot</text>
               </g>
 
-              <g transform="translate(14 184)">
-                <rect width="292" height="44" rx="8" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
-                <rect x="10" y="14" width="48" height="16" rx="3" fill="#d67bff" fill-opacity="0.2" stroke="#d67bff" stroke-opacity="0.5"/>
-                <text x="34" y="26" text-anchor="middle" font-family="DM Mono, monospace" font-size="8" fill="#d67bff" font-weight="600" letter-spacing="1">LUNCH</text>
-                <text x="66" y="26" font-family="Barlow Condensed, sans-serif" font-size="12" font-weight="700" fill="#f0f0f0" letter-spacing="1">CHICKEN SALAD</text>
-                <rect x="208" y="14" width="34" height="14" rx="3" fill="#ffd600" fill-opacity="0.18"/>
-                <text x="225" y="24" text-anchor="middle" font-family="DM Mono, monospace" font-size="7" fill="#ffd600" font-weight="600">450 kcal</text>
-                <rect x="246" y="14" width="44" height="14" rx="3" fill="#00e676" fill-opacity="0.18"/>
-                <text x="268" y="24" text-anchor="middle" font-family="DM Mono, monospace" font-size="7" fill="#00e676" font-weight="600">42g prot</text>
+              <g transform="translate(14 192)">
+                <rect width="292" height="40" rx="6" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
+                <rect x="10" y="12" width="48" height="16" rx="3" fill="#d67bff" fill-opacity="0.2" stroke="#d67bff" stroke-opacity="0.5"/>
+                <text x="34" y="24" text-anchor="middle" font-family="DM Mono, monospace" font-size="8" fill="#d67bff" font-weight="600" letter-spacing="1">LUNCH</text>
+                <text x="66" y="24" font-family="Barlow Condensed, sans-serif" font-size="12" font-weight="700" fill="#f0f0f0" letter-spacing="1">CHICKEN SALAD</text>
+                <rect x="208" y="12" width="34" height="14" rx="3" fill="#ffd600" fill-opacity="0.18"/>
+                <text x="225" y="22" text-anchor="middle" font-family="DM Mono, monospace" font-size="7" fill="#ffd600" font-weight="600">450 kcal</text>
+                <rect x="246" y="12" width="44" height="14" rx="3" fill="#00e676" fill-opacity="0.18"/>
+                <text x="268" y="22" text-anchor="middle" font-family="DM Mono, monospace" font-size="7" fill="#00e676" font-weight="600">42g prot</text>
               </g>
             </svg>
           </div>
@@ -789,40 +861,43 @@
           <div class="rounded-xl overflow-hidden border border-borderDark h-56 bg-appBg relative">
             <svg class="illus" viewBox="0 0 320 240" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
               <rect width="320" height="240" fill="#0d0e10"/>
-              <text x="14" y="20" font-family="DM Mono, monospace" font-size="8" fill="#5a5f65" letter-spacing="2">LEGACY · CYCLE</text>
-              <line x1="0" y1="28" x2="320" y2="28" stroke="rgba(255,255,255,0.06)"/>
+              <text x="10" y="16" font-family="DM Mono, monospace" font-size="8" fill="#ff3b3b" font-weight="500" letter-spacing="1.5">VECTRA ARCH</text>
+              <text x="72" y="16" font-family="DM Mono, monospace" font-size="10" fill="rgba(255,255,255,0.12)">·</text>
+              <text x="80" y="17" font-family="Barlow Condensed, sans-serif" font-size="13" font-weight="800" fill="#f0f0f0" letter-spacing="0.5">CYCLE TRACKER</text>
+              <text x="80" y="29" font-family="DM Mono, monospace" font-size="6" fill="#5a5f65" letter-spacing="1">MENSTRUAL CYCLE</text>
+              <g transform="translate(260 6)" stroke="#e91e8c" stroke-width="1.4" fill="none">
+                <path d="M -3 -2 L -3 8 L 4 3 Z"/>
+              </g>
+              <text x="259" y="26" text-anchor="middle" font-family="DM Mono, monospace" font-size="6" fill="#e91e8c">OUT</text>
+              <line x1="0" y1="40" x2="320" y2="40" stroke="#1a1a22"/>
 
-              <!-- Prediction card -->
-              <g transform="translate(14 40)">
-                <rect width="292" height="92" rx="8" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
-                <!-- confidence ring -->
+              <g transform="translate(14 50)">
+                <rect width="292" height="92" rx="6" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
                 <g transform="translate(50 46)">
                   <circle r="28" fill="none" stroke="#1e2023" stroke-width="4"/>
                   <circle r="28" fill="none" stroke="#ff3b3b" stroke-width="4" stroke-dasharray="153 176" transform="rotate(-90)" stroke-linecap="round"/>
                   <text y="2" text-anchor="middle" font-family="Bebas Neue, sans-serif" font-size="16" fill="#f0f0f0">87%</text>
-                  <text y="14" text-anchor="middle" font-family="DM Mono, monospace" font-size="6" fill="#5a5f65" letter-spacing="1">CONF ±1d</text>
+                  <text y="14" text-anchor="middle" font-family="DM Mono, monospace" font-size="6" fill="rgba(255,255,255,0.58)" letter-spacing="1">CONF ±1d</text>
                 </g>
-                <!-- predictions -->
                 <g transform="translate(94 18)">
-                  <text font-family="DM Mono, monospace" font-size="8" fill="#5a5f65" letter-spacing="1">NEXT PERIOD</text>
+                  <text font-family="DM Mono, monospace" font-size="8" fill="rgba(255,255,255,0.58)" letter-spacing="1.4">NEXT PERIOD</text>
                   <text y="14" font-family="Barlow Condensed, sans-serif" font-size="13" font-weight="700" fill="#ff3b3b">2026-02-15 ±1d</text>
-                  <text y="32" font-family="DM Mono, monospace" font-size="8" fill="#5a5f65" letter-spacing="1">FERTILE WINDOW</text>
+                  <text y="32" font-family="DM Mono, monospace" font-size="8" fill="rgba(255,255,255,0.58)" letter-spacing="1.4">FERTILE WINDOW</text>
                   <text y="46" font-family="Barlow Condensed, sans-serif" font-size="13" font-weight="700" fill="#1de9b6">Feb 10 – 14 ±1d</text>
-                  <text y="64" font-family="DM Mono, monospace" font-size="8" fill="#5a5f65" letter-spacing="1">BASIS</text>
+                  <text y="64" font-family="DM Mono, monospace" font-size="8" fill="rgba(255,255,255,0.58)" letter-spacing="1.4">BASIS</text>
                   <text y="78" font-family="Barlow Condensed, sans-serif" font-size="12" font-weight="700" fill="#f0f0f0">6 CYCLES · σ 1.5</text>
                 </g>
               </g>
 
-              <!-- Phase donut -->
-              <text x="14" y="148" font-family="DM Mono, monospace" font-size="8" fill="#5a5f65" letter-spacing="2">PHASE BREAKDOWN</text>
-              <g transform="translate(60 192)">
+              <text x="14" y="160" font-family="DM Mono, monospace" font-size="8" fill="#a0a4a8" letter-spacing="2">PHASE BREAKDOWN</text>
+              <g transform="translate(60 200)">
                 <circle r="28" fill="none" stroke="#ff3b3b" stroke-width="10" stroke-dasharray="31 175" transform="rotate(-90)"/>
                 <circle r="28" fill="none" stroke="#1de9b6" stroke-width="10" stroke-dasharray="50 175" stroke-dashoffset="-31" transform="rotate(-90)"/>
                 <circle r="28" fill="none" stroke="#00e676" stroke-width="10" stroke-dasharray="19 175" stroke-dashoffset="-81" transform="rotate(-90)"/>
                 <circle r="28" fill="none" stroke="#448aff" stroke-width="10" stroke-dasharray="75 175" stroke-dashoffset="-100" transform="rotate(-90)"/>
                 <text y="3" text-anchor="middle" font-family="Bebas Neue, sans-serif" font-size="14" fill="#f0f0f0">28d</text>
               </g>
-              <g transform="translate(112 168)" font-family="DM Mono, monospace" font-size="9">
+              <g transform="translate(112 176)" font-family="DM Mono, monospace" font-size="9">
                 <circle cx="3" cy="-2" r="3" fill="#ff3b3b"/>
                 <text x="10" y="2" fill="#f0f0f0">MENSTRUAL · 5d</text>
                 <circle cx="3" cy="14" r="3" fill="#1de9b6"/>
@@ -867,61 +942,72 @@
           <div class="rounded-2xl overflow-hidden border border-borderDark bg-appBg shadow-2xl h-72 relative">
             <svg class="illus" viewBox="0 0 500 290" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
               <rect width="500" height="290" fill="#0d0e10"/>
-              <text x="20" y="22" font-family="DM Mono, monospace" font-size="8" fill="#5a5f65" letter-spacing="2">LEGACY · ADMIN</text>
-              <text x="480" y="22" text-anchor="end" font-family="DM Mono, monospace" font-size="11" fill="#f0f0f0" font-weight="500">SCHALK · OWNER</text>
-              <line x1="0" y1="32" x2="500" y2="32" stroke="rgba(255,255,255,0.06)"/>
+
+              <!-- Top bar -->
+              <text x="14" y="18" font-family="DM Mono, monospace" font-size="8" fill="#00ff41" font-weight="500" letter-spacing="1.5">VECTRA ARCH</text>
+              <text x="78" y="18" font-family="DM Mono, monospace" font-size="10" fill="rgba(255,255,255,0.12)">·</text>
+              <text x="88" y="19" font-family="Barlow Condensed, sans-serif" font-size="15" font-weight="800" fill="#f0f0f0" letter-spacing="0.5">ADMIN PANEL</text>
+              <text x="88" y="32" font-family="DM Mono, monospace" font-size="7" fill="#5a5f65" letter-spacing="1.4">MANAGEMENT · OVERVIEW</text>
+              <g transform="translate(410 6)">
+                <rect width="36" height="30" rx="3" fill="#00ff41" fill-opacity="0.14" stroke="#00ff41"/>
+                <g transform="translate(18 12)" stroke="#00ff41" stroke-width="1.4" fill="none">
+                  <path d="M 0 -4 Q 4 -2 4 2 Q 4 4 0 4 Q -4 4 -4 2 Q -4 -2 0 -4 Z"/>
+                </g>
+                <text x="18" y="26" text-anchor="middle" font-family="DM Mono, monospace" font-size="6" fill="#00ff41">ADMIN</text>
+              </g>
+              <g transform="translate(458 6)" stroke="#e91e8c" stroke-width="1.4" fill="none">
+                <path d="M -3 -2 L -3 8 L 4 3 Z"/>
+              </g>
+              <text x="465" y="26" text-anchor="middle" font-family="DM Mono, monospace" font-size="6" fill="#e91e8c">OUT</text>
+              <line x1="0" y1="44" x2="500" y2="44" stroke="#1a1a22"/>
 
               <!-- Section pills -->
-              <g transform="translate(20 46)">
+              <g transform="translate(20 56)">
                 <rect width="64" height="22" rx="11" fill="#00ff41" fill-opacity="0.18" stroke="#00ff41"/>
                 <text x="32" y="15" text-anchor="middle" font-family="DM Mono, monospace" font-size="9" fill="#00ff41" font-weight="600" letter-spacing="1">USERS</text>
               </g>
-              <g transform="translate(90 46)">
+              <g transform="translate(90 56)">
                 <rect width="68" height="22" rx="11" fill="none" stroke="rgba(255,255,255,0.12)"/>
                 <text x="34" y="15" text-anchor="middle" font-family="DM Mono, monospace" font-size="9" fill="#5a5f65" letter-spacing="1">GROUPS</text>
               </g>
-              <g transform="translate(164 46)">
-                <rect width="72" height="22" rx="11" fill="none" stroke="rgba(255,255,255,0.12)"/>
-                <text x="36" y="15" text-anchor="middle" font-family="DM Mono, monospace" font-size="9" fill="#5a5f65" letter-spacing="1">AUDIT</text>
+              <g transform="translate(164 56)">
+                <rect width="56" height="22" rx="11" fill="none" stroke="rgba(255,255,255,0.12)"/>
+                <text x="28" y="15" text-anchor="middle" font-family="DM Mono, monospace" font-size="9" fill="#5a5f65" letter-spacing="1">AUDIT</text>
               </g>
 
-              <!-- Users list header -->
-              <text x="20" y="92" font-family="DM Mono, monospace" font-size="8" fill="#5a5f65" letter-spacing="2">CORE GROUP · 3 MEMBERS</text>
+              <text x="20" y="100" font-family="DM Mono, monospace" font-size="8" fill="#a0a4a8" letter-spacing="2" data-r-group-line>HOUSEHOLD · 3 MEMBERS</text>
 
-              <!-- User row 1 -->
-              <g transform="translate(20 102)">
-                <rect width="460" height="52" rx="8" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
-                <circle cx="28" cy="26" r="14" fill="none" stroke="#00ff41" stroke-width="2"/>
-                <text x="28" y="30" text-anchor="middle" font-family="Bebas Neue, sans-serif" font-size="13" fill="#00ff41">SK</text>
-                <text x="52" y="20" font-family="Barlow Condensed, sans-serif" font-size="14" font-weight="700" fill="#f0f0f0">SCHALK KOEN</text>
-                <text x="52" y="36" font-family="DM Mono, monospace" font-size="9" fill="#5a5f65">schalk · owner · all access</text>
-                <rect x="280" y="16" width="56" height="20" rx="4" fill="#00ff41" fill-opacity="0.18" stroke="#00ff41" stroke-opacity="0.5"/>
-                <text x="308" y="30" text-anchor="middle" font-family="DM Mono, monospace" font-size="9" fill="#00ff41" font-weight="600">OWNER</text>
-                <text x="448" y="30" text-anchor="end" font-family="DM Mono, monospace" font-size="10" fill="#00ff41">●●●●●●</text>
+              <g transform="translate(20 110)">
+                <rect width="460" height="50" rx="6" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
+                <circle cx="28" cy="25" r="14" fill="none" stroke="#00ff41" stroke-width="2"/>
+                <text x="28" y="29" text-anchor="middle" font-family="Bebas Neue, sans-serif" font-size="13" fill="#00ff41" data-r-initials="1">AK</text>
+                <text x="52" y="20" font-family="Barlow Condensed, sans-serif" font-size="14" font-weight="700" fill="#f0f0f0" data-r-name="1">AVERY KIM</text>
+                <text x="52" y="36" font-family="DM Mono, monospace" font-size="9" fill="#5a5f65"><tspan data-r-username="1">avery</tspan> · owner · all access</text>
+                <rect x="290" y="14" width="56" height="20" rx="4" fill="#00ff41" fill-opacity="0.18" stroke="#00ff41" stroke-opacity="0.5"/>
+                <text x="318" y="28" text-anchor="middle" font-family="DM Mono, monospace" font-size="9" fill="#00ff41" font-weight="600">OWNER</text>
+                <text x="448" y="28" text-anchor="end" font-family="DM Mono, monospace" font-size="10" fill="#00ff41">●●●●●●</text>
               </g>
 
-              <!-- User row 2 -->
-              <g transform="translate(20 162)">
-                <rect width="460" height="52" rx="8" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
-                <circle cx="28" cy="26" r="14" fill="none" stroke="#448aff" stroke-width="2"/>
-                <text x="28" y="30" text-anchor="middle" font-family="Bebas Neue, sans-serif" font-size="13" fill="#448aff">MJ</text>
-                <text x="52" y="20" font-family="Barlow Condensed, sans-serif" font-size="14" font-weight="700" fill="#f0f0f0">MARIE JANSEN</text>
-                <text x="52" y="36" font-family="DM Mono, monospace" font-size="9" fill="#5a5f65">marie · partner · shared</text>
-                <rect x="280" y="16" width="64" height="20" rx="4" fill="#448aff" fill-opacity="0.18" stroke="#448aff" stroke-opacity="0.5"/>
-                <text x="312" y="30" text-anchor="middle" font-family="DM Mono, monospace" font-size="9" fill="#448aff" font-weight="600">PARTNER</text>
-                <text x="448" y="30" text-anchor="end" font-family="DM Mono, monospace" font-size="10" fill="#448aff">●●●●●○</text>
+              <g transform="translate(20 170)">
+                <rect width="460" height="50" rx="6" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
+                <circle cx="28" cy="25" r="14" fill="none" stroke="#448aff" stroke-width="2"/>
+                <text x="28" y="29" text-anchor="middle" font-family="Bebas Neue, sans-serif" font-size="13" fill="#448aff" data-r-initials="2">JL</text>
+                <text x="52" y="20" font-family="Barlow Condensed, sans-serif" font-size="14" font-weight="700" fill="#f0f0f0" data-r-name="2">JORDAN LEE</text>
+                <text x="52" y="36" font-family="DM Mono, monospace" font-size="9" fill="#5a5f65"><tspan data-r-username="2">jordan</tspan> · partner · shared</text>
+                <rect x="290" y="14" width="64" height="20" rx="4" fill="#448aff" fill-opacity="0.18" stroke="#448aff" stroke-opacity="0.5"/>
+                <text x="322" y="28" text-anchor="middle" font-family="DM Mono, monospace" font-size="9" fill="#448aff" font-weight="600">PARTNER</text>
+                <text x="448" y="28" text-anchor="end" font-family="DM Mono, monospace" font-size="10" fill="#448aff">●●●●●○</text>
               </g>
 
-              <!-- User row 3 -->
-              <g transform="translate(20 222)">
-                <rect width="460" height="52" rx="8" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
-                <circle cx="28" cy="26" r="14" fill="none" stroke="#ffd600" stroke-width="2"/>
-                <text x="28" y="30" text-anchor="middle" font-family="Bebas Neue, sans-serif" font-size="13" fill="#ffd600">DK</text>
-                <text x="52" y="20" font-family="Barlow Condensed, sans-serif" font-size="14" font-weight="700" fill="#f0f0f0">DANIEL KOEN</text>
-                <text x="52" y="36" font-family="DM Mono, monospace" font-size="9" fill="#5a5f65">daniel · child · limited</text>
-                <rect x="280" y="16" width="56" height="20" rx="4" fill="#ffd600" fill-opacity="0.18" stroke="#ffd600" stroke-opacity="0.5"/>
-                <text x="308" y="30" text-anchor="middle" font-family="DM Mono, monospace" font-size="9" fill="#ffd600" font-weight="600">CHILD</text>
-                <text x="448" y="30" text-anchor="end" font-family="DM Mono, monospace" font-size="10" fill="#ffd600">●●○○○○</text>
+              <g transform="translate(20 230)">
+                <rect width="460" height="50" rx="6" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
+                <circle cx="28" cy="25" r="14" fill="none" stroke="#ffd600" stroke-width="2"/>
+                <text x="28" y="29" text-anchor="middle" font-family="Bebas Neue, sans-serif" font-size="13" fill="#ffd600" data-r-initials="3">MC</text>
+                <text x="52" y="20" font-family="Barlow Condensed, sans-serif" font-size="14" font-weight="700" fill="#f0f0f0" data-r-name="3">MORGAN CHEN</text>
+                <text x="52" y="36" font-family="DM Mono, monospace" font-size="9" fill="#5a5f65"><tspan data-r-username="3">morgan</tspan> · child · limited</text>
+                <rect x="290" y="14" width="56" height="20" rx="4" fill="#ffd600" fill-opacity="0.18" stroke="#ffd600" stroke-opacity="0.5"/>
+                <text x="318" y="28" text-anchor="middle" font-family="DM Mono, monospace" font-size="9" fill="#ffd600" font-weight="600">CHILD</text>
+                <text x="448" y="28" text-anchor="end" font-family="DM Mono, monospace" font-size="10" fill="#ffd600">●●○○○○</text>
               </g>
             </svg>
           </div>
@@ -949,46 +1035,60 @@
               </defs>
               <rect width="500" height="290" fill="#0d0e10"/>
               <rect width="500" height="290" fill="url(#pgrad)"/>
-              <text x="20" y="22" font-family="DM Mono, monospace" font-size="8" fill="#5a5f65" letter-spacing="2">LEGACY · PROFILE</text>
-              <text x="480" y="22" text-anchor="end" font-family="DM Mono, monospace" font-size="11" fill="#f0f0f0" font-weight="500">SCHALK</text>
-              <line x1="0" y1="32" x2="500" y2="32" stroke="rgba(255,255,255,0.06)"/>
+
+              <!-- Top bar -->
+              <text x="14" y="18" font-family="DM Mono, monospace" font-size="8" fill="#00ff41" font-weight="500" letter-spacing="1.5">VECTRA ARCH</text>
+              <text x="78" y="18" font-family="DM Mono, monospace" font-size="10" fill="rgba(255,255,255,0.12)">·</text>
+              <text x="88" y="19" font-family="Barlow Condensed, sans-serif" font-size="15" font-weight="800" fill="#f0f0f0" letter-spacing="0.5">PROFILE</text>
+              <text x="88" y="32" font-family="DM Mono, monospace" font-size="7" fill="#5a5f65" letter-spacing="1.4">ACCOUNT · SETTINGS</text>
+              <g transform="translate(410 6)">
+                <rect width="36" height="30" rx="3" fill="#00ff41" fill-opacity="0.14" stroke="#00ff41"/>
+                <g transform="translate(18 12)" stroke="#00ff41" stroke-width="1.4" fill="none">
+                  <circle cx="0" cy="-2" r="3"/>
+                  <path d="M -5 6 Q 0 1 5 6"/>
+                </g>
+                <text x="18" y="26" text-anchor="middle" font-family="DM Mono, monospace" font-size="6" fill="#00ff41">PROFILE</text>
+              </g>
+              <g transform="translate(458 6)" stroke="#e91e8c" stroke-width="1.4" fill="none">
+                <path d="M -3 -2 L -3 8 L 4 3 Z"/>
+              </g>
+              <text x="465" y="26" text-anchor="middle" font-family="DM Mono, monospace" font-size="6" fill="#e91e8c">OUT</text>
+              <line x1="0" y1="44" x2="500" y2="44" stroke="#1a1a22"/>
 
               <!-- Header card -->
-              <g transform="translate(20 46)">
+              <g transform="translate(20 56)">
                 <rect width="460" height="92" rx="10" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
-                <circle cx="46" cy="46" r="32" fill="#1e2023" stroke="#00ff41" stroke-width="3"/>
-                <text x="46" y="52" text-anchor="middle" font-family="Bebas Neue, sans-serif" font-size="26" fill="#00ff41">SK</text>
-                <text x="88" y="26" font-family="DM Mono, monospace" font-size="8" fill="#5a5f65" letter-spacing="2">USER ID · SCHALK</text>
-                <text x="88" y="50" font-family="Barlow Condensed, sans-serif" font-size="22" font-weight="800" fill="#f0f0f0" letter-spacing="1">SCHALK KOEN</text>
-                <text x="88" y="64" font-family="DM Mono, monospace" font-size="9" fill="#a0a4a8">schalk@vectraarch.live</text>
-                <rect x="88"  y="72" width="56" height="14" rx="3" fill="#00ff41" fill-opacity="0.2" stroke="#00ff41" stroke-opacity="0.5"/>
-                <text x="116" y="82" text-anchor="middle" font-family="DM Mono, monospace" font-size="8" fill="#00ff41" font-weight="600" letter-spacing="1">GREEN</text>
-                <rect x="148" y="72" width="58" height="14" rx="3" fill="#448aff" fill-opacity="0.2" stroke="#448aff" stroke-opacity="0.5"/>
-                <text x="177" y="82" text-anchor="middle" font-family="DM Mono, monospace" font-size="8" fill="#448aff" font-weight="600" letter-spacing="1">OWNER</text>
-                <rect x="210" y="72" width="62" height="14" rx="3" fill="#ffd600" fill-opacity="0.2" stroke="#ffd600" stroke-opacity="0.5"/>
-                <text x="241" y="82" text-anchor="middle" font-family="DM Mono, monospace" font-size="8" fill="#ffd600" font-weight="600" letter-spacing="1">FAMILY</text>
+                <circle cx="46" cy="46" r="26" fill="#1e2023" stroke="#00ff41" stroke-width="3"/>
+                <text x="46" y="52" text-anchor="middle" font-family="Bebas Neue, sans-serif" font-size="22" fill="#00ff41" data-r-initials="1">AK</text>
+                <text x="84" y="26" font-family="DM Mono, monospace" font-size="8" fill="#5a5f65" letter-spacing="2">USER ID · <tspan data-r-username-up="1">AVERY</tspan></text>
+                <text x="84" y="48" font-family="Barlow Condensed, sans-serif" font-size="20" font-weight="800" fill="#f0f0f0" letter-spacing="1" data-r-name="1">AVERY KIM</text>
+                <text x="84" y="62" font-family="DM Mono, monospace" font-size="9" fill="#a0a4a8" data-r-email="1">avery.kim@vectraarch.live</text>
+                <rect x="84"  y="72" width="56" height="14" rx="3" fill="#00ff41" fill-opacity="0.2" stroke="#00ff41" stroke-opacity="0.5"/>
+                <text x="112" y="82" text-anchor="middle" font-family="DM Mono, monospace" font-size="8" fill="#00ff41" font-weight="600" letter-spacing="1">GREEN</text>
+                <rect x="146" y="72" width="58" height="14" rx="3" fill="#448aff" fill-opacity="0.2" stroke="#448aff" stroke-opacity="0.5"/>
+                <text x="175" y="82" text-anchor="middle" font-family="DM Mono, monospace" font-size="8" fill="#448aff" font-weight="600" letter-spacing="1">OWNER</text>
+                <rect x="210" y="72" width="68" height="14" rx="3" fill="#ffd600" fill-opacity="0.2" stroke="#ffd600" stroke-opacity="0.5"/>
+                <text x="244" y="82" text-anchor="middle" font-family="DM Mono, monospace" font-size="8" fill="#ffd600" font-weight="600" letter-spacing="1" data-r-group>HOUSEHOLD</text>
               </g>
 
-              <!-- Stats row -->
-              <g transform="translate(20 152)">
-                <rect width="148" height="48" rx="8" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
-                <text x="14" y="20" font-family="DM Mono, monospace" font-size="8" fill="#5a5f65" letter-spacing="1">WEIGHT</text>
-                <text x="14" y="40" font-family="Bebas Neue, sans-serif" font-size="20" fill="#f0f0f0">82 kg</text>
+              <g transform="translate(20 158)">
+                <rect width="146" height="44" rx="6" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
+                <text x="14" y="18" font-family="DM Mono, monospace" font-size="8" fill="#5a5f65" letter-spacing="1">WEIGHT</text>
+                <text x="14" y="38" font-family="Bebas Neue, sans-serif" font-size="20" fill="#f0f0f0">82 kg</text>
               </g>
-              <g transform="translate(176 152)">
-                <rect width="148" height="48" rx="8" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
-                <text x="14" y="20" font-family="DM Mono, monospace" font-size="8" fill="#5a5f65" letter-spacing="1">HEIGHT</text>
-                <text x="14" y="40" font-family="Bebas Neue, sans-serif" font-size="20" fill="#f0f0f0">185 cm</text>
+              <g transform="translate(176 158)">
+                <rect width="146" height="44" rx="6" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
+                <text x="14" y="18" font-family="DM Mono, monospace" font-size="8" fill="#5a5f65" letter-spacing="1">HEIGHT</text>
+                <text x="14" y="38" font-family="Bebas Neue, sans-serif" font-size="20" fill="#f0f0f0">185 cm</text>
               </g>
-              <g transform="translate(332 152)">
-                <rect width="148" height="48" rx="8" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
-                <text x="14" y="20" font-family="DM Mono, monospace" font-size="8" fill="#5a5f65" letter-spacing="1">DOB</text>
-                <text x="14" y="40" font-family="Bebas Neue, sans-serif" font-size="20" fill="#f0f0f0">1995-03-15</text>
+              <g transform="translate(332 158)">
+                <rect width="148" height="44" rx="6" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
+                <text x="14" y="18" font-family="DM Mono, monospace" font-size="8" fill="#5a5f65" letter-spacing="1">DOB</text>
+                <text x="14" y="38" font-family="Bebas Neue, sans-serif" font-size="20" fill="#f0f0f0">1995-03-15</text>
               </g>
 
-              <!-- Color picker -->
-              <text x="20" y="222" font-family="DM Mono, monospace" font-size="8" fill="#5a5f65" letter-spacing="2">ACCENT COLOR</text>
-              <g transform="translate(20 232)">
+              <text x="20" y="226" font-family="DM Mono, monospace" font-size="8" fill="#a0a4a8" letter-spacing="2">ACCENT COLOR</text>
+              <g transform="translate(20 234)">
                 <circle cx="14"  cy="14" r="14" fill="#ffd600"/>
                 <circle cx="46"  cy="14" r="14" fill="#448aff"/>
                 <circle cx="78"  cy="14" r="14" fill="#ff6d00"/>
@@ -1020,18 +1120,15 @@
       </div>
 
       <div class="lg:col-span-8 grid grid-cols-1 sm:grid-cols-2 gap-6">
-        <!-- Shared day view -->
         <div class="rounded-2xl overflow-hidden border border-borderDark bg-appBg hover:border-neutral-700 transition h-72 relative">
           <svg class="illus" viewBox="0 0 480 290" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
             <rect width="480" height="290" fill="#0d0e10"/>
             <text x="20" y="22" font-family="DM Mono, monospace" font-size="8" fill="#5a5f65" letter-spacing="2">LEGACY · TODAY</text>
-            <line x1="0" y1="32" x2="480" y2="32" stroke="rgba(255,255,255,0.06)"/>
+            <line x1="0" y1="32" x2="480" y2="32" stroke="#1a1a22"/>
             <text x="240" y="56" text-anchor="middle" font-family="Barlow Condensed, sans-serif" font-size="18" font-weight="800" fill="#f0f0f0" letter-spacing="2">WEDNESDAY <tspan fill="#448aff">21</tspan> JAN 2026</text>
 
-            <!-- Timeline rail -->
             <line x1="48" y1="80" x2="48" y2="266" stroke="#1e2023" stroke-width="2"/>
 
-            <!-- 07:30 Meal -->
             <circle cx="48" cy="98" r="6" fill="#d67bff"/>
             <g transform="translate(64 84)">
               <rect width="396" height="32" rx="6" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
@@ -1040,7 +1137,6 @@
               <text x="386" y="20" text-anchor="end" font-family="DM Mono, monospace" font-size="9" fill="#ffd600">420 kcal</text>
             </g>
 
-            <!-- 09:00 Calendar -->
             <circle cx="48" cy="138" r="6" fill="#448aff"/>
             <g transform="translate(64 124)">
               <rect width="396" height="32" rx="6" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
@@ -1049,7 +1145,6 @@
               <text x="386" y="20" text-anchor="end" font-family="DM Mono, monospace" font-size="9" fill="#a0a4a8">60 min</text>
             </g>
 
-            <!-- 11:20 Finance -->
             <circle cx="48" cy="178" r="6" fill="#ffd600"/>
             <g transform="translate(64 164)">
               <rect width="396" height="32" rx="6" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
@@ -1058,7 +1153,6 @@
               <text x="386" y="20" text-anchor="end" font-family="Bebas Neue, sans-serif" font-size="14" fill="#00e676">R 1 280.00</text>
             </g>
 
-            <!-- 17:30 Gym -->
             <circle cx="48" cy="218" r="6" fill="#ff4081"/>
             <g transform="translate(64 204)">
               <rect width="396" height="32" rx="6" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
@@ -1066,7 +1160,6 @@
               <text x="120" y="20" font-family="Barlow Condensed, sans-serif" font-size="13" font-weight="700" fill="#f0f0f0">BENCH · 3 × 10 × 60 kg</text>
             </g>
 
-            <!-- 22:00 Cycle -->
             <circle cx="48" cy="258" r="6" fill="#ff3b3b"/>
             <g transform="translate(64 244)">
               <rect width="396" height="32" rx="6" fill="#161719" stroke="rgba(255,255,255,0.06)"/>
@@ -1076,14 +1169,12 @@
           </svg>
         </div>
 
-        <!-- Trends -->
         <div class="rounded-2xl overflow-hidden border border-borderDark bg-appBg hover:border-neutral-700 transition h-72 relative">
           <svg class="illus" viewBox="0 0 480 290" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
             <rect width="480" height="290" fill="#0d0e10"/>
             <text x="20" y="22" font-family="DM Mono, monospace" font-size="8" fill="#5a5f65" letter-spacing="2">LEGACY · TRENDS</text>
-            <line x1="0" y1="32" x2="480" y2="32" stroke="rgba(255,255,255,0.06)"/>
+            <line x1="0" y1="32" x2="480" y2="32" stroke="#1a1a22"/>
 
-            <!-- Legend -->
             <g transform="translate(20 50)" font-family="DM Mono, monospace" font-size="9" letter-spacing="1">
               <circle cx="4" cy="-2" r="3" fill="#ffd600"/><text x="12" y="2" fill="#f0f0f0">FINANCES</text>
               <circle cx="100" cy="-2" r="3" fill="#448aff"/><text x="108" y="2" fill="#f0f0f0">CALENDAR</text>
@@ -1092,18 +1183,15 @@
               <circle cx="350" cy="-2" r="3" fill="#ff3b3b"/><text x="358" y="2" fill="#f0f0f0">CYCLE</text>
             </g>
 
-            <!-- Axes -->
             <line x1="40" y1="260" x2="460" y2="260" stroke="#1e2023"/>
             <line x1="40" y1="80"  x2="40"  y2="260" stroke="#1e2023"/>
 
-            <!-- Lines -->
             <polyline points="40,230 100,220 160,205 220,180 280,168 340,148 400,130 460,108" fill="none" stroke="#ffd600" stroke-width="2.5" stroke-linecap="round"/>
             <polyline points="40,210 100,200 160,190 220,192 280,170 340,148 400,144 460,120" fill="none" stroke="#448aff" stroke-width="2.5" stroke-linecap="round"/>
             <polyline points="40,240 100,232 160,222 220,200 280,210 340,178 400,168 460,150" fill="none" stroke="#ff4081" stroke-width="2.5" stroke-linecap="round"/>
             <polyline points="40,222 100,218 160,215 220,210 280,196 340,194 400,186 460,180" fill="none" stroke="#d67bff" stroke-width="2" stroke-opacity="0.8" stroke-linecap="round"/>
             <polyline points="40,250 100,250 160,248 220,250 280,246 340,248 400,246 460,244" fill="none" stroke="#ff3b3b" stroke-width="1.5" stroke-opacity="0.7" stroke-linecap="round"/>
 
-            <!-- Month labels -->
             <g font-family="DM Mono, monospace" font-size="8" fill="#5a5f65" text-anchor="middle">
               <text x="40"  y="276">SEP</text>
               <text x="100" y="276">OCT</text>
@@ -1152,12 +1240,49 @@
         <span class="text-[10px] uppercase">LIFESTYLE COMPASS BY VECTRA ARCH</span>
       </div>
       <div class="flex space-x-6 text-[10px] uppercase tracking-widest">
-        <span>STATUS: ACTIVE ONLINE</span>
-        <span class="text-neutral-900">•</span>
         <span>© 2026</span>
       </div>
     </div>
   </footer>
+
+  <script>
+    (function () {
+      var FIRST = ['AVERY','JORDAN','MORGAN','TAYLOR','CASEY','ROBIN','QUINN','RILEY','SAGE','HARPER','EMERSON','PARKER','REESE','ROWAN','ELLIS','FINLEY'];
+      var LAST  = ['KIM','LEE','CHEN','REED','PARK','MOSS','HALE','WEST','NOVAK','TRAN','OKAFOR','SANTOS','MEYER','BANKS','ELLIOTT','VARGAS'];
+      var GROUPS = ['HOUSEHOLD','CORE GROUP','TEAM ALPHA','INNER CIRCLE','FAMILY HUB','HOME BASE'];
+      function pick(a) { return a[Math.floor(Math.random()*a.length)]; }
+      function pickUnique(a, used) {
+        var v; do { v = pick(a); } while (used.indexOf(v) !== -1);
+        used.push(v); return v;
+      }
+      var usedF=[], usedL=[];
+      var people = [1,2,3].map(function () {
+        var f = pickUnique(FIRST, usedF), l = pickUnique(LAST, usedL);
+        return { full:f+' '+l, first:f, last:l, initials:f[0]+l[0], username:f.toLowerCase() };
+      });
+      var group = pick(GROUPS);
+
+      function fillAll(attr, getter) {
+        Array.prototype.forEach.call(document.querySelectorAll('['+attr+']'), function (el) {
+          var i = parseInt(el.getAttribute(attr), 10) - 1;
+          if (i >= 0 && i < people.length) el.textContent = getter(people[i]);
+        });
+      }
+      fillAll('data-r-name',     function (p) { return p.full; });
+      fillAll('data-r-initials', function (p) { return p.initials; });
+      fillAll('data-r-firstname',function (p) { return p.first; });
+      fillAll('data-r-username', function (p) { return p.username; });
+      fillAll('data-r-username-up', function (p) { return p.first; });
+      fillAll('data-r-email',    function (p) { return p.username + '.' + p.last.toLowerCase() + '@vectraarch.live'; });
+
+      Array.prototype.forEach.call(document.querySelectorAll('[data-r-group]'), function (el) {
+        el.textContent = group;
+      });
+      Array.prototype.forEach.call(document.querySelectorAll('[data-r-group-line]'), function (el) {
+        el.textContent = group + ' · 3 MEMBERS';
+      });
+    })();
+  </script>
 
 </body>
 </html>
