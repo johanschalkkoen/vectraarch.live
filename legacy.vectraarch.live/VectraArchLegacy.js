@@ -844,20 +844,43 @@ app.get('/api/user-color', async (req, res) => {
 
 // ── ACCESS ────────────────────────────────────────────────────────────────────
 app.get('/api/get-access', async (req, res) => {
+    // Returns access pairs (viewer → target). Always unions the materialised
+    // vectraarchlegacy_access rows with group-derived rows computed from
+    // vectraarchlegacy_users.group_id, so partner-sharing is self-healing
+    // even when sync helpers haven't populated the access table.
     const { viewer, adminUsername } = req.query;
+    const perViewerSQL = `
+        SELECT viewer, target, COALESCE(source,'manual') AS source
+          FROM vectraarchlegacy_access WHERE viewer = $1
+        UNION
+        SELECT $1::text AS viewer, u2.username AS target, 'group' AS source
+          FROM vectraarchlegacy_users u1
+          JOIN vectraarchlegacy_users u2 ON u1.group_id = u2.group_id
+         WHERE u1.username = $1
+           AND u2.username <> u1.username
+           AND u1.group_id IS NOT NULL
+    `;
+    const allSQL = `
+        SELECT viewer, target, COALESCE(source,'manual') AS source FROM vectraarchlegacy_access
+        UNION
+        SELECT u1.username AS viewer, u2.username AS target, 'group' AS source
+          FROM vectraarchlegacy_users u1
+          JOIN vectraarchlegacy_users u2 ON u1.group_id = u2.group_id
+         WHERE u1.username <> u2.username AND u1.group_id IS NOT NULL
+    `;
     try {
         let rows;
-        if (adminUsername) {
+        if (viewer) {
+            rows = await dbAll(perViewerSQL, [viewer]);
+        } else if (adminUsername) {
             const admin = await dbQuery('SELECT is_admin FROM vectraarchlegacy_users WHERE username = $1', [adminUsername]);
             if (admin && admin.is_admin) {
-                rows = await dbAll('SELECT viewer, target FROM vectraarchlegacy_access');
+                rows = await dbAll(allSQL);
             } else {
-                if (!viewer) return res.status(400).json({ success: false, message: 'Viewer required if not admin.' });
-                rows = await dbAll('SELECT viewer, target FROM vectraarchlegacy_access WHERE viewer = $1', [viewer]);
+                return res.status(400).json({ success: false, message: 'Viewer required if not admin.' });
             }
         } else {
-            if (!viewer) return res.status(400).json({ success: false, message: 'Viewer or adminUsername required.' });
-            rows = await dbAll('SELECT viewer, target FROM vectraarchlegacy_access WHERE viewer = $1', [viewer]);
+            return res.status(400).json({ success: false, message: 'Viewer or adminUsername required.' });
         }
         res.json({ success: true, accessList: rows });
     } catch (e) {

@@ -4155,25 +4155,67 @@ const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPart
 // Collapsible card — same visual language as profile-section. Click the title
 // to open/close; state persists across renders via localStorage. Used in
 // AdminPage to mirror the collapsing behaviour Finances / Gym / Meals use.
-const CollapsibleSection = ({title, defaultOpen=true, persistKey, accent, style, children}) => {
+const CollapsibleSection = ({title, defaultOpen=true, persistKey, accent='#00ff41', style, children, badge}) => {
   const storageKey = persistKey ? `legacy.collapsible.${persistKey}` : null;
   const [open, setOpen] = useState(() => {
     if (!storageKey) return defaultOpen;
     try { const v = localStorage.getItem(storageKey); return v === null ? defaultOpen : v === '1'; }
     catch { return defaultOpen; }
   });
+  const [hover, setHover] = useState(false);
   const toggle = () => setOpen(o => {
     const n = !o;
     if (storageKey) { try { localStorage.setItem(storageKey, n ? '1' : '0'); } catch {} }
     return n;
   });
   return (
-    <div className="profile-section" style={style}>
+    <div className="profile-section" style={{
+      borderLeft:`3px solid ${open?accent:'rgba(255,255,255,0.08)'}`,
+      transition:'border-color 0.15s',
+      ...style
+    }}>
       <div className="profile-section-title"
         onClick={toggle}
-        style={{cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'space-between',userSelect:'none',gap:8}}>
-        <span style={accent?{color:accent}:undefined}>{title}</span>
-        <span style={{fontSize:12,color:'var(--text3)',transition:'transform 0.15s',transform:open?'rotate(0deg)':'rotate(-90deg)'}}>▾</span>
+        onMouseEnter={()=>setHover(true)}
+        onMouseLeave={()=>setHover(false)}
+        style={{
+          cursor:'pointer',
+          display:'flex',
+          alignItems:'center',
+          justifyContent:'space-between',
+          userSelect:'none',
+          gap:8,
+          padding:'14px 16px',
+          margin:0,
+          borderBottom:open?`1px solid ${accent}33`:'1px solid transparent',
+          background:hover?`${accent}0d`:'transparent',
+          transition:'background 0.15s, border-color 0.15s',
+          fontFamily:"'Barlow Condensed', sans-serif",
+          fontWeight:800,
+          fontSize:16,
+          letterSpacing:'0.08em',
+          textTransform:'uppercase',
+          color:open?accent:'var(--text)'
+        }}>
+        <span style={{display:'flex',alignItems:'center',gap:10}}>
+          <span>{title}</span>
+          {badge!=null&&<span style={{
+            fontFamily:"'DM Mono',monospace",
+            fontSize:9,
+            letterSpacing:'0.1em',
+            color:accent,
+            background:`${accent}22`,
+            border:`1px solid ${accent}55`,
+            padding:'2px 6px',
+            borderRadius:3
+          }}>{badge}</span>}
+        </span>
+        <span style={{
+          fontFamily:"'DM Mono',monospace",
+          fontSize:11,
+          color:open?accent:'rgba(255,255,255,0.35)',
+          transition:'color 0.15s'
+        }}>{open?'▲':'▼'}</span>
       </div>
       {open && children}
     </div>
@@ -4621,7 +4663,7 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
           )}
 
           {/* ── ACCOUNT DETAILS ── */}
-          <CollapsibleSection title="ACCOUNT DETAILS" persistKey="profile-account" defaultOpen={true}>
+          <CollapsibleSection title="ACCOUNT DETAILS" persistKey="profile-account" accent={tabColor} defaultOpen={true}>
             <div style={{padding:'14px 14px 0'}}>
               {/* First / Last Name */}
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:14}}>
@@ -4794,7 +4836,7 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
           </CollapsibleSection>
 
           {/* ── ACCENT COLOR ── */}
-          <CollapsibleSection title="ACCENT COLOR" persistKey="profile-accent" defaultOpen={false}>
+          <CollapsibleSection title="ACCENT COLOR" persistKey="profile-accent" accent={tabColor} defaultOpen={false}>
             <div style={{padding:'10px 14px 4px',fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',lineHeight:1.6}}>
               Personal accent — used on calendar, charts and badges.
               {allPartners.length>0 && <> Colors used by your partner{allPartners.length>1?'s':''} are blocked.</>}
@@ -4862,7 +4904,7 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
           </CollapsibleSection>
 
           {/* ── Currency ── */}
-          <CollapsibleSection title="CURRENCY" persistKey="profile-currency" defaultOpen={false}>
+          <CollapsibleSection title="CURRENCY" persistKey="profile-currency" accent={tabColor} defaultOpen={false}>
             <div className="profile-field">
               <div className="profile-field-label">Display Currency</div>
               <select className="profile-field-input" style={{background:'transparent',border:'none',outline:'none',color:'var(--text)',fontFamily:"'DM Mono',monospace",fontSize:13,width:'100%',cursor:editing?'pointer':'default'}}
@@ -4879,7 +4921,7 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
 
           {/* ── Health data consent ── */}
           {(user.gender||'').toLowerCase()==='female'&&(
-            <CollapsibleSection title="HEALTH DATA" persistKey="profile-health" defaultOpen={false}>
+            <CollapsibleSection title="HEALTH DATA" persistKey="profile-health" accent={tabColor} defaultOpen={false}>
               <div className="profile-field" style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
                 <div>
                   <div className="profile-field-label">Cycle Tracking Consent</div>
@@ -5219,7 +5261,7 @@ const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
           <div style={{display:'flex',flexDirection:'column',gap:12}}>
 
             {/* Add User — full creation: user row + auto group record */}
-            <CollapsibleSection title="ADD USER" persistKey="admin-add-user" defaultOpen={true}>
+            <CollapsibleSection title="ADD USER" persistKey="admin-add-user" accent={tabColor} defaultOpen={true}>
               <div style={cardBody}>
                 <div style={hintStyle}>
                   Creates a user account and a matching group record (<code style={{color:'var(--text2)',fontSize:9}}>vectraarchlegacy_groups</code>) with this user as its admin.
@@ -5359,7 +5401,7 @@ const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
             </CollapsibleSection>
 
             {/* Manage Access */}
-            <CollapsibleSection title="MANAGE ACCESS" persistKey="admin-manage-access" defaultOpen={false}>
+            <CollapsibleSection title="MANAGE ACCESS" persistKey="admin-manage-access" accent={tabColor} defaultOpen={false}>
               <div style={cardBody}>
                 <span style={lL}>VIEWER</span>
                 <select style={iL} value={accessForm.viewer} onChange={e=>setAccessForm(p=>({...p,viewer:e.target.value}))}>
@@ -5377,7 +5419,7 @@ const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
             </CollapsibleSection>
 
             {/* Admin Status */}
-            <CollapsibleSection title="ADMIN STATUS" persistKey="admin-status" defaultOpen={false}>
+            <CollapsibleSection title="ADMIN STATUS" persistKey="admin-status" accent={tabColor} defaultOpen={false}>
               <div style={cardBody}>
                 <span style={lL}>USER</span>
                 <select style={iL} value={adminForm.username} onChange={e=>setAdminForm({username:e.target.value})}>
@@ -5391,7 +5433,7 @@ const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
             </CollapsibleSection>
 
             {/* Update Password */}
-            <CollapsibleSection title="UPDATE PASSWORD" persistKey="admin-update-pw" defaultOpen={false}>
+            <CollapsibleSection title="UPDATE PASSWORD" persistKey="admin-update-pw" accent={tabColor} defaultOpen={false}>
               <div style={cardBody}>
                 <span style={lL}>USER</span>
                 <select style={iL} value={pwForm.username} onChange={e=>setPwForm(p=>({...p,username:e.target.value}))}>
@@ -5404,7 +5446,7 @@ const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
             </CollapsibleSection>
 
             {/* Delete User */}
-            <CollapsibleSection title="DELETE USER" persistKey="admin-delete-user" defaultOpen={false}>
+            <CollapsibleSection title="DELETE USER" persistKey="admin-delete-user" accent={tabColor} defaultOpen={false}>
               <div style={cardBody}>
                 <span style={lL}>USER</span>
                 <select style={iL} value={delUser} onChange={e=>setDelUser(e.target.value)}>
@@ -5418,7 +5460,7 @@ const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
             </CollapsibleSection>
 
             {/* Reset 2FA */}
-            <CollapsibleSection title="RESET 2FA" persistKey="admin-reset-2fa" defaultOpen={false}>
+            <CollapsibleSection title="RESET 2FA" persistKey="admin-reset-2fa" accent={tabColor} defaultOpen={false}>
               <div style={cardBody}>
                 <div style={hintStyle}>Clears the user's TOTP secret. They can re-enable from their Profile.</div>
                 <span style={lL}>USER</span>
@@ -5433,7 +5475,7 @@ const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
             </CollapsibleSection>
 
             {/* Invite by Google email — full width */}
-            <CollapsibleSection title="INVITE BY GOOGLE EMAIL" persistKey="admin-invite" defaultOpen={false}>
+            <CollapsibleSection title="INVITE BY GOOGLE EMAIL" persistKey="admin-invite" accent={tabColor} defaultOpen={false}>
               <div style={cardBody}>
                 <div style={hintStyle}>Send an invitation. Recipient signs in with the matching Google account to create their hub. No password required.</div>
                 <div style={{display:'grid',gridTemplateColumns:'2fr 1fr',gap:10,marginBottom:0}}>
@@ -5456,7 +5498,7 @@ const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
             </CollapsibleSection>
 
             {/* Access list */}
-            <CollapsibleSection persistKey="admin-access-list" defaultOpen={false}
+            <CollapsibleSection persistKey="admin-access-list" accent={tabColor} defaultOpen={false}
               title={`ACCESS LIST · ${accessList.length}`}><>
               <div style={cardBody}>
                 {accessList.length===0 && <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',textAlign:'center',padding:'10px 0'}}>No access rules.</div>}
@@ -5478,7 +5520,7 @@ const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
           </div>
 
           {/* Users list */}
-          <CollapsibleSection persistKey="admin-users-list" defaultOpen={true}
+          <CollapsibleSection persistKey="admin-users-list" accent={tabColor} defaultOpen={true}
             title={`USERS · ${users.length}`}><>
             <div style={cardBody}>
               {users.length===0 && <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',textAlign:'center',padding:'10px 0'}}>No users.</div>}
@@ -5499,7 +5541,7 @@ const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
           </></CollapsibleSection>
 
           {/* Invites list */}
-          <CollapsibleSection persistKey="admin-invites-list" defaultOpen={false}
+          <CollapsibleSection persistKey="admin-invites-list" accent={tabColor} defaultOpen={false}
             title={`INVITES · ${invites.length}`}><>
             <div style={cardBody}>
               {invites.length===0 && <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',textAlign:'center',padding:'10px 0'}}>No invitations sent yet.</div>}
@@ -5535,7 +5577,7 @@ const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
           </></CollapsibleSection>
 
           {/* Recent Activity — global audit log */}
-          <CollapsibleSection persistKey="admin-recent-activity" defaultOpen={false}
+          <CollapsibleSection persistKey="admin-recent-activity" accent={tabColor} defaultOpen={false}
             title={`RECENT ACTIVITY · ${auditLog.length}`}><>
             <div style={cardBody}>
               <div style={hintStyle}>Last 50 transactions across all users — from <code style={{color:'var(--text2)',fontSize:9}}>vectraarchlegacy_transaction_history</code>.</div>
@@ -5753,6 +5795,10 @@ const App = () => {
           </div>
         </div>
         <div style={{display:'flex',alignItems:'center',gap:4,flexShrink:0,marginLeft:8}}>
+          <a href="https://vectraarch.live/" title="VectraArch landing page" style={{display:'flex',flexDirection:'column',alignItems:'center',gap:2,padding:'4px 8px',border:'1px solid rgba(255,255,255,0.1)',borderRadius:4,background:'transparent',color:'rgba(255,255,255,0.55)',cursor:'pointer',transition:'all 0.15s',textDecoration:'none'}}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="16" height="16"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            <span style={{fontFamily:"'DM Mono',monospace",fontSize:7,letterSpacing:'0.1em',textTransform:'uppercase'}}>HOME</span>
+          </a>
           <button onClick={()=>setActiveTab('profile')} title="Profile" style={{display:'flex',flexDirection:'column',alignItems:'center',gap:2,padding:'4px 8px',border:`1px solid ${activeTab==='profile'?'#00ff41':'rgba(255,255,255,0.1)'}`,borderRadius:4,background:activeTab==='profile'?'rgba(0,255,65,0.14)':'transparent',color:activeTab==='profile'?'#00ff41':'rgba(255,255,255,0.4)',cursor:'pointer',transition:'all 0.15s'}}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="16" height="16"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             <span style={{fontFamily:"'DM Mono',monospace",fontSize:7,letterSpacing:'0.1em',textTransform:'uppercase'}}>PROFILE</span>
