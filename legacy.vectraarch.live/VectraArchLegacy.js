@@ -1289,20 +1289,9 @@ app.get('/api/shared-with-me', async (req, res) => {
                AND u2.username <> u1.username
                AND u1.group_id IS NOT NULL
         `, [username]);
-        // Group-mates of the viewer — these get unconditional all-modules-on,
-        // because being in the same group means "we share everything by design".
-        // Explicit partner_sharing rows are ignored for group-mates so that one
-        // stale opt-out doesn't silently break the household view.
-        const groupMateRows = await dbAll(`
-            SELECT u2.username AS owner
-              FROM vectraarchlegacy_users u1
-              JOIN vectraarchlegacy_users u2 ON u1.group_id = u2.group_id
-             WHERE u1.username = $1
-               AND u2.username <> u1.username
-               AND u1.group_id IS NOT NULL
-        `, [username]);
-        const groupMates = new Set(groupMateRows.map(r => r.owner));
-        // Explicit per-module config set by each owner for me
+        // Explicit per-module config each owner set for me. Being in the same
+        // group shares everything by DEFAULT, but an owner's explicit opt-out is
+        // always honoured — disabling a module for a partner must actually hide it.
         const moduleRows = await dbAll(
             'SELECT owner, module, enabled FROM vectraarchlegacy_partner_sharing WHERE partner = $1', [username]
         );
@@ -1315,15 +1304,8 @@ app.get('/api/shared-with-me', async (req, res) => {
         accessRows.forEach(r => {
             const owner = r.target;
             const base = Object.fromEntries(ALL_MODULES.map(m => [m, true]));
-            if (groupMates.has(owner)) {
-                // Same-group sharing is absolute — explicit opt-outs are ignored.
-                sharedWithMe[owner] = base;
-            } else {
-                // Cross-group / manually granted partners can still narrow per module.
-                sharedWithMe[owner] = explicit[owner]
-                    ? { ...base, ...explicit[owner] }
-                    : base;
-            }
+            // Default all-on (household sharing), with explicit opt-outs applied on top.
+            sharedWithMe[owner] = explicit[owner] ? { ...base, ...explicit[owner] } : base;
         });
         res.json({ success: true, sharedWithMe });
     } catch (e) {
