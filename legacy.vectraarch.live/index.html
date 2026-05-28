@@ -4250,19 +4250,35 @@ const CollapsibleSection = ({title, defaultOpen=true, persistKey, accent='#00ff4
   );
 };
 
-// Roster of every user that shares the viewer's group. Read-only — admin
-// actions (move / remove) live in AdminPage.
+// Roster of every user that shares the viewer's group. When the viewer is an
+// admin, each row (other than themselves) shows a REMOVE button that moves
+// that user out of the group via the admin remove-from-group endpoint.
 const GroupMembersList = ({user, tabColor}) => {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
-  useEffect(()=>{
-    let alive = true;
+  const [busy, setBusy] = useState('');
+  const [note, setNote] = useState('');
+  const reload = () => {
+    setLoading(true);
     axios.get(`${API}/my-group-members`,{params:{username:user.username}})
-      .then(({data})=>{ if(alive && data?.success) setMembers(data.members||[]); })
+      .then(({data})=>{ if(data?.success) setMembers(data.members||[]); })
       .catch(()=>{})
-      .finally(()=>{ if(alive) setLoading(false); });
-    return ()=>{ alive = false; };
-  },[user.username]);
+      .finally(()=>setLoading(false));
+  };
+  useEffect(()=>{ reload(); /* eslint-disable-next-line */ },[user.username]);
+  const canManage = !!(user.isAdmin || user.is_admin);
+  const removeMember = async (uname) => {
+    if (!window.confirm(`Remove ${uname} from this group? They'll be moved to a brand-new solo group and lose shared-data access here.`)) return;
+    setBusy(uname);
+    try {
+      const r = await axios.post(`${API}/admin/remove-from-group`,{username:uname,adminUsername:user.username});
+      if (r.data.success) {
+        setNote(`${uname} moved to a fresh solo group.`);
+        reload();
+      } else setNote(r.data.message || 'Failed to remove.');
+    } catch (e) { setNote(e.response?.data?.message || 'Failed to remove.'); }
+    finally { setBusy(''); setTimeout(()=>setNote(''),4000); }
+  };
   if (loading) {
     return <div style={{padding:'12px 16px',fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)',letterSpacing:'0.1em'}}>LOADING…</div>;
   }
@@ -4271,6 +4287,7 @@ const GroupMembersList = ({user, tabColor}) => {
   }
   return (
     <div style={{padding:'10px 12px'}}>
+      {note && <div style={{padding:'8px 10px',marginBottom:8,borderRadius:4,background:`${tabColor}14`,border:`1px solid ${tabColor}55`,color:tabColor,fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.08em'}}>{note}</div>}
       {members.map(m=>{
         const isMe = m.username === user.username;
         const ec = m.eventColor || tabColor;
@@ -4291,6 +4308,17 @@ const GroupMembersList = ({user, tabColor}) => {
                 {(m.role||'member').toUpperCase()}{isMe?' · YOU':''}
               </div>
             </div>
+            {canManage && !isMe && (
+              <button onClick={()=>removeMember(m.username)} disabled={busy===m.username}
+                style={{
+                  fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.1em',
+                  padding:'5px 10px',borderRadius:4,cursor:busy===m.username?'wait':'pointer',
+                  border:'1px solid rgba(255,59,59,0.45)',
+                  background:'rgba(255,59,59,0.1)',color:'var(--red)',
+                  textTransform:'uppercase',flexShrink:0,
+                  opacity:busy===m.username?0.5:1
+                }}>{busy===m.username?'…':'REMOVE'}</button>
+            )}
           </div>
         );
       })}
@@ -4438,8 +4466,11 @@ const deriveRole = (storedRole, hasPartner) => {
   return r;
 };
 
-const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingConfig, setSharingConfig, onLogout, tabColor='#00ff41'}) => {
+const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingConfig, setSharingConfig, onLogout, tabColor:tabColorProp='#00ff41'}) => {
   const [editing, setEditing] = useState(false);
+  // Whole-page accent follows the signed-in user's accent_color so Profile
+  // sections (collapsibles, chips, side card) all read as "their" colour.
+  const tabColor = user.accentColor || tabColorProp;
   const hasPartner   = partners.length > 0 || !!partner;
   const effectiveRole = deriveRole(user.role, hasPartner);
   const mkForm = (u) => ({
@@ -5157,7 +5188,10 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
 
 /* ── ROOT APP ── */
 /* ── ADMIN PAGE ── */
-const AdminPage = ({user, onLogout, tabColor='#ff9800'}) => {
+const AdminPage = ({user, onLogout, tabColor:tabColorProp='#ff9800'}) => {
+  // Admin page accent follows the signed-in admin's accent_color so the
+  // CollapsibleSections and side card all read as "their" colour.
+  const tabColor = user.accentColor || tabColorProp;
   const [users, setUsers]       = useState([]);
   const [accessList, setAccessList] = useState([]);
   const [invites, setInvites]   = useState([]);
