@@ -4530,6 +4530,8 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
   const toggleBmiWarning = () => setShowBmiWarning(p=>{ const n=!p; try{localStorage.setItem('legacyBmiWarning',String(n));}catch{} return n; });
   const [picFile, setPicFile]               = useState(null);
   const [alert, setAlert]                   = useState({msg:'',type:''});
+  const [delPw, setDelPw]                   = useState('');
+  const [delBusy, setDelBusy]               = useState(false);
   const fileInputRef = useRef();
 
   const COLORS = [
@@ -5081,6 +5083,32 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
 
           {/* ── Security (2FA) ── */}
           <SecuritySection user={user} setUser={setUser} onAlert={msg}/>
+
+          {/* ── Delete account (danger zone) ── */}
+          <CollapsibleSection title="DELETE ACCOUNT" persistKey="profile-delete-account" accent="#ff3b3b" defaultOpen={false}>
+            <div style={{padding:'14px'}}>
+              <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',lineHeight:1.6,marginBottom:12}}>
+                Permanently deletes your account and all your data. This cannot be undone — your group admin is notified by email.
+              </div>
+              <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.18em',color:'#ff3b3b',textTransform:'uppercase'}}>Confirm password</span>
+              <input type="password" value={delPw} onChange={e=>setDelPw(e.target.value)} placeholder="Your password" autoComplete="current-password"
+                style={{width:'100%',background:'var(--bg2)',border:'1px solid var(--border2)',color:'var(--text)',fontFamily:"'DM Mono',monospace",fontSize:13,padding:'11px 14px',borderRadius:4,outline:'none',margin:'6px 0 12px',boxSizing:'border-box'}}/>
+              <button disabled={delBusy||!delPw} onClick={async()=>{
+                if(!delPw){ msg('Enter your password to confirm.','err'); return; }
+                if(!window.confirm('Delete your account permanently? This cannot be undone.')) return;
+                setDelBusy(true);
+                try {
+                  const {data}=await axios.delete(`${API}/account`,{data:{username:user.username,password:delPw}});
+                  if(data.success){ msg('Account deleted.'); setTimeout(()=>onLogout(),800); }
+                  else { msg(data.message||'Could not delete account.','err'); setDelBusy(false); }
+                } catch(e){ msg(e.response?.data?.message||'Could not delete account.','err'); setDelBusy(false); }
+              }} style={{width:'100%',padding:'12px',borderRadius:4,cursor:delBusy||!delPw?'not-allowed':'pointer',
+                fontFamily:"'DM Mono',monospace",fontSize:11,letterSpacing:'0.12em',textTransform:'uppercase',fontWeight:600,
+                border:'1px solid #ff3b3b',background:'rgba(255,59,59,0.12)',color:'#ff3b3b',opacity:delBusy||!delPw?0.5:1}}>
+                {delBusy?'Deleting…':'Delete my account permanently'}
+              </button>
+            </div>
+          </CollapsibleSection>
 
           {/* ── Log out ── */}
           <button className="save-btn" style={{background:'transparent',border:'1px solid var(--red)',color:'var(--red)',marginTop:4}} onClick={onLogout}>LOG OUT</button>
