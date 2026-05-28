@@ -26,6 +26,22 @@ const { useState, useEffect, useRef, useCallback, useMemo } = React;
 
 /* ── CONSTANTS ── */
 const API = '/api';
+
+// Stamp the logged-in user as `viewer` on data GETs so the server can enforce
+// per-module sharing (hard gate, beyond the client-side partner filter).
+axios.interceptors.request.use(cfg => {
+  try {
+    if ((cfg.method||'get').toLowerCase()==='get'
+        && /\/api\/(calendar|financial|budget|gymworkout|mealplan|period)$/.test(cfg.url||'')) {
+      const p = cfg.params || (cfg.params = {});
+      if (p.user && !p.viewer) {
+        const u = JSON.parse(localStorage.getItem('user')||'null');
+        if (u && u.username) p.viewer = u.username;
+      }
+    }
+  } catch {}
+  return cfg;
+});
 const DP = '/images/placeholder_image.png';
 const MONTHS = Array.from({length:12},(_,i)=>({v:(i+1).toString().padStart(2,'0'),l:new Date(2026,i,1).toLocaleString('default',{month:'long'})}));
 const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
@@ -1410,11 +1426,18 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
   // ── key fix: compare using local date strings, not Date objects ──
   const eventsByDay = useMemo(()=>{
     const map={};
+    const add=(k,e)=>{ if(!map[k]) map[k]=[]; map[k].push(e); };
     events.forEach(e=>{
       if(!e.date) return;
-      const k=toLocalDate(new Date(e.date));
-      if(!map[k]) map[k]=[];
-      map[k].push(e);
+      const startK=toLocalDate(new Date(e.date));
+      const endRaw=e.endDate||e.end_date||'';
+      const start=new Date(e.date), end=endRaw?new Date(endRaw):new Date(e.date);
+      // Multi-day events appear on every day they span; single-day on the start day.
+      if(isNaN(start)||isNaN(end)||end<start){ add(startK,e); return; }
+      const cur=new Date(start.getFullYear(),start.getMonth(),start.getDate());
+      const last=new Date(end.getFullYear(),end.getMonth(),end.getDate());
+      let guard=0;
+      for(let d=cur; d<=last && guard<366; d.setDate(d.getDate()+1), guard++) add(toLocalDate(d), e);
     });
     return map;
   },[events]);
@@ -4887,7 +4910,7 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
           {(partners.length>0?partners:partner?[partner]:[]).length>0&&(
             <div className="partner-sharing-card" style={{marginBottom:14}}>
               <div className="profile-section-title">PARTNER SHARING</div>
-              <div className="partner-hint" style={{marginBottom:12}}>Control which partners can see YOUR data. Each partner is managed independently.</div>
+              <div className="partner-hint" style={{marginBottom:12}}>Nothing is shared by default — others only see your data for modules you switch on here. Each partner is managed independently.</div>
 
               {(partners.length>0?partners:[partner]).map((p,pi)=>{
                 const pun    = p.username;

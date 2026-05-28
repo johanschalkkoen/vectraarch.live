@@ -1276,36 +1276,18 @@ app.get('/api/shared-with-me', async (req, res) => {
     if (!username) return res.status(400).json({ success: false, message: 'Username required.' });
     const ALL_MODULES = ['Finances','Calendar','Budget','Gym','Meals','Cycle'];
     try {
-        // Who has granted me full access (they appear as target when I am viewer).
-        // Includes group-derived rows so a fresh group member is recognised even
-        // when sync helpers haven't materialised access rows yet.
-        const accessRows = await dbAll(`
-            SELECT target FROM vectraarchlegacy_access WHERE viewer = $1
-            UNION
-            SELECT u2.username AS target
-              FROM vectraarchlegacy_users u1
-              JOIN vectraarchlegacy_users u2 ON u1.group_id = u2.group_id
-             WHERE u1.username = $1
-               AND u2.username <> u1.username
-               AND u1.group_id IS NOT NULL
-        `, [username]);
-        // Explicit per-module config each owner set for me. Being in the same
-        // group shares everything by DEFAULT, but an owner's explicit opt-out is
-        // always honoured — disabling a module for a partner must actually hide it.
+        // Opt-in sharing: nothing is shared by default. A partner's module is
+        // visible to me only when that partner has explicitly enabled it for me.
+        // (Group membership establishes the relationship via /api/get-access, but
+        // never grants data visibility on its own.)
         const moduleRows = await dbAll(
             'SELECT owner, module, enabled FROM vectraarchlegacy_partner_sharing WHERE partner = $1', [username]
         );
-        const explicit = {};
-        moduleRows.forEach(r => {
-            if (!explicit[r.owner]) explicit[r.owner] = {};
-            explicit[r.owner][r.module] = r.enabled;
-        });
         const sharedWithMe = {};
-        accessRows.forEach(r => {
-            const owner = r.target;
-            const base = Object.fromEntries(ALL_MODULES.map(m => [m, true]));
-            // Default all-on (household sharing), with explicit opt-outs applied on top.
-            sharedWithMe[owner] = explicit[owner] ? { ...base, ...explicit[owner] } : base;
+        moduleRows.forEach(r => {
+            if (r.enabled !== true || !ALL_MODULES.includes(r.module)) return;
+            if (!sharedWithMe[r.owner]) sharedWithMe[r.owner] = {};
+            sharedWithMe[r.owner][r.module] = true;
         });
         res.json({ success: true, sharedWithMe });
     } catch (e) {
@@ -1373,9 +1355,23 @@ app.get('/api/admin/audit', requireAdmin, async (req, res) => {
 });
 
 // ── FINANCIAL ─────────────────────────────────────────────────────────────────
+// Server-side sharing gate: may `viewer` see `target`'s `module` data? Own data
+// is always visible; group membership / an access row grants access by default;
+// an explicit partner_sharing opt-out (enabled=false) by the target blocks it.
+async function moduleVisibleTo(viewer, target, module) {
+    if (!viewer || viewer === target) return true;   // own data always visible
+    // Opt-in: visible only when the target has explicitly enabled this module for
+    // this viewer. No row (or disabled) = not shared.
+    const share = await dbQuery(
+        'SELECT enabled FROM vectraarchlegacy_partner_sharing WHERE owner = $1 AND partner = $2 AND module = $3',
+        [target, viewer, module]);
+    return !!(share && share.enabled === true);
+}
+
 app.get('/api/financial', async (req, res) => {
-    const { user } = req.query;
+    const { user, viewer } = req.query;
     if (!user) return res.status(400).json({ success: false, message: 'User required.' });
+    if (viewer && viewer !== user && !(await moduleVisibleTo(viewer, user, 'Finances'))) return res.json([]);
     try {
         const rows = await dbAll("SELECT id, username, category, amount, type, TO_CHAR(date, 'YYYY-MM-DD') AS date FROM vectraarchlegacy_financial WHERE username = $1", [user]);
         res.json(rows);
@@ -1489,8 +1485,9 @@ function packBudgetExpenses(expArr, targetsVal) {
 }
 
 app.get('/api/budget', async (req, res) => {
-    const { user } = req.query;
+    const { user, viewer } = req.query;
     if (!user) return res.status(400).json({ success: false, message: 'User required.' });
+    if (viewer && viewer !== user && !(await moduleVisibleTo(viewer, user, 'Budget'))) return res.json([]);
     try {
         const rows = await dbAll(
             "SELECT id, username AS \"user\", income, expenses, TO_CHAR(date, 'YYYY-MM-DD') AS date, COALESCE(budget_type,'need') AS budget_type FROM vectraarchlegacy_budget WHERE username = $1 ORDER BY date DESC",
@@ -1577,8 +1574,9 @@ app.delete('/api/budget/:id', async (req, res) => {
 
 // ── CALENDAR ──────────────────────────────────────────────────────────────────
 app.get('/api/calendar', async (req, res) => {
-    const { user } = req.query;
+    const { user, viewer } = req.query;
     if (!user) return res.status(400).json({ success: false, message: 'User required.' });
+    if (viewer && viewer !== user && !(await moduleVisibleTo(viewer, user, 'Calendar'))) return res.json([]);
     try {
         const rows = await dbAll(
             "SELECT id, username AS user, title, TO_CHAR(date, 'YYYY-MM-DD\"T\"HH24:MI:SS') AS date, TO_CHAR(end_date, 'YYYY-MM-DD\"T\"HH24:MI:SS') AS \"endDate\", is_financial AS financial, type, amount, event_color AS \"eventColor\" FROM vectraarchlegacy_calendar WHERE username = $1",
@@ -1667,8 +1665,9 @@ app.get('/api/gym-options', async (req, res) => {
 });
 
 app.get('/api/gymworkout', async (req, res) => {
-    const { user } = req.query;
+    const { user, viewer } = req.query;
     if (!user) return res.status(400).json({ success: false, message: 'User required.' });
+    if (viewer && viewer !== user && !(await moduleVisibleTo(viewer, user, 'Gym'))) return res.json([]);
     try {
         const rows = await dbAll('SELECT id, username AS user, day, exercise, sets, reps, weight, date FROM vectraarchlegacy_gymworkout WHERE username = $1', [user]);
         res.json(rows);
@@ -1745,8 +1744,9 @@ app.get('/api/meal-templates', async (req, res) => {
 });
 
 app.get('/api/mealplan', async (req, res) => {
-    const { user } = req.query;
+    const { user, viewer } = req.query;
     if (!user) return res.status(400).json({ success: false, message: 'User required.' });
+    if (viewer && viewer !== user && !(await moduleVisibleTo(viewer, user, 'Meals'))) return res.json([]);
     try {
         const rows = await dbAll(
             'SELECT id, username AS user, day, meal_type AS "mealType", description, calories, date FROM vectraarchlegacy_mealplan WHERE username = $1',
@@ -1790,8 +1790,9 @@ app.delete('/api/mealplan/:id', async (req, res) => {
 
 // ── PERIOD ────────────────────────────────────────────────────────────────────
 app.get('/api/period', async (req, res) => {
-    const { user } = req.query;
+    const { user, viewer } = req.query;
     if (!user) return res.status(400).json({ success: false, message: 'User required.' });
+    if (viewer && viewer !== user && !(await moduleVisibleTo(viewer, user, 'Cycle'))) return res.json([]);
     try {
         const rows = await dbAll(
             'SELECT id, username AS user, start_date AS "startDate", end_date AS "endDate", cycle_length AS "cycleLength", symptoms, date FROM vectraarchlegacy_period WHERE username = $1',
