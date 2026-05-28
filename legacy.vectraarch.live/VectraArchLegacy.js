@@ -1276,36 +1276,18 @@ app.get('/api/shared-with-me', async (req, res) => {
     if (!username) return res.status(400).json({ success: false, message: 'Username required.' });
     const ALL_MODULES = ['Finances','Calendar','Budget','Gym','Meals','Cycle'];
     try {
-        // Who has granted me full access (they appear as target when I am viewer).
-        // Includes group-derived rows so a fresh group member is recognised even
-        // when sync helpers haven't materialised access rows yet.
-        const accessRows = await dbAll(`
-            SELECT target FROM vectraarchlegacy_access WHERE viewer = $1
-            UNION
-            SELECT u2.username AS target
-              FROM vectraarchlegacy_users u1
-              JOIN vectraarchlegacy_users u2 ON u1.group_id = u2.group_id
-             WHERE u1.username = $1
-               AND u2.username <> u1.username
-               AND u1.group_id IS NOT NULL
-        `, [username]);
-        // Explicit per-module config each owner set for me. Being in the same
-        // group shares everything by DEFAULT, but an owner's explicit opt-out is
-        // always honoured — disabling a module for a partner must actually hide it.
+        // Opt-in sharing: nothing is shared by default. A partner's module is
+        // visible to me only when that partner has explicitly enabled it for me.
+        // (Group membership establishes the relationship via /api/get-access, but
+        // never grants data visibility on its own.)
         const moduleRows = await dbAll(
             'SELECT owner, module, enabled FROM vectraarchlegacy_partner_sharing WHERE partner = $1', [username]
         );
-        const explicit = {};
-        moduleRows.forEach(r => {
-            if (!explicit[r.owner]) explicit[r.owner] = {};
-            explicit[r.owner][r.module] = r.enabled;
-        });
         const sharedWithMe = {};
-        accessRows.forEach(r => {
-            const owner = r.target;
-            const base = Object.fromEntries(ALL_MODULES.map(m => [m, true]));
-            // Default all-on (household sharing), with explicit opt-outs applied on top.
-            sharedWithMe[owner] = explicit[owner] ? { ...base, ...explicit[owner] } : base;
+        moduleRows.forEach(r => {
+            if (r.enabled !== true || !ALL_MODULES.includes(r.module)) return;
+            if (!sharedWithMe[r.owner]) sharedWithMe[r.owner] = {};
+            sharedWithMe[r.owner][r.module] = true;
         });
         res.json({ success: true, sharedWithMe });
     } catch (e) {
@@ -1377,22 +1359,13 @@ app.get('/api/admin/audit', requireAdmin, async (req, res) => {
 // is always visible; group membership / an access row grants access by default;
 // an explicit partner_sharing opt-out (enabled=false) by the target blocks it.
 async function moduleVisibleTo(viewer, target, module) {
-    if (!viewer || viewer === target) return true;
-    const access = await dbQuery(`
-        SELECT 1 AS ok FROM vectraarchlegacy_access WHERE viewer = $1 AND target = $2
-        UNION
-        SELECT 1 AS ok
-          FROM vectraarchlegacy_users u1
-          JOIN vectraarchlegacy_users u2 ON u1.group_id = u2.group_id
-         WHERE u1.username = $1 AND u2.username = $2
-           AND u1.group_id IS NOT NULL AND u1.username <> u2.username
-        LIMIT 1`, [viewer, target]);
-    if (!access) return false;
-    const optout = await dbQuery(
+    if (!viewer || viewer === target) return true;   // own data always visible
+    // Opt-in: visible only when the target has explicitly enabled this module for
+    // this viewer. No row (or disabled) = not shared.
+    const share = await dbQuery(
         'SELECT enabled FROM vectraarchlegacy_partner_sharing WHERE owner = $1 AND partner = $2 AND module = $3',
         [target, viewer, module]);
-    if (optout && optout.enabled === false) return false;
-    return true;
+    return !!(share && share.enabled === true);
 }
 
 app.get('/api/financial', async (req, res) => {

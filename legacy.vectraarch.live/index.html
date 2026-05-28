@@ -4910,7 +4910,7 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
           {(partners.length>0?partners:partner?[partner]:[]).length>0&&(
             <div className="partner-sharing-card" style={{marginBottom:14}}>
               <div className="profile-section-title">PARTNER SHARING</div>
-              <div className="partner-hint" style={{marginBottom:12}}>Control which partners can see YOUR data. Each partner is managed independently.</div>
+              <div className="partner-hint" style={{marginBottom:12}}>Nothing is shared by default — others only see your data for modules you switch on here. Each partner is managed independently.</div>
 
               {(partners.length>0?partners:[partner]).map((p,pi)=>{
                 const pun    = p.username;
