@@ -5229,6 +5229,7 @@ const AdminPage = ({user, onLogout, tabColor:tabColorProp='#ff9800'}) => {
   const [pwForm, setPwForm]     = useState({username:'',newPassword:''});
   const [delUser, setDelUser]   = useState('');
   const [removeUser, setRemoveUser] = useState('');
+  const [addToGroupUser, setAddToGroupUser] = useState('');
   const [resetUser, setResetUser] = useState('');
   const [inviteForm, setInviteForm] = useState({email:'', role:'user', note:''});
   const [alert, setAlert]       = useState({msg:'',type:''});
@@ -5556,6 +5557,22 @@ const AdminPage = ({user, onLogout, tabColor:tabColorProp='#ff9800'}) => {
                 <button style={{...btnStyle('var(--red)'),opacity:delUser?1:0.4,cursor:delUser?'pointer':'not-allowed'}} disabled={!delUser}
                   onClick={()=>delUser && act(()=>axios.delete(`${API}/delete-user/${delUser}`,{params:{adminUsername:user.username}}))}>
                   Delete User
+                </button>
+              </div>
+            </CollapsibleSection>
+
+            {/* Add to group — moves an existing user into the admin's group */}
+            <CollapsibleSection title="ADD USER TO GROUP" persistKey="admin-add-to-group" accent={tabColor} defaultOpen={false}>
+              <div style={cardBody}>
+                <div style={hintStyle}>Adds the selected user to your group (<strong style={{color:'var(--text2)'}}>{user.groupName||`group #${user.groupId||'—'}`}</strong>). They gain shared access with everyone in the group.</div>
+                <span style={lL}>USER</span>
+                <select style={iL} value={addToGroupUser} onChange={e=>setAddToGroupUser(e.target.value)}>
+                  <option value="">— Select user —</option>
+                  {users.filter(u=>u.username!==user.username).map(u=><option key={u.username} value={u.username}>{u.username}</option>)}
+                </select>
+                <button style={{...btnStyle('var(--green)'),opacity:addToGroupUser?1:0.4,cursor:addToGroupUser?'pointer':'not-allowed'}} disabled={!addToGroupUser}
+                  onClick={()=>addToGroupUser && act(()=>axios.post(`${API}/admin/assign-group`,{username:addToGroupUser,groupId:user.groupId,adminUsername:user.username}))}>
+                  Add to Group
                 </button>
               </div>
             </CollapsibleSection>
