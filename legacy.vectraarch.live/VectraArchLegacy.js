@@ -37,7 +37,8 @@ const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || 'https://legacy.vectraarc
 
 app.set('trust proxy', 1);
 app.use(cors());
-app.use(express.json({ limit: '25mb' }));
+// Capture the raw body so the Nuntly webhook route can verify x-nuntly-signature.
+app.use(express.json({ limit: '25mb', verify: (req, _res, buf) => { req.rawBody = buf; } }));
 app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 app.use((req, res, next) => {
     if (req.url === '/legacy' || req.url.startsWith('/legacy/')) {
@@ -182,6 +183,16 @@ async function ensureSchema() {
                 ALTER TABLE vectraarchlegacy_calendar ALTER COLUMN date TYPE TIMESTAMP USING date::timestamp;
             END IF;
          END $$`,
+        // ── Nuntly email delivery events (populated by POST /api/webhooks) ──
+        `CREATE TABLE IF NOT EXISTS vectraarchlegacy_email_events (
+            id          SERIAL PRIMARY KEY,
+            event_type  TEXT,
+            email_id    TEXT,
+            recipient   TEXT,
+            payload     JSONB,
+            created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )`,
+        `CREATE INDEX IF NOT EXISTS idx_email_events_email_id ON vectraarchlegacy_email_events(email_id)`,
     ];
     let failed = 0;
     for (const sql of migrations) {
@@ -301,58 +312,100 @@ function sendTelegramMessage(chatId, message) {
     req.write(data); req.end();
 }
 
-async function sendEmailNotification(email, subject, message) {
-    // Prefer Nuntly if configured; fall back to nodemailer/Gmail.
-    if (process.env.NUNTLY_API_KEY) {
-        const r = await sendNuntlyEmail({ to: email, subject, text: message });
-        if (r.sent) return;
-        console.error('[email] Nuntly send failed, falling back to SMTP:', r.reason);
-    }
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) return;
+// ── EMAIL via VectraArchCOMS gateway ─────────────────────────────────────────
+// All outbound email flows through VectraArchCOMS (the comms hub), which holds
+// the Nuntly API key — mirroring how Telegram is centralised there. Legacy
+// never needs the Nuntly key itself; it just POSTs to the localhost gateway.
+const COMS_URL             = process.env.COMS_URL             || 'http://127.0.0.1:3099';
+const COMS_EMAIL_SECRET    = process.env.COMS_EMAIL_SECRET    || '';
+// Nuntly signs webhook callbacks with HMAC-SHA256(rawBody) using this secret.
+const NUNTLY_WEBHOOK_SECRET = process.env.NUNTLY_WEBHOOK_SECRET || '';
+
+async function sendEmailNotification(email, subject, text, html) {
+    if (!email) return { sent: false, reason: 'no recipient' };
+    // Primary path: VectraArchCOMS → Nuntly.
     try {
-        await transporter.sendMail({ from: process.env.EMAIL_USER, to: email, subject, text: message });
-    } catch (e) { console.error('Email error:', e.message); }
+        const headers = { 'Content-Type': 'application/json' };
+        if (COMS_EMAIL_SECRET) headers['x-coms-secret'] = COMS_EMAIL_SECRET;
+        const ctl = new AbortController();
+        const timer = setTimeout(() => ctl.abort(), 10000);
+        let resp;
+        try {
+            resp = await fetch(`${COMS_URL}/email/send`, {
+                method:  'POST',
+                signal:  ctl.signal,
+                headers,
+                body: JSON.stringify({ to: email, subject, text, html }),
+            });
+        } finally { clearTimeout(timer); }
+        const data = await resp.json().catch(() => null);
+        if (resp.ok && data?.ok) return { sent: true, id: data.id || null };
+        console.error('[email] COMS send failed:', data?.error || `HTTP ${resp.status}`);
+    } catch (e) {
+        console.error('[email] COMS unreachable:', e.name === 'AbortError' ? 'timeout' : e.message);
+    }
+    // Fallback: direct SMTP via nodemailer, only if Gmail creds are configured.
+    if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+        try {
+            await transporter.sendMail({ from: process.env.EMAIL_USER, to: email, subject, text, html });
+            return { sent: true, fallback: 'smtp' };
+        } catch (e) { console.error('[email] SMTP fallback failed:', e.message); }
+    }
+    return { sent: false, reason: 'email gateway unavailable' };
 }
 
-// ── Nuntly transactional email ───────────────────────────────────────────────
-// Best-effort REST client. If Nuntly's docs say a different endpoint/payload,
-// override via NUNTLY_API_URL in .env — the rest of the code calls this
-// wrapper and doesn't care.
-async function sendNuntlyEmail({ to, subject, text, html }) {
-    const apiKey = process.env.NUNTLY_API_KEY;
-    if (!apiKey) return { sent: false, reason: 'NUNTLY_API_KEY not set' };
-    const url      = process.env.NUNTLY_API_URL || 'https://api.nuntly.com/v1/email/send';
-    const fromAddr = process.env.NUNTLY_FROM_EMAIL || 'noreply@vectraarch.live';
-    const fromName = process.env.NUNTLY_FROM_NAME  || 'VectraArch Legacy';
-    // 8 second timeout — Nuntly stalling should never hang the calling request.
-    const ctl = new AbortController();
-    const timer = setTimeout(() => ctl.abort(), 8000);
+// Look up a user's email and notify them. Account/security events (force=true,
+// the default) always email; informational events pass force:false to respect
+// the user's email-notification preference.
+async function emailUser(username, subject, text, html, { force = true } = {}) {
     try {
-        const resp = await fetch(url, {
-            method:  'POST',
-            signal:  ctl.signal,
-            headers: {
-                'Authorization': `Bearer ${apiKey}`,
-                'Content-Type':  'application/json',
-            },
-            body: JSON.stringify({
-                from:    { email: fromAddr, name: fromName },
-                to:      [{ email: to }],
-                subject,
-                text:    text || undefined,
-                html:    html || undefined,
-            }),
-        });
-        const data = await resp.json().catch(() => null);
-        if (!resp.ok) {
-            return { sent: false, reason: data?.error?.message || data?.message || `HTTP ${resp.status}` };
+        const u = await dbQuery('SELECT email FROM vectraarchlegacy_users WHERE username = $1', [username]);
+        if (!u?.email) return { sent: false, reason: 'no email on file' };
+        if (!force) {
+            const prefs = await dbAll(
+                'SELECT enabled FROM vectraarchlegacy_notifications WHERE username = $1 AND type = $2',
+                [username, 'email']
+            );
+            if (!prefs.some(p => p.enabled)) return { sent: false, reason: 'email notifications off' };
         }
-        return { sent: true, id: data?.id || data?.messageId || null };
-    } catch (e) {
-        return { sent: false, reason: e.name === 'AbortError' ? 'Nuntly timed out after 8s' : e.message };
-    } finally {
-        clearTimeout(timer);
-    }
+        return await sendEmailNotification(u.email, subject, text, html);
+    } catch (e) { return { sent: false, reason: e.message }; }
+}
+
+// ── Branded email template ───────────────────────────────────────────────────
+// Dark/gold VectraArch Legacy styling, matching the invite email and app shell.
+function renderLegacyEmail({ heading, intro, rows = [], note, button }) {
+    const text = [
+        'VectraArch · Legacy',
+        '',
+        heading,
+        '',
+        intro || '',
+        ...(rows.length ? ['', ...rows.map(r => `${r.label}: ${r.value}`)] : []),
+        ...(button ? ['', `${button.label}: ${button.url}`] : []),
+        ...(note ? ['', note] : []),
+        '',
+        '— VectraArch Legacy',
+    ].filter(l => l !== null && l !== undefined).join('\n');
+
+    const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+    const rowsHtml = rows.length ? `<table style="width:100%;border-collapse:collapse;margin:18px 0">${rows.map(r => `
+        <tr>
+          <td style="padding:7px 0;color:#888;font-size:12px;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:.08em;width:38%">${esc(r.label)}</td>
+          <td style="padding:7px 0;color:#fff;font-size:13px;font-family:Arial,sans-serif">${esc(r.value)}</td>
+        </tr>`).join('')}</table>` : '';
+    const btnHtml = button ? `<p style="margin:24px 0"><a href="${esc(button.url)}" style="display:inline-block;padding:12px 22px;background:#d4a017;color:#0a0a0a;text-decoration:none;font-weight:600;border-radius:4px;letter-spacing:.08em">${esc(button.label)} ↗</a></p>` : '';
+    const html = `<div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;background:#0a0a0a;color:#e5e5e5">
+        <div style="font-size:11px;letter-spacing:0.2em;color:#d4a017;text-transform:uppercase;margin-bottom:8px">VectraArch · Legacy</div>
+        <h1 style="font-size:22px;color:#fff;margin:0 0 14px">${esc(heading)}</h1>
+        ${intro ? `<p style="line-height:1.55;color:#bdbdbd">${esc(intro)}</p>` : ''}
+        ${rowsHtml}
+        ${btnHtml}
+        ${note ? `<p style="line-height:1.55;color:#666;font-size:12px">${esc(note)}</p>` : ''}
+        <hr style="border:none;border-top:1px solid #222;margin:24px 0">
+        <p style="font-size:11px;color:#555">This is an automated message from VectraArch Legacy.</p>
+    </div>`;
+    return { text, html };
 }
 
 // Ensure the user has a family; create a solo one if missing. Returns the
@@ -527,6 +580,15 @@ app.post('/api/admin/assign-group', requireAdmin, async (req, res) => {
         await syncUserGroupAccess(username, groupId, oldFamilyId);
 
         await logTransaction(username, 'ASSIGN_FAMILY', 'users', null, req.adminUsername);
+        {
+            const { text, html } = renderLegacyEmail({
+                heading: 'Your group was updated',
+                intro:   `An administrator (${req.adminUsername}) moved your account "${username}" into a new group.`,
+                rows:    [{ label: 'Group', value: famRow.group_name }],
+                note:    "Group members can share selected modules with each other. Contact your administrator with any questions.",
+            });
+            await emailUser(username, 'Your VectraArch Legacy group changed', text, html);
+        }
         res.json({ success: true, username, groupId: famRow.id, groupName: famRow.group_name, oldFamilyId });
     } catch (e) {
         console.error('[assign-family]', e.message);
@@ -764,6 +826,21 @@ app.post('/api/admin/create-user', requireAdmin, async (req, res) => {
         await logTransaction(clean, 'CREATE', 'families', useFamilyId, req.adminUsername);
         sendTelegramMessage(GROUP_CHAT_ID, `New user ${clean} (${userRole}) added by ${req.adminUsername}; family "${useFamilyName}" (#${useFamilyId}).`);
 
+        if (email) {
+            const { text, html } = renderLegacyEmail({
+                heading: 'Your VectraArch Legacy account is ready',
+                intro:   `An administrator (${req.adminUsername}) created an account for you on VectraArch Legacy.`,
+                rows:    [
+                    { label: 'Username', value: clean },
+                    { label: 'Role',     value: userRole },
+                    { label: 'Group',    value: useFamilyName },
+                ],
+                note:    "Use the username above to sign in. If you weren't expecting this, contact your administrator.",
+                button:  { url: `${PUBLIC_BASE_URL}/login.html`, label: 'Sign in' },
+            });
+            await sendEmailNotification(email, 'Your VectraArch Legacy account is ready', text, html);
+        }
+
         res.json({
             success:    true,
             message:    `User ${clean} created in family "${useFamilyName}".`,
@@ -785,11 +862,19 @@ app.delete('/api/delete-user/:username', requireAdmin, async (req, res) => {
     const { username } = req.params;
     if (!username) return res.status(400).json({ success: false, message: 'Username required.' });
     try {
-        const row = await dbQuery('SELECT username FROM vectraarchlegacy_users WHERE username = $1', [username]);
+        const row = await dbQuery('SELECT username, email FROM vectraarchlegacy_users WHERE username = $1', [username]);
         if (!row) return res.status(404).json({ success: false, message: 'User not found.' });
         await dbRun('DELETE FROM vectraarchlegacy_users WHERE username = $1', [username]);
         await logTransaction(username, 'DELETE_USER', 'users', null, req.adminUsername);
         sendTelegramMessage(GROUP_CHAT_ID, `User ${username} deleted by ${req.adminUsername}`);
+        if (row.email) {
+            const { text, html } = renderLegacyEmail({
+                heading: 'Your VectraArch Legacy account was removed',
+                intro:   `Your account "${username}" was removed by an administrator (${req.adminUsername}).`,
+                note:    "If you believe this was a mistake, please contact your administrator.",
+            });
+            await sendEmailNotification(row.email, 'Your VectraArch Legacy account was removed', text, html);
+        }
         res.json({ success: true, message: 'User deleted successfully!' });
     } catch (e) {
         res.status(500).json({ success: false, message: 'Server error deleting user.', error: e.message });
@@ -806,6 +891,15 @@ app.post('/api/grant-admin', requireAdmin, async (req, res) => {
         await dbRun('UPDATE vectraarchlegacy_users SET is_admin = 1 WHERE username = $1', [username]);
         await logTransaction(username, 'GRANT_ADMIN', 'users', null, req.adminUsername);
         sendTelegramMessage(GROUP_CHAT_ID, `Admin access granted for ${username} by ${req.adminUsername}`);
+        {
+            const { text, html } = renderLegacyEmail({
+                heading: 'You now have admin access',
+                intro:   `An administrator (${req.adminUsername}) granted admin privileges to your account "${username}".`,
+                note:    "If you weren't expecting this, contact your administrator.",
+                button:  { url: `${PUBLIC_BASE_URL}/login.html`, label: 'Open VectraArch Legacy' },
+            });
+            await emailUser(username, 'Your permissions changed — admin access granted', text, html);
+        }
         res.json({ success: true, message: `Admin access granted for ${username}!` });
     } catch (e) {
         res.status(500).json({ success: false, message: 'Server error granting admin access.', error: e.message });
@@ -822,6 +916,14 @@ app.post('/api/revoke-admin', requireAdmin, async (req, res) => {
         await dbRun('UPDATE vectraarchlegacy_users SET is_admin = 0 WHERE username = $1', [username]);
         await logTransaction(username, 'REVOKE_ADMIN', 'users', null, req.adminUsername);
         sendTelegramMessage(GROUP_CHAT_ID, `Admin access revoked for ${username} by ${req.adminUsername}`);
+        {
+            const { text, html } = renderLegacyEmail({
+                heading: 'Your admin access was removed',
+                intro:   `An administrator (${req.adminUsername}) revoked admin privileges from your account "${username}".`,
+                note:    "Your account is still active with standard access. Contact your administrator with any questions.",
+            });
+            await emailUser(username, 'Your permissions changed — admin access removed', text, html);
+        }
         res.json({ success: true, message: `Admin access revoked for ${username}!` });
     } catch (e) {
         res.status(500).json({ success: false, message: 'Server error revoking admin access.', error: e.message });
@@ -838,6 +940,15 @@ app.post('/api/admin-update-password', requireAdmin, async (req, res) => {
         await dbRun('UPDATE vectraarchlegacy_users SET password_hash = $1 WHERE username = $2', [hash, username]);
         await logTransaction(username, 'UPDATE_PASSWORD', 'users', null, req.adminUsername);
         sendTelegramMessage(GROUP_CHAT_ID, `Password updated for ${username} by ${req.adminUsername}`);
+        {
+            const { text, html } = renderLegacyEmail({
+                heading: 'Your password was changed',
+                intro:   `An administrator (${req.adminUsername}) reset the password for your account "${username}".`,
+                note:    "If you didn't request this, contact your administrator immediately.",
+                button:  { url: `${PUBLIC_BASE_URL}/login.html`, label: 'Sign in' },
+            });
+            await emailUser(username, 'Security alert — your password was changed', text, html);
+        }
         res.json({ success: true, message: `Password updated for ${username}!` });
     } catch (e) {
         res.status(500).json({ success: false, message: 'Server error updating password.', error: e.message });
@@ -856,6 +967,14 @@ app.post('/api/update-password', async (req, res) => {
         const hash = await bcrypt.hash(newPassword, 10);
         await dbRun('UPDATE vectraarchlegacy_users SET password_hash = $1 WHERE username = $2', [hash, username]);
         await logTransaction(username, 'UPDATE_PASSWORD', 'users', null, username);
+        {
+            const { text, html } = renderLegacyEmail({
+                heading: 'Your password was changed',
+                intro:   `The password for your account "${username}" was just changed.`,
+                note:    "If this wasn't you, contact your administrator immediately and secure your account.",
+            });
+            await emailUser(username, 'Security alert — your password was changed', text, html);
+        }
         res.json({ success: true, message: 'Password updated successfully!' });
     } catch (e) {
         res.status(500).json({ success: false, message: 'Server error updating password.', error: e.message });
@@ -866,13 +985,21 @@ app.delete('/api/account', async (req, res) => {
     const { username, password } = req.body;
     if (!username || !password) return res.status(400).json({ success: false, message: 'Username and password required.' });
     try {
-        const row = await dbQuery('SELECT password_hash FROM vectraarchlegacy_users WHERE username = $1', [username]);
+        const row = await dbQuery('SELECT password_hash, email FROM vectraarchlegacy_users WHERE username = $1', [username]);
         if (!row) return res.status(404).json({ success: false, message: 'User not found.' });
         const match = await bcrypt.compare(password, row.password_hash);
         if (!match) return res.status(401).json({ success: false, message: 'Incorrect password.' });
         await dbRun('DELETE FROM vectraarchlegacy_users WHERE username = $1', [username]);
         await logTransaction(username, 'DELETE_ACCOUNT', 'users', null, username);
         sendTelegramMessage(GROUP_CHAT_ID, `User ${username} deleted their account`);
+        if (row.email) {
+            const { text, html } = renderLegacyEmail({
+                heading: 'Your account has been deleted',
+                intro:   `Your VectraArch Legacy account "${username}" was deleted, as requested.`,
+                note:    "If you didn't do this, contact your administrator immediately.",
+            });
+            await sendEmailNotification(row.email, 'Your VectraArch Legacy account has been deleted', text, html);
+        }
         res.json({ success: true, message: 'Account deleted successfully!' });
     } catch (e) {
         res.status(500).json({ success: false, message: 'Server error deleting account.', error: e.message });
@@ -923,7 +1050,16 @@ app.post('/api/profile-pictures', async (req, res) => {
              username]
         );
         await logTransaction(username, 'UPDATE_PROFILE', 'users', null, username);
-        const updated = await dbQuery(`${USER_SELECT_BASE} WHERE u.username = $1`, [username]);
+        {
+            const { text, html } = renderLegacyEmail({
+                heading: 'Your profile was updated',
+                intro:   `Your VectraArch Legacy profile ("${username}") was just updated.`,
+                note:    "If you didn't make this change, contact your administrator.",
+            });
+            // Informational — only emails users who opted into email notifications.
+            await emailUser(username, 'Your VectraArch Legacy profile was updated', text, html, { force: false });
+        }
+        const updated = await dbQuery('SELECT * FROM vectraarchlegacy_users WHERE username = $1', [username]);
         res.json({ success: true, ...mapUser(updated) });
     } catch (e) {
         res.status(500).json({ success: false, message: 'Database error updating profile.', error: e.message });
@@ -2110,21 +2246,11 @@ If you weren't expecting this, just ignore the email.
 }
 
 async function sendInviteEmail(invite, inviter) {
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-        return { sent: false, reason: 'Email not configured (EMAIL_USER/EMAIL_PASS missing).' };
-    }
-    try {
-        const { subject, text, html } = buildInviteEmail(invite, inviter);
-        await transporter.sendMail({
-            from: process.env.EMAIL_USER,
-            to: invite.email,
-            subject, text, html,
-        });
-        return { sent: true };
-    } catch (e) {
-        console.error('[invite] email send failed:', e.message);
-        return { sent: false, reason: e.message };
-    }
+    const { subject, text, html } = buildInviteEmail(invite, inviter);
+    // Routed through VectraArchCOMS → Nuntly (with SMTP fallback if configured).
+    const r = await sendEmailNotification(invite.email, subject, text, html);
+    if (!r.sent) console.error('[invite] email send failed:', r.reason);
+    return r;
 }
 
 // Admin: create a new invite. Body: { adminUsername, email, role?, note? }
@@ -2318,6 +2444,61 @@ app.get('/invite/:token', (req, res) => {
 </script></body></html>`);
 });
 
+// ── NUNTLY WEBHOOKS ──────────────────────────────────────────────────────────
+// Nuntly POSTs delivery events here (configured at nuntly.com/webhooks). Each
+// request carries an `x-nuntly-signature` header: HMAC-SHA256 of the raw body
+// keyed by the webhook signing secret. We verify it before trusting the event.
+function timingEqualStr(a, b) {
+    const ba = Buffer.from(String(a));
+    const bb = Buffer.from(String(b));
+    if (ba.length !== bb.length) return false;
+    return crypto.timingSafeEqual(ba, bb);
+}
+
+function verifyNuntlySignature(rawBody, headerSig) {
+    if (!NUNTLY_WEBHOOK_SECRET) return true; // verification disabled (no secret set)
+    if (!headerSig || !rawBody || !rawBody.length) return false;
+    const sig = String(headerSig).trim().replace(/^sha256=/i, '').replace(/^v1[=,]/i, '').trim();
+    // Try the secret as-is and (for svix/standard-webhooks style) without the
+    // whsec_ prefix; check both hex and base64 digest encodings.
+    const keys = [NUNTLY_WEBHOOK_SECRET];
+    if (NUNTLY_WEBHOOK_SECRET.startsWith('whsec_')) keys.push(NUNTLY_WEBHOOK_SECRET.slice(6));
+    for (const key of keys) {
+        const hHex = crypto.createHmac('sha256', key).update(rawBody).digest('hex');
+        const hB64 = crypto.createHmac('sha256', key).update(rawBody).digest('base64');
+        if (timingEqualStr(sig, hHex) || timingEqualStr(sig, hB64)) return true;
+    }
+    return false;
+}
+
+app.post('/api/webhooks', async (req, res) => {
+    const headerSig = req.headers['x-nuntly-signature'] || req.headers['x-webhook-signature'] || '';
+    if (!verifyNuntlySignature(req.rawBody, headerSig)) {
+        console.error('[webhook] invalid Nuntly signature — rejected');
+        return res.status(401).json({ ok: false, error: 'invalid signature' });
+    }
+    if (!NUNTLY_WEBHOOK_SECRET) {
+        console.warn('[webhook] NUNTLY_WEBHOOK_SECRET not set — accepting event WITHOUT verification');
+    }
+    try {
+        const body      = req.body || {};
+        const data      = body.data || body;
+        const eventType = body.type || body.event || null;
+        const emailId   = data.id || data.email_id || body.email_id || null;
+        const recipient = Array.isArray(data.to) ? data.to[0] : (data.to || data.recipient || data.email || null);
+        await dbRun(
+            'INSERT INTO vectraarchlegacy_email_events (event_type, email_id, recipient, payload) VALUES ($1,$2,$3,$4)',
+            [eventType, emailId, recipient, JSON.stringify(body)]
+        );
+        console.log(`[webhook] ${eventType || 'event'} · ${emailId || '-'} · ${recipient || '-'}`);
+        res.json({ ok: true });
+    } catch (e) {
+        console.error('[webhook] processing error:', e.message);
+        // Still 200 so Nuntly doesn't retry a row we simply failed to log.
+        res.json({ ok: true });
+    }
+});
+
 // ── IDENTITY PROXY ───────────────────────────────────────────────────────────
 const IDENTITY_URL  = 'http://127.0.0.1:3200';
 const IDENTITY_KEY  = process.env.IDENTITY_API_KEY || '';
@@ -2384,7 +2565,8 @@ app.get('/api/check-username', async (req, res) => {
 });
 
 app.post('/api/setup', async (req, res) => {
-    const { profile, family, members, moduleAccess, enabledModules } = req.body;
+    const { profile, family, members, moduleAccess, enabledModules, notifications } = req.body;
+    const notif = notifications || {};
 
     if (!profile?.username || !profile?.password || !profile?.email) {
         return res.status(400).json({ success: false, message: 'Profile, username, and password are required.' });
@@ -2496,7 +2678,61 @@ app.post('/api/setup', async (req, res) => {
         await client.query('COMMIT');
         await logTransaction(username, 'SETUP_COMPLETE', 'users', null, username);
 
-        const userRow = await dbQuery(`${USER_SELECT_BASE} WHERE u.username = $1`, [username]);
+        // ── Notifications + comms (best-effort; never blocks setup completion) ──
+        // Telegram chat ID lives on the user row.
+        if (notif.telegramChatId) {
+            try {
+                await dbRun('UPDATE vectraarchlegacy_users SET telegram_chat_id = $1 WHERE username = $2',
+                    [String(notif.telegramChatId).trim(), username]);
+            } catch (e) { console.error('[setup] telegram_chat_id save failed:', e.message); }
+        }
+        // Persist notification channel preferences (default both on).
+        const wantTelegram = notif.telegram !== false;
+        const wantEmail    = notif.email    !== false;
+        try {
+            await dbRun(
+                'INSERT INTO vectraarchlegacy_notifications (username,type,enabled) VALUES ($1,$2,$3) ON CONFLICT (username,type) DO UPDATE SET enabled=EXCLUDED.enabled',
+                [username, 'telegram', wantTelegram ? 1 : 0]);
+            await dbRun(
+                'INSERT INTO vectraarchlegacy_notifications (username,type,enabled) VALUES ($1,$2,$3) ON CONFLICT (username,type) DO UPDATE SET enabled=EXCLUDED.enabled',
+                [username, 'email', wantEmail ? 1 : 0]);
+        } catch (e) { console.error('[setup] notification prefs save failed:', e.message); }
+
+        // Welcome email to the new account owner.
+        if (profile.email) {
+            try {
+                const { text, html } = renderLegacyEmail({
+                    heading: 'Welcome to VectraArch Legacy',
+                    intro:   `Your hub is ready, ${profile.firstName || username}. You can sign in any time with the username below.`,
+                    rows:    [{ label: 'Username', value: username }],
+                    note:    "Thanks for setting up your VectraArch Legacy hub.",
+                    button:  { url: `${PUBLIC_BASE_URL}/login.html`, label: 'Open your hub' },
+                });
+                await sendEmailNotification(profile.email, 'Welcome to VectraArch Legacy', text, html);
+            } catch (e) { console.error('[setup] welcome email failed:', e.message); }
+        }
+
+        // Email invites to any members the owner asked to invite.
+        if (Array.isArray(members) && members.length > 0) {
+            for (const m of members) {
+                if (!(m.sendInvite && m.inviteEmail)) continue;
+                const memberEmail = String(m.inviteEmail).toLowerCase().trim();
+                try {
+                    const dupUser   = await dbQuery('SELECT username FROM vectraarchlegacy_users WHERE LOWER(email) = $1', [memberEmail]);
+                    const dupInvite = await dbQuery("SELECT id FROM vectraarchlegacy_invites WHERE LOWER(email) = $1 AND status = 'pending'", [memberEmail]);
+                    if (dupUser || dupInvite) continue;
+                    const token = crypto.randomBytes(24).toString('hex');
+                    const row = await pool.query(
+                        `INSERT INTO vectraarchlegacy_invites (email, token, invited_by, role, note)
+                         VALUES ($1,$2,$3,'user',$4) RETURNING *`,
+                        [memberEmail, token, username, m.name ? `Setup invite for ${m.name}` : null]
+                    );
+                    await sendInviteEmail(row.rows[0], profile.firstName || username);
+                } catch (e) { console.error('[setup] member invite failed:', memberEmail, e.message); }
+            }
+        }
+
+        const userRow = await dbQuery('SELECT * FROM vectraarchlegacy_users WHERE username = $1', [username]);
         res.json({ success: true, ...mapUser(userRow) });
 
     } catch (err) {

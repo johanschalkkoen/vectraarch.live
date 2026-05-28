@@ -1,22 +1,38 @@
 'use strict';
 
 /**
- * VectraArch — Unified Message Proxy
- * Per-app Telegram bots, all messages to same chat ID.
+ * VectraArch — Unified Communications Proxy (COMS)
+ * The single outbound comms hub. Per-app Telegram bots + Nuntly transactional
+ * email. Holds the credentials so callers (e.g. VectraArch Legacy) never need
+ * the Nuntly API key directly.
  *
  * Routes:
  *   POST /contact      — vectraarch.live (VectraArch_bot)
  *   POST /bo7-booking  — vectraarch.live/bo7/ (Co7_vectraarch_live_bot)
  *   POST /legacy       — vectraarch.live/legacy/ (Legacy_VectraArch_live_bot)
  *   POST /forge        — vectraarch.live/forge/ (Forge_VectraArch_live_bot)
+ *   POST /email/send   — transactional email via Nuntly (internal, localhost)
  */
 
 const http  = require('http');
 const https = require('https');
+const path  = require('path');
+try { require('dotenv').config({ path: path.join(__dirname, '.env') }); } catch { /* dotenv optional */ }
 
 // ── CONFIG ───────────────────────────────────────────────────────────────────
 const CHAT_ID      = '8783471876';
 const LISTEN_PORT  = 3099;
+const MAX_BODY     = 262144; // 256 KB — email HTML can be sizeable
+
+// Nuntly transactional email. Endpoint/auth/payload per nuntly.com OpenAPI:
+//   POST https://api.nuntly.com/emails  ·  Authorization: Bearer <key>
+//   body { from, to:[...], subject, text?, html? }  ·  202 { data:{ id } }
+const NUNTLY_API_KEY    = process.env.NUNTLY_API_KEY    || '';
+const NUNTLY_API_URL    = process.env.NUNTLY_API_URL    || 'https://api.nuntly.com/emails';
+const NUNTLY_FROM       = process.env.NUNTLY_FROM       || 'VectraArch Legacy <noreply@vectraarch.live>';
+// Optional shared secret. COMS only listens on 127.0.0.1, but if set, callers
+// must present it via the x-coms-secret header (defense in depth).
+const COMS_EMAIL_SECRET = process.env.COMS_EMAIL_SECRET || '';
 
 const BOTS = {
   main:   '8767176406:AAEMhPAuQw5dFPEMcLEru1ZkqFT5ijk8YCk',  // VectraArch_bot
@@ -59,6 +75,72 @@ function sendTelegram(botToken, text, res) {
   });
   req.write(body);
   req.end();
+}
+
+// ── NUNTLY EMAIL ───────────────────────────────────────────────────────────
+function sendNuntlyEmail({ to, subject, text, html, from, replyTo, cc, bcc, idempotencyKey }) {
+  return new Promise(resolve => {
+    if (!NUNTLY_API_KEY) return resolve({ ok: false, error: 'NUNTLY_API_KEY not configured' });
+    const recipients = Array.isArray(to) ? to : [to];
+    const payload = {
+      from:    from || NUNTLY_FROM,
+      to:      recipients,
+      subject,
+      ...(text    ? { text }    : {}),
+      ...(html    ? { html }    : {}),
+      ...(replyTo ? { replyTo } : {}),
+      ...(cc      ? { cc:  Array.isArray(cc)  ? cc  : [cc]  } : {}),
+      ...(bcc     ? { bcc: Array.isArray(bcc) ? bcc : [bcc] } : {}),
+    };
+    const body = JSON.stringify(payload);
+    let u;
+    try { u = new URL(NUNTLY_API_URL); } catch { return resolve({ ok: false, error: 'Bad NUNTLY_API_URL' }); }
+    const headers = {
+      'Authorization': `Bearer ${NUNTLY_API_KEY}`,
+      'Content-Type':  'application/json',
+      'Content-Length': Buffer.byteLength(body),
+    };
+    if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey;
+    const req = https.request({
+      hostname: u.hostname,
+      path:     u.pathname + u.search,
+      port:     u.port || 443,
+      method:   'POST',
+      headers,
+    }, r => {
+      let data = '';
+      r.on('data', c => data += c);
+      r.on('end', () => {
+        let json = null; try { json = JSON.parse(data); } catch { /* non-JSON */ }
+        if (r.statusCode >= 200 && r.statusCode < 300) {
+          resolve({ ok: true, id: json?.data?.id || json?.id || null, status: r.statusCode });
+        } else {
+          resolve({ ok: false, status: r.statusCode, error: json?.error?.message || json?.message || data || `HTTP ${r.statusCode}` });
+        }
+      });
+    });
+    req.on('error', e => resolve({ ok: false, error: e.message }));
+    req.setTimeout(10000, () => { req.destroy(); resolve({ ok: false, error: 'Nuntly request timed out' }); });
+    req.write(body);
+    req.end();
+  });
+}
+
+async function handleEmail(payload, res, req) {
+  if (COMS_EMAIL_SECRET && (req.headers['x-coms-secret'] || '') !== COMS_EMAIL_SECRET) {
+    res.writeHead(401, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: false, error: 'Unauthorized' }));
+    return;
+  }
+  const { to, subject, text, html, from, replyTo, cc, bcc, idempotencyKey } = payload;
+  if (!to || !subject || (!text && !html)) {
+    res.writeHead(422, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: false, error: 'Missing required fields: to, subject, and text or html' }));
+    return;
+  }
+  const result = await sendNuntlyEmail({ to, subject, text, html, from, replyTo, cc, bcc, idempotencyKey });
+  res.writeHead(result.ok ? 200 : 502, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify(result));
 }
 
 function handleContact(payload, res) {
@@ -144,6 +226,7 @@ const ROUTES = {
   '/bo7-booking': handleBo7Booking,
   '/legacy':      handleLegacy,
   '/forge':       handleForge,
+  '/email/send':  handleEmail,
 };
 
 const server = http.createServer((req, res) => {
@@ -165,7 +248,7 @@ const server = http.createServer((req, res) => {
   }
 
   let body = '';
-  req.on('data', chunk => { body += chunk; if (body.length > 8192) req.destroy(); });
+  req.on('data', chunk => { body += chunk; if (body.length > MAX_BODY) req.destroy(); });
   req.on('end', () => {
     let payload;
     try { payload = JSON.parse(body); } catch {
@@ -173,11 +256,12 @@ const server = http.createServer((req, res) => {
       res.end(JSON.stringify({ ok: false, error: 'Bad JSON' }));
       return;
     }
-    handler(payload, res);
+    handler(payload, res, req);
   });
 });
 
 server.listen(LISTEN_PORT, '127.0.0.1', () => {
   console.log(`[va-proxy] Listening on 127.0.0.1:${LISTEN_PORT}`);
   console.log(`[va-proxy] Routes: ${Object.keys(ROUTES).join(', ')}`);
+  console.log(`[va-proxy] Nuntly email: ${NUNTLY_API_KEY ? 'configured' : 'NOT configured (set NUNTLY_API_KEY)'}`);
 });
