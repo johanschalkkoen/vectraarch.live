@@ -649,14 +649,25 @@ app.post('/api/admin/remove-from-group', requireAdmin, async (req, res) => {
             [soloName, u.username]
         );
         const newGroupId = soloRes.rows[0].id;
+        // Move the user into their own group AND make them its admin, so they can
+        // manage their own hub (add members, etc.) once on their own.
         await client.query(
-            'UPDATE vectraarchlegacy_users SET group_id = $1 WHERE username = $2',
+            'UPDATE vectraarchlegacy_users SET group_id = $1, is_admin = 1 WHERE username = $2',
             [newGroupId, u.username]
         );
         await client.query('COMMIT');
         // Re-sync access rows so the removed user no longer auto-shares with old group-mates.
         await syncUserGroupAccess(u.username, newGroupId, oldGroupId);
         await logTransaction(u.username, 'REMOVE_FROM_GROUP', 'users', oldGroupId, req.adminUsername);
+        {
+            const { text, html } = renderLegacyEmail({
+                heading: 'You now have your own group',
+                intro:   `You've been moved into your own group "${soloRes.rows[0].group_name}" and made its administrator.`,
+                note:    "You can manage your own hub from the Admin tab. Contact your previous administrator with any questions.",
+                button:  { url: `${PUBLIC_BASE_URL}/login.html`, label: 'Open VectraArch Legacy' },
+            });
+            await emailUser(u.username, 'You now have your own VectraArch Legacy group', text, html);
+        }
         res.json({
             success: true,
             username: u.username,
@@ -987,13 +998,30 @@ app.delete('/api/account', async (req, res) => {
     const { username, password } = req.body;
     if (!username || !password) return res.status(400).json({ success: false, message: 'Username and password required.' });
     try {
-        const row = await dbQuery('SELECT password_hash, email FROM vectraarchlegacy_users WHERE username = $1', [username]);
+        const row = await dbQuery('SELECT password_hash, email, group_id FROM vectraarchlegacy_users WHERE username = $1', [username]);
         if (!row) return res.status(404).json({ success: false, message: 'User not found.' });
         const match = await bcrypt.compare(password, row.password_hash);
         if (!match) return res.status(401).json({ success: false, message: 'Incorrect password.' });
         await dbRun('DELETE FROM vectraarchlegacy_users WHERE username = $1', [username]);
         await logTransaction(username, 'DELETE_ACCOUNT', 'users', null, username);
         sendTelegramMessage(GROUP_CHAT_ID, `User ${username} deleted their account`);
+        // Notify the (former) group's admins by email (audit copy also via COMS BCC).
+        try {
+            if (row.group_id) {
+                const admins = await dbAll(
+                    'SELECT email FROM vectraarchlegacy_users WHERE group_id = $1 AND is_admin = 1 AND email IS NOT NULL',
+                    [row.group_id]
+                );
+                if (admins.length) {
+                    const { text, html } = renderLegacyEmail({
+                        heading: 'A member deleted their account',
+                        intro:   `${username} has deleted their VectraArch Legacy account.`,
+                        note:    "Automated notification for your records.",
+                    });
+                    for (const a of admins) await sendEmailNotification(a.email, `${username} deleted their VectraArch Legacy account`, text, html);
+                }
+            }
+        } catch (e) { console.error('[account-delete admin notify]', e.message); }
         if (row.email) {
             const { text, html } = renderLegacyEmail({
                 heading: 'Your account has been deleted',
@@ -1231,18 +1259,56 @@ app.post('/api/unshare-self', async (req, res) => {
 });
 
 // ── PARTNER MODULE SHARING ────────────────────────────────────────────────────
+// Notify a partner (by email) that someone started sharing data with them.
+async function notifyShareEnabled(owner, partner, what) {
+    try {
+        const { text, html } = renderLegacyEmail({
+            heading: 'New data shared with you',
+            intro:   `${owner} is now sharing ${what} with you on VectraArch Legacy.`,
+            note:    "Open the relevant tab to view it. You control your own sharing under Profile → Partner Sharing.",
+            button:  { url: `${PUBLIC_BASE_URL}/login.html`, label: 'Open VectraArch Legacy' },
+        });
+        await emailUser(partner, `${owner} shared data with you`, text, html);
+    } catch (e) { console.error('[share-notify]', e.message); }
+}
+
 // Set (upsert) one module's sharing state: owner shares module with partner
 app.post('/api/partner-sharing', async (req, res) => {
     const { owner, partner, module, enabled } = req.body;
     if (!owner || !partner || !module) return res.status(400).json({ success: false, message: 'owner, partner, module required.' });
     if (owner === partner) return res.status(400).json({ success: false, message: 'Cannot share with yourself.' });
     try {
+        const prev = await dbQuery('SELECT enabled FROM vectraarchlegacy_partner_sharing WHERE owner=$1 AND partner=$2 AND module=$3', [owner, partner, module]);
         await dbRun(
             `INSERT INTO vectraarchlegacy_partner_sharing (owner, partner, module, enabled)
              VALUES ($1,$2,$3,$4)
              ON CONFLICT (owner, partner, module) DO UPDATE SET enabled = $4`,
             [owner, partner, module, !!enabled]
         );
+        if (!!enabled && !(prev && prev.enabled === true)) await notifyShareEnabled(owner, partner, `their ${module}`);
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
+// Set ALL modules at once (the "share all / stop sharing" button). One email.
+app.post('/api/partner-sharing/bulk', async (req, res) => {
+    const { owner, partner, enabled } = req.body;
+    if (!owner || !partner) return res.status(400).json({ success: false, message: 'owner and partner required.' });
+    if (owner === partner) return res.status(400).json({ success: false, message: 'Cannot share with yourself.' });
+    const ALL = ['Finances','Calendar','Budget','Gym','Meals','Cycle'];
+    try {
+        const before = await dbAll('SELECT enabled FROM vectraarchlegacy_partner_sharing WHERE owner=$1 AND partner=$2', [owner, partner]);
+        const wasAnyOn = before.some(r => r.enabled === true);
+        for (const module of ALL) {
+            await dbRun(
+                `INSERT INTO vectraarchlegacy_partner_sharing (owner, partner, module, enabled)
+                 VALUES ($1,$2,$3,$4) ON CONFLICT (owner, partner, module) DO UPDATE SET enabled = $4`,
+                [owner, partner, module, !!enabled]
+            );
+        }
+        if (!!enabled && !wasAnyOn) await notifyShareEnabled(owner, partner, 'all of their modules');
         res.json({ success: true });
     } catch (e) {
         res.status(500).json({ success: false, message: e.message });

@@ -4530,6 +4530,8 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
   const toggleBmiWarning = () => setShowBmiWarning(p=>{ const n=!p; try{localStorage.setItem('legacyBmiWarning',String(n));}catch{} return n; });
   const [picFile, setPicFile]               = useState(null);
   const [alert, setAlert]                   = useState({msg:'',type:''});
+  const [delPw, setDelPw]                   = useState('');
+  const [delBusy, setDelBusy]               = useState(false);
   const fileInputRef = useRef();
 
   const COLORS = [
@@ -4915,7 +4917,9 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
               {(partners.length>0?partners:[partner]).map((p,pi)=>{
                 const pun    = p.username;
                 const pCfg   = sharingConfig[pun] || {};
-                const pAll   = myGrants.includes(pun);
+                const sharedCount = sharingItems.filter(i=>pCfg[i]===true).length;
+                const allOn  = sharedCount===sharingItems.length;
+                const noneOn = sharedCount===0;
 
                 const toggleItem = async(item) => {
                   const newVal = !(pCfg[item]);
@@ -4926,27 +4930,11 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
                 };
 
                 const shareAll = async() => {
-                  const next = !pAll;
+                  const next = !allOn;   // all on -> turn all off; otherwise turn all on
+                  setSharingConfig(prev=>({...prev,[pun]:Object.fromEntries(sharingItems.map(i=>[i,next]))}));
                   try {
-                    if(next){
-                      await axios.post(`${API}/share-self`,{username:user.username,partner:pun});
-                      setMyGrants(prev=>[...prev.filter(x=>x!==pun),pun]);
-                      const allOn = Object.fromEntries(sharingItems.map(i=>[i,true]));
-                      setSharingConfig(prev=>({...prev,[pun]:allOn}));
-                      await Promise.all(sharingItems.map(item=>
-                        axios.post(`${API}/partner-sharing`,{owner:user.username,partner:pun,module:item,enabled:true})
-                      ));
-                      msg(`${pun} can now see your data.`);
-                    } else {
-                      await axios.post(`${API}/unshare-self`,{username:user.username,partner:pun});
-                      setMyGrants(prev=>prev.filter(x=>x!==pun));
-                      const allOff = Object.fromEntries(sharingItems.map(i=>[i,false]));
-                      setSharingConfig(prev=>({...prev,[pun]:allOff}));
-                      await Promise.all(sharingItems.map(item=>
-                        axios.post(`${API}/partner-sharing`,{owner:user.username,partner:pun,module:item,enabled:false})
-                      ));
-                      msg(`Sharing with ${pun} revoked.`);
-                    }
+                    await axios.post(`${API}/partner-sharing/bulk`,{owner:user.username,partner:pun,enabled:next});
+                    msg(next?`${pun} can now see all your data.`:`Stopped sharing with ${pun}.`);
                   } catch { msg('Error updating sharing.','err'); }
                 };
 
@@ -4959,8 +4947,13 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
                         <div className="partner-info-name">{p.displayName||(p.firstName&&p.lastName?`${p.firstName} ${p.lastName}`:null)||p.username}</div>
                         <div className="partner-info-status">Partner · linked</div>
                       </div>
-                      <button className={`share-all-btn ${pAll?'sharing':'not-sharing'}`} onClick={shareAll}>
-                        {pAll?'✓ SHARING ALL':'SHARE ALL'}
+                      <button onClick={shareAll} style={{
+                        fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.1em',fontWeight:600,
+                        padding:'6px 12px',borderRadius:4,cursor:'pointer',whiteSpace:'nowrap',textTransform:'uppercase',
+                        border:`1px solid ${allOn?'var(--green)':noneOn?'var(--border2)':'var(--yellow)'}`,
+                        color:allOn?'var(--green)':noneOn?'var(--text3)':'var(--yellow)',
+                        background:allOn?'rgba(0,230,118,0.12)':noneOn?'transparent':'rgba(255,214,0,0.12)'}}>
+                        {allOn?'✓ SHARING ALL':noneOn?'NOT SHARING DATA':'◑ PARTIALLY SHARING'}
                       </button>
                     </div>
                     <div className="sharing-grid">
@@ -5090,6 +5083,32 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
 
           {/* ── Security (2FA) ── */}
           <SecuritySection user={user} setUser={setUser} onAlert={msg}/>
+
+          {/* ── Delete account (danger zone) ── */}
+          <CollapsibleSection title="DELETE ACCOUNT" persistKey="profile-delete-account" accent="#ff3b3b" defaultOpen={false}>
+            <div style={{padding:'14px'}}>
+              <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',lineHeight:1.6,marginBottom:12}}>
+                Permanently deletes your account and all your data. This cannot be undone — your group admin is notified by email.
+              </div>
+              <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.18em',color:'#ff3b3b',textTransform:'uppercase'}}>Confirm password</span>
+              <input type="password" value={delPw} onChange={e=>setDelPw(e.target.value)} placeholder="Your password" autoComplete="current-password"
+                style={{width:'100%',background:'var(--bg2)',border:'1px solid var(--border2)',color:'var(--text)',fontFamily:"'DM Mono',monospace",fontSize:13,padding:'11px 14px',borderRadius:4,outline:'none',margin:'6px 0 12px',boxSizing:'border-box'}}/>
+              <button disabled={delBusy||!delPw} onClick={async()=>{
+                if(!delPw){ msg('Enter your password to confirm.','err'); return; }
+                if(!window.confirm('Delete your account permanently? This cannot be undone.')) return;
+                setDelBusy(true);
+                try {
+                  const {data}=await axios.delete(`${API}/account`,{data:{username:user.username,password:delPw}});
+                  if(data.success){ msg('Account deleted.'); setTimeout(()=>onLogout(),800); }
+                  else { msg(data.message||'Could not delete account.','err'); setDelBusy(false); }
+                } catch(e){ msg(e.response?.data?.message||'Could not delete account.','err'); setDelBusy(false); }
+              }} style={{width:'100%',padding:'12px',borderRadius:4,cursor:delBusy||!delPw?'not-allowed':'pointer',
+                fontFamily:"'DM Mono',monospace",fontSize:11,letterSpacing:'0.12em',textTransform:'uppercase',fontWeight:600,
+                border:'1px solid #ff3b3b',background:'rgba(255,59,59,0.12)',color:'#ff3b3b',opacity:delBusy||!delPw?0.5:1}}>
+                {delBusy?'Deleting…':'Delete my account permanently'}
+              </button>
+            </div>
+          </CollapsibleSection>
 
           {/* ── Log out ── */}
           <button className="save-btn" style={{background:'transparent',border:'1px solid var(--red)',color:'var(--red)',marginTop:4}} onClick={onLogout}>LOG OUT</button>
