@@ -1615,6 +1615,7 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
               const timeStart = fmtTime(e.date);
               const endRaw    = e.endDate||e.end_date||'';
               const timeEnd   = endRaw ? fmtTime(endRaw) : '';
+              const endsOtherDay = !!endRaw && endRaw.slice(0,10) !== (e.date||'').slice(0,10);
               return (
                 <div key={e.id} className="meal-card" style={{marginBottom:8,borderLeft:`3px solid ${coc}`,cursor:isOwn?'pointer':'default',display:'flex',alignItems:'stretch',padding:0,overflow:'hidden'}}
                   onClick={()=>isOwn&&setActionCalEvent(e)}>
@@ -1624,9 +1625,10 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
                       {timeStart
                         ? <>
                             <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:15,color:coc,lineHeight:1,letterSpacing:'0.02em'}}>{timeStart}</div>
-                            {timeEnd && timeEnd !== timeStart && (<>
+                            {timeEnd && (timeEnd !== timeStart || endsOtherDay) && (<>
                               <div style={{width:14,height:1,background:coc,opacity:0.35}}/>
                               <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',letterSpacing:'0.04em'}}>{timeEnd}</div>
+                              {endsOtherDay && <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:'var(--text3)',letterSpacing:'0.02em',opacity:0.85}}>{fmtDate(endRaw).slice(5)}</div>}
                             </>)}
                           </>
                         : <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'var(--text3)',letterSpacing:'0.05em',textAlign:'center',lineHeight:1.2}}>ALL<br/>DAY</div>
@@ -1657,7 +1659,7 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
                         {' · '}
                         <span style={{color:'var(--text2)'}}>
                           {timeStart
-                            ? <>{timeStart}{timeEnd && timeEnd !== timeStart ? ` → ${timeEnd}` : ''}</>
+                            ? <>{timeStart}{timeEnd && (timeEnd !== timeStart || endsOtherDay) ? ` → ${endsOtherDay ? fmtDate(endRaw)+' ' : ''}${timeEnd}` : ''}</>
                             : 'All day'}
                         </span>
                       </div>
