@@ -247,12 +247,17 @@ const dbTransaction = async (queries) => {
 // ── COLUMN NAME MAP ───────────────────────────────────────────────────────────
 function mapUser(row) {
     if (!row) return null;
+    // Avatar fallback: explicit profile pic > female default > placeholder.
+    // Male users get the placeholder until they upload their own, so we don't
+    // misgender newly-created accounts that haven't picked a photo yet.
+    const gender = (row.gender || '').toLowerCase();
+    const fallbackPic = gender === 'female' ? '/images/female.jpg' : '/images/placeholder_image.png';
     return {
         username:         row.username,
         firstName:        row.first_name        || '',
         lastName:         row.last_name         || '',
         displayName:      row.display_name      || row.username,
-        profilePicUrl:    row.profile_pic_url   || (row.gender === 'Female' ? '/images/female.jpg' : '/images/male.jpg'),
+        profilePicUrl:    row.profile_pic_url   || fallbackPic,
         email:            row.email             || '',
         phone:            row.phone             || '',
         eventColor:       row.event_color       || '#2dd4bf',
@@ -268,9 +273,19 @@ function mapUser(row) {
         authProvider:     row.auth_provider     || 'password',
         hasGoogle:        !!row.google_id,
         twoFactorEnabled: !!row.twofa_secret,
-        groupId:         row.group_id          || null,
+        groupId:          row.group_id          || null,
+        groupName:        row.group_name        || '',
     };
 }
+
+// User-row SELECT with the group name joined in. Use this wherever a fresh
+// user record is loaded so the client always knows the group's display name
+// (not just the numeric id).
+const USER_SELECT_BASE = `
+    SELECT u.*, g.group_name
+      FROM vectraarchlegacy_users u
+      LEFT JOIN vectraarchlegacy_groups g ON g.id = u.group_id
+`;
 
 // ── EXTERNAL SERVICES ─────────────────────────────────────────────────────────
 const BOT_TOKEN    = process.env.BOT_TOKEN;
@@ -487,7 +502,7 @@ app.post('/api/login', async (req, res) => {
     if (!username || !password) return res.status(400).json({ success: false, message: 'Username and password required.' });
     try {
         // Case-insensitive lookup so 'Johan@Koen' and 'johan@koen' both work.
-        const row = await dbQuery('SELECT * FROM vectraarchlegacy_users WHERE LOWER(username) = LOWER($1)', [username]);
+        const row = await dbQuery(`${USER_SELECT_BASE} WHERE LOWER(u.username) = LOWER($1)`, [username]);
         if (!row) return res.status(404).json({ success: false, message: 'User not found.' });
         if (!row.password_hash) {
             return res.status(401).json({ success: false, message: 'This account uses Google sign-in. Please continue with Google.' });
@@ -578,6 +593,83 @@ app.post('/api/admin/assign-group', requireAdmin, async (req, res) => {
     } catch (e) {
         console.error('[assign-family]', e.message);
         res.status(500).json({ success: false, message: 'Error assigning family.', error: e.message });
+    }
+});
+
+// List the members of MY group (callable by any logged-in user, not just admin).
+// Returns the people I'm grouped with so Profile can show a "group members"
+// roster without having to be admin.
+app.get('/api/my-group-members', async (req, res) => {
+    const { username } = req.query;
+    if (!username) return res.status(400).json({ success: false, message: 'Username required.' });
+    try {
+        const rows = await dbAll(`
+            SELECT u.username, u.first_name AS "firstName", u.last_name AS "lastName",
+                   u.display_name AS "displayName", u.profile_pic_url AS "profilePicUrl",
+                   u.event_color AS "eventColor", u.role, u.gender,
+                   g.id AS "groupId", g.group_name AS "groupName"
+              FROM vectraarchlegacy_users u
+              LEFT JOIN vectraarchlegacy_groups g ON g.id = u.group_id
+             WHERE u.group_id = (SELECT group_id FROM vectraarchlegacy_users WHERE LOWER(username) = LOWER($1))
+               AND u.group_id IS NOT NULL
+             ORDER BY u.username`,
+            [username]
+        );
+        res.json({ success: true, members: rows });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Error fetching group members.', error: e.message });
+    }
+});
+
+// Remove a user from their current group. Spins up a fresh solo group for them
+// so no user is ever orphaned (no NULL group_id). Symmetric to assign-group.
+app.post('/api/admin/remove-from-group', requireAdmin, async (req, res) => {
+    const { username } = req.body;
+    if (!username) return res.status(400).json({ success: false, message: 'username required.' });
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        const userRow = await client.query(
+            'SELECT username, first_name, display_name, role, group_id FROM vectraarchlegacy_users WHERE LOWER(username) = LOWER($1)',
+            [username]
+        );
+        if (!userRow.rows[0]) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ success: false, message: 'User not found.' });
+        }
+        const u = userRow.rows[0];
+        const oldGroupId = u.group_id;
+        const label = u.first_name || u.display_name || u.username;
+        const soloName = u.role === 'individual' ? `${label}'s Hub` : `${label}'s Group`;
+        const soloRes = await client.query(
+            `INSERT INTO vectraarchlegacy_groups
+                (group_name, admin_username, currency, timezone, member_count, enabled_modules)
+             VALUES ($1, $2, 'ZAR', 'Africa/Johannesburg', 1, 'fin,cal,bud,gym,eat,cyc')
+             RETURNING id, group_name`,
+            [soloName, u.username]
+        );
+        const newGroupId = soloRes.rows[0].id;
+        await client.query(
+            'UPDATE vectraarchlegacy_users SET group_id = $1 WHERE username = $2',
+            [newGroupId, u.username]
+        );
+        await client.query('COMMIT');
+        // Re-sync access rows so the removed user no longer auto-shares with old group-mates.
+        await syncUserGroupAccess(u.username, newGroupId, oldGroupId);
+        await logTransaction(u.username, 'REMOVE_FROM_GROUP', 'users', oldGroupId, req.adminUsername);
+        res.json({
+            success: true,
+            username: u.username,
+            oldGroupId,
+            newGroupId,
+            newGroupName: soloRes.rows[0].group_name,
+        });
+    } catch (e) {
+        await client.query('ROLLBACK').catch(()=>{});
+        console.error('[remove-from-group]', e.message);
+        res.status(500).json({ success: false, message: 'Error removing from group.', error: e.message });
+    } finally {
+        client.release();
     }
 });
 
@@ -679,21 +771,27 @@ app.post('/api/admin/create-user', requireAdmin, async (req, res) => {
         const displayName = `${firstName || ''} ${lastName || ''}`.trim() || clean;
         const adminFlag   = isAdmin ? 1 : 0;
 
-        // Pick or create a family BEFORE inserting the user, so we can set group_id directly.
+        // New users always join the admin's own group automatically. Explicit
+        // groupId is still honoured (in case the same endpoint is called from
+        // Conduit cross-group), and a brand-new group is created only when
+        // neither the admin nor the request specifies one.
         let useFamilyId  = null;
         let useFamilyName = null;
-        if (groupId) {
-            const fr = await client.query('SELECT id, group_name FROM vectraarchlegacy_groups WHERE id = $1', [groupId]);
+        const targetGroupId = groupId
+            || (await client.query('SELECT group_id FROM vectraarchlegacy_users WHERE username = $1', [req.adminUsername])).rows[0]?.group_id
+            || null;
+        if (targetGroupId) {
+            const fr = await client.query('SELECT id, group_name FROM vectraarchlegacy_groups WHERE id = $1', [targetGroupId]);
             if (!fr.rows[0]) {
                 await client.query('ROLLBACK');
-                return res.status(400).json({ success: false, message: `Family ${groupId} not found.` });
+                return res.status(400).json({ success: false, message: `Group ${targetGroupId} not found.` });
             }
             useFamilyId   = fr.rows[0].id;
             useFamilyName = fr.rows[0].group_name;
         } else {
             const famName = (groupName && groupName.trim())
                 ? groupName.trim()
-                : (userRole === 'individual' ? `${firstName || clean}'s Hub` : `${firstName || clean}'s Family`);
+                : (userRole === 'individual' ? `${firstName || clean}'s Hub` : `${firstName || clean}'s Group`);
             const famRes = await client.query(`
                 INSERT INTO vectraarchlegacy_groups
                     (group_name, admin_username, currency, timezone, member_count, enabled_modules)
@@ -913,7 +1011,7 @@ app.get('/api/profile-pictures', async (req, res) => {
     const { username } = req.query;
     if (!username) return res.status(400).json({ success: false, message: 'Username required.' });
     try {
-        const row = await dbQuery('SELECT * FROM vectraarchlegacy_users WHERE username = $1', [username]);
+        const row = await dbQuery(`${USER_SELECT_BASE} WHERE u.username = $1`, [username]);
         if (!row) return res.status(404).json({ success: false, message: 'User not found.' });
         res.json({ success: true, ...mapUser(row) });
     } catch (e) {
@@ -986,25 +1084,40 @@ app.get('/api/get-access', async (req, res) => {
     // vectraarchlegacy_access rows with group-derived rows computed from
     // vectraarchlegacy_users.group_id, so partner-sharing is self-healing
     // even when sync helpers haven't populated the access table.
+    // `source` deliberately omitted from the projection so identical
+    // (viewer,target) pairs from both sources collapse via UNION.
     const { viewer, adminUsername } = req.query;
     const perViewerSQL = `
-        SELECT viewer, target, COALESCE(source,'manual') AS source
-          FROM vectraarchlegacy_access WHERE viewer = $1
+        SELECT viewer, target FROM vectraarchlegacy_access WHERE viewer = $1
         UNION
-        SELECT $1::text AS viewer, u2.username AS target, 'group' AS source
+        SELECT $1::text AS viewer, u2.username AS target
           FROM vectraarchlegacy_users u1
           JOIN vectraarchlegacy_users u2 ON u1.group_id = u2.group_id
          WHERE u1.username = $1
            AND u2.username <> u1.username
            AND u1.group_id IS NOT NULL
     `;
-    const allSQL = `
-        SELECT viewer, target, COALESCE(source,'manual') AS source FROM vectraarchlegacy_access
+    // Admin "all access" view is scoped to the admin's own group — they
+    // should never see access pairs from other groups. Both ends of each
+    // pair must be members of the admin's group.
+    const adminGroupSQL = `
+        WITH my_group AS (
+            SELECT group_id FROM vectraarchlegacy_users WHERE username = $1
+        ),
+        members AS (
+            SELECT username FROM vectraarchlegacy_users
+             WHERE group_id = (SELECT group_id FROM my_group)
+               AND (SELECT group_id FROM my_group) IS NOT NULL
+        )
+        SELECT viewer, target FROM vectraarchlegacy_access
+         WHERE viewer IN (SELECT username FROM members)
+           AND target IN (SELECT username FROM members)
         UNION
-        SELECT u1.username AS viewer, u2.username AS target, 'group' AS source
+        SELECT u1.username AS viewer, u2.username AS target
           FROM vectraarchlegacy_users u1
           JOIN vectraarchlegacy_users u2 ON u1.group_id = u2.group_id
-         WHERE u1.username <> u2.username AND u1.group_id IS NOT NULL
+         WHERE u1.group_id = (SELECT group_id FROM my_group)
+           AND u1.username <> u2.username
     `;
     try {
         let rows;
@@ -1013,7 +1126,7 @@ app.get('/api/get-access', async (req, res) => {
         } else if (adminUsername) {
             const admin = await dbQuery('SELECT is_admin FROM vectraarchlegacy_users WHERE username = $1', [adminUsername]);
             if (admin && admin.is_admin) {
-                rows = await dbAll(allSQL);
+                rows = await dbAll(adminGroupSQL, [adminUsername]);
             } else {
                 return res.status(400).json({ success: false, message: 'Viewer required if not admin.' });
             }
@@ -1174,6 +1287,19 @@ app.get('/api/shared-with-me', async (req, res) => {
                AND u2.username <> u1.username
                AND u1.group_id IS NOT NULL
         `, [username]);
+        // Group-mates of the viewer — these get unconditional all-modules-on,
+        // because being in the same group means "we share everything by design".
+        // Explicit partner_sharing rows are ignored for group-mates so that one
+        // stale opt-out doesn't silently break the household view.
+        const groupMateRows = await dbAll(`
+            SELECT u2.username AS owner
+              FROM vectraarchlegacy_users u1
+              JOIN vectraarchlegacy_users u2 ON u1.group_id = u2.group_id
+             WHERE u1.username = $1
+               AND u2.username <> u1.username
+               AND u1.group_id IS NOT NULL
+        `, [username]);
+        const groupMates = new Set(groupMateRows.map(r => r.owner));
         // Explicit per-module config set by each owner for me
         const moduleRows = await dbAll(
             'SELECT owner, module, enabled FROM vectraarchlegacy_partner_sharing WHERE partner = $1', [username]
@@ -1186,11 +1312,15 @@ app.get('/api/shared-with-me', async (req, res) => {
         const sharedWithMe = {};
         accessRows.forEach(r => {
             const owner = r.target;
-            if (explicit[owner] && Object.keys(explicit[owner]).length > 0) {
-                sharedWithMe[owner] = explicit[owner];
+            const base = Object.fromEntries(ALL_MODULES.map(m => [m, true]));
+            if (groupMates.has(owner)) {
+                // Same-group sharing is absolute — explicit opt-outs are ignored.
+                sharedWithMe[owner] = base;
             } else {
-                // No explicit config yet — backward-compatible default: all modules on
-                sharedWithMe[owner] = Object.fromEntries(ALL_MODULES.map(m => [m, true]));
+                // Cross-group / manually granted partners can still narrow per module.
+                sharedWithMe[owner] = explicit[owner]
+                    ? { ...base, ...explicit[owner] }
+                    : base;
             }
         });
         res.json({ success: true, sharedWithMe });
@@ -1828,7 +1958,7 @@ app.post('/api/verify-2fa', async (req, res) => {
     const { username, token } = req.body;
     if (!username || !token) return res.status(400).json({ success: false, message: 'Username and token required.' });
     try {
-        const row = await dbQuery('SELECT * FROM vectraarchlegacy_users WHERE username = $1', [username]);
+        const row = await dbQuery(`${USER_SELECT_BASE} WHERE u.username = $1`, [username]);
         if (!row || !row.twofa_secret) return res.status(400).json({ success: false, message: '2FA not configured.' });
         const valid = authenticator.verify({ token, secret: row.twofa_secret });
         if (!valid) return res.status(401).json({ success: false, message: 'Invalid authentication code.' });
@@ -1976,11 +2106,11 @@ app.get('/auth/google/callback', (req, res, next) => {
                 if (!email) return res.redirect('/login.html?error=google_no_email');
 
                 // 1. Existing user by google_id
-                let user = await dbQuery('SELECT * FROM vectraarchlegacy_users WHERE google_id = $1', [googleUser.id]);
+                let user = await dbQuery(`${USER_SELECT_BASE} WHERE u.google_id = $1`, [googleUser.id]);
 
                 // 2. Existing user by email (auto-link Google to their account)
                 if (!user) {
-                    user = await dbQuery('SELECT * FROM vectraarchlegacy_users WHERE LOWER(email) = $1', [email]);
+                    user = await dbQuery(`${USER_SELECT_BASE} WHERE LOWER(u.email) = $1`, [email]);
                     if (user) {
                         await dbRun('UPDATE vectraarchlegacy_users SET google_id = $1 WHERE username = $2',
                             [googleUser.id, user.username]);
@@ -2032,7 +2162,7 @@ app.get('/auth/google/callback', (req, res, next) => {
                     await logTransaction(username, 'GOOGLE_SIGNUP', 'users', null, invite.invited_by);
                     sendTelegramMessage(GROUP_CHAT_ID, `New Google user joined: ${username} (${email}) via invite from ${invite.invited_by}`);
 
-                    user = await dbQuery('SELECT * FROM vectraarchlegacy_users WHERE username = $1', [username]);
+                    user = await dbQuery(`${USER_SELECT_BASE} WHERE u.username = $1`, [username]);
                     delete req.session.pendingInviteToken;
                 }
 
@@ -2064,7 +2194,7 @@ app.post('/api/google/verify-2fa', async (req, res) => {
     const { token } = req.body;
     if (!token) return res.status(400).json({ success: false, message: 'Token required.' });
     try {
-        const row = await dbQuery('SELECT * FROM vectraarchlegacy_users WHERE username = $1', [pending.username]);
+        const row = await dbQuery(`${USER_SELECT_BASE} WHERE u.username = $1`, [pending.username]);
         if (!row || !row.twofa_secret) {
             delete req.session.pendingGoogle2FA;
             return res.status(400).json({ success: false, message: '2FA not configured.' });
