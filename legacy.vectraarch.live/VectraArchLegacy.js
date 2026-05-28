@@ -998,13 +998,30 @@ app.delete('/api/account', async (req, res) => {
     const { username, password } = req.body;
     if (!username || !password) return res.status(400).json({ success: false, message: 'Username and password required.' });
     try {
-        const row = await dbQuery('SELECT password_hash, email FROM vectraarchlegacy_users WHERE username = $1', [username]);
+        const row = await dbQuery('SELECT password_hash, email, group_id FROM vectraarchlegacy_users WHERE username = $1', [username]);
         if (!row) return res.status(404).json({ success: false, message: 'User not found.' });
         const match = await bcrypt.compare(password, row.password_hash);
         if (!match) return res.status(401).json({ success: false, message: 'Incorrect password.' });
         await dbRun('DELETE FROM vectraarchlegacy_users WHERE username = $1', [username]);
         await logTransaction(username, 'DELETE_ACCOUNT', 'users', null, username);
         sendTelegramMessage(GROUP_CHAT_ID, `User ${username} deleted their account`);
+        // Notify the (former) group's admins by email (audit copy also via COMS BCC).
+        try {
+            if (row.group_id) {
+                const admins = await dbAll(
+                    'SELECT email FROM vectraarchlegacy_users WHERE group_id = $1 AND is_admin = 1 AND email IS NOT NULL',
+                    [row.group_id]
+                );
+                if (admins.length) {
+                    const { text, html } = renderLegacyEmail({
+                        heading: 'A member deleted their account',
+                        intro:   `${username} has deleted their VectraArch Legacy account.`,
+                        note:    "Automated notification for your records.",
+                    });
+                    for (const a of admins) await sendEmailNotification(a.email, `${username} deleted their VectraArch Legacy account`, text, html);
+                }
+            }
+        } catch (e) { console.error('[account-delete admin notify]', e.message); }
         if (row.email) {
             const { text, html } = renderLegacyEmail({
                 heading: 'Your account has been deleted',
