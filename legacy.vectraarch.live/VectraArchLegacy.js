@@ -832,10 +832,11 @@ app.post('/api/admin/create-user', requireAdmin, async (req, res) => {
                 intro:   `An administrator (${req.adminUsername}) created an account for you on VectraArch Legacy.`,
                 rows:    [
                     { label: 'Username', value: clean },
+                    { label: 'Password', value: password },
                     { label: 'Role',     value: userRole },
                     { label: 'Group',    value: useFamilyName },
                 ],
-                note:    "Use the username above to sign in. If you weren't expecting this, contact your administrator.",
+                note:    "Sign in with the username and password above, then change your password from your profile. If you weren't expecting this, contact your administrator.",
                 button:  { url: `${PUBLIC_BASE_URL}/login.html`, label: 'Sign in' },
             });
             await sendEmailNotification(email, 'Your VectraArch Legacy account is ready', text, html);
