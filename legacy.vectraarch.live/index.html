@@ -5489,19 +5489,6 @@ const AdminPage = ({user, onLogout, tabColor:tabColorProp='#ff9800'}) => {
                   ))}
                 </div>
 
-                {/* Row 5: currency — group is fixed to admin's, no input */}
-                <div>
-                  <span style={lL}>CURRENCY</span>
-                  <select style={iL} value={newUser.currency} onChange={e=>setNewUser(p=>({...p,currency:e.target.value}))}>
-                    <option value="ZAR">ZAR · R</option>
-                    <option value="USD">USD · $</option>
-                    <option value="EUR">EUR · €</option>
-                    <option value="GBP">GBP · £</option>
-                    <option value="NGN">NGN · ₦</option>
-                    <option value="KES">KES · KSh</option>
-                  </select>
-                </div>
-
                 {/* Row 6: accent / admin toggle */}
                 <div style={{display:'flex',alignItems:'center',gap:14,marginBottom:14,marginTop:4}}>
                   <div style={{display:'flex',alignItems:'center',gap:8}}>
@@ -5527,7 +5514,7 @@ const AdminPage = ({user, onLogout, tabColor:tabColorProp='#ff9800'}) => {
 
                 <button type="button" disabled={creating} onClick={createUser}
                   style={{...btnStyle('var(--green)'),opacity:creating?0.5:1,cursor:creating?'wait':'pointer'}}>
-                  {creating ? 'Creating…' : `Create User + Group ↗`}
+                  {creating ? 'Creating…' : `Create User ↗`}
                 </button>
               </div>
             </CollapsibleSection>
