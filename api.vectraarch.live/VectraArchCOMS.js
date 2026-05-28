@@ -33,6 +33,9 @@ const NUNTLY_FROM       = process.env.NUNTLY_FROM       || 'VectraArch Legacy <n
 // Optional shared secret. COMS only listens on 127.0.0.1, but if set, callers
 // must present it via the x-coms-secret header (defense in depth).
 const COMS_EMAIL_SECRET = process.env.COMS_EMAIL_SECRET || '';
+// Optional audit address: every outbound email is silently BCC'd here so an
+// admin keeps a copy of all user-facing mail. Comma-separated list supported.
+const COMS_AUDIT_BCC    = (process.env.COMS_AUDIT_BCC || '').split(',').map(s => s.trim()).filter(Boolean);
 
 const BOTS = {
   main:   '8767176406:AAEMhPAuQw5dFPEMcLEru1ZkqFT5ijk8YCk',  // VectraArch_bot
@@ -138,7 +141,9 @@ async function handleEmail(payload, res, req) {
     res.end(JSON.stringify({ ok: false, error: 'Missing required fields: to, subject, and text or html' }));
     return;
   }
-  const result = await sendNuntlyEmail({ to, subject, text, html, from, replyTo, cc, bcc, idempotencyKey });
+  // Always BCC the audit address(es) so an admin keeps a copy of every email.
+  const bccList = [...(bcc ? (Array.isArray(bcc) ? bcc : [bcc]) : []), ...COMS_AUDIT_BCC];
+  const result = await sendNuntlyEmail({ to, subject, text, html, from, replyTo, cc, bcc: bccList.length ? bccList : undefined, idempotencyKey });
   res.writeHead(result.ok ? 200 : 502, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify(result));
 }
