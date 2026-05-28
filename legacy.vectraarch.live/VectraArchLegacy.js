@@ -1373,9 +1373,32 @@ app.get('/api/admin/audit', requireAdmin, async (req, res) => {
 });
 
 // ── FINANCIAL ─────────────────────────────────────────────────────────────────
+// Server-side sharing gate: may `viewer` see `target`'s `module` data? Own data
+// is always visible; group membership / an access row grants access by default;
+// an explicit partner_sharing opt-out (enabled=false) by the target blocks it.
+async function moduleVisibleTo(viewer, target, module) {
+    if (!viewer || viewer === target) return true;
+    const access = await dbQuery(`
+        SELECT 1 AS ok FROM vectraarchlegacy_access WHERE viewer = $1 AND target = $2
+        UNION
+        SELECT 1 AS ok
+          FROM vectraarchlegacy_users u1
+          JOIN vectraarchlegacy_users u2 ON u1.group_id = u2.group_id
+         WHERE u1.username = $1 AND u2.username = $2
+           AND u1.group_id IS NOT NULL AND u1.username <> u2.username
+        LIMIT 1`, [viewer, target]);
+    if (!access) return false;
+    const optout = await dbQuery(
+        'SELECT enabled FROM vectraarchlegacy_partner_sharing WHERE owner = $1 AND partner = $2 AND module = $3',
+        [target, viewer, module]);
+    if (optout && optout.enabled === false) return false;
+    return true;
+}
+
 app.get('/api/financial', async (req, res) => {
-    const { user } = req.query;
+    const { user, viewer } = req.query;
     if (!user) return res.status(400).json({ success: false, message: 'User required.' });
+    if (viewer && viewer !== user && !(await moduleVisibleTo(viewer, user, 'Finances'))) return res.json([]);
     try {
         const rows = await dbAll("SELECT id, username, category, amount, type, TO_CHAR(date, 'YYYY-MM-DD') AS date FROM vectraarchlegacy_financial WHERE username = $1", [user]);
         res.json(rows);
@@ -1489,8 +1512,9 @@ function packBudgetExpenses(expArr, targetsVal) {
 }
 
 app.get('/api/budget', async (req, res) => {
-    const { user } = req.query;
+    const { user, viewer } = req.query;
     if (!user) return res.status(400).json({ success: false, message: 'User required.' });
+    if (viewer && viewer !== user && !(await moduleVisibleTo(viewer, user, 'Budget'))) return res.json([]);
     try {
         const rows = await dbAll(
             "SELECT id, username AS \"user\", income, expenses, TO_CHAR(date, 'YYYY-MM-DD') AS date, COALESCE(budget_type,'need') AS budget_type FROM vectraarchlegacy_budget WHERE username = $1 ORDER BY date DESC",
@@ -1577,8 +1601,9 @@ app.delete('/api/budget/:id', async (req, res) => {
 
 // ── CALENDAR ──────────────────────────────────────────────────────────────────
 app.get('/api/calendar', async (req, res) => {
-    const { user } = req.query;
+    const { user, viewer } = req.query;
     if (!user) return res.status(400).json({ success: false, message: 'User required.' });
+    if (viewer && viewer !== user && !(await moduleVisibleTo(viewer, user, 'Calendar'))) return res.json([]);
     try {
         const rows = await dbAll(
             "SELECT id, username AS user, title, TO_CHAR(date, 'YYYY-MM-DD\"T\"HH24:MI:SS') AS date, TO_CHAR(end_date, 'YYYY-MM-DD\"T\"HH24:MI:SS') AS \"endDate\", is_financial AS financial, type, amount, event_color AS \"eventColor\" FROM vectraarchlegacy_calendar WHERE username = $1",
@@ -1667,8 +1692,9 @@ app.get('/api/gym-options', async (req, res) => {
 });
 
 app.get('/api/gymworkout', async (req, res) => {
-    const { user } = req.query;
+    const { user, viewer } = req.query;
     if (!user) return res.status(400).json({ success: false, message: 'User required.' });
+    if (viewer && viewer !== user && !(await moduleVisibleTo(viewer, user, 'Gym'))) return res.json([]);
     try {
         const rows = await dbAll('SELECT id, username AS user, day, exercise, sets, reps, weight, date FROM vectraarchlegacy_gymworkout WHERE username = $1', [user]);
         res.json(rows);
@@ -1745,8 +1771,9 @@ app.get('/api/meal-templates', async (req, res) => {
 });
 
 app.get('/api/mealplan', async (req, res) => {
-    const { user } = req.query;
+    const { user, viewer } = req.query;
     if (!user) return res.status(400).json({ success: false, message: 'User required.' });
+    if (viewer && viewer !== user && !(await moduleVisibleTo(viewer, user, 'Meals'))) return res.json([]);
     try {
         const rows = await dbAll(
             'SELECT id, username AS user, day, meal_type AS "mealType", description, calories, date FROM vectraarchlegacy_mealplan WHERE username = $1',
@@ -1790,8 +1817,9 @@ app.delete('/api/mealplan/:id', async (req, res) => {
 
 // ── PERIOD ────────────────────────────────────────────────────────────────────
 app.get('/api/period', async (req, res) => {
-    const { user } = req.query;
+    const { user, viewer } = req.query;
     if (!user) return res.status(400).json({ success: false, message: 'User required.' });
+    if (viewer && viewer !== user && !(await moduleVisibleTo(viewer, user, 'Cycle'))) return res.json([]);
     try {
         const rows = await dbAll(
             'SELECT id, username AS user, start_date AS "startDate", end_date AS "endDate", cycle_length AS "cycleLength", symptoms, date FROM vectraarchlegacy_period WHERE username = $1',
