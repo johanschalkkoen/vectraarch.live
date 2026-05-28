@@ -130,7 +130,17 @@ const UserRow = ({user, partner, partners=[], activePartners=[], permittedPartne
   );
 };
 
-const Alert = ({msg,type}) => msg ? <div className={`alert ${type||'ok'}`}>{msg}</div> : null;
+const Alert = ({msg,type}) => msg ? (
+  <div role="status" style={{
+    position:'fixed', top:64, left:'50%', transform:'translateX(-50%)',
+    zIndex:99999, maxWidth:'92vw', padding:'12px 20px', borderRadius:8,
+    fontFamily:"'DM Mono',monospace", fontSize:12, letterSpacing:'0.04em',
+    color:'#fff', textAlign:'center', whiteSpace:'pre-wrap', pointerEvents:'none',
+    background: type==='err' ? 'rgba(200,40,40,0.97)' : 'rgba(0,150,70,0.97)',
+    border:`1px solid ${type==='err' ? '#ff6b6b' : '#26e07f'}`,
+    boxShadow:'0 8px 30px rgba(0,0,0,0.5)',
+  }}>{msg}</div>
+) : null;
 
 // ── Shared month navigator — matches calendar header style ──
 const MonthNav = ({selectedMonth, setSelectedMonth, tabColor='#00e676', label='', year: yearProp, onGoToday}) => {
@@ -279,7 +289,7 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
   const [expandedFinGroups, setExpandedFinGroups] = useState(new Set());
   const toggleFinGroup = (key) => setExpandedFinGroups(prev=>{const n=new Set(prev);n.has(key)?n.delete(key):n.add(key);return n;});
 
-  const msg = (m,t='ok') => { setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
+  const msg = (m,t='ok') => { setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),2000); };
 
   // Persist recurring & savings to localStorage
   useEffect(()=>{ localStorage.setItem(`legacy_recurring_${user.username}`, JSON.stringify(recurringItems)); },[recurringItems, user.username]);
@@ -1341,7 +1351,7 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
   const [editCalId, setEditCalId] = useState(null);
   const [expandedCalGroups, setExpandedCalGroups] = useState(new Set(['events']));
   const toggleCalGroup = (key) => setExpandedCalGroups(prev=>{ const n=new Set(prev); n.has(key)?n.delete(key):n.add(key); return n; });
-  const msg = (m,t='ok')=>{ setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
+  const msg = (m,t='ok')=>{ setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),2000); };
 
   const calUserIsMale    = (user.gender||'').toLowerCase()==='male';
   const calFemalePartners = activePartners.filter(p=>(p.gender||'').toLowerCase()==='female');
@@ -1943,7 +1953,7 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
   const [confirmDel, setConfirmDel]       = useState(false);
   const [alert, setAlert]                 = useState({msg:'',type:''});
 
-  const msg = (m,t='ok')=>{ setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
+  const msg = (m,t='ok')=>{ setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),2000); };
 
   const selectedPeriod = `${selectedYear}-${selectedMonth}`;
   const monthLabel = MONTHS.find(m=>m.v===selectedMonth)?.l||'';
@@ -2700,7 +2710,7 @@ const GymPage = ({user, partner, partners=[], activePartners=[], permittedPartne
   const [expandedGymDays, setExpandedGymDays] = useState(new Set([_todayDayGym]));
   const [form, setForm] = useState({day:'Monday',exercise:'',sets:'3',reps:'10',weight:'60',date:now(),type:'strength'});
   const [alert, setAlert] = useState({msg:'',type:''});
-  const msg=(m,t='ok')=>{ setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
+  const msg=(m,t='ok')=>{ setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),2000); };
 
   const fetchAll = useCallback(async()=>{
     const users=[...(selfVisible?[user.username]:[]),...(activePartners||[]).map(p=>p.username)];
@@ -3255,7 +3265,7 @@ const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPart
   const [expandedMealDays, setExpandedMealDays] = useState(new Set([_todayDayMeals]));
   const [form, setForm] = useState({name:'',mealType:'breakfast',calories:'',note:'',date:now()});
   const [alert, setAlert] = useState({msg:'',type:''});
-  const msg=(m,t='ok')=>{ setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
+  const msg=(m,t='ok')=>{ setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),2000); };
 
   // Load meal templates from DB (fallback to static MEAL_OPTIONS)
   useEffect(()=>{
@@ -3665,7 +3675,7 @@ const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPart
   const SYMPTOMS = ['Nausea','Pain','Cramps','Headache','Bloating','Mood swings','Fatigue'];
   const [cycleConsent, setCycleConsent] = useState(()=>localStorage.getItem(`cycleConsent_${user.username}`)==='granted');
   const revokeConsent = () => { localStorage.removeItem(`cycleConsent_${user.username}`); setCycleConsent(false); };
-  const msg = (m,t='ok')=>{ setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
+  const msg = (m,t='ok')=>{ setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),2000); };
 
   const isMale = (user.gender||'').toLowerCase()==='male';
   // Build visible users list respecting the chip selection (tabSelected + selfVisible)
@@ -4510,7 +4520,7 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
   };
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [showTerms, setShowTerms]     = useState(false);
-  const msg = (m,t='ok') => { setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),4000); };
+  const msg = (m,t='ok') => { setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),2000); };
   const sharingItems = ['Finances','Calendar','Budget','Gym','Meals','Cycle'];
 
   // Re-sync form when user prop updates
@@ -5042,7 +5052,7 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
                   </div>
                 </div>
                 {localStorage.getItem(`cycleConsent_${user.username}`)==='granted'&&(
-                  <button onClick={()=>{localStorage.removeItem(`cycleConsent_${user.username}`);setAlert({msg:'Consent revoked. Cycle data processing stopped.',type:'ok'});setTimeout(()=>setAlert({msg:'',type:''}),4000);}}
+                  <button onClick={()=>{localStorage.removeItem(`cycleConsent_${user.username}`);setAlert({msg:'Consent revoked. Cycle data processing stopped.',type:'ok'});setTimeout(()=>setAlert({msg:'',type:''}),2000);}}
                     style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.12em',textTransform:'uppercase',padding:'7px 12px',border:'1px solid var(--red)',color:'var(--red)',borderRadius:4,background:'transparent',cursor:'pointer'}}>
                     REVOKE
                   </button>
