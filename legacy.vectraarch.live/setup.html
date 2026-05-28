@@ -343,6 +343,46 @@
     .toggle.on { background: var(--accent); }
     .toggle.on::after { left: 23px; background: #000; }
 
+    /* ── NOTIFICATIONS STEP ── */
+    .notif-card {
+      background: var(--bg2);
+      border: 1px solid var(--border2);
+      border-left: 2px solid var(--accent);
+      border-radius: 6px;
+      padding: 2px 16px;
+      margin-bottom: 16px;
+    }
+    .notif-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 15px 0;
+    }
+    .notif-row + .notif-row { border-top: 1px solid var(--border); }
+    .notif-ico {
+      width: 34px; height: 34px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 8px;
+      background: rgba(0,255,65,0.08);
+      border: 1px solid rgba(0,255,65,0.25);
+      font-size: 15px; color: var(--text);
+    }
+    .notif-main { flex: 1; min-width: 0; }
+    .notif-title {
+      font-family: 'Barlow', sans-serif;
+      font-weight: 500;
+      font-size: 14px;
+      color: var(--text);
+      margin-bottom: 2px;
+    }
+    .notif-sub {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.03em;
+      color: var(--text-dim);
+      line-height: 1.5;
+    }
+
     /* ── INVITE SECTION ── */
     .invite-section {
       padding-top: 12px;
@@ -987,8 +1027,46 @@
     <div class="module-select-grid" id="modules-grid"></div>
   </div>
 
-  <!-- ── STEP 7: CREATE ── -->
+  <!-- ── STEP 7: NOTIFICATIONS ── -->
   <div class="step" id="s7">
+    <span class="step-eyebrow">NOTIFICATIONS</span>
+    <div class="step-title">Stay in the loop_</div>
+    <div class="step-sub">Choose how Vectra Arch reaches you — invites, security alerts and account changes.</div>
+
+    <div class="notif-card">
+      <div class="notif-row">
+        <div class="notif-ico" style="background:rgba(0,191,255,0.08);border-color:rgba(0,191,255,0.3)">✈</div>
+        <div class="notif-main">
+          <div class="notif-title">Telegram alerts</div>
+          <div class="notif-sub">Instant push for logins, invites &amp; account changes.</div>
+        </div>
+        <div class="toggle on" id="notif-telegram" onclick="toggleNotif('telegram')"></div>
+      </div>
+      <div class="notif-row">
+        <div class="notif-ico" style="background:rgba(212,160,23,0.08);border-color:rgba(212,160,23,0.3)">✉</div>
+        <div class="notif-main">
+          <div class="notif-title">Email updates</div>
+          <div class="notif-sub">Account, security &amp; invite emails to your inbox.</div>
+        </div>
+        <div class="toggle on" id="notif-email" onclick="toggleNotif('email')"></div>
+      </div>
+    </div>
+
+    <div class="sf-divider">
+      <div class="sf-divider-line"></div>
+      <div class="sf-divider-text">Telegram Link / Optional</div>
+      <div class="sf-divider-line"></div>
+    </div>
+
+    <div class="sf">
+      <label class="sf-label">TELEGRAM CHAT ID <small>OPTIONAL</small></label>
+      <input class="sf-input" id="n-telegram-id" type="text" placeholder="e.g. 8783471876" inputmode="numeric" autocomplete="off"/>
+      <div class="field-hint">Message <strong>@userinfobot</strong> on Telegram to get your numeric chat ID. You can add this later from your profile.</div>
+    </div>
+  </div>
+
+  <!-- ── STEP 8: CREATE ── -->
+  <div class="step" id="s8">
     <span class="step-eyebrow">REVIEW</span>
     <div class="step-title">Create hub_</div>
     <div class="step-sub">Review your setup and launch your Vectra Arch hub.</div>
@@ -1004,7 +1082,7 @@
 
 <script>
 // ── CONSTANTS & STATE ───────────────────────────────────────────────────────
-const TOTAL_STEPS = 7;
+const TOTAL_STEPS = 8;
 let curStep = 1;
 let usernameCheckTimer = null;
 let usernameOk = false;
@@ -1020,7 +1098,8 @@ const D = {
   family: { familyName: '', memberCount: 3, currency: 'ZAR', timezone: 'Africa/Johannesburg' },
   members: [],
   moduleAccess: {},
-  enabledModules: ['fin', 'cal', 'bud', 'gym', 'eat', 'cyc']
+  enabledModules: ['fin', 'cal', 'bud', 'gym', 'eat', 'cyc'],
+  notifications: { telegramChatId: '', telegram: true, email: true }
 };
 
 const MODULE_META = [
@@ -1087,7 +1166,8 @@ function nextStep() {
   if (curStep === 4) renderMembers();
   if (curStep === 5) renderSharing();
   if (curStep === 6) renderModules();
-  if (curStep === 7) renderReview();
+  if (curStep === 7) renderNotifications();
+  if (curStep === 8) renderReview();
 
   showStep(curStep);
 }
@@ -1516,6 +1596,14 @@ function renderReview() {
 
   const modHTML = rRow('Active', D.enabledModules.map(k => k.toUpperCase()).join(', ') || 'None');
   container.appendChild(rSection('\xA7 Modules', modHTML));
+
+  collectNotifications();
+  const n = D.notifications;
+  const notifHTML =
+    rRow('Telegram', n.telegram ? 'On' : 'Off') +
+    rRow('Email', n.email ? 'On' : 'Off') +
+    (n.telegramChatId ? rRow('Chat ID', n.telegramChatId) : '');
+  container.appendChild(rSection('\xA7 Notifications', notifHTML));
 }
 
 function rSection(label, inner) {
@@ -1530,6 +1618,24 @@ function rRow(key, val) {
          '<span class="review-val">' + escHtml(String(val)) + '</span></div>';
 }
 
+// ── NOTIFICATIONS ─────────────────────────────────────────────────────────────
+function renderNotifications() {
+  document.getElementById('notif-telegram').classList.toggle('on', !!D.notifications.telegram);
+  document.getElementById('notif-email').classList.toggle('on', !!D.notifications.email);
+  const inp = document.getElementById('n-telegram-id');
+  if (inp && !inp.value) inp.value = D.notifications.telegramChatId || '';
+}
+
+function toggleNotif(type) {
+  D.notifications[type] = !D.notifications[type];
+  document.getElementById('notif-' + type).classList.toggle('on', D.notifications[type]);
+}
+
+function collectNotifications() {
+  const inp = document.getElementById('n-telegram-id');
+  D.notifications.telegramChatId = inp ? (inp.value || '').trim() : '';
+}
+
 // ── SUBMIT ────────────────────────────────────────────────────────────────────
 async function submitSetup() {
   const btn = document.getElementById('btn-continue');
@@ -1540,6 +1646,7 @@ async function submitSetup() {
   // Final collect of all steps
   collectStep(2);
   collectStep(3);
+  collectNotifications();
 
   try {
     const payload = {
@@ -1548,6 +1655,7 @@ async function submitSetup() {
       members:        D.members,
       moduleAccess:   D.moduleAccess,
       enabledModules: D.enabledModules,
+      notifications:  D.notifications,
     };
 
     const res  = await fetch('/api/setup', {
