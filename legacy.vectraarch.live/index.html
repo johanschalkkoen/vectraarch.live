@@ -5519,24 +5519,6 @@ const AdminPage = ({user, onLogout, tabColor:tabColorProp='#ff9800'}) => {
               </div>
             </CollapsibleSection>
 
-            {/* Manage Access */}
-            <CollapsibleSection title="MANAGE ACCESS" persistKey="admin-manage-access" accent={tabColor} defaultOpen={false}>
-              <div style={cardBody}>
-                <span style={lL}>VIEWER</span>
-                <select style={iL} value={accessForm.viewer} onChange={e=>setAccessForm(p=>({...p,viewer:e.target.value}))}>
-                  {userOpts.map(u=><option key={u} value={u}>{u||'— Viewer —'}</option>)}
-                </select>
-                <span style={lL}>TARGET</span>
-                <select style={iL} value={accessForm.target} onChange={e=>setAccessForm(p=>({...p,target:e.target.value}))}>
-                  {userOpts.map(u=><option key={u} value={u}>{u||'— Target —'}</option>)}
-                </select>
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
-                  <button style={btnStyle('var(--green)')} onClick={()=>act(()=>axios.post(`${API}/grant-access`,{...accessForm,adminUsername:user.username}))}>Grant</button>
-                  <button style={btnStyle('var(--red)')} onClick={()=>act(()=>axios.post(`${API}/revoke-access`,{...accessForm,adminUsername:user.username}))}>Revoke</button>
-                </div>
-              </div>
-            </CollapsibleSection>
-
             {/* Admin Status */}
             <CollapsibleSection title="ADMIN STATUS" persistKey="admin-status" accent={tabColor} defaultOpen={false}>
               <div style={cardBody}>
@@ -5606,29 +5588,6 @@ const AdminPage = ({user, onLogout, tabColor:tabColorProp='#ff9800'}) => {
                   onClick={()=>resetUser && act(()=>axios.post(`${API}/2fa/reset`,{username:resetUser,adminUsername:user.username}))}>
                   Reset 2FA
                 </button>
-              </div>
-            </CollapsibleSection>
-
-            {/* Invite by Google email — full width */}
-            <CollapsibleSection title="INVITE BY GOOGLE EMAIL" persistKey="admin-invite" accent={tabColor} defaultOpen={false}>
-              <div style={cardBody}>
-                <div style={hintStyle}>Send an invitation. Recipient signs in with the matching Google account to create their hub. No password required.</div>
-                <div style={{display:'grid',gridTemplateColumns:'2fr 1fr',gap:10,marginBottom:0}}>
-                  <div>
-                    <span style={lL}>EMAIL</span>
-                    <input style={iL} type="email" placeholder="name@example.com" value={inviteForm.email} onChange={e=>setInviteForm(p=>({...p,email:e.target.value}))}/>
-                  </div>
-                  <div>
-                    <span style={lL}>ROLE</span>
-                    <select style={iL} value={inviteForm.role} onChange={e=>setInviteForm(p=>({...p,role:e.target.value}))}>
-                      <option value="user">USER</option>
-                      <option value="admin">ADMIN</option>
-                    </select>
-                  </div>
-                </div>
-                <span style={lL}>NOTE (OPTIONAL)</span>
-                <input style={iL} placeholder="Only visible to admins" value={inviteForm.note} onChange={e=>setInviteForm(p=>({...p,note:e.target.value}))}/>
-                <button style={btnStyle('var(--green)')} onClick={sendInvite}>Send Invite ↗</button>
               </div>
             </CollapsibleSection>
 

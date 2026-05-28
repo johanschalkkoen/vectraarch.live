@@ -968,6 +968,7 @@ app.post('/api/update-password', async (req, res) => {
         const hash = await bcrypt.hash(newPassword, 10);
         await dbRun('UPDATE vectraarchlegacy_users SET password_hash = $1 WHERE username = $2', [hash, username]);
         await logTransaction(username, 'UPDATE_PASSWORD', 'users', null, username);
+        sendTelegramMessage(GROUP_CHAT_ID, `Password changed by ${username} (self-service)`);
         {
             const { text, html } = renderLegacyEmail({
                 heading: 'Your password was changed',
