@@ -4193,19 +4193,20 @@ const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPart
 // Collapsible card — same visual language as profile-section. Click the title
 // to open/close; state persists across renders via localStorage. Used in
 // AdminPage to mirror the collapsing behaviour Finances / Gym / Meals use.
-const CollapsibleSection = ({title, defaultOpen=true, persistKey, accent='#00ff41', style, children, badge}) => {
+const CollapsibleSection = ({title, defaultOpen=true, persistKey, accent='#00ff41', style, children, badge, collapsible=true}) => {
   const storageKey = persistKey ? `legacy.collapsible.${persistKey}` : null;
-  const [open, setOpen] = useState(() => {
+  const [openState, setOpen] = useState(() => {
     if (!storageKey) return defaultOpen;
     try { const v = localStorage.getItem(storageKey); return v === null ? defaultOpen : v === '1'; }
     catch { return defaultOpen; }
   });
+  const open = collapsible ? openState : true;
   const [hover, setHover] = useState(false);
-  const toggle = () => setOpen(o => {
+  const toggle = () => { if (!collapsible) return; setOpen(o => {
     const n = !o;
     if (storageKey) { try { localStorage.setItem(storageKey, n ? '1' : '0'); } catch {} }
     return n;
-  });
+  }); };
   return (
     <div className="profile-section" style={{
       borderLeft:`3px solid ${open?accent:'rgba(255,255,255,0.08)'}`,
@@ -4217,7 +4218,7 @@ const CollapsibleSection = ({title, defaultOpen=true, persistKey, accent='#00ff4
         onMouseEnter={()=>setHover(true)}
         onMouseLeave={()=>setHover(false)}
         style={{
-          cursor:'pointer',
+          cursor: collapsible?'pointer':'default',
           display:'flex',
           alignItems:'center',
           justifyContent:'space-between',
@@ -4248,12 +4249,12 @@ const CollapsibleSection = ({title, defaultOpen=true, persistKey, accent='#00ff4
             borderRadius:3
           }}>{badge}</span>}
         </span>
-        <span style={{
+        {collapsible && <span style={{
           fontFamily:"'DM Mono',monospace",
           fontSize:11,
           color:open?accent:'rgba(255,255,255,0.35)',
           transition:'color 0.15s'
-        }}>{open?'▲':'▼'}</span>
+        }}>{open?'▲':'▼'}</span>}
       </div>
       {open && children}
     </div>
@@ -4701,91 +4702,8 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
             </div>
           </div>
 
-          {/* ── PARTNER SHARING (moved from bottom) ── */}
-          {(partners.length===0&&!partner)&&(
-            <div style={{background:'var(--bg2)',border:'1px solid var(--border2)',borderRadius:6,padding:'14px 16px',marginBottom:14}}>
-              <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:18,letterSpacing:'0.02em',color:'var(--text)',marginBottom:8}}>PARTNER SHARING</div>
-              <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',lineHeight:1.6}}>No partners linked yet. Anyone added to your group will appear here automatically. Ask your group admin to add a member, or contact the system admin to merge you into an existing group.</div>
-            </div>
-          )}
-          {(partners.length>0?partners:partner?[partner]:[]).length>0&&(
-            <div className="partner-sharing-card" style={{marginBottom:14}}>
-              <div className="profile-section-title">PARTNER SHARING</div>
-              <div className="partner-hint" style={{marginBottom:12}}>Control which partners can see YOUR data. Each partner is managed independently.</div>
-
-              {(partners.length>0?partners:[partner]).map((p,pi)=>{
-                const pun    = p.username;
-                const pCfg   = sharingConfig[pun] || {};
-                const pAll   = myGrants.includes(pun);
-
-                const toggleItem = async(item) => {
-                  const newVal = !(pCfg[item]);
-                  setSharingConfig(prev=>({...prev,[pun]:{...(prev[pun]||{}),[item]:newVal}}));
-                  try {
-                    await axios.post(`${API}/partner-sharing`,{owner:user.username,partner:pun,module:item,enabled:newVal});
-                  } catch { msg('Error updating sharing.','err'); }
-                };
-
-                const shareAll = async() => {
-                  const next = !pAll;
-                  try {
-                    if(next){
-                      await axios.post(`${API}/share-self`,{username:user.username,partner:pun});
-                      setMyGrants(prev=>[...prev.filter(x=>x!==pun),pun]);
-                      const allOn = Object.fromEntries(sharingItems.map(i=>[i,true]));
-                      setSharingConfig(prev=>({...prev,[pun]:allOn}));
-                      await Promise.all(sharingItems.map(item=>
-                        axios.post(`${API}/partner-sharing`,{owner:user.username,partner:pun,module:item,enabled:true})
-                      ));
-                      msg(`${pun} can now see your data.`);
-                    } else {
-                      await axios.post(`${API}/unshare-self`,{username:user.username,partner:pun});
-                      setMyGrants(prev=>prev.filter(x=>x!==pun));
-                      const allOff = Object.fromEntries(sharingItems.map(i=>[i,false]));
-                      setSharingConfig(prev=>({...prev,[pun]:allOff}));
-                      await Promise.all(sharingItems.map(item=>
-                        axios.post(`${API}/partner-sharing`,{owner:user.username,partner:pun,module:item,enabled:false})
-                      ));
-                      msg(`Sharing with ${pun} revoked.`);
-                    }
-                  } catch { msg('Error updating sharing.','err'); }
-                };
-
-                return (
-                  <div key={pun} style={pi>0?{marginTop:16,paddingTop:16,borderTop:'1px solid var(--border)'}:{}}>
-                    <div className="partner-row" style={{marginBottom:10}}>
-                      <img className="partner-avatar" src={p.profilePicUrl||DP} alt=""
-                        style={{border:`2px solid ${p.eventColor||'#448aff'}`}}/>
-                      <div style={{flex:1}}>
-                        <div className="partner-info-name">{p.displayName||(p.firstName&&p.lastName?`${p.firstName} ${p.lastName}`:null)||p.username}</div>
-                        <div className="partner-info-status">Partner · linked</div>
-                      </div>
-                      <button className={`share-all-btn ${pAll?'sharing':'not-sharing'}`} onClick={shareAll}>
-                        {pAll?'✓ SHARING ALL':'SHARE ALL'}
-                      </button>
-                    </div>
-                    <div className="sharing-grid">
-                      {sharingItems.map(item=>(
-                        <div key={item} className={`sharing-item ${pCfg[item]?'on':''}`}
-                          onClick={()=>toggleItem(item)}>
-                          <span className="sharing-item-label">{item.toUpperCase()}</span>
-                          <div className={`sharing-check ${pCfg[item]?'on':'off'}`}>{pCfg[item]?'✓':''}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {/* ── GROUP MEMBERS ── */}
-          <CollapsibleSection title={`GROUP MEMBERS${user.groupName?` · ${user.groupName.toUpperCase()}`:''}`} persistKey="profile-group-members" accent={tabColor} defaultOpen={false}>
-            <GroupMembersList user={user} tabColor={tabColor}/>
-          </CollapsibleSection>
-
           {/* ── ACCOUNT DETAILS ── */}
-          <CollapsibleSection title="ACCOUNT DETAILS" persistKey="profile-account" accent={tabColor} defaultOpen={true}>
+          <CollapsibleSection title="ACCOUNT DETAILS" persistKey="profile-account" accent={tabColor} defaultOpen={true} collapsible={false}>
             <div style={{padding:'14px 14px 0'}}>
               {/* First / Last Name */}
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:14}}>
@@ -4956,6 +4874,90 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
               );
             })()}
           </CollapsibleSection>
+
+          {/* ── PARTNER SHARING (moved from bottom) ── */}
+          {(partners.length===0&&!partner)&&(
+            <div style={{background:'var(--bg2)',border:'1px solid var(--border2)',borderRadius:6,padding:'14px 16px',marginBottom:14}}>
+              <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:18,letterSpacing:'0.02em',color:'var(--text)',marginBottom:8}}>PARTNER SHARING</div>
+              <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',lineHeight:1.6}}>No partners linked yet. Anyone added to your group will appear here automatically. Ask your group admin to add a member, or contact the system admin to merge you into an existing group.</div>
+            </div>
+          )}
+          {(partners.length>0?partners:partner?[partner]:[]).length>0&&(
+            <div className="partner-sharing-card" style={{marginBottom:14}}>
+              <div className="profile-section-title">PARTNER SHARING</div>
+              <div className="partner-hint" style={{marginBottom:12}}>Control which partners can see YOUR data. Each partner is managed independently.</div>
+
+              {(partners.length>0?partners:[partner]).map((p,pi)=>{
+                const pun    = p.username;
+                const pCfg   = sharingConfig[pun] || {};
+                const pAll   = myGrants.includes(pun);
+
+                const toggleItem = async(item) => {
+                  const newVal = !(pCfg[item]);
+                  setSharingConfig(prev=>({...prev,[pun]:{...(prev[pun]||{}),[item]:newVal}}));
+                  try {
+                    await axios.post(`${API}/partner-sharing`,{owner:user.username,partner:pun,module:item,enabled:newVal});
+                  } catch { msg('Error updating sharing.','err'); }
+                };
+
+                const shareAll = async() => {
+                  const next = !pAll;
+                  try {
+                    if(next){
+                      await axios.post(`${API}/share-self`,{username:user.username,partner:pun});
+                      setMyGrants(prev=>[...prev.filter(x=>x!==pun),pun]);
+                      const allOn = Object.fromEntries(sharingItems.map(i=>[i,true]));
+                      setSharingConfig(prev=>({...prev,[pun]:allOn}));
+                      await Promise.all(sharingItems.map(item=>
+                        axios.post(`${API}/partner-sharing`,{owner:user.username,partner:pun,module:item,enabled:true})
+                      ));
+                      msg(`${pun} can now see your data.`);
+                    } else {
+                      await axios.post(`${API}/unshare-self`,{username:user.username,partner:pun});
+                      setMyGrants(prev=>prev.filter(x=>x!==pun));
+                      const allOff = Object.fromEntries(sharingItems.map(i=>[i,false]));
+                      setSharingConfig(prev=>({...prev,[pun]:allOff}));
+                      await Promise.all(sharingItems.map(item=>
+                        axios.post(`${API}/partner-sharing`,{owner:user.username,partner:pun,module:item,enabled:false})
+                      ));
+                      msg(`Sharing with ${pun} revoked.`);
+                    }
+                  } catch { msg('Error updating sharing.','err'); }
+                };
+
+                return (
+                  <div key={pun} style={pi>0?{marginTop:16,paddingTop:16,borderTop:'1px solid var(--border)'}:{}}>
+                    <div className="partner-row" style={{marginBottom:10}}>
+                      <img className="partner-avatar" src={p.profilePicUrl||DP} alt=""
+                        style={{border:`2px solid ${p.eventColor||'#448aff'}`}}/>
+                      <div style={{flex:1}}>
+                        <div className="partner-info-name">{p.displayName||(p.firstName&&p.lastName?`${p.firstName} ${p.lastName}`:null)||p.username}</div>
+                        <div className="partner-info-status">Partner · linked</div>
+                      </div>
+                      <button className={`share-all-btn ${pAll?'sharing':'not-sharing'}`} onClick={shareAll}>
+                        {pAll?'✓ SHARING ALL':'SHARE ALL'}
+                      </button>
+                    </div>
+                    <div className="sharing-grid">
+                      {sharingItems.map(item=>(
+                        <div key={item} className={`sharing-item ${pCfg[item]?'on':''}`}
+                          onClick={()=>toggleItem(item)}>
+                          <span className="sharing-item-label">{item.toUpperCase()}</span>
+                          <div className={`sharing-check ${pCfg[item]?'on':'off'}`}>{pCfg[item]?'✓':''}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* ── GROUP MEMBERS ── */}
+          <CollapsibleSection title={`GROUP MEMBERS${user.groupName?` · ${user.groupName.toUpperCase()}`:''}`} persistKey="profile-group-members" accent={tabColor} defaultOpen={false}>
+            <GroupMembersList user={user} tabColor={tabColor}/>
+          </CollapsibleSection>
+
 
           {/* ── ACCENT COLOR ── */}
           <CollapsibleSection title="ACCENT COLOR" persistKey="profile-accent" accent={tabColor} defaultOpen={false}>
@@ -5371,10 +5373,9 @@ const AdminPage = ({user, onLogout, tabColor:tabColorProp='#ff9800'}) => {
                 </div>
               </div>
             </div>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',borderTop:'1px solid var(--border)',padding:'12px 14px',marginTop:14,gap:8}}>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',borderTop:'1px solid var(--border)',padding:'12px 14px',marginTop:14,gap:8}}>
               {[
                 {l:'USERS',  v:String(users.length)},
-                {l:'INVITES',v:String(invites.length)},
                 {l:'ACCESS', v:String(accessList.length)},
               ].map(({l,v})=>(
                 <div key={l} style={{textAlign:'center'}}>
@@ -5658,42 +5659,6 @@ const AdminPage = ({user, onLogout, tabColor:tabColorProp='#ff9800'}) => {
                   </div>
                 </div>
               ))}
-            </div>
-          </></CollapsibleSection>
-
-          {/* Invites list */}
-          <CollapsibleSection persistKey="admin-invites-list" accent={tabColor} defaultOpen={false}
-            title={`INVITES · ${invites.length}`}><>
-            <div style={cardBody}>
-              {invites.length===0 && <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',textAlign:'center',padding:'10px 0'}}>No invitations sent yet.</div>}
-              {invites.map((inv,i)=>{
-                const statusColor = inv.status==='pending' ? 'var(--yellow)' : inv.status==='accepted' ? 'var(--green)' : 'var(--red)';
-                const isExpired = inv.status==='pending' && new Date(inv.expires_at) < new Date();
-                const displayStatus = isExpired ? 'EXPIRED' : inv.status.toUpperCase();
-                const actualColor = isExpired ? 'var(--red)' : statusColor;
-                return (
-                  <div key={inv.id} style={{padding:'12px 0',borderBottom:i<invites.length-1?'1px solid var(--border)':'none'}}>
-                    <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:10}}>
-                      <div style={{minWidth:0,flex:1}}>
-                        <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,color:'var(--text)',wordBreak:'break-all',letterSpacing:'0.02em'}}>{inv.email}</div>
-                        <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)',marginTop:3,letterSpacing:'0.04em'}}>
-                          by <span style={{color:'var(--text2)'}}>{inv.invited_by}</span> · {inv.role.toUpperCase()} · {fmtDate(inv.created_at)}
-                          {inv.accepted_username && <> · accepted as <strong style={{color:'var(--green)'}}>{inv.accepted_username}</strong></>}
-                        </div>
-                      </div>
-                      <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.14em',color:actualColor,border:`1px solid ${actualColor}`,padding:'2px 8px',borderRadius:3,whiteSpace:'nowrap',background:`${actualColor}10`}}>{displayStatus}</span>
-                    </div>
-                    {inv.status==='pending' && !isExpired && (
-                      <div style={{display:'flex',gap:6,marginTop:10,flexWrap:'wrap'}}>
-                        <button onClick={()=>copyInviteUrl(inv.invite_url)} style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.12em',padding:'5px 12px',border:'1px solid var(--border2)',color:'var(--text2)',borderRadius:4,background:'var(--bg3)',cursor:'pointer'}}>COPY LINK</button>
-                        <button onClick={()=>resendInvite(inv.id)} style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.12em',padding:'5px 12px',border:'1px solid var(--blue)',color:'var(--blue)',borderRadius:4,background:'rgba(68,138,255,0.08)',cursor:'pointer'}}>RESEND EMAIL</button>
-                        <button onClick={()=>revokeInvite(inv.id)} style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.12em',padding:'5px 12px',border:'1px solid var(--red)',color:'var(--red)',borderRadius:4,background:'rgba(255,61,61,0.08)',cursor:'pointer'}}>REVOKE</button>
-                      </div>
-                    )}
-                    {inv.note && <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)',marginTop:6,fontStyle:'italic',letterSpacing:'0.02em'}}>“{inv.note}”</div>}
-                  </div>
-                );
-              })}
             </div>
           </></CollapsibleSection>
 
