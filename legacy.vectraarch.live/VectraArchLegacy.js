@@ -2917,6 +2917,264 @@ app.get('/billing/cancel', (req, res) => res.redirect('/billing.html?cancelled=1
 app.get('/billing',      (req, res) => res.sendFile(path.join(__dirname, 'billing.html')));
 app.get('/billing.html', (req, res) => res.sendFile(path.join(__dirname, 'billing.html')));
 
+// ── ADMIN: SUBSCRIPTION MANAGEMENT CONSOLE ────────────────────────────────────
+// Everything an admin needs to manage ALL subscriptions in one place. All routes
+// are gated by requireAdmin (pass ?adminUsername= / body.adminUsername) and every
+// mutation is written to the transaction-history audit log.
+
+// Monthly-recurring-revenue estimate from a set of active plan ids.
+function planMonthlyValue(planId) {
+    const p = PLANS[planId];
+    if (!p) return 0;
+    return p.recurring ? parseFloat(p.amount) : 0; // lifetime doesn't add to MRR
+}
+
+// Admin overview: every user with their subscription state, computed entitlement,
+// and headline metrics. Supports ?q= (search username/email), ?status= filter.
+app.get('/api/admin/subscriptions', requireAdmin, async (req, res) => {
+    const q      = (req.query.q || '').toString().trim().toLowerCase();
+    const status = (req.query.status || '').toString().trim();
+    try {
+        const rows = await dbAll(`
+            SELECT u.username, u.email, u.first_name, u.last_name, u.is_admin,
+                   u.subscription_status, u.subscription_plan, u.subscription_expires_at,
+                   u.trial_started_at, u.pf_token,
+                   g.group_name,
+                   (SELECT COUNT(*)  FROM vectraarchlegacy_payments p
+                      WHERE LOWER(p.username) = LOWER(u.username)) AS payment_count,
+                   (SELECT MAX(p.created_at) FROM vectraarchlegacy_payments p
+                      WHERE LOWER(p.username) = LOWER(u.username) AND p.payment_status = 'COMPLETE') AS last_paid_at
+              FROM vectraarchlegacy_users u
+              LEFT JOIN vectraarchlegacy_groups g ON g.id = u.group_id
+             ORDER BY u.username ASC`);
+
+        const now = Date.now();
+        let subs = rows.map(r => {
+            const ent = entitlementFor(r);
+            return {
+                username:    r.username,
+                email:       r.email || '',
+                displayName: `${r.first_name || ''} ${r.last_name || ''}`.trim() || r.username,
+                isAdmin:     !!r.is_admin,
+                groupName:   r.group_name || '',
+                rawStatus:   r.subscription_status || 'trial',
+                plan:        r.subscription_plan || null,
+                planLabel:   r.subscription_plan && PLANS[r.subscription_plan] ? PLANS[r.subscription_plan].label : null,
+                expiresAt:   r.subscription_expires_at || null,
+                trialStartedAt: r.trial_started_at || null,
+                hasPfToken:  !!r.pf_token,
+                paymentCount: parseInt(r.payment_count, 10) || 0,
+                lastPaidAt:  r.last_paid_at || null,
+                // Computed live entitlement (what the gate actually does right now):
+                effectiveStatus: ent.status,   // active | trial | expired
+                active:      ent.active,
+                daysLeft:    ent.daysLeft,
+            };
+        });
+
+        // Filters.
+        if (q) subs = subs.filter(s =>
+            s.username.toLowerCase().includes(q) ||
+            s.email.toLowerCase().includes(q) ||
+            s.displayName.toLowerCase().includes(q));
+        if (status) subs = subs.filter(s => s.effectiveStatus === status);
+
+        // Headline metrics (computed over ALL users, not the filtered view).
+        const all = rows.map(r => ({ r, ent: entitlementFor(r) }));
+        const metrics = {
+            total:    all.length,
+            active:   all.filter(x => x.ent.status === 'active').length,
+            trialing: all.filter(x => x.ent.status === 'trial').length,
+            expired:  all.filter(x => x.ent.status === 'expired').length,
+            admins:   all.filter(x => x.r.is_admin).length,
+            lifetime: all.filter(x => x.ent.status === 'active' && x.r.subscription_plan === 'lifetime').length,
+            // MRR from active recurring subscriptions only.
+            mrr: all
+                .filter(x => x.ent.status === 'active' && x.r.subscription_plan)
+                .reduce((sum, x) => sum + planMonthlyValue(x.r.subscription_plan), 0),
+            // Trials expiring within 3 days (at-risk pipeline).
+            expiringSoon: all.filter(x => x.ent.status === 'trial' && x.ent.daysLeft <= 1).length,
+        };
+
+        res.json({ success: true, subscriptions: subs, metrics, plans:
+            Object.entries(PLANS).map(([id, p]) => ({ id, ...p })), trialDays: TRIAL_DAYS });
+    } catch (e) {
+        console.error('[admin/subscriptions]', e.message);
+        res.status(500).json({ success: false, message: 'Error loading subscriptions.', error: e.message });
+    }
+});
+
+// Drill-down: one user's full subscription detail + payment ledger.
+app.get('/api/admin/subscriptions/:username', requireAdmin, async (req, res) => {
+    const username = req.params.username;
+    try {
+        const r = await dbQuery(`
+            SELECT u.username, u.email, u.first_name, u.last_name, u.is_admin,
+                   u.subscription_status, u.subscription_plan, u.subscription_expires_at,
+                   u.trial_started_at, u.pf_token, g.group_name
+              FROM vectraarchlegacy_users u
+              LEFT JOIN vectraarchlegacy_groups g ON g.id = u.group_id
+             WHERE LOWER(u.username) = LOWER($1)`, [username]);
+        if (!r) return res.status(404).json({ success: false, message: 'User not found.' });
+        const payments = await dbAll(`
+            SELECT id, m_payment_id, pf_payment_id, plan, amount_gross, payment_status,
+                   pf_token, created_at
+              FROM vectraarchlegacy_payments
+             WHERE LOWER(username) = LOWER($1)
+             ORDER BY created_at DESC`, [username]);
+        const ent = entitlementFor(r);
+        res.json({
+            success: true,
+            user: {
+                username: r.username, email: r.email || '',
+                displayName: `${r.first_name || ''} ${r.last_name || ''}`.trim() || r.username,
+                isAdmin: !!r.is_admin, groupName: r.group_name || '',
+                rawStatus: r.subscription_status, plan: r.subscription_plan,
+                planLabel: r.subscription_plan && PLANS[r.subscription_plan] ? PLANS[r.subscription_plan].label : null,
+                expiresAt: r.subscription_expires_at, trialStartedAt: r.trial_started_at,
+                hasPfToken: !!r.pf_token,
+                effectiveStatus: ent.status, active: ent.active, daysLeft: ent.daysLeft,
+            },
+            payments,
+        });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Error loading subscription detail.', error: e.message });
+    }
+});
+
+// Grant / set a subscription manually (comp an account, fix a failed webhook,
+// move someone onto a plan). plan must be a known id or 'lifetime'. Optional
+// `months` sets the expiry for recurring plans (default 1); lifetime has none.
+app.post('/api/admin/subscriptions/grant', requireAdmin, async (req, res) => {
+    const username = (req.body.username || '').toString();
+    const planId   = (req.body.plan || '').toString();
+    const months   = Math.max(1, parseInt(req.body.months, 10) || 1);
+    if (!username) return res.status(400).json({ success: false, message: 'Username required.' });
+    const plan = PLANS[planId];
+    if (!plan) return res.status(400).json({ success: false, message: 'Unknown plan.' });
+    try {
+        const u = await dbQuery('SELECT username, email FROM vectraarchlegacy_users WHERE LOWER(username) = LOWER($1)', [username]);
+        if (!u) return res.status(404).json({ success: false, message: 'User not found.' });
+        const expires = plan.recurring
+            ? new Date(Date.now() + months * 30 * 86400000).toISOString()
+            : null;
+        await dbRun(`UPDATE vectraarchlegacy_users
+                        SET subscription_status = 'active',
+                            subscription_plan = $2,
+                            subscription_expires_at = $3
+                      WHERE LOWER(username) = LOWER($1)`, [username, planId, expires]);
+        await logTransaction(u.username, 'SUBSCRIPTION_GRANT', 'users', null, req.adminUsername);
+        if (u.email) await sendEmailNotification(u.email, 'Your VectraArch Legacy subscription is active',
+            `An administrator has activated your ${plan.name} subscription. Enjoy full access.`);
+        res.json({ success: true, message: `Granted ${plan.name} to ${u.username}.` });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Error granting subscription.', error: e.message });
+    }
+});
+
+// Extend an existing subscription's expiry by N days (e.g. goodwill credit).
+app.post('/api/admin/subscriptions/extend', requireAdmin, async (req, res) => {
+    const username = (req.body.username || '').toString();
+    const days     = parseInt(req.body.days, 10);
+    if (!username || !days) return res.status(400).json({ success: false, message: 'Username and days required.' });
+    try {
+        const u = await dbQuery('SELECT username, subscription_expires_at FROM vectraarchlegacy_users WHERE LOWER(username) = LOWER($1)', [username]);
+        if (!u) return res.status(404).json({ success: false, message: 'User not found.' });
+        const base = u.subscription_expires_at && new Date(u.subscription_expires_at) > new Date()
+            ? new Date(u.subscription_expires_at).getTime()
+            : Date.now();
+        const expires = new Date(base + days * 86400000).toISOString();
+        await dbRun(`UPDATE vectraarchlegacy_users
+                        SET subscription_status = 'active', subscription_expires_at = $2
+                      WHERE LOWER(username) = LOWER($1)`, [username, expires]);
+        await logTransaction(u.username, 'SUBSCRIPTION_EXTEND', 'users', null, req.adminUsername);
+        res.json({ success: true, message: `Extended ${u.username} by ${days} day(s).`, expiresAt: expires });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Error extending subscription.', error: e.message });
+    }
+});
+
+// Reset / set a trial: starts a fresh TRIAL_DAYS window (or a custom day count).
+app.post('/api/admin/subscriptions/trial', requireAdmin, async (req, res) => {
+    const username = (req.body.username || '').toString();
+    const days     = Math.max(1, parseInt(req.body.days, 10) || TRIAL_DAYS);
+    if (!username) return res.status(400).json({ success: false, message: 'Username required.' });
+    try {
+        const u = await dbQuery('SELECT username FROM vectraarchlegacy_users WHERE LOWER(username) = LOWER($1)', [username]);
+        if (!u) return res.status(404).json({ success: false, message: 'User not found.' });
+        // Backdate trial_started_at so that (start + TRIAL_DAYS) lands `days` from now.
+        const startedAt = new Date(Date.now() - (TRIAL_DAYS - days) * 86400000).toISOString();
+        await dbRun(`UPDATE vectraarchlegacy_users
+                        SET subscription_status = 'trial',
+                            subscription_plan = NULL,
+                            subscription_expires_at = NULL,
+                            trial_started_at = $2
+                      WHERE LOWER(username) = LOWER($1)`, [username, startedAt]);
+        await logTransaction(u.username, 'SUBSCRIPTION_TRIAL_RESET', 'users', null, req.adminUsername);
+        res.json({ success: true, message: `Reset ${u.username} to a ${days}-day trial.` });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Error resetting trial.', error: e.message });
+    }
+});
+
+// Cancel / revoke: set to 'cancelled' (keeps record) or 'expired' (hard lock now).
+app.post('/api/admin/subscriptions/cancel', requireAdmin, async (req, res) => {
+    const username = (req.body.username || '').toString();
+    const hard     = req.body.hard === true || req.body.hard === 'true';
+    if (!username) return res.status(400).json({ success: false, message: 'Username required.' });
+    try {
+        const u = await dbQuery('SELECT username, email FROM vectraarchlegacy_users WHERE LOWER(username) = LOWER($1)', [username]);
+        if (!u) return res.status(404).json({ success: false, message: 'User not found.' });
+        const newStatus = hard ? 'expired' : 'cancelled';
+        await dbRun(`UPDATE vectraarchlegacy_users
+                        SET subscription_status = $2,
+                            subscription_expires_at = CASE WHEN $3 THEN NOW() ELSE subscription_expires_at END
+                      WHERE LOWER(username) = LOWER($1)`, [username, newStatus, hard]);
+        await logTransaction(u.username, hard ? 'SUBSCRIPTION_REVOKE' : 'SUBSCRIPTION_CANCEL', 'users', null, req.adminUsername);
+        res.json({ success: true, message: `${hard ? 'Revoked' : 'Cancelled'} ${u.username}.` });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Error cancelling subscription.', error: e.message });
+    }
+});
+
+// Full payment ledger across all users (the PayFast ITN audit trail).
+// Filter with ?username= and/or ?status= (e.g. COMPLETE, CANCELLED, REJECTED_*).
+app.get('/api/admin/payments', requireAdmin, async (req, res) => {
+    const username = (req.query.username || '').toString().trim();
+    const status   = (req.query.status || '').toString().trim();
+    const limit    = Math.min(1000, parseInt(req.query.limit, 10) || 200);
+    try {
+        const where = [];
+        const params = [];
+        if (username) { params.push(username); where.push(`LOWER(username) = LOWER($${params.length})`); }
+        if (status)   { params.push(status);   where.push(`payment_status = $${params.length}`); }
+        params.push(limit);
+        const rows = await dbAll(`
+            SELECT id, username, m_payment_id, pf_payment_id, plan, amount_gross,
+                   payment_status, pf_token, created_at
+              FROM vectraarchlegacy_payments
+             ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
+             ORDER BY created_at DESC LIMIT $${params.length}`, params);
+        // Revenue summary over COMPLETE payments in the (unfiltered) ledger.
+        const totals = await dbQuery(`
+            SELECT COUNT(*) AS count, COALESCE(SUM(amount_gross),0) AS gross
+              FROM vectraarchlegacy_payments WHERE payment_status = 'COMPLETE'`);
+        res.json({
+            success: true,
+            payments: rows,
+            summary: { completedCount: parseInt(totals.count, 10) || 0, grossRevenue: parseFloat(totals.gross) || 0 },
+            limit,
+        });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Error loading payments.', error: e.message });
+    }
+});
+
+// The admin subscription console page itself (gated client-side; APIs are the
+// real guard via requireAdmin).
+app.get('/admin/billing',      (req, res) => res.sendFile(path.join(__dirname, 'admin-billing.html')));
+app.get('/admin-billing.html', (req, res) => res.sendFile(path.join(__dirname, 'admin-billing.html')));
+
 // ── IDENTITY PROXY ───────────────────────────────────────────────────────────
 const IDENTITY_URL  = 'http://127.0.0.1:3200';
 const IDENTITY_KEY  = process.env.IDENTITY_API_KEY || '';

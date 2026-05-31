@@ -5431,6 +5431,21 @@ const AdminPage = ({user, onLogout, tabColor:tabColorProp='#ff9800'}) => {
           </div>
           ); })()}
 
+          {/* Subscriptions console — full billing management lives on its own page */}
+          <a href="/admin-billing.html" style={{textDecoration:'none',display:'block',marginBottom:12}}>
+            <div style={{position:'relative',background:'var(--bg2)',borderRadius:8,overflow:'hidden',border:'1px solid rgba(45,212,191,0.45)',borderLeft:'3px solid #2dd4bf',padding:'14px',display:'flex',alignItems:'center',gap:12}}>
+              <div style={{flexShrink:0,width:44,height:44,borderRadius:8,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(45,212,191,0.12)',border:'1px solid rgba(45,212,191,0.4)'}}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#2dd4bf" strokeWidth="1.8" width="22" height="22"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+              </div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.2em',color:'var(--text3)',marginBottom:2}}>BILLING</div>
+                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:18,letterSpacing:'0.03em',textTransform:'uppercase',color:'var(--text)',lineHeight:1.05}}>Manage Subscriptions</div>
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)',marginTop:2}}>Trials · plans · payments · revenue</div>
+              </div>
+              <div style={{fontFamily:"'DM Mono',monospace",fontSize:16,color:'#2dd4bf'}}>→</div>
+            </div>
+          </a>
+
           {/* Action cards grid */}
           <div style={{display:'flex',flexDirection:'column',gap:12}}>
 

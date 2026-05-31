@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Legacy · Subscription Admin · VectraArch</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Barlow:wght@300;400;500;600&family=Barlow+Condensed:wght@300;400;500;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="/shared/va.css"/>
+  <style>
+    :root { --gold:#d4a017; --teal:#2dd4bf; --red:#ff6b6b; --ink:#e8dcc0; --muted:#8a8472; }
+    * { box-sizing:border-box; }
+    body { font-family:'Barlow',sans-serif; color:var(--ink); margin:0; }
+    .wrap { max-width:1280px; margin:0 auto; padding:32px 22px 80px; }
+    .eyebrow { font-family:'DM Mono',monospace; font-size:10px; letter-spacing:.24em; color:var(--gold); text-transform:uppercase; }
+    h1 { font-family:'Barlow Condensed',sans-serif; font-weight:800; font-size:40px; color:#fff; margin:6px 0 4px; letter-spacing:.02em; }
+    .sub { font-family:'DM Mono',monospace; font-size:12px; color:var(--muted); margin-bottom:28px; }
+    .topbar { display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:12px; }
+    .topbar a { font-family:'DM Mono',monospace; font-size:11px; color:var(--muted); text-decoration:none; border:1px solid rgba(212,160,23,.2); padding:8px 14px; border-radius:6px; }
+    .topbar a:hover { color:var(--gold); border-color:var(--gold); }
+
+    /* Metrics */
+    .metrics { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:14px; margin:8px 0 30px; }
+    .metric { border:1px solid rgba(212,160,23,.18); border-radius:10px; padding:16px 18px; background:rgba(255,255,255,.015); }
+    .metric .label { font-family:'DM Mono',monospace; font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }
+    .metric .value { font-family:'Bebas Neue',sans-serif; font-size:38px; line-height:1; color:#fff; margin-top:6px; }
+    .metric.gold .value { color:var(--gold); } .metric.teal .value { color:var(--teal); } .metric.red .value { color:var(--red); }
+
+    /* Controls */
+    .controls { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px; align-items:center; }
+    .controls input, .controls select { font-family:'DM Mono',monospace; font-size:12px; background:rgba(0,0,0,.3); border:1px solid rgba(212,160,23,.2); color:var(--ink); padding:9px 12px; border-radius:6px; }
+    .controls input { min-width:240px; }
+    .controls input:focus, .controls select:focus { outline:none; border-color:var(--gold); }
+    .seg { display:flex; gap:0; border:1px solid rgba(212,160,23,.2); border-radius:6px; overflow:hidden; }
+    .seg button { font-family:'DM Mono',monospace; font-size:11px; background:transparent; color:var(--muted); border:none; padding:9px 14px; cursor:pointer; letter-spacing:.06em; }
+    .seg button.active { background:var(--gold); color:#0a0a0a; }
+    .spacer { flex:1; }
+    .btn { font-family:'DM Mono',monospace; font-size:11px; letter-spacing:.06em; text-transform:uppercase; padding:9px 14px; border-radius:6px; border:1px solid var(--gold); background:transparent; color:var(--gold); cursor:pointer; }
+    .btn:hover { background:var(--gold); color:#0a0a0a; }
+
+    /* Table */
+    table { width:100%; border-collapse:collapse; font-size:13px; }
+    th { font-family:'DM Mono',monospace; font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); text-align:left; padding:10px 12px; border-bottom:1px solid rgba(212,160,23,.18); }
+    td { padding:11px 12px; border-bottom:1px solid rgba(255,255,255,.05); vertical-align:middle; }
+    tr:hover td { background:rgba(212,160,23,.03); }
+    .uname { color:#fff; font-weight:500; }
+    .email { color:var(--muted); font-size:11px; font-family:'DM Mono',monospace; }
+    .pill { display:inline-block; font-family:'DM Mono',monospace; font-size:10px; letter-spacing:.06em; text-transform:uppercase; padding:3px 9px; border-radius:20px; border:1px solid; }
+    .pill.active { color:var(--teal); border-color:rgba(45,212,191,.4); background:rgba(45,212,191,.08); }
+    .pill.trial { color:var(--gold); border-color:rgba(212,160,23,.4); background:rgba(212,160,23,.08); }
+    .pill.expired { color:var(--red); border-color:rgba(255,107,107,.4); background:rgba(255,107,107,.08); }
+    .pill.admin { color:#9db4ff; border-color:rgba(157,180,255,.4); background:rgba(157,180,255,.08); }
+    .rowact { display:flex; gap:6px; flex-wrap:wrap; }
+    .rowact button { font-family:'DM Mono',monospace; font-size:10px; padding:5px 9px; border-radius:5px; border:1px solid rgba(212,160,23,.25); background:transparent; color:var(--ink); cursor:pointer; }
+    .rowact button:hover { border-color:var(--gold); color:var(--gold); }
+    .rowact button.danger:hover { border-color:var(--red); color:var(--red); }
+    .muted { color:var(--muted); }
+    .empty { text-align:center; color:var(--muted); font-family:'DM Mono',monospace; font-size:12px; padding:40px; }
+
+    /* Tabs */
+    .maintabs { display:flex; gap:4px; margin:0 0 18px; border-bottom:1px solid rgba(212,160,23,.15); }
+    .maintabs button { font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:16px; letter-spacing:.04em; text-transform:uppercase; background:none; border:none; color:var(--muted); padding:10px 16px; cursor:pointer; border-bottom:2px solid transparent; }
+    .maintabs button.active { color:var(--gold); border-bottom-color:var(--gold); }
+
+    /* Modal */
+    .modal-bg { position:fixed; inset:0; background:rgba(0,0,0,.7); display:none; align-items:center; justify-content:center; z-index:9500; padding:20px; }
+    .modal-bg.show { display:flex; }
+    .modal { background:#14110a; border:1px solid rgba(212,160,23,.3); border-radius:12px; max-width:640px; width:100%; max-height:88vh; overflow:auto; padding:26px; }
+    .modal h2 { font-family:'Barlow Condensed',sans-serif; font-weight:800; font-size:28px; color:#fff; margin:0 0 2px; }
+    .modal .mclose { float:right; background:none; border:none; color:var(--muted); font-size:22px; cursor:pointer; }
+    .kv { display:grid; grid-template-columns:140px 1fr; gap:6px 14px; font-size:13px; margin:14px 0; }
+    .kv .k { color:var(--muted); font-family:'DM Mono',monospace; font-size:11px; }
+    .actiongrid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:16px; }
+    .actbox { border:1px solid rgba(212,160,23,.18); border-radius:8px; padding:14px; }
+    .actbox h4 { font-family:'DM Mono',monospace; font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--gold); margin:0 0 10px; }
+    .actbox select, .actbox input { width:100%; font-family:'DM Mono',monospace; font-size:12px; background:rgba(0,0,0,.3); border:1px solid rgba(212,160,23,.2); color:var(--ink); padding:8px 10px; border-radius:6px; margin-bottom:8px; }
+    .actbox .btn { width:100%; }
+    .actbox.danger { border-color:rgba(255,107,107,.25); } .actbox.danger h4 { color:var(--red); }
+    .actbox.danger .btn { border-color:var(--red); color:var(--red); } .actbox.danger .btn:hover { background:var(--red); color:#0a0a0a; }
+    .ledger { font-size:12px; margin-top:14px; }
+    .ledger th, .ledger td { padding:7px 8px; }
+    .toast { position:fixed; bottom:22px; left:50%; transform:translateX(-50%); background:#14110a; border:1px solid var(--gold); color:var(--ink); font-family:'DM Mono',monospace; font-size:12px; padding:12px 20px; border-radius:8px; z-index:9999; opacity:0; transition:opacity .2s; pointer-events:none; }
+    .toast.show { opacity:1; } .toast.err { border-color:var(--red); color:#ffd0d0; }
+    .gate { text-align:center; padding:80px 20px; font-family:'DM Mono',monospace; color:var(--red); }
+  </style>
+</head>
+<body>
+<div class="grid-bg"></div>
+<div class="wrap" id="app" style="display:none;">
+  <div class="topbar">
+    <div>
+      <div class="eyebrow">Vectra Arch · Legacy · Admin</div>
+      <h1>Subscriptions</h1>
+      <div class="sub">Manage every account's trial, plan, billing &amp; payment history.</div>
+    </div>
+    <a href="/">← Back to app</a>
+  </div>
+
+  <div class="metrics" id="metrics"></div>
+
+  <div class="maintabs">
+    <button data-tab="subs" class="active">Subscribers</button>
+    <button data-tab="payments">Payment Ledger</button>
+  </div>
+
+  <!-- Subscribers tab -->
+  <div id="tab-subs">
+    <div class="controls">
+      <input id="search" placeholder="Search username / email / name…"/>
+      <div class="seg" id="statusFilter">
+        <button data-s="" class="active">All</button>
+        <button data-s="active">Active</button>
+        <button data-s="trial">Trial</button>
+        <button data-s="expired">Expired</button>
+      </div>
+      <div class="spacer"></div>
+      <button class="btn" id="refresh">↻ Refresh</button>
+    </div>
+    <table>
+      <thead><tr>
+        <th>User</th><th>Status</th><th>Plan</th><th>Expires / Trial</th>
+        <th>Payments</th><th>Group</th><th>Actions</th>
+      </tr></thead>
+      <tbody id="subRows"><tr><td colspan="7" class="empty">Loading…</td></tr></tbody>
+    </table>
+  </div>
+
+  <!-- Payments tab -->
+  <div id="tab-payments" style="display:none;">
+    <div class="controls">
+      <input id="paySearch" placeholder="Filter by username…"/>
+      <select id="payStatus">
+        <option value="">All statuses</option>
+        <option value="COMPLETE">COMPLETE</option>
+        <option value="CANCELLED">CANCELLED</option>
+        <option value="REJECTED_SIGNATURE">REJECTED_SIGNATURE</option>
+        <option value="REJECTED_POSTBACK">REJECTED_POSTBACK</option>
+        <option value="REJECTED_AMOUNT">REJECTED_AMOUNT</option>
+      </select>
+      <div class="spacer"></div>
+      <div class="muted" id="paySummary" style="font-family:'DM Mono',monospace;font-size:11px;"></div>
+    </div>
+    <table class="ledger">
+      <thead><tr>
+        <th>When</th><th>User</th><th>Plan</th><th>Amount</th><th>Status</th><th>PF Payment ID</th>
+      </tr></thead>
+      <tbody id="payRows"><tr><td colspan="6" class="empty">Loading…</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="gate" id="gate" style="display:none;">Admin access required. Redirecting…</div>
+
+<!-- Detail / manage modal -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal" id="modal"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+(function () {
+  var user = null;
+  try { user = JSON.parse(localStorage.getItem('user') || 'null'); } catch (e) {}
+  if (!user || !user.username) { window.location.replace('/login.html'); return; }
+  if (!user.isAdmin) {
+    document.getElementById('gate').style.display = 'block';
+    setTimeout(function(){ window.location.replace('/'); }, 1500);
+    return;
+  }
+  document.getElementById('app').style.display = 'block';
+
+  var ADMIN = encodeURIComponent(user.username);
+  var PLANS = {}; var TRIAL_DAYS = 3;
+  var state = { q:'', status:'', subs:[] };
+
+  function toast(msg, isErr) {
+    var t = document.getElementById('toast');
+    t.textContent = msg; t.className = 'toast show' + (isErr ? ' err' : '');
+    setTimeout(function(){ t.className = 'toast' + (isErr ? ' err' : ''); }, 2600);
+  }
+  function api(path, opts) {
+    opts = opts || {};
+    return fetch(path, opts).then(function(r){ return r.json().then(function(j){ if(!r.ok && !j.message) throw new Error('HTTP '+r.status); return j; }); });
+  }
+  function fmtDate(d) { if(!d) return '—'; var x=new Date(d); return isNaN(x)?'—':x.toLocaleDateString('en-ZA',{year:'numeric',month:'short',day:'2-digit'}); }
+  function fmtDT(d) { if(!d) return '—'; var x=new Date(d); return isNaN(x)?'—':x.toLocaleString('en-ZA',{month:'short',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}); }
+  function money(n) { return 'R' + (parseFloat(n||0)).toLocaleString('en-ZA',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+  function esc(s) { return String(s==null?'':s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+
+  // ── Metrics ──
+  function renderMetrics(m) {
+    var el = document.getElementById('metrics');
+    var cards = [
+      ['Total users', m.total, ''],
+      ['Active', m.active, 'teal'],
+      ['On trial', m.trialing, 'gold'],
+      ['Expired', m.expired, 'red'],
+      ['Lifetime', m.lifetime, ''],
+      ['Est. MRR', money(m.mrr), 'teal'],
+      ['Trial ≤1 day', m.expiringSoon, 'gold'],
+    ];
+    el.innerHTML = cards.map(function(c){
+      return '<div class="metric '+c[2]+'"><div class="label">'+c[0]+'</div><div class="value">'+c[1]+'</div></div>';
+    }).join('');
+  }
+
+  // ── Subscriber table ──
+  function statusPill(s) { return '<span class="pill '+s+'">'+s+'</span>'; }
+  function renderSubs() {
+    var rows = state.subs;
+    var tb = document.getElementById('subRows');
+    if (!rows.length) { tb.innerHTML = '<tr><td colspan="7" class="empty">No matching accounts.</td></tr>'; return; }
+    tb.innerHTML = rows.map(function(s){
+      var expiry = s.effectiveStatus==='trial'
+        ? (s.daysLeft!=null ? s.daysLeft+' day(s) left' : '—')
+        : (s.expiresAt ? fmtDate(s.expiresAt) : (s.plan==='lifetime'?'never':'—'));
+      return '<tr>'
+        + '<td><div class="uname">'+esc(s.displayName)+(s.isAdmin?' '+statusPill('admin'):'')+'</div>'
+          + '<div class="email">'+esc(s.username)+(s.email?' · '+esc(s.email):'')+'</div></td>'
+        + '<td>'+statusPill(s.effectiveStatus)+'</td>'
+        + '<td>'+(s.planLabel?esc(s.planLabel):'<span class="muted">—</span>')+'</td>'
+        + '<td>'+esc(expiry)+'</td>'
+        + '<td>'+(s.paymentCount||0)+(s.lastPaidAt?' <span class="muted">· '+fmtDate(s.lastPaidAt)+'</span>':'')+'</td>'
+        + '<td class="muted">'+(s.groupName?esc(s.groupName):'—')+'</td>'
+        + '<td><div class="rowact">'
+          + '<button data-act="manage" data-u="'+esc(s.username)+'">Manage</button>'
+          + '</div></td>'
+        + '</tr>';
+    }).join('');
+  }
+
+  function loadSubs() {
+    var url = '/api/admin/subscriptions?adminUsername='+ADMIN
+      + (state.q?'&q='+encodeURIComponent(state.q):'')
+      + (state.status?'&status='+encodeURIComponent(state.status):'');
+    api(url).then(function(d){
+      if (!d.success) { toast(d.message||'Load failed', true); return; }
+      PLANS = {}; (d.plans||[]).forEach(function(p){ PLANS[p.id]=p; });
+      TRIAL_DAYS = d.trialDays || 3;
+      state.subs = d.subscriptions;
+      renderMetrics(d.metrics);
+      renderSubs();
+    }).catch(function(e){ toast('Error: '+e.message, true); });
+  }
+
+  // ── Manage modal ──
+  function openManage(username) {
+    api('/api/admin/subscriptions/'+encodeURIComponent(username)+'?adminUsername='+ADMIN).then(function(d){
+      if (!d.success) { toast(d.message||'Not found', true); return; }
+      var u = d.user;
+      var planOpts = Object.keys(PLANS).map(function(id){ return '<option value="'+id+'">'+esc(PLANS[id].label)+'</option>'; }).join('');
+      var ledger = (d.payments||[]).length
+        ? '<table class="ledger"><thead><tr><th>When</th><th>Plan</th><th>Amount</th><th>Status</th><th>PF ID</th></tr></thead><tbody>'
+          + d.payments.map(function(p){ return '<tr><td>'+fmtDT(p.created_at)+'</td><td>'+esc(p.plan||'—')+'</td><td>'+money(p.amount_gross)+'</td><td>'+statusPill(/COMPLETE/.test(p.payment_status)?'active':(/REJECT/.test(p.payment_status)?'expired':'trial'))+' <span class="muted" style="font-size:10px">'+esc(p.payment_status||'')+'</span></td><td class="muted">'+esc(p.pf_payment_id||'—')+'</td></tr>'; }).join('')
+          + '</tbody></table>'
+        : '<div class="muted" style="font-family:DM Mono,monospace;font-size:11px;padding:10px 0;">No payment records.</div>';
+
+      document.getElementById('modal').innerHTML =
+        '<button class="mclose" data-close>&times;</button>'
+        + '<h2>'+esc(u.displayName)+'</h2>'
+        + '<div class="sub" style="margin-bottom:6px;">'+esc(u.username)+(u.email?' · '+esc(u.email):'')+'</div>'
+        + '<div class="kv">'
+          + '<div class="k">Live status</div><div>'+statusPill(u.effectiveStatus)+' '+(u.daysLeft!=null?'<span class="muted">'+u.daysLeft+' day(s)</span>':'')+'</div>'
+          + '<div class="k">Stored status</div><div class="muted">'+esc(u.rawStatus||'—')+'</div>'
+          + '<div class="k">Plan</div><div>'+(u.planLabel?esc(u.planLabel):'<span class="muted">—</span>')+'</div>'
+          + '<div class="k">Expires</div><div>'+(u.expiresAt?fmtDate(u.expiresAt):(u.plan==='lifetime'?'never':'<span class="muted">—</span>'))+'</div>'
+          + '<div class="k">Trial started</div><div class="muted">'+fmtDate(u.trialStartedAt)+'</div>'
+          + '<div class="k">PayFast token</div><div class="muted">'+(u.hasPfToken?'yes (recurring)':'no')+'</div>'
+        + '</div>'
+        + '<div class="actiongrid">'
+          + '<div class="actbox"><h4>Grant / set plan</h4>'
+            + '<select id="grantPlan">'+planOpts+'</select>'
+            + '<input id="grantMonths" type="number" min="1" value="1" placeholder="Months (recurring)"/>'
+            + '<button class="btn" data-do="grant">Activate</button></div>'
+          + '<div class="actbox"><h4>Extend access</h4>'
+            + '<input id="extDays" type="number" min="1" value="30" placeholder="Days to add"/>'
+            + '<button class="btn" data-do="extend">Extend</button></div>'
+          + '<div class="actbox"><h4>Reset trial</h4>'
+            + '<input id="trialDays" type="number" min="1" value="'+TRIAL_DAYS+'" placeholder="Trial days"/>'
+            + '<button class="btn" data-do="trial">Start trial</button></div>'
+          + '<div class="actbox danger"><h4>Cancel / revoke</h4>'
+            + '<select id="cancelMode"><option value="soft">Cancel (keep till expiry)</option><option value="hard">Revoke now (lock)</option></select>'
+            + '<button class="btn" data-do="cancel">Apply</button></div>'
+        + '</div>'
+        + '<h4 style="font-family:DM Mono,monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--gold);margin:22px 0 6px;">Payment history</h4>'
+        + ledger;
+
+      document.getElementById('modalBg').classList.add('show');
+
+      // Wire modal actions.
+      document.getElementById('modal').querySelectorAll('[data-do]').forEach(function(btn){
+        btn.onclick = function(){ doAction(btn.getAttribute('data-do'), username, btn); };
+      });
+      document.getElementById('modal').querySelector('[data-close]').onclick = closeModal;
+    }).catch(function(e){ toast('Error: '+e.message, true); });
+  }
+
+  function closeModal(){ document.getElementById('modalBg').classList.remove('show'); }
+
+  function doAction(kind, username, btn) {
+    var body = { adminUsername: user.username, username: username };
+    var path;
+    if (kind==='grant')  { path='/api/admin/subscriptions/grant';  body.plan=document.getElementById('grantPlan').value; body.months=document.getElementById('grantMonths').value; }
+    else if (kind==='extend'){ path='/api/admin/subscriptions/extend'; body.days=document.getElementById('extDays').value; }
+    else if (kind==='trial'){ path='/api/admin/subscriptions/trial'; body.days=document.getElementById('trialDays').value; }
+    else if (kind==='cancel'){ path='/api/admin/subscriptions/cancel'; body.hard=(document.getElementById('cancelMode').value==='hard'); }
+    else return;
+    btn.disabled = true;
+    api(path, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) })
+      .then(function(d){
+        btn.disabled = false;
+        if (d.success) { toast(d.message||'Done'); loadSubs(); openManage(username); }
+        else toast(d.message||'Failed', true);
+      }).catch(function(e){ btn.disabled=false; toast('Error: '+e.message, true); });
+  }
+
+  // ── Payments ledger ──
+  function loadPayments() {
+    var q = document.getElementById('paySearch').value.trim();
+    var st = document.getElementById('payStatus').value;
+    var url = '/api/admin/payments?adminUsername='+ADMIN
+      + (q?'&username='+encodeURIComponent(q):'') + (st?'&status='+encodeURIComponent(st):'');
+    api(url).then(function(d){
+      if (!d.success) { toast(d.message||'Load failed', true); return; }
+      document.getElementById('paySummary').textContent =
+        d.summary.completedCount + ' completed · ' + money(d.summary.grossRevenue) + ' gross';
+      var tb = document.getElementById('payRows');
+      if (!d.payments.length) { tb.innerHTML='<tr><td colspan="6" class="empty">No payment records.</td></tr>'; return; }
+      tb.innerHTML = d.payments.map(function(p){
+        var cls = /COMPLETE/.test(p.payment_status)?'active':(/REJECT/.test(p.payment_status)?'expired':'trial');
+        return '<tr><td>'+fmtDT(p.created_at)+'</td><td class="uname">'+esc(p.username||'—')+'</td>'
+          + '<td>'+esc(p.plan||'—')+'</td><td>'+money(p.amount_gross)+'</td>'
+          + '<td>'+statusPill(cls)+' <span class="muted" style="font-size:10px">'+esc(p.payment_status||'')+'</span></td>'
+          + '<td class="muted">'+esc(p.pf_payment_id||'—')+'</td></tr>';
+      }).join('');
+    }).catch(function(e){ toast('Error: '+e.message, true); });
+  }
+
+  // ── Wiring ──
+  var searchT;
+  document.getElementById('search').oninput = function(e){ clearTimeout(searchT); state.q=e.target.value; searchT=setTimeout(loadSubs,250); };
+  document.getElementById('refresh').onclick = loadSubs;
+  document.getElementById('statusFilter').addEventListener('click', function(e){
+    var b = e.target.closest('button'); if(!b) return;
+    this.querySelectorAll('button').forEach(function(x){ x.classList.remove('active'); });
+    b.classList.add('active'); state.status=b.getAttribute('data-s'); loadSubs();
+  });
+  document.getElementById('subRows').addEventListener('click', function(e){
+    var b = e.target.closest('button[data-act]'); if(!b) return;
+    if (b.getAttribute('data-act')==='manage') openManage(b.getAttribute('data-u'));
+  });
+  document.getElementById('modalBg').addEventListener('click', function(e){ if(e.target===this) closeModal(); });
+  var payT;
+  document.getElementById('paySearch').oninput = function(){ clearTimeout(payT); payT=setTimeout(loadPayments,250); };
+  document.getElementById('payStatus').onchange = loadPayments;
+  document.querySelector('.maintabs').addEventListener('click', function(e){
+    var b = e.target.closest('button'); if(!b) return;
+    this.querySelectorAll('button').forEach(function(x){ x.classList.remove('active'); });
+    b.classList.add('active');
+    var tab = b.getAttribute('data-tab');
+    document.getElementById('tab-subs').style.display = tab==='subs'?'block':'none';
+    document.getElementById('tab-payments').style.display = tab==='payments'?'block':'none';
+    if (tab==='payments') loadPayments();
+  });
+
+  loadSubs();
+})();
+</script>
+</body>
+</html>
