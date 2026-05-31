@@ -72,6 +72,7 @@ app.get('/landing',        (req, res) => res.sendFile(path.join(__dirname, 'land
 app.get('/landing.html',   (req, res) => res.sendFile(path.join(__dirname, 'landing.html')));
 app.get('/login.html',     (req, res) => res.sendFile(path.join(__dirname, 'login.html')));
 app.get('/auth-guard.js',  (req, res) => res.sendFile(path.join(__dirname, 'VectraArchLegacyAuthGuard.js')));
+app.get('/trial-banner.js',(req, res) => res.sendFile(path.join(__dirname, 'VectraArchLegacyTrialBanner.js')));
 
 // ── DATABASE ──────────────────────────────────────────────────────────────────
 const pool = new Pool({
