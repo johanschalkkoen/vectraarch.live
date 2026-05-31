@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
   <title>Setup · VectraArch</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
@@ -15,12 +15,20 @@
     button, [onclick], .chip, .color-dot-wrap, .member-tab, .module-btn,
     .module-select-card, .toggle, .sharing-toggle-all, .member-delete { cursor: pointer !important; }
 
+    /* Viewport model mirrors the app (legacy.css #root/app-shell): pin the
+       wizard to the *dynamic* viewport so the footer/continue button never get
+       pushed off-screen by mobile browser chrome. 100dvh accounts for the
+       address bar; 100vh is the fallback for browsers without dvh. */
+    html { height: -webkit-fill-available; }
     html, body {
-      height: 100%;
       overflow: hidden;
     }
 
     body {
+      position: fixed;
+      inset: 0;
+      height: 100vh;
+      height: 100dvh;
       display: flex;
       flex-direction: column;
       background: var(--bg);
@@ -32,10 +40,11 @@
     .sw-header {
       position: relative;
       z-index: 10;
+      flex-shrink: 0;
       display: flex;
       align-items: center;
       gap: 10px;
-      padding: 14px 20px 10px;
+      padding: calc(14px + env(safe-area-inset-top, 0px)) 20px 10px;
       border-bottom: 1px solid var(--border);
     }
 
@@ -78,6 +87,7 @@
       position: relative;
       z-index: 10;
       flex: 1;
+      min-height: 0;   /* allow this flex child to scroll instead of growing the body past the viewport */
       overflow-y: auto;
       padding: 24px 20px 8px;
       -webkit-overflow-scrolling: touch;
@@ -89,10 +99,11 @@
     .sw-footer {
       position: relative;
       z-index: 10;
+      flex-shrink: 0;
       display: flex;
       align-items: center;
       gap: 10px;
-      padding: 12px 20px 20px;
+      padding: 12px 20px calc(20px + env(safe-area-inset-bottom, 0px));
       border-top: 1px solid var(--border);
       background: var(--bg);
     }
