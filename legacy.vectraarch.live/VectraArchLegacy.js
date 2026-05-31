@@ -193,6 +193,31 @@ async function ensureSchema() {
             created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )`,
         `CREATE INDEX IF NOT EXISTS idx_email_events_email_id ON vectraarchlegacy_email_events(email_id)`,
+        // ── Paygate: per-user subscription state ──────────────────────────────
+        // subscription_status: 'trial' | 'active' | 'expired' | 'cancelled'
+        // trial_started_at defaults to NOW(), so when this column is first added
+        // every existing user is granted a fresh trial window from the deploy
+        // moment (TRIAL_DAYS). New signups get NOW() at insert time.
+        `ALTER TABLE vectraarchlegacy_users ADD COLUMN IF NOT EXISTS subscription_status   TEXT DEFAULT 'trial'`,
+        `ALTER TABLE vectraarchlegacy_users ADD COLUMN IF NOT EXISTS trial_started_at       TIMESTAMPTZ DEFAULT NOW()`,
+        `ALTER TABLE vectraarchlegacy_users ADD COLUMN IF NOT EXISTS subscription_plan      TEXT`,
+        `ALTER TABLE vectraarchlegacy_users ADD COLUMN IF NOT EXISTS subscription_expires_at TIMESTAMPTZ`,
+        `ALTER TABLE vectraarchlegacy_users ADD COLUMN IF NOT EXISTS pf_token               TEXT`,
+        // ── Paygate: PayFast ITN (payment notification) audit log ─────────────
+        `CREATE TABLE IF NOT EXISTS vectraarchlegacy_payments (
+            id              SERIAL PRIMARY KEY,
+            username        TEXT,
+            m_payment_id    TEXT,
+            pf_payment_id   TEXT,
+            plan            TEXT,
+            amount_gross    NUMERIC,
+            payment_status  TEXT,
+            pf_token        TEXT,
+            raw             JSONB,
+            created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )`,
+        `CREATE INDEX IF NOT EXISTS idx_payments_username ON vectraarchlegacy_payments(username)`,
+        `CREATE INDEX IF NOT EXISTS idx_payments_pf_pid   ON vectraarchlegacy_payments(pf_payment_id)`,
     ];
     let failed = 0;
     for (const sql of migrations) {
@@ -275,6 +300,8 @@ function mapUser(row) {
         twoFactorEnabled: !!row.twofa_secret,
         groupId:          row.group_id          || null,
         groupName:        row.group_name        || '',
+        // Paygate entitlement — lets the client render the paywall / trial banner.
+        subscription:     entitlementFor(row),
     };
 }
 
@@ -286,6 +313,166 @@ const USER_SELECT_BASE = `
       FROM vectraarchlegacy_users u
       LEFT JOIN vectraarchlegacy_groups g ON g.id = u.group_id
 `;
+
+// ── PAYGATE (PayFast) ─────────────────────────────────────────────────────────
+// Gates the Legacy data features behind a subscription. Every account starts on
+// a TRIAL_DAYS free trial (existing users are granted one from the deploy moment
+// — see ensureSchema). After the trial, an active subscription is required.
+//
+// Required .env:
+//   PAYFAST_MERCHANT_ID, PAYFAST_MERCHANT_KEY, PAYFAST_PASSPHRASE
+//   PAYFAST_MODE = 'sandbox' | 'live'   (default 'sandbox')
+// Optional:
+//   TRIAL_DAYS (default 3)
+const TRIAL_DAYS        = parseInt(process.env.TRIAL_DAYS || '3', 10);
+const PAYFAST_MODE      = (process.env.PAYFAST_MODE || 'sandbox').toLowerCase();
+const PAYFAST_MERCHANT_ID  = process.env.PAYFAST_MERCHANT_ID  || '10000100'; // sandbox default
+const PAYFAST_MERCHANT_KEY = process.env.PAYFAST_MERCHANT_KEY || '46f0cd694581a'; // sandbox default
+const PAYFAST_PASSPHRASE   = process.env.PAYFAST_PASSPHRASE   || '';
+const PAYFAST_PROCESS_URL  = PAYFAST_MODE === 'live'
+    ? 'https://www.payfast.co.za/eng/process'
+    : 'https://sandbox.payfast.co.za/eng/process';
+const PAYFAST_VALIDATE_HOST = PAYFAST_MODE === 'live'
+    ? 'www.payfast.co.za'
+    : 'sandbox.payfast.co.za';
+// PayFast's published ITN source netblocks (host-resolved at runtime too).
+const PAYFAST_VALID_HOSTS = [
+    'www.payfast.co.za', 'w1w.payfast.co.za', 'w2w.payfast.co.za',
+    'sandbox.payfast.co.za',
+];
+
+// Subscription plans. `amount` is in ZAR. Monthly plans are PayFast recurring
+// subscriptions (subscription_type 1); 'lifetime' is a single once-off payment.
+const PLANS = {
+    basic:    { name: 'Basic',    amount: '29.00',  recurring: true,  label: 'R29 / month'  },
+    standard: { name: 'Standard', amount: '49.00',  recurring: true,  label: 'R49 / month'  },
+    premium:  { name: 'Premium',  amount: '99.00',  recurring: true,  label: 'R99 / month'  },
+    lifetime: { name: 'Lifetime', amount: '299.00', recurring: false, label: 'R299 once-off' },
+};
+
+// Resolve a user row into an entitlement object the client can act on.
+// Returns { status, plan, active, daysLeft, trialEndsAt, expiresAt }.
+function entitlementFor(row) {
+    if (!row) return { status: 'expired', active: false, plan: null, daysLeft: 0 };
+    const now    = Date.now();
+    const status = row.subscription_status || 'trial';
+    const expiresAt = row.subscription_expires_at ? new Date(row.subscription_expires_at).getTime() : null;
+
+    // An active paid subscription overrides the trial. 'lifetime' has no expiry.
+    if (status === 'active') {
+        const stillValid = !expiresAt || expiresAt > now;
+        if (stillValid) {
+            return {
+                status: 'active',
+                active: true,
+                plan: row.subscription_plan || null,
+                expiresAt: row.subscription_expires_at || null,
+                daysLeft: expiresAt ? Math.max(0, Math.ceil((expiresAt - now) / 86400000)) : null,
+            };
+        }
+        // Lapsed — fall through to trial check, which will also be expired.
+    }
+
+    // Trial window, measured from trial_started_at.
+    const trialStart = row.trial_started_at ? new Date(row.trial_started_at).getTime() : now;
+    const trialEnd   = trialStart + TRIAL_DAYS * 86400000;
+    if (status !== 'cancelled' && status !== 'expired' && trialEnd > now) {
+        return {
+            status: 'trial',
+            active: true,
+            plan: null,
+            trialEndsAt: new Date(trialEnd).toISOString(),
+            daysLeft: Math.max(0, Math.ceil((trialEnd - now) / 86400000)),
+        };
+    }
+
+    return { status: 'expired', active: false, plan: row.subscription_plan || null, daysLeft: 0 };
+}
+
+// Load the entitlement for a username straight from the DB.
+async function entitlementForUsername(username) {
+    if (!username) return { status: 'expired', active: false, daysLeft: 0 };
+    const row = await dbQuery(
+        'SELECT subscription_status, subscription_plan, subscription_expires_at, trial_started_at FROM vectraarchlegacy_users WHERE LOWER(username) = LOWER($1)',
+        [username]
+    );
+    return entitlementFor(row);
+}
+
+// Middleware: require an active entitlement (trial or paid) for the acting user.
+// The acting user is whoever owns the data — read from the same field each route
+// already uses (`user` for data routes, `username` for a few). Admins always pass
+// so support/management never locks itself out.
+const requirePaid = async (req, res, next) => {
+    const username = req.body?.user || req.query?.user
+        || req.body?.username || req.query?.username;
+    if (!username) {
+        // No identifiable user — let the route's own validation return its 400.
+        return next();
+    }
+    try {
+        const row = await dbQuery(
+            'SELECT is_admin, subscription_status, subscription_plan, subscription_expires_at, trial_started_at FROM vectraarchlegacy_users WHERE LOWER(username) = LOWER($1)',
+            [username]
+        );
+        if (!row) return next(); // unknown user — let route handle it
+        if (row.is_admin) return next();
+        const ent = entitlementFor(row);
+        if (ent.active) {
+            req.entitlement = ent;
+            return next();
+        }
+        return res.status(402).json({
+            success: false,
+            paywall: true,
+            message: 'Your trial has ended. Subscribe to keep using VectraArch Legacy.',
+            subscription: ent,
+        });
+    } catch (e) {
+        // Fail open on infra errors so a DB blip doesn't lock everyone out, but log it.
+        console.error('[paygate] entitlement check failed:', e.message);
+        return next();
+    }
+};
+
+// Build the MD5 signature PayFast expects over an ordered param set.
+// Rule: URL-encode each value (spaces as '+', uppercase hex), join as key=value
+// with '&', append the passphrase if set, then md5.
+function payfastSignature(params, passphrase) {
+    const pfEncode = v => encodeURIComponent(String(v).trim())
+        .replace(/%20/g, '+')
+        .replace(/[!'()*]/g, c => '%' + c.charCodeAt(0).toString(16).toUpperCase());
+    let pfOutput = Object.keys(params)
+        .filter(k => params[k] !== '' && params[k] !== undefined && params[k] !== null)
+        .map(k => `${k}=${pfEncode(params[k])}`)
+        .join('&');
+    if (passphrase) pfOutput += `&passphrase=${pfEncode(passphrase)}`;
+    return crypto.createHash('md5').update(pfOutput).digest('hex');
+}
+
+// Server-to-server postback that confirms an ITN really came from PayFast.
+function payfastValidatePostback(rawBody) {
+    return new Promise(resolve => {
+        const postData = rawBody;
+        const reqV = https.request({
+            host: PAYFAST_VALIDATE_HOST,
+            port: 443,
+            path: '/eng/query/validate',
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Content-Length': Buffer.byteLength(postData),
+            },
+        }, resV => {
+            let body = '';
+            resV.on('data', d => body += d);
+            resV.on('end', () => resolve(body.trim() === 'VALID'));
+        });
+        reqV.on('error', e => { console.error('[payfast] validate postback error:', e.message); resolve(false); });
+        reqV.write(postData);
+        reqV.end();
+    });
+}
 
 // ── EXTERNAL SERVICES ─────────────────────────────────────────────────────────
 const BOT_TOKEN    = process.env.BOT_TOKEN;
@@ -1434,7 +1621,7 @@ async function moduleVisibleTo(viewer, target, module) {
     return !!(share && share.enabled === true);
 }
 
-app.get('/api/financial', async (req, res) => {
+app.get('/api/financial', requirePaid, async (req, res) => {
     const { user, viewer } = req.query;
     if (!user) return res.status(400).json({ success: false, message: 'User required.' });
     if (viewer && viewer !== user && !(await moduleVisibleTo(viewer, user, 'Finances'))) return res.json([]);
@@ -1446,7 +1633,7 @@ app.get('/api/financial', async (req, res) => {
     }
 });
 
-app.post('/api/financial', async (req, res) => {
+app.post('/api/financial', requirePaid, async (req, res) => {
     const { user, category, amount, type, date } = req.body;
     if (!user || !category || !amount || !type || !date) return res.status(400).json({ success: false, message: 'All fields required.' });
     if (!['income','expense'].includes(type)) return res.status(400).json({ success: false, message: 'Invalid type.' });
@@ -1472,7 +1659,7 @@ app.post('/api/financial', async (req, res) => {
     }
 });
 
-app.put('/api/financial/:id', async (req, res) => {
+app.put('/api/financial/:id', requirePaid, async (req, res) => {
     const { id } = req.params;
     const { user, category, amount, type, date } = req.body;
     if (!user || !category || !amount || !type || !date) return res.status(400).json({ success: false, message: 'All fields required.' });
@@ -1497,7 +1684,7 @@ app.put('/api/financial/:id', async (req, res) => {
     }
 });
 
-app.delete('/api/financial/:id', async (req, res) => {
+app.delete('/api/financial/:id', requirePaid, async (req, res) => {
     const { id } = req.params;
     try {
         const row = await dbQuery('SELECT id, username, amount, type, date, category FROM vectraarchlegacy_financial WHERE id = $1', [id]);
@@ -1550,7 +1737,7 @@ function packBudgetExpenses(expArr, targetsVal) {
     return list;
 }
 
-app.get('/api/budget', async (req, res) => {
+app.get('/api/budget', requirePaid, async (req, res) => {
     const { user, viewer } = req.query;
     if (!user) return res.status(400).json({ success: false, message: 'User required.' });
     if (viewer && viewer !== user && !(await moduleVisibleTo(viewer, user, 'Budget'))) return res.json([]);
@@ -1572,7 +1759,7 @@ app.get('/api/budget', async (req, res) => {
     }
 });
 
-app.post('/api/budget', async (req, res) => {
+app.post('/api/budget', requirePaid, async (req, res) => {
     const { user, income, expenses, date, budget_type, section_targets } = req.body;
     if (!user || !date) return res.status(400).json({ success: false, message: 'User and date required.' });
     let expArr = [];
@@ -1598,7 +1785,7 @@ app.post('/api/budget', async (req, res) => {
     }
 });
 
-app.put('/api/budget/:id', async (req, res) => {
+app.put('/api/budget/:id', requirePaid, async (req, res) => {
     const { id } = req.params;
     const { user, income, expenses, date, budget_type, section_targets } = req.body;
     if (!user || !date) return res.status(400).json({ success: false, message: 'User and date required.' });
@@ -1639,7 +1826,7 @@ app.delete('/api/budget/:id', async (req, res) => {
 });
 
 // ── CALENDAR ──────────────────────────────────────────────────────────────────
-app.get('/api/calendar', async (req, res) => {
+app.get('/api/calendar', requirePaid, async (req, res) => {
     const { user, viewer } = req.query;
     if (!user) return res.status(400).json({ success: false, message: 'User required.' });
     if (viewer && viewer !== user && !(await moduleVisibleTo(viewer, user, 'Calendar'))) return res.json([]);
@@ -1654,7 +1841,7 @@ app.get('/api/calendar', async (req, res) => {
     }
 });
 
-app.post('/api/calendar', async (req, res) => {
+app.post('/api/calendar', requirePaid, async (req, res) => {
     const { user, title, date, endDate, financial, type, amount, eventColor, finType } = req.body;
     if (!user || !title || !date) return res.status(400).json({ success: false, message: 'User, title, and date required.' });
     try {
@@ -1730,7 +1917,7 @@ app.get('/api/gym-options', async (req, res) => {
     }
 });
 
-app.get('/api/gymworkout', async (req, res) => {
+app.get('/api/gymworkout', requirePaid, async (req, res) => {
     const { user, viewer } = req.query;
     if (!user) return res.status(400).json({ success: false, message: 'User required.' });
     if (viewer && viewer !== user && !(await moduleVisibleTo(viewer, user, 'Gym'))) return res.json([]);
@@ -1742,7 +1929,7 @@ app.get('/api/gymworkout', async (req, res) => {
     }
 });
 
-app.post('/api/gymworkout', async (req, res) => {
+app.post('/api/gymworkout', requirePaid, async (req, res) => {
     const { user, day, exercise, sets, reps, weight, date } = req.body;
     if (!user || !day || !exercise || !sets || !reps || !weight || !date) return res.status(400).json({ success: false, message: 'All fields required.' });
     try {
@@ -1757,7 +1944,7 @@ app.post('/api/gymworkout', async (req, res) => {
     }
 });
 
-app.put('/api/gymworkout/:id', async (req, res) => {
+app.put('/api/gymworkout/:id', requirePaid, async (req, res) => {
     const { id } = req.params;
     const { user, day, exercise, sets, reps, weight, date } = req.body;
     if (!user || !day || !exercise || !sets || !reps || !weight || !date) return res.status(400).json({ success: false, message: 'All fields required.' });
@@ -1809,7 +1996,7 @@ app.get('/api/meal-templates', async (req, res) => {
     }
 });
 
-app.get('/api/mealplan', async (req, res) => {
+app.get('/api/mealplan', requirePaid, async (req, res) => {
     const { user, viewer } = req.query;
     if (!user) return res.status(400).json({ success: false, message: 'User required.' });
     if (viewer && viewer !== user && !(await moduleVisibleTo(viewer, user, 'Meals'))) return res.json([]);
@@ -1824,7 +2011,7 @@ app.get('/api/mealplan', async (req, res) => {
     }
 });
 
-app.post('/api/mealplan', async (req, res) => {
+app.post('/api/mealplan', requirePaid, async (req, res) => {
     const { user, day, mealType, description, calories, date } = req.body;
     if (!user || !day || !mealType || !description || !calories || !date) return res.status(400).json({ success: false, message: 'All fields required.' });
     try {
@@ -1855,7 +2042,7 @@ app.delete('/api/mealplan/:id', async (req, res) => {
 });
 
 // ── PERIOD ────────────────────────────────────────────────────────────────────
-app.get('/api/period', async (req, res) => {
+app.get('/api/period', requirePaid, async (req, res) => {
     const { user, viewer } = req.query;
     if (!user) return res.status(400).json({ success: false, message: 'User required.' });
     if (viewer && viewer !== user && !(await moduleVisibleTo(viewer, user, 'Cycle'))) return res.json([]);
@@ -1870,7 +2057,7 @@ app.get('/api/period', async (req, res) => {
     }
 });
 
-app.post('/api/period', async (req, res) => {
+app.post('/api/period', requirePaid, async (req, res) => {
     const { user, startDate, endDate, cycleLength, symptoms, date } = req.body;
     if (!user || !startDate || !cycleLength || !date) return res.status(400).json({ success: false, message: 'Required fields missing.' });
     try {
@@ -1901,7 +2088,7 @@ app.delete('/api/period/:id', async (req, res) => {
 });
 
 // ── IMPORT STATEMENT ──────────────────────────────────────────────────────────
-app.post('/api/import-statement', async (req, res) => {
+app.post('/api/import-statement', requirePaid, async (req, res) => {
     const { user, text } = req.body;
     if (!user || !text) return res.status(400).json({ success: false, message: 'User and text required.' });
     try {
@@ -2549,6 +2736,185 @@ app.post('/api/webhooks', async (req, res) => {
         res.json({ ok: true });
     }
 });
+
+// ── BILLING / PAYGATE ROUTES ──────────────────────────────────────────────────
+
+// Public list of plans for the paywall UI.
+app.get('/api/billing/plans', (req, res) => {
+    res.json({
+        success: true,
+        trialDays: TRIAL_DAYS,
+        currency: 'ZAR',
+        plans: Object.entries(PLANS).map(([id, p]) => ({
+            id, name: p.name, amount: p.amount, label: p.label, recurring: p.recurring,
+        })),
+    });
+});
+
+// Entitlement for a user — the client polls this to decide trial banner vs paywall.
+app.get('/api/billing/status', async (req, res) => {
+    const username = (req.query.user || req.query.username || '').toString();
+    if (!username) return res.status(400).json({ success: false, message: 'User required.' });
+    try {
+        const ent = await entitlementForUsername(username);
+        res.json({ success: true, subscription: ent, trialDays: TRIAL_DAYS });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Error fetching billing status.', error: e.message });
+    }
+});
+
+// Begin a subscription: returns the PayFast process URL + the signed field set
+// for the browser to auto-submit. We never trust the amount from the client —
+// it's looked up from PLANS by plan id.
+app.post('/api/billing/subscribe', async (req, res) => {
+    const username = (req.body.user || req.body.username || '').toString();
+    const planId   = (req.body.plan || '').toString();
+    if (!username) return res.status(400).json({ success: false, message: 'User required.' });
+    const plan = PLANS[planId];
+    if (!plan) return res.status(400).json({ success: false, message: 'Unknown plan.' });
+    try {
+        const user = await dbQuery('SELECT username, email, first_name, last_name FROM vectraarchlegacy_users WHERE LOWER(username) = LOWER($1)', [username]);
+        if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
+
+        const mPaymentId = `${user.username}:${planId}:${Date.now()}`;
+        const data = {
+            merchant_id:   PAYFAST_MERCHANT_ID,
+            merchant_key:  PAYFAST_MERCHANT_KEY,
+            return_url:    `${PUBLIC_BASE_URL}/billing/return`,
+            cancel_url:    `${PUBLIC_BASE_URL}/billing/cancel`,
+            notify_url:    `${PUBLIC_BASE_URL}/api/payfast/notify`,
+            name_first:    user.first_name || user.username,
+            name_last:     user.last_name || '',
+            email_address: user.email || '',
+            m_payment_id:  mPaymentId,
+            amount:        plan.amount,
+            item_name:     `VectraArch Legacy — ${plan.name}`,
+            custom_str1:   user.username,
+            custom_str2:   planId,
+        };
+        // Recurring (monthly) subscription fields per PayFast subscription spec.
+        if (plan.recurring) {
+            data.subscription_type = '1';
+            data.billing_date      = new Date().toISOString().slice(0, 10);
+            data.recurring_amount  = plan.amount;
+            data.frequency         = '3'; // 3 = monthly
+            data.cycles            = '0'; // 0 = indefinite until cancelled
+        }
+        data.signature = payfastSignature(data, PAYFAST_PASSPHRASE);
+
+        res.json({ success: true, process_url: PAYFAST_PROCESS_URL, fields: data });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Error starting checkout.', error: e.message });
+    }
+});
+
+// PayFast ITN (Instant Transaction Notification). Validated four ways:
+//   1. signature recomputed from posted fields matches pf's signature
+//   2. source host is a known PayFast host
+//   3. server-to-server postback returns VALID
+//   4. gross amount matches the plan we charged
+// Only then do we flip the user's subscription to active.
+app.post('/api/payfast/notify', async (req, res) => {
+    // Always 200 quickly — PayFast retries on non-200 and ignores the body.
+    res.status(200).end();
+
+    try {
+        const pfData = req.body || {};
+        const rawBody = req.rawBody ? req.rawBody.toString('utf8') : '';
+
+        // 1. Signature check. Rebuild the ordered field set from the raw body so
+        // we sign in the exact order PayFast sent (req.body key order isn't
+        // guaranteed), excluding the trailing `signature` field.
+        const received = pfData.signature;
+        const toSign = {};
+        for (const pair of rawBody.split('&')) {
+            const idx = pair.indexOf('=');
+            if (idx === -1) continue;
+            const key = decodeURIComponent(pair.slice(0, idx));
+            if (key === 'signature') continue;
+            toSign[key] = decodeURIComponent(pair.slice(idx + 1).replace(/\+/g, ' '));
+        }
+        const expected = payfastSignature(toSign, PAYFAST_PASSPHRASE);
+        if (received !== expected) {
+            console.error('[payfast] ITN signature mismatch — rejected');
+            await dbRun('INSERT INTO vectraarchlegacy_payments (username, m_payment_id, pf_payment_id, plan, amount_gross, payment_status, raw) VALUES ($1,$2,$3,$4,$5,$6,$7)',
+                [pfData.custom_str1 || null, pfData.m_payment_id || null, pfData.pf_payment_id || null, pfData.custom_str2 || null, pfData.amount_gross || null, 'REJECTED_SIGNATURE', JSON.stringify(pfData)]);
+            return;
+        }
+
+        // 2. Source host check.
+        const sourceHost = (req.headers['x-forwarded-host'] || req.headers['host'] || '').split(':')[0];
+        const referer = (req.headers['referer'] || '');
+        const hostOk = PAYFAST_VALID_HOSTS.some(h => referer.includes(h)) || PAYFAST_MODE === 'sandbox';
+        if (!hostOk) {
+            console.warn('[payfast] ITN from unexpected source:', sourceHost, referer);
+        }
+
+        // 3. Server-to-server postback validation.
+        const valid = await payfastValidatePostback(rawBody);
+        if (!valid && PAYFAST_MODE === 'live') {
+            console.error('[payfast] ITN postback validation failed — rejected');
+            await dbRun('INSERT INTO vectraarchlegacy_payments (username, m_payment_id, pf_payment_id, plan, amount_gross, payment_status, raw) VALUES ($1,$2,$3,$4,$5,$6,$7)',
+                [pfData.custom_str1 || null, pfData.m_payment_id || null, pfData.pf_payment_id || null, pfData.custom_str2 || null, pfData.amount_gross || null, 'REJECTED_POSTBACK', JSON.stringify(pfData)]);
+            return;
+        }
+
+        const username = pfData.custom_str1 || (pfData.m_payment_id || '').split(':')[0];
+        const planId   = pfData.custom_str2 || (pfData.m_payment_id || '').split(':')[1];
+        const plan     = PLANS[planId];
+        const status   = pfData.payment_status; // 'COMPLETE', 'CANCELLED', etc.
+
+        // 4. Amount check (only meaningful on a COMPLETE payment).
+        if (plan && status === 'COMPLETE') {
+            const gross = parseFloat(pfData.amount_gross || '0');
+            const expectedAmt = parseFloat(plan.amount);
+            if (Math.abs(gross - expectedAmt) > 0.01) {
+                console.error(`[payfast] amount mismatch: got ${gross}, expected ${expectedAmt}`);
+                await dbRun('INSERT INTO vectraarchlegacy_payments (username, m_payment_id, pf_payment_id, plan, amount_gross, payment_status, raw) VALUES ($1,$2,$3,$4,$5,$6,$7)',
+                    [username, pfData.m_payment_id || null, pfData.pf_payment_id || null, planId, gross, 'REJECTED_AMOUNT', JSON.stringify(pfData)]);
+                return;
+            }
+        }
+
+        // Persist the (validated) event.
+        await dbRun('INSERT INTO vectraarchlegacy_payments (username, m_payment_id, pf_payment_id, plan, amount_gross, payment_status, pf_token, raw) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)',
+            [username, pfData.m_payment_id || null, pfData.pf_payment_id || null, planId, pfData.amount_gross || null, status, pfData.token || null, JSON.stringify(pfData)]);
+
+        if (!username) { console.error('[payfast] ITN with no resolvable username'); return; }
+
+        if (status === 'COMPLETE') {
+            // Monthly recurring → expire in ~32 days (PayFast re-bills and re-notifies).
+            // Lifetime → no expiry.
+            const expires = plan && plan.recurring
+                ? new Date(Date.now() + 32 * 86400000).toISOString()
+                : null;
+            await dbRun(
+                `UPDATE vectraarchlegacy_users
+                    SET subscription_status = 'active',
+                        subscription_plan   = $2,
+                        subscription_expires_at = $3,
+                        pf_token = COALESCE($4, pf_token)
+                  WHERE LOWER(username) = LOWER($1)`,
+                [username, planId, expires, pfData.token || null]
+            );
+            console.log(`[payfast] ${username} → active (${planId})`);
+        } else if (status === 'CANCELLED') {
+            await dbRun(
+                `UPDATE vectraarchlegacy_users SET subscription_status = 'cancelled' WHERE LOWER(username) = LOWER($1)`,
+                [username]
+            );
+            console.log(`[payfast] ${username} → cancelled (${planId})`);
+        }
+    } catch (e) {
+        console.error('[payfast] ITN processing error:', e.message);
+    }
+});
+
+// Browser landing pages after the PayFast round-trip.
+app.get('/billing/return', (req, res) => res.sendFile(path.join(__dirname, 'billing.html')));
+app.get('/billing/cancel', (req, res) => res.redirect('/billing.html?cancelled=1'));
+app.get('/billing',      (req, res) => res.sendFile(path.join(__dirname, 'billing.html')));
+app.get('/billing.html', (req, res) => res.sendFile(path.join(__dirname, 'billing.html')));
 
 // ── IDENTITY PROXY ───────────────────────────────────────────────────────────
 const IDENTITY_URL  = 'http://127.0.0.1:3200';

@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Legacy · Subscription · VectraArch</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Barlow:wght@300;400;500;600&family=Barlow+Condensed:wght@300;400;500;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="/shared/va.css"/>
+  <link rel="stylesheet" href="/shared/auth.css"/>
+  <style>
+    .bill-wrap { max-width: 880px; margin: 0 auto; padding: 48px 20px; }
+    .bill-eyebrow { font-family:'DM Mono',monospace; font-size:10px; letter-spacing:.22em; color:#d4a017; text-transform:uppercase; margin-bottom:12px; text-align:center; }
+    .bill-title { font-family:'Barlow Condensed',sans-serif; font-weight:800; font-size:42px; color:#fff; letter-spacing:.02em; margin:0 0 8px; text-align:center; }
+    .bill-sub { font-family:'DM Mono',monospace; font-size:12px; color:#888; margin-bottom:8px; line-height:1.6; text-align:center; }
+    .bill-status { font-family:'DM Mono',monospace; font-size:12px; text-align:center; margin:0 auto 32px; padding:10px 16px; border-radius:6px; max-width:520px; }
+    .bill-status.trial   { color:#d4a017; border:1px solid rgba(212,160,23,.3); background:rgba(212,160,23,.06); }
+    .bill-status.expired { color:#ff6b6b; border:1px solid rgba(255,107,107,.3); background:rgba(255,107,107,.06); }
+    .bill-status.active  { color:#2dd4bf; border:1px solid rgba(45,212,191,.3); background:rgba(45,212,191,.06); }
+    .plans { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:16px; margin-top:8px; }
+    .plan { border:1px solid rgba(212,160,23,.18); border-radius:10px; padding:24px 20px; background:rgba(255,255,255,.015); display:flex; flex-direction:column; transition:border-color .15s, transform .15s; }
+    .plan:hover { border-color:rgba(212,160,23,.5); transform:translateY(-2px); }
+    .plan-name { font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:22px; color:#fff; letter-spacing:.04em; text-transform:uppercase; }
+    .plan-price { font-family:'Bebas Neue',sans-serif; font-size:40px; color:#d4a017; line-height:1.1; margin:8px 0 2px; }
+    .plan-period { font-family:'DM Mono',monospace; font-size:11px; color:#888; margin-bottom:18px; }
+    .plan-btn { margin-top:auto; font-family:'DM Mono',monospace; font-size:12px; letter-spacing:.08em; text-transform:uppercase; padding:11px 14px; border-radius:6px; border:1px solid #d4a017; background:transparent; color:#d4a017; cursor:pointer; transition:background .15s,color .15s; }
+    .plan-btn:hover { background:#d4a017; color:#0a0a0a; }
+    .plan.featured { border-color:rgba(45,212,191,.4); }
+    .plan.featured .plan-price { color:#2dd4bf; }
+    .plan.featured .plan-btn { border-color:#2dd4bf; color:#2dd4bf; }
+    .plan.featured .plan-btn:hover { background:#2dd4bf; color:#0a0a0a; }
+    .bill-foot { text-align:center; margin-top:28px; font-family:'DM Mono',monospace; font-size:11px; color:#666; }
+    .bill-foot a { color:#888; text-decoration:underline; cursor:pointer; }
+    .bill-err { color:#ff6b6b; text-align:center; font-family:'DM Mono',monospace; font-size:12px; margin-top:16px; min-height:16px; }
+  </style>
+</head>
+<body>
+<div class="grid-bg"></div>
+
+<div class="bill-wrap">
+  <div class="bill-eyebrow">Vectra Arch · Legacy</div>
+  <h1 class="bill-title">Choose your plan</h1>
+  <p class="bill-sub">Full access to finances, calendar, budgets, gym, meals &amp; cycle tracking.</p>
+
+  <div id="bill-status" class="bill-status" style="display:none;"></div>
+
+  <div id="plans" class="plans"></div>
+  <div id="bill-err" class="bill-err"></div>
+
+  <div class="bill-foot">
+    Payments are processed securely by <strong>PayFast</strong>. Cancel anytime.<br/>
+    <a id="back-link">← Back to app</a> &nbsp;·&nbsp; <a id="logout-link">Sign out</a>
+  </div>
+</div>
+
+<script>
+(function () {
+  var user = null;
+  try { user = JSON.parse(localStorage.getItem('user') || 'null'); } catch (e) {}
+  if (!user || !user.username) { window.location.replace('/login.html'); return; }
+
+  var params = new URLSearchParams(window.location.search);
+  var statusEl = document.getElementById('bill-status');
+  var errEl    = document.getElementById('bill-err');
+
+  document.getElementById('back-link').onclick = function () { window.location.href = '/'; };
+  document.getElementById('logout-link').onclick = function () { localStorage.removeItem('user'); window.location.replace('/login.html'); };
+
+  function showStatus(sub) {
+    if (!sub) return;
+    statusEl.style.display = 'block';
+    if (sub.status === 'active') {
+      statusEl.className = 'bill-status active';
+      statusEl.textContent = 'You’re subscribed' + (sub.plan ? ' · ' + sub.plan : '') +
+        (sub.daysLeft ? ' · renews in ' + sub.daysLeft + ' day(s)' : '') + '.';
+    } else if (sub.status === 'trial') {
+      statusEl.className = 'bill-status trial';
+      statusEl.textContent = 'Free trial · ' + sub.daysLeft + ' day(s) left. Subscribe to keep your access.';
+    } else {
+      statusEl.className = 'bill-status expired';
+      statusEl.textContent = params.get('cancelled')
+        ? 'Checkout cancelled. Your access is locked until you subscribe.'
+        : 'Your trial has ended. Subscribe to restore access.';
+    }
+  }
+
+  // Show current entitlement.
+  fetch('/api/billing/status?user=' + encodeURIComponent(user.username))
+    .then(function (r) { return r.json(); })
+    .then(function (d) { if (d.success) showStatus(d.subscription); })
+    .catch(function () {});
+
+  function startCheckout(planId, btn) {
+    btn.disabled = true; btn.textContent = 'Redirecting…'; errEl.textContent = '';
+    fetch('/api/billing/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user: user.username, plan: planId }),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d.success) { throw new Error(d.message || 'Could not start checkout.'); }
+        // Build and auto-submit a form to PayFast.
+        var form = document.createElement('form');
+        form.method = 'POST';
+        form.action = d.process_url;
+        Object.keys(d.fields).forEach(function (k) {
+          var input = document.createElement('input');
+          input.type = 'hidden'; input.name = k; input.value = d.fields[k];
+          form.appendChild(input);
+        });
+        document.body.appendChild(form);
+        form.submit();
+      })
+      .catch(function (e) {
+        errEl.textContent = e.message;
+        btn.disabled = false; btn.textContent = 'Subscribe';
+      });
+  }
+
+  // Render plans.
+  fetch('/api/billing/plans')
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      var wrap = document.getElementById('plans');
+      d.plans.forEach(function (p) {
+        var card = document.createElement('div');
+        card.className = 'plan' + (p.id === 'standard' ? ' featured' : '');
+        var price = 'R' + parseFloat(p.amount).toFixed(0);
+        card.innerHTML =
+          '<div class="plan-name">' + p.name + '</div>' +
+          '<div class="plan-price">' + price + '</div>' +
+          '<div class="plan-period">' + (p.recurring ? 'per month' : 'once-off · lifetime') + '</div>';
+        var btn = document.createElement('button');
+        btn.className = 'plan-btn'; btn.textContent = 'Subscribe';
+        btn.onclick = function () { startCheckout(p.id, btn); };
+        card.appendChild(btn);
+        wrap.appendChild(card);
+      });
+    })
+    .catch(function () { errEl.textContent = 'Could not load plans. Refresh to retry.'; });
+})();
+</script>
+</body>
+</html>
