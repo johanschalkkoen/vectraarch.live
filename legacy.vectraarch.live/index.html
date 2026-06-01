@@ -4502,6 +4502,368 @@ const deriveRole = (storedRole, hasPartner) => {
   return r;
 };
 
+// ── Shared billing helpers ──
+const billMoney = n => 'R' + (parseFloat(n||0)).toLocaleString('en-ZA',{minimumFractionDigits:2,maximumFractionDigits:2});
+const billDT = d => { if(!d) return '—'; const x=new Date(d); return isNaN(x)?'—':x.toLocaleString('en-ZA',{month:'short',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}); };
+const SUB_COLORS = { active:'#2dd4bf', trial:'var(--yellow)', expired:'var(--red)', cancelled:'var(--text3)', admin:'var(--blue)' };
+const SubPill = ({status}) => {
+  const s = (status||'').toLowerCase();
+  const c = SUB_COLORS[s] || 'var(--text3)';
+  return <span style={{display:'inline-block',fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.1em',textTransform:'uppercase',padding:'2px 8px',borderRadius:100,color:c,border:`1px solid ${c}`,background:`${c}14`}}>{status||'—'}</span>;
+};
+
+// ── Admin subscriptions console (moved in-app from admin-billing.html) ──
+// Full trial / plan / payment management plus the revenue ledger, rendered as a
+// CollapsibleSection inside the Admin tab so there's no separate page.
+const AdminBillingSection = ({user, tabColor}) => {
+  const ACCENT = '#2dd4bf';
+  const [subs, setSubs]         = useState([]);
+  const [metrics, setMetrics]   = useState(null);
+  const [plans, setPlans]       = useState({});  // id -> plan
+  const [trialDays, setTrialDays] = useState(3);
+  const [q, setQ]               = useState('');
+  const [statusF, setStatusF]   = useState('');
+  const [tab, setTab]           = useState('subs');     // subs | payments
+  const [loading, setLoading]   = useState(true);
+  const [alert, setAlert]       = useState({msg:'',type:''});
+  const flash = (m,t='ok') => { setAlert({msg:m,type:t}); setTimeout(()=>setAlert({msg:'',type:''}),3000); };
+
+  // Payment ledger.
+  const [payQ, setPayQ]             = useState('');
+  const [payStatus, setPayStatus]   = useState('');
+  const [payments, setPayments]     = useState([]);
+  const [paySummary, setPaySummary] = useState(null);
+
+  // Manage modal.
+  const [manage, setManage]         = useState(null);   // { user, payments } | null
+  const [manageBusy, setManageBusy] = useState(false);
+  const [grantPlan, setGrantPlan]   = useState('');
+  const [grantMonths, setGrantMonths] = useState(1);
+  const [extDays, setExtDays]       = useState(30);
+  const [trialDaysIn, setTrialDaysIn] = useState(3);
+  const [cancelMode, setCancelMode] = useState('soft');
+
+  const loadSubs = useCallback(async () => {
+    setLoading(true);
+    try {
+      const r = await axios.get(`${API}/admin/subscriptions`, {params:{adminUsername:user.username, q:q||undefined, status:statusF||undefined}});
+      if (r.data.success) {
+        const pmap = {}; (r.data.plans||[]).forEach(p=>{ pmap[p.id]=p; });
+        setPlans(pmap); setTrialDays(r.data.trialDays||3);
+        setSubs(r.data.subscriptions||[]); setMetrics(r.data.metrics||null);
+      } else flash(r.data.message||'Load failed','err');
+    } catch (e) { flash(e.response?.data?.message||'Error loading subscriptions.','err'); }
+    finally { setLoading(false); }
+  }, [user.username, q, statusF]);
+
+  const loadPayments = useCallback(async () => {
+    try {
+      const r = await axios.get(`${API}/admin/payments`, {params:{adminUsername:user.username, username:payQ||undefined, status:payStatus||undefined}});
+      if (r.data.success) { setPayments(r.data.payments||[]); setPaySummary(r.data.summary||null); }
+      else flash(r.data.message||'Load failed','err');
+    } catch (e) { flash(e.response?.data?.message||'Error loading payments.','err'); }
+  }, [user.username, payQ, payStatus]);
+
+  useEffect(()=>{ const t=setTimeout(loadSubs,250); return ()=>clearTimeout(t); },[loadSubs]);
+  useEffect(()=>{ if(tab==='payments'){ const t=setTimeout(loadPayments,250); return ()=>clearTimeout(t); } },[tab, loadPayments]);
+
+  const openManage = useCallback(async (username) => {
+    try {
+      const r = await axios.get(`${API}/admin/subscriptions/${encodeURIComponent(username)}`, {params:{adminUsername:user.username}});
+      if (r.data.success) {
+        setManage(r.data);
+        setGrantPlan(Object.keys(plans)[0]||''); setGrantMonths(1); setExtDays(30);
+        setTrialDaysIn(trialDays); setCancelMode('soft');
+      } else flash(r.data.message||'Not found','err');
+    } catch (e) { flash(e.response?.data?.message||'Error','err'); }
+  }, [user.username, plans, trialDays]);
+
+  const doAction = async (kind) => {
+    const username = manage?.user?.username; if (!username) return;
+    let path, body = {adminUsername:user.username, username};
+    if (kind==='grant')      { path='/admin/subscriptions/grant';  body.plan=grantPlan; body.months=grantMonths; }
+    else if (kind==='extend'){ path='/admin/subscriptions/extend'; body.days=extDays; }
+    else if (kind==='trial') { path='/admin/subscriptions/trial';  body.days=trialDaysIn; }
+    else if (kind==='cancel'){ path='/admin/subscriptions/cancel'; body.hard=(cancelMode==='hard'); }
+    else return;
+    setManageBusy(true);
+    try {
+      const r = await axios.post(`${API}${path}`, body);
+      if (r.data.success) { flash(r.data.message||'Done'); await loadSubs(); await openManage(username); }
+      else flash(r.data.message||'Failed','err');
+    } catch (e) { flash(e.response?.data?.message||'Error','err'); }
+    finally { setManageBusy(false); }
+  };
+
+  // Shared input / control styles (match Admin & Profile tokens).
+  const inp = {background:'var(--bg3)',border:'1px solid var(--border2)',borderRadius:4,padding:'9px 11px',width:'100%',boxSizing:'border-box',outline:'none',fontFamily:"'DM Mono',monospace",fontSize:12,color:'var(--text)'};
+  const lbl = {fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.18em',textTransform:'uppercase',color:'var(--text3)',marginBottom:5,display:'block'};
+  const segBtn = (on,col=ACCENT) => ({fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.1em',textTransform:'uppercase',padding:'7px 11px',borderRadius:4,cursor:'pointer',border:`1px solid ${on?col:'var(--border2)'}`,color:on?col:'var(--text3)',background:on?`${col}14`:'transparent'});
+  const actBtn = (col=ACCENT) => ({fontFamily:"'DM Mono',monospace",fontSize:10,letterSpacing:'0.12em',textTransform:'uppercase',padding:'9px 12px',border:`1px solid ${col}`,color:col,background:`${col}12`,cursor:'pointer',borderRadius:4,width:'100%',opacity:manageBusy?0.5:1});
+
+  const MetricCard = ({label,value,color}) => (
+    <div style={{border:'1px solid var(--border)',borderRadius:8,padding:'10px 12px',background:'var(--bg3)'}}>
+      <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,letterSpacing:'0.16em',textTransform:'uppercase',color:'var(--text3)',marginBottom:4}}>{label}</div>
+      <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:26,lineHeight:1,color:color||'var(--text)'}}>{value}</div>
+    </div>
+  );
+
+  return (
+    <CollapsibleSection title="SUBSCRIPTIONS" persistKey="admin-subscriptions" accent={ACCENT} defaultOpen={false}
+      badge={metrics?`${metrics.active} active`:null}>
+      <div style={{padding:'14px'}}>
+        <Alert {...alert}/>
+
+        {/* Metrics */}
+        {metrics && (
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(92px,1fr))',gap:8,marginBottom:14}}>
+            <MetricCard label="Total"     value={metrics.total}/>
+            <MetricCard label="Active"    value={metrics.active}    color={ACCENT}/>
+            <MetricCard label="Trial"     value={metrics.trialing}  color="var(--yellow)"/>
+            <MetricCard label="Expired"   value={metrics.expired}   color="var(--red)"/>
+            <MetricCard label="Lifetime"  value={metrics.lifetime}/>
+            <MetricCard label="Est. MRR"  value={billMoney(metrics.mrr)} color={ACCENT}/>
+            <MetricCard label="Trial ≤1d" value={metrics.expiringSoon} color="var(--yellow)"/>
+          </div>
+        )}
+
+        {/* Tab toggle */}
+        <div style={{display:'flex',gap:6,marginBottom:12}}>
+          <button onClick={()=>setTab('subs')} style={segBtn(tab==='subs')}>Subscribers</button>
+          <button onClick={()=>setTab('payments')} style={segBtn(tab==='payments')}>Payment Ledger</button>
+        </div>
+
+        {tab==='subs' ? (
+          <>
+            {/* Controls */}
+            <input style={{...inp,marginBottom:8}} placeholder="Search username / email / name…" value={q} onChange={e=>setQ(e.target.value)}/>
+            <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:12}}>
+              {[['','All'],['active','Active'],['trial','Trial'],['expired','Expired']].map(([v,l])=>(
+                <button key={v} onClick={()=>setStatusF(v)} style={segBtn(statusF===v)}>{l}</button>
+              ))}
+              <div style={{flex:1}}/>
+              <button onClick={loadSubs} style={segBtn(false)}>↻ Refresh</button>
+            </div>
+
+            {/* Subscriber rows */}
+            {loading ? (
+              <div style={{fontFamily:"'DM Mono',monospace",fontSize:11,color:'var(--text3)',textAlign:'center',padding:'24px 0'}}>Loading…</div>
+            ) : subs.length===0 ? (
+              <div style={{fontFamily:"'DM Mono',monospace",fontSize:11,color:'var(--text3)',textAlign:'center',padding:'24px 0'}}>No matching accounts.</div>
+            ) : subs.map((s,i)=>{
+              const expiry = s.effectiveStatus==='trial'
+                ? (s.daysLeft!=null ? `${s.daysLeft} day(s) left` : '—')
+                : (s.expiresAt ? fmtDate(s.expiresAt) : (s.plan==='lifetime'?'never':'—'));
+              return (
+                <div key={s.username} style={{display:'flex',alignItems:'center',gap:10,padding:'11px 0',borderBottom:i<subs.length-1?'1px solid var(--border)':'none'}}>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:15,letterSpacing:'0.03em',color:'var(--text)',display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
+                      {s.displayName}{s.isAdmin && <SubPill status="admin"/>}
+                    </div>
+                    <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)',marginTop:2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                      {s.username}{s.email?` · ${s.email}`:''}
+                    </div>
+                    <div style={{display:'flex',alignItems:'center',gap:8,marginTop:5,flexWrap:'wrap'}}>
+                      <SubPill status={s.effectiveStatus}/>
+                      {s.planLabel && <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text2)'}}>{s.planLabel}</span>}
+                      <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)'}}>{expiry}</span>
+                      {s.paymentCount>0 && <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)'}}>· {s.paymentCount} pmt</span>}
+                    </div>
+                  </div>
+                  <button onClick={()=>openManage(s.username)} style={{flexShrink:0,fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.1em',textTransform:'uppercase',padding:'7px 12px',borderRadius:4,border:`1px solid ${ACCENT}`,color:ACCENT,background:`${ACCENT}12`,cursor:'pointer'}}>Manage</button>
+                </div>
+              );
+            })}
+          </>
+        ) : (
+          <>
+            {/* Payments controls */}
+            <input style={{...inp,marginBottom:8}} placeholder="Filter by username…" value={payQ} onChange={e=>setPayQ(e.target.value)}/>
+            <select style={{...inp,marginBottom:10}} value={payStatus} onChange={e=>setPayStatus(e.target.value)}>
+              <option value="">All statuses</option>
+              <option value="COMPLETE">COMPLETE</option>
+              <option value="CANCELLED">CANCELLED</option>
+              <option value="REJECTED_SIGNATURE">REJECTED_SIGNATURE</option>
+              <option value="REJECTED_POSTBACK">REJECTED_POSTBACK</option>
+              <option value="REJECTED_AMOUNT">REJECTED_AMOUNT</option>
+            </select>
+            {paySummary && (
+              <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',marginBottom:10}}>
+                {paySummary.completedCount} completed · {billMoney(paySummary.grossRevenue)} gross
+              </div>
+            )}
+            {payments.length===0 ? (
+              <div style={{fontFamily:"'DM Mono',monospace",fontSize:11,color:'var(--text3)',textAlign:'center',padding:'24px 0'}}>No payment records.</div>
+            ) : payments.map((p,i)=>{
+              const st = /COMPLETE/.test(p.payment_status)?'active':(/REJECT/.test(p.payment_status)?'expired':'trial');
+              return (
+                <div key={p.id||i} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 0',borderBottom:i<payments.length-1?'1px solid var(--border)':'none'}}>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:600,fontSize:14,color:'var(--text)',letterSpacing:'0.03em'}}>{p.username||'—'}</div>
+                    <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)',marginTop:2}}>{billDT(p.created_at)} · {p.plan||'—'}</div>
+                  </div>
+                  <div style={{textAlign:'right'}}>
+                    <div style={{fontFamily:"'DM Mono',monospace",fontSize:12,color:'var(--text)'}}>{billMoney(p.amount_gross)}</div>
+                    <div style={{marginTop:3}}><SubPill status={st}/></div>
+                  </div>
+                </div>
+              );
+            })}
+          </>
+        )}
+      </div>
+
+      {/* Manage modal — bottom sheet, app standard */}
+      {manage && (
+        <div className="modal-overlay" onClick={()=>setManage(null)}>
+          <div className="modal-sheet" onClick={e=>e.stopPropagation()} style={{maxHeight:'88vh',overflowY:'auto'}}>
+            <div className="modal-handle"/>
+            <div className="modal-title">{manage.user.displayName}</div>
+            <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',marginTop:-6,marginBottom:14}}>
+              {manage.user.username}{manage.user.email?` · ${manage.user.email}`:''}
+            </div>
+
+            {/* Live status */}
+            <div style={{display:'grid',gridTemplateColumns:'120px 1fr',gap:'7px 12px',fontFamily:"'DM Mono',monospace",fontSize:11,marginBottom:16}}>
+              <div style={{color:'var(--text3)'}}>Live status</div>
+              <div><SubPill status={manage.user.effectiveStatus}/> {manage.user.daysLeft!=null && <span style={{color:'var(--text3)'}}>{manage.user.daysLeft} day(s)</span>}</div>
+              <div style={{color:'var(--text3)'}}>Stored</div><div style={{color:'var(--text2)'}}>{manage.user.rawStatus||'—'}</div>
+              <div style={{color:'var(--text3)'}}>Plan</div><div style={{color:'var(--text2)'}}>{manage.user.planLabel||'—'}</div>
+              <div style={{color:'var(--text3)'}}>Expires</div><div style={{color:'var(--text2)'}}>{manage.user.expiresAt?fmtDate(manage.user.expiresAt):(manage.user.plan==='lifetime'?'never':'—')}</div>
+              <div style={{color:'var(--text3)'}}>Trial start</div><div style={{color:'var(--text2)'}}>{fmtDate(manage.user.trialStartedAt)}</div>
+              <div style={{color:'var(--text3)'}}>PayFast token</div><div style={{color:'var(--text2)'}}>{manage.user.hasPfToken?'yes (recurring)':'no'}</div>
+            </div>
+
+            {/* Action grid */}
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+              <div style={{border:'1px solid var(--border2)',borderRadius:8,padding:12}}>
+                <div style={{...lbl,color:ACCENT}}>Grant / set plan</div>
+                <select style={{...inp,marginBottom:8}} value={grantPlan} onChange={e=>setGrantPlan(e.target.value)}>
+                  {Object.keys(plans).map(id=><option key={id} value={id}>{plans[id].label}</option>)}
+                </select>
+                <input style={{...inp,marginBottom:8}} type="number" min="1" value={grantMonths} onChange={e=>setGrantMonths(e.target.value)} placeholder="Months (recurring)"/>
+                <button disabled={manageBusy} onClick={()=>doAction('grant')} style={actBtn(ACCENT)}>Activate</button>
+              </div>
+              <div style={{border:'1px solid var(--border2)',borderRadius:8,padding:12}}>
+                <div style={{...lbl,color:ACCENT}}>Extend access</div>
+                <input style={{...inp,marginBottom:8}} type="number" min="1" value={extDays} onChange={e=>setExtDays(e.target.value)} placeholder="Days to add"/>
+                <button disabled={manageBusy} onClick={()=>doAction('extend')} style={actBtn(ACCENT)}>Extend</button>
+              </div>
+              <div style={{border:'1px solid var(--border2)',borderRadius:8,padding:12}}>
+                <div style={{...lbl,color:ACCENT}}>Reset trial</div>
+                <input style={{...inp,marginBottom:8}} type="number" min="1" value={trialDaysIn} onChange={e=>setTrialDaysIn(e.target.value)} placeholder="Trial days"/>
+                <button disabled={manageBusy} onClick={()=>doAction('trial')} style={actBtn('var(--yellow)')}>Start trial</button>
+              </div>
+              <div style={{border:'1px solid rgba(255,59,59,0.3)',borderRadius:8,padding:12}}>
+                <div style={{...lbl,color:'var(--red)'}}>Cancel / revoke</div>
+                <select style={{...inp,marginBottom:8}} value={cancelMode} onChange={e=>setCancelMode(e.target.value)}>
+                  <option value="soft">Cancel (keep till expiry)</option>
+                  <option value="hard">Revoke now (lock)</option>
+                </select>
+                <button disabled={manageBusy} onClick={()=>doAction('cancel')} style={actBtn('var(--red)')}>Apply</button>
+              </div>
+            </div>
+
+            {/* Payment history */}
+            <div style={{...lbl,color:ACCENT,marginTop:18,marginBottom:8}}>Payment history</div>
+            {(manage.payments||[]).length===0 ? (
+              <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',padding:'6px 0'}}>No payment records.</div>
+            ) : manage.payments.map((p,i)=>{
+              const st = /COMPLETE/.test(p.payment_status)?'active':(/REJECT/.test(p.payment_status)?'expired':'trial');
+              return (
+                <div key={p.id||i} style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,padding:'8px 0',borderBottom:i<manage.payments.length-1?'1px solid var(--border)':'none'}}>
+                  <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)'}}>{billDT(p.created_at)} · {p.plan||'—'}</div>
+                  <div style={{display:'flex',alignItems:'center',gap:8}}>
+                    <span style={{fontFamily:"'DM Mono',monospace",fontSize:11,color:'var(--text)'}}>{billMoney(p.amount_gross)}</span>
+                    <SubPill status={st}/>
+                  </div>
+                </div>
+              );
+            })}
+
+            <button onClick={()=>setManage(null)} className="save-btn" style={{marginTop:18,background:'transparent',border:'1px solid var(--border2)',color:'var(--text2)'}}>CLOSE</button>
+          </div>
+        </div>
+      )}
+    </CollapsibleSection>
+  );
+};
+
+// ── User self-service billing (moved in-app from billing.html) ──
+// Shows the signed-in user's current entitlement and lets them subscribe /
+// renew via PayFast. Rendered inside the Profile tab.
+const BillingSection = ({user, tabColor}) => {
+  const ACCENT = '#2dd4bf';
+  const [sub, setSub]         = useState(null);
+  const [plans, setPlans]     = useState([]);
+  const [err, setErr]         = useState('');
+  const [busyPlan, setBusyPlan] = useState('');
+
+  useEffect(()=>{
+    axios.get(`${API}/billing/status`, {params:{user:user.username}})
+      .then(r=>{ if(r.data.success) setSub(r.data.subscription); }).catch(()=>{});
+    axios.get(`${API}/billing/plans`)
+      .then(r=>{ if(r.data.success) setPlans(r.data.plans||[]); })
+      .catch(()=>setErr('Could not load plans. Reopen to retry.'));
+  },[user.username]);
+
+  const startCheckout = async (planId) => {
+    setBusyPlan(planId); setErr('');
+    try {
+      const r = await axios.post(`${API}/billing/subscribe`, {user:user.username, plan:planId});
+      if (!r.data.success) throw new Error(r.data.message||'Could not start checkout.');
+      // Build & auto-submit a PayFast form (same flow as the old billing page).
+      const form = document.createElement('form');
+      form.method = 'POST'; form.action = r.data.process_url;
+      Object.keys(r.data.fields).forEach(k=>{ const i=document.createElement('input'); i.type='hidden'; i.name=k; i.value=r.data.fields[k]; form.appendChild(i); });
+      document.body.appendChild(form); form.submit();
+    } catch (e) { setErr(e.response?.data?.message||e.message); setBusyPlan(''); }
+  };
+
+  const statusText = !sub ? null
+    : sub.status==='active'
+      ? `You're subscribed${sub.plan?` · ${sub.plan}`:''}${sub.daysLeft?` · renews in ${sub.daysLeft} day(s)`:''}.`
+      : sub.status==='trial'
+        ? `Free trial · ${sub.daysLeft} day(s) left. Subscribe to keep your access.`
+        : 'Your trial has ended. Subscribe to restore access.';
+  const statusColor = sub?.status==='active' ? ACCENT : sub?.status==='trial' ? 'var(--yellow)' : 'var(--red)';
+
+  return (
+    <CollapsibleSection title="SUBSCRIPTION" persistKey="profile-subscription" accent={ACCENT}
+      defaultOpen={!!sub && sub.status!=='active'} badge={sub?sub.status:null}>
+      <div style={{padding:'14px'}}>
+        {statusText && (
+          <div style={{fontFamily:"'DM Mono',monospace",fontSize:11,lineHeight:1.5,color:statusColor,border:`1px solid ${statusColor}`,background:`${statusColor}10`,borderRadius:6,padding:'10px 12px',marginBottom:14}}>
+            {statusText}
+          </div>
+        )}
+
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))',gap:10}}>
+          {plans.map(p=>{
+            const featured = p.id==='standard';
+            const col = featured ? ACCENT : '#d4a017';
+            return (
+              <div key={p.id} style={{border:`1px solid ${col}44`,borderRadius:10,padding:'16px 14px',background:'var(--bg3)',display:'flex',flexDirection:'column'}}>
+                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:18,letterSpacing:'0.04em',textTransform:'uppercase',color:'var(--text)'}}>{p.name}</div>
+                <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:34,lineHeight:1.1,color:col,margin:'6px 0 2px'}}>R{parseFloat(p.amount).toFixed(0)}</div>
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)',marginBottom:14}}>{p.recurring?'per month':'once-off · lifetime'}</div>
+                <button disabled={!!busyPlan} onClick={()=>startCheckout(p.id)} style={{marginTop:'auto',fontFamily:"'DM Mono',monospace",fontSize:10,letterSpacing:'0.1em',textTransform:'uppercase',padding:'10px 12px',borderRadius:6,border:`1px solid ${col}`,background:`${col}12`,color:col,cursor:busyPlan?'not-allowed':'pointer',opacity:busyPlan&&busyPlan!==p.id?0.5:1}}>
+                  {busyPlan===p.id?'Redirecting…':'Subscribe'}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+
+        {err && <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--red)',marginTop:12}}>{err}</div>}
+        <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)',marginTop:14,lineHeight:1.6}}>
+          Payments are processed securely by <strong style={{color:'var(--text2)'}}>PayFast</strong>. Cancel anytime.
+        </div>
+      </div>
+    </CollapsibleSection>
+  );
+};
+
 const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingConfig, setSharingConfig, onLogout, tabColor:tabColorProp='#00ff41'}) => {
   const [editing, setEditing] = useState(false);
   // Whole-page accent follows the signed-in user's accent_color so Profile
@@ -5084,6 +5446,9 @@ const ProfilePage = ({user, setUser, partner, setPartner, partners=[], sharingCo
           {/* ── Security (2FA) ── */}
           <SecuritySection user={user} setUser={setUser} onAlert={msg}/>
 
+          {/* ── Subscription & billing (self-service) ── */}
+          <BillingSection user={user} tabColor={tabColor}/>
+
           {/* ── Delete account (danger zone) ── */}
           <CollapsibleSection title="DELETE ACCOUNT" persistKey="profile-delete-account" accent="#ff3b3b" defaultOpen={false}>
             <div style={{padding:'14px'}}>
@@ -5431,20 +5796,10 @@ const AdminPage = ({user, onLogout, tabColor:tabColorProp='#ff9800'}) => {
           </div>
           ); })()}
 
-          {/* Subscriptions console — full billing management lives on its own page */}
-          <a href="/admin-billing.html" style={{textDecoration:'none',display:'block',marginBottom:12}}>
-            <div style={{position:'relative',background:'var(--bg2)',borderRadius:8,overflow:'hidden',border:'1px solid rgba(45,212,191,0.45)',borderLeft:'3px solid #2dd4bf',padding:'14px',display:'flex',alignItems:'center',gap:12}}>
-              <div style={{flexShrink:0,width:44,height:44,borderRadius:8,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(45,212,191,0.12)',border:'1px solid rgba(45,212,191,0.4)'}}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="#2dd4bf" strokeWidth="1.8" width="22" height="22"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
-              </div>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.2em',color:'var(--text3)',marginBottom:2}}>BILLING</div>
-                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:18,letterSpacing:'0.03em',textTransform:'uppercase',color:'var(--text)',lineHeight:1.05}}>Manage Subscriptions</div>
-                <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)',marginTop:2}}>Trials · plans · payments · revenue</div>
-              </div>
-              <div style={{fontFamily:"'DM Mono',monospace",fontSize:16,color:'#2dd4bf'}}>→</div>
-            </div>
-          </a>
+          {/* Subscriptions console — full billing management, in-app (no separate page) */}
+          <div style={{marginBottom:12}}>
+            <AdminBillingSection user={user} tabColor={tabColor}/>
+          </div>
 
           {/* Action cards grid */}
           <div style={{display:'flex',flexDirection:'column',gap:12}}>

@@ -3170,10 +3170,11 @@ app.get('/api/admin/payments', requireAdmin, async (req, res) => {
     }
 });
 
-// The admin subscription console page itself (gated client-side; APIs are the
-// real guard via requireAdmin).
-app.get('/admin/billing',      (req, res) => res.sendFile(path.join(__dirname, 'admin-billing.html')));
-app.get('/admin-billing.html', (req, res) => res.sendFile(path.join(__dirname, 'admin-billing.html')));
+// The admin subscription console now lives in-app inside the Admin tab
+// (AdminBillingSection in index.html); the legacy standalone page was removed.
+// Old links redirect into the app so any saved bookmarks keep working.
+app.get('/admin/billing',      (req, res) => res.redirect('/'));
+app.get('/admin-billing.html', (req, res) => res.redirect('/'));
 
 // ── IDENTITY PROXY ───────────────────────────────────────────────────────────
 const IDENTITY_URL  = 'http://127.0.0.1:3200';
