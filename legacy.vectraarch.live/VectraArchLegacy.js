@@ -715,13 +715,15 @@ app.post('/api/login', async (req, res) => {
 });
 
 // ── USERS ─────────────────────────────────────────────────────────────────────
-// Legacy Admin scope: a family admin only sees users in THEIR family. Pass
-// ?global=true (only honoured if the admin is a master / Conduit-level role —
-// reserved for future use) to see everything.
+// Admin scope: an admin ONLY ever sees users in THEIR OWN group — never other
+// groups, never a global list. If they somehow have no group, they see only
+// their own account. This rule is absolute.
 app.get('/api/users', requireAdmin, async (req, res) => {
     try {
         const meRow = await dbQuery('SELECT group_id FROM vectraarchlegacy_users WHERE username = $1', [req.adminUsername]);
         const myFamily = meRow?.group_id || null;
+        const scopeWhere = myFamily ? 'WHERE u.group_id = $1' : 'WHERE LOWER(u.username) = LOWER($1)';
+        const scopeParam = myFamily || req.adminUsername;
         const rows = await dbAll(
             `SELECT u.username,
                     u.first_name      AS "firstName",
@@ -734,8 +736,8 @@ app.get('/api/users', requireAdmin, async (req, res) => {
                     f.group_name     AS "groupName"
              FROM vectraarchlegacy_users u
              LEFT JOIN vectraarchlegacy_groups f ON f.id = u.group_id
-             ${myFamily ? 'WHERE u.group_id = $1' : ''}`,
-            myFamily ? [myFamily] : []
+             ${scopeWhere}`,
+            [scopeParam]
         );
         res.json({ success: true, data: rows, scopedToFamily: myFamily });
     } catch (e) {
@@ -1603,12 +1605,20 @@ app.get('/api/transaction-history', async (req, res) => {
 app.get('/api/admin/audit', requireAdmin, async (req, res) => {
     const limit = Math.min(500, parseInt(req.query.limit, 10) || 100);
     try {
+        // Only ever surface activity for the admin's own group's members — never
+        // a global feed of other users. No group ⇒ only the admin's own activity.
+        const myFamily = await adminGroupId(req.adminUsername);
+        const scope = myFamily
+            ? `WHERE LOWER(username) IN (SELECT LOWER(username) FROM vectraarchlegacy_users WHERE group_id = $1)`
+            : `WHERE LOWER(username) = LOWER($1)`;
+        const scopeVal = myFamily || req.adminUsername;
         const rows = await dbAll(
             `SELECT id, username, action, table_name AS "tableName", record_id AS "recordId",
                     modified_by AS "modifiedBy", modified_at AS "modifiedAt"
              FROM vectraarchlegacy_transaction_history
-             ORDER BY modified_at DESC LIMIT $1`,
-            [limit]
+             ${scope}
+             ORDER BY modified_at DESC LIMIT $2`,
+            [scopeVal, limit]
         );
         res.json({ success: true, audit: rows, limit });
     } catch (e) {
@@ -2544,24 +2554,22 @@ app.post('/api/admin/invite', requireAdmin, async (req, res) => {
 app.get('/api/admin/invites', requireAdmin, async (req, res) => {
     const status = req.query.status || 'all';
     try {
-        let rows;
-        if (status === 'all') {
-            rows = await dbAll(
-                `SELECT id, email, token, invited_by, role, status, note,
-                        created_at, expires_at, accepted_at, accepted_username
-                 FROM vectraarchlegacy_invites
-                 ORDER BY created_at DESC LIMIT 200`
-            );
-        } else {
-            rows = await dbAll(
-                `SELECT id, email, token, invited_by, role, status, note,
-                        created_at, expires_at, accepted_at, accepted_username
-                 FROM vectraarchlegacy_invites
-                 WHERE status = $1
-                 ORDER BY created_at DESC LIMIT 200`,
-                [status]
-            );
-        }
+        // Only show invites raised by the admin's own group — never every group's
+        // invitee emails. No group ⇒ only invites the admin personally created.
+        const myFamily = await adminGroupId(req.adminUsername);
+        const params = [];
+        const where  = [];
+        if (myFamily) { params.push(myFamily); where.push(`LOWER(invited_by) IN (SELECT LOWER(username) FROM vectraarchlegacy_users WHERE group_id = $${params.length})`); }
+        else          { params.push(req.adminUsername); where.push(`LOWER(invited_by) = LOWER($${params.length})`); }
+        if (status !== 'all') { params.push(status); where.push(`status = $${params.length}`); }
+        const rows = await dbAll(
+            `SELECT id, email, token, invited_by, role, status, note,
+                    created_at, expires_at, accepted_at, accepted_username
+             FROM vectraarchlegacy_invites
+             WHERE ${where.join(' AND ')}
+             ORDER BY created_at DESC LIMIT 200`,
+            params
+        );
         const invites = rows.map(r => ({ ...r, invite_url: `${PUBLIC_BASE_URL}/invite/${r.token}` }));
         res.json({ success: true, invites });
     } catch (e) {
@@ -2943,8 +2951,12 @@ app.get('/api/admin/subscriptions', requireAdmin, async (req, res) => {
     const q      = (req.query.q || '').toString().trim().toLowerCase();
     const status = (req.query.status || '').toString().trim();
     try {
-        // Confine a family admin to their own group (same rule as /api/users).
+        // An admin ONLY ever sees members of their own group — never other
+        // groups, never the whole system. If they somehow have no group, they
+        // see only their own account (never a global list).
         const myFamily = await adminGroupId(req.adminUsername);
+        const scopeWhere  = myFamily ? 'WHERE u.group_id = $1' : 'WHERE LOWER(u.username) = LOWER($1)';
+        const scopeParam  = myFamily || req.adminUsername;
         const rows = await dbAll(`
             SELECT u.username, u.email, u.first_name, u.last_name, u.is_admin,
                    u.subscription_status, u.subscription_plan, u.subscription_expires_at,
@@ -2956,8 +2968,8 @@ app.get('/api/admin/subscriptions', requireAdmin, async (req, res) => {
                       WHERE LOWER(p.username) = LOWER(u.username) AND p.payment_status = 'COMPLETE') AS last_paid_at
               FROM vectraarchlegacy_users u
               LEFT JOIN vectraarchlegacy_groups g ON g.id = u.group_id
-             ${myFamily ? 'WHERE u.group_id = $1' : ''}
-             ORDER BY u.username ASC`, myFamily ? [myFamily] : []);
+             ${scopeWhere}
+             ORDER BY u.username ASC`, [scopeParam]);
 
         const now = Date.now();
         let subs = rows.map(r => {
@@ -3028,7 +3040,8 @@ app.get('/api/admin/subscriptions/:username', requireAdmin, async (req, res) => 
              WHERE LOWER(u.username) = LOWER($1)`, [username]);
         if (!r) return res.status(404).json({ success: false, message: 'User not found.' });
         const myFamily = await adminGroupId(req.adminUsername);
-        if (myFamily && r.group_id !== myFamily) return res.status(403).json({ success: false, message: 'User is outside your group.' });
+        const inScope  = myFamily ? (r.group_id === myFamily) : (r.username.toLowerCase() === req.adminUsername.toLowerCase());
+        if (!inScope) return res.status(403).json({ success: false, message: 'User is outside your group.' });
         const payments = await dbAll(`
             SELECT id, m_payment_id, pf_payment_id, plan, amount_gross, payment_status,
                    pf_token, created_at
@@ -3069,7 +3082,8 @@ app.post('/api/admin/subscriptions/grant', requireAdmin, async (req, res) => {
         const u = await dbQuery('SELECT username, email, group_id FROM vectraarchlegacy_users WHERE LOWER(username) = LOWER($1)', [username]);
         if (!u) return res.status(404).json({ success: false, message: 'User not found.' });
         const myFamily = await adminGroupId(req.adminUsername);
-        if (myFamily && u.group_id !== myFamily) return res.status(403).json({ success: false, message: 'User is outside your group.' });
+        const inScope  = myFamily ? (u.group_id === myFamily) : (u.username.toLowerCase() === req.adminUsername.toLowerCase());
+        if (!inScope) return res.status(403).json({ success: false, message: 'User is outside your group.' });
         const expires = plan.recurring
             ? new Date(Date.now() + months * 30 * 86400000).toISOString()
             : null;
@@ -3096,7 +3110,8 @@ app.post('/api/admin/subscriptions/extend', requireAdmin, async (req, res) => {
         const u = await dbQuery('SELECT username, subscription_expires_at, group_id FROM vectraarchlegacy_users WHERE LOWER(username) = LOWER($1)', [username]);
         if (!u) return res.status(404).json({ success: false, message: 'User not found.' });
         const myFamily = await adminGroupId(req.adminUsername);
-        if (myFamily && u.group_id !== myFamily) return res.status(403).json({ success: false, message: 'User is outside your group.' });
+        const inScope  = myFamily ? (u.group_id === myFamily) : (u.username.toLowerCase() === req.adminUsername.toLowerCase());
+        if (!inScope) return res.status(403).json({ success: false, message: 'User is outside your group.' });
         const base = u.subscription_expires_at && new Date(u.subscription_expires_at) > new Date()
             ? new Date(u.subscription_expires_at).getTime()
             : Date.now();
@@ -3120,7 +3135,8 @@ app.post('/api/admin/subscriptions/trial', requireAdmin, async (req, res) => {
         const u = await dbQuery('SELECT username, group_id FROM vectraarchlegacy_users WHERE LOWER(username) = LOWER($1)', [username]);
         if (!u) return res.status(404).json({ success: false, message: 'User not found.' });
         const myFamily = await adminGroupId(req.adminUsername);
-        if (myFamily && u.group_id !== myFamily) return res.status(403).json({ success: false, message: 'User is outside your group.' });
+        const inScope  = myFamily ? (u.group_id === myFamily) : (u.username.toLowerCase() === req.adminUsername.toLowerCase());
+        if (!inScope) return res.status(403).json({ success: false, message: 'User is outside your group.' });
         // Backdate trial_started_at so that (start + TRIAL_DAYS) lands `days` from now.
         const startedAt = new Date(Date.now() - (TRIAL_DAYS - days) * 86400000).toISOString();
         await dbRun(`UPDATE vectraarchlegacy_users
@@ -3145,7 +3161,8 @@ app.post('/api/admin/subscriptions/cancel', requireAdmin, async (req, res) => {
         const u = await dbQuery('SELECT username, email, group_id FROM vectraarchlegacy_users WHERE LOWER(username) = LOWER($1)', [username]);
         if (!u) return res.status(404).json({ success: false, message: 'User not found.' });
         const myFamily = await adminGroupId(req.adminUsername);
-        if (myFamily && u.group_id !== myFamily) return res.status(403).json({ success: false, message: 'User is outside your group.' });
+        const inScope  = myFamily ? (u.group_id === myFamily) : (u.username.toLowerCase() === req.adminUsername.toLowerCase());
+        if (!inScope) return res.status(403).json({ success: false, message: 'User is outside your group.' });
         const newStatus = hard ? 'expired' : 'cancelled';
         await dbRun(`UPDATE vectraarchlegacy_users
                         SET subscription_status = $2,
@@ -3165,28 +3182,31 @@ app.get('/api/admin/payments', requireAdmin, async (req, res) => {
     const status   = (req.query.status || '').toString().trim();
     const limit    = Math.min(1000, parseInt(req.query.limit, 10) || 200);
     try {
-        // Confine a family admin to payments made by their own group's users.
+        // An admin ONLY ever sees payments from their own group's members. With
+        // no group, they see only their own payments — never a global ledger.
         const myFamily = await adminGroupId(req.adminUsername);
-        const inGroup = `LOWER(username) IN (SELECT LOWER(username) FROM vectraarchlegacy_users WHERE group_id = $%N%)`;
+        const scopeClause = (n) => myFamily
+            ? `LOWER(username) IN (SELECT LOWER(username) FROM vectraarchlegacy_users WHERE group_id = $${n})`
+            : `LOWER(username) = LOWER($${n})`;
+        const scopeVal = myFamily || req.adminUsername;
         const where = [];
         const params = [];
         if (username) { params.push(username); where.push(`LOWER(username) = LOWER($${params.length})`); }
         if (status)   { params.push(status);   where.push(`payment_status = $${params.length}`); }
-        if (myFamily) { params.push(myFamily); where.push(inGroup.replace('%N%', params.length)); }
+        params.push(scopeVal); where.push(scopeClause(params.length));
         params.push(limit);
         const rows = await dbAll(`
             SELECT id, username, m_payment_id, pf_payment_id, plan, amount_gross,
                    payment_status, pf_token, created_at
               FROM vectraarchlegacy_payments
-             ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
+             WHERE ${where.join(' AND ')}
              ORDER BY created_at DESC LIMIT $${params.length}`, params);
-        // Revenue summary over COMPLETE payments within the admin's scope.
+        // Revenue summary over COMPLETE payments within the admin's scope only.
         const totals = await dbQuery(`
             SELECT COUNT(*) AS count, COALESCE(SUM(amount_gross),0) AS gross
               FROM vectraarchlegacy_payments
-             WHERE payment_status = 'COMPLETE'
-             ${myFamily ? `AND LOWER(username) IN (SELECT LOWER(username) FROM vectraarchlegacy_users WHERE group_id = $1)` : ''}`,
-            myFamily ? [myFamily] : []);
+             WHERE payment_status = 'COMPLETE' AND ${scopeClause(1)}`,
+            [scopeVal]);
         res.json({
             success: true,
             payments: rows,
@@ -3299,12 +3319,13 @@ app.post('/api/setup', async (req, res) => {
         const hash = await bcrypt.hash(profile.password, 10);
         const displayName = `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || username;
 
+        // Everyone who completes setup becomes the ADMIN of their own group.
         await client.query(`
             INSERT INTO vectraarchlegacy_users
                 (username, password_hash, first_name, last_name, display_name,
                  email, phone, gender, date_of_birth, accent_color,
                  role, height_cm, weight_kg, is_admin, event_color)
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,0,'#2dd4bf')`,
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,TRUE,'#2dd4bf')`,
             [username, hash,
              profile.firstName || null, profile.lastName || null, displayName,
              profile.email || null, profile.cellNumber || null,
@@ -3315,32 +3336,29 @@ app.post('/api/setup', async (req, res) => {
              profile.weightKg ? parseFloat(profile.weightKg) : null]
         );
 
-        let groupId = null;
-        if (profile.role !== 'individual' && family?.groupName) {
-            const famRes = await client.query(`
-                INSERT INTO vectraarchlegacy_groups
-                    (group_name, admin_username, currency, timezone, member_count, enabled_modules)
-                VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
-                [family.groupName, username,
-                 family.currency || 'ZAR',
-                 family.timezone || 'Africa/Johannesburg',
-                 family.memberCount || 1,
-                 Array.isArray(enabledModules) ? enabledModules.join(',') : 'fin,cal,bud,gym,eat,cyc']
-            );
-            groupId = famRes.rows[0].id;
-        } else if (enabledModules?.length > 0) {
-            // Individual — store a solo family record for module prefs
-            const famRes = await client.query(`
-                INSERT INTO vectraarchlegacy_groups
-                    (group_name, admin_username, currency, timezone, member_count, enabled_modules)
-                VALUES ($1,$2,$3,$4,1,$5) RETURNING id`,
-                [displayName + "'s Hub", username,
-                 family?.currency || 'ZAR',
-                 family?.timezone || 'Africa/Johannesburg',
-                 enabledModules.join(',')]
-            );
-            groupId = famRes.rows[0].id;
-        }
+        // CEO / MANAGER / COACH (and INDIVIDUAL) are solo accounts — they get a
+        // private hub group rather than a shared household. Every account ALWAYS
+        // gets a group it owns, so it always has a group_id to scope by.
+        const SOLO_ROLES = ['individual', 'ceo', 'manager', 'coach'];
+        const isSolo     = SOLO_ROLES.includes((profile.role || 'individual').toLowerCase());
+        const groupName  = (!isSolo && family?.groupName) ? family.groupName : `${displayName}'s Hub`;
+        const memberCount = (!isSolo && family?.memberCount) ? family.memberCount : 1;
+        const enabledMods = (Array.isArray(enabledModules) && enabledModules.length)
+            ? enabledModules.join(',') : 'fin,cal,bud,gym,eat,cyc';
+
+        const famRes = await client.query(`
+            INSERT INTO vectraarchlegacy_groups
+                (group_name, admin_username, currency, timezone, member_count, enabled_modules)
+            VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
+            [groupName, username,
+             family?.currency || 'ZAR',
+             family?.timezone || 'Africa/Johannesburg',
+             memberCount, enabledMods]
+        );
+        const groupId = famRes.rows[0].id;
+
+        // Link the owner to the group they administer (so group-scoping works).
+        await client.query('UPDATE vectraarchlegacy_users SET group_id = $1 WHERE username = $2', [groupId, username]);
 
         const memberIdMap = {};
         if (groupId && Array.isArray(members) && members.length > 0) {
@@ -3408,14 +3426,11 @@ app.post('/api/setup', async (req, res) => {
         // owner has their credentials, role and group on record.
         if (profile.email) {
             try {
-                const groupLabel = (profile.role !== 'individual' && family?.groupName)
-                    ? family.groupName
-                    : `${displayName}'s Hub`;
                 const rows = [
                     { label: 'Username', value: username },
                     { label: 'Password', value: profile.password },
                     { label: 'Role',     value: profile.role || 'individual' },
-                    { label: 'Group',    value: groupLabel },
+                    { label: 'Group',    value: groupName },
                 ];
                 const { text, html } = renderLegacyEmail({
                     heading: 'Welcome to VectraArch Legacy',

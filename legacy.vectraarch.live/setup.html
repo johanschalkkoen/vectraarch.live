@@ -1197,6 +1197,11 @@ const COLOR_NAMES = {
 // Every group / relationship type the app supports (ROLE_OPTIONS in index.html).
 const ROLE_OPTIONS = ['individual', 'partner', 'parent', 'guardian', 'ceo', 'manager', 'coach'];
 
+// Solo roles run a private single-account setup: they skip the group / members /
+// sharing steps entirely, exactly like an individual.
+const SOLO_ROLES = ['individual', 'ceo', 'manager', 'coach'];
+function isSoloRole() { return SOLO_ROLES.includes(D.profile.role); }
+
 const SHARE_DEFAULTS = {
   partner: { fin: true,  cal: true,  bud: true,  gym: true,  eat: true,  cyc: true  },
   child:   { fin: false, cal: true,  bud: false, gym: true,  eat: true,  cyc: false },
@@ -1239,7 +1244,7 @@ function nextStep() {
   if (!validateStep(curStep)) return;
   collectStep(curStep);
 
-  const isIndividual = D.profile.role === 'individual';
+  const isIndividual = isSoloRole();
 
   if (curStep === 2 && isIndividual) {
     curStep = 6;
@@ -1261,7 +1266,7 @@ function nextStep() {
 function prevStep() {
   if (curStep === 1) { window.location.href = '/login.html'; return; }
 
-  const isIndividual = D.profile.role === 'individual';
+  const isIndividual = isSoloRole();
   if (curStep === 6 && isIndividual) {
     curStep = 2;
   } else if (curStep === 6 && D.family.memberCount < 2) {
@@ -1715,7 +1720,7 @@ function renderReview() {
 
   container.appendChild(rSection('\xA7 Profile', profileHTML));
 
-  if (pr.role !== 'individual' && D.family.groupName) {
+  if (!isSoloRole() && D.family.groupName) {
     const fam = D.family;
     const famHTML =
       rRow('Group', fam.groupName) +
