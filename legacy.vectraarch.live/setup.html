@@ -302,6 +302,56 @@
       text-transform: uppercase;
     }
 
+    /* ── ACCENT PALETTE (matches the app's Profile swatch grid) ── */
+    .color-grid {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 8px;
+    }
+
+    .swatch {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      border-radius: 6px;
+      border: 2px solid transparent;
+      transition: outline 0.12s, transform 0.12s;
+    }
+
+    .swatch.active {
+      outline: 2px solid rgba(255,255,255,0.85);
+      outline-offset: 2px;
+      transform: scale(1.08);
+    }
+
+    .accent-name {
+      font-family: 'DM Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 0.14em;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      margin-top: 9px;
+    }
+
+    /* ── PASSWORD + GENERATE ── */
+    .pw-row { display: flex; gap: 7px; }
+    .pw-row .sf-input { flex: 1; }
+
+    .btn-gen {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text2, var(--text));
+      background: var(--bg3);
+      border: 1px solid var(--border2);
+      border-radius: 4px;
+      padding: 0 14px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .btn-gen:hover { border-color: var(--accent); color: var(--accent); }
+
     /* ── DIVIDER ── */
     .sf-divider {
       display: flex;
@@ -707,7 +757,8 @@
       background: rgba(0,255,65,0.04);
     }
 
-    .module-select-icon { font-size: 20px; margin-bottom: 8px; }
+    .module-select-icon { font-size: 20px; margin-bottom: 8px; line-height: 0; }
+    .module-select-icon svg { width: 24px; height: 24px; display: block; }
 
     .module-select-name {
       font-family: 'DM Mono', monospace;
@@ -828,8 +879,8 @@
         </svg>
       </div>
       <div class="welcome-title">WELCOME TO</div>
-      <div class="welcome-brand">VECTRA ARCH_</div>
-      <div class="welcome-desc">Your family command center for finances, calendar, fitness, nutrition and cycles. Let's set things up in a few quick steps.</div>
+      <div class="welcome-brand">VECTRA ARCH LEGACY</div>
+      <div class="welcome-desc">Your group command center for finances, calendar, fitness, nutrition and cycles. Let's set things up in a few quick steps.</div>
       <div class="welcome-chips">
         <div class="welcome-chip">
           <div class="welcome-chip-num">01</div>
@@ -837,7 +888,7 @@
         </div>
         <div class="welcome-chip">
           <div class="welcome-chip-num">02</div>
-          <div class="welcome-chip-label">Family</div>
+          <div class="welcome-chip-label">Group</div>
         </div>
         <div class="welcome-chip">
           <div class="welcome-chip-num">03</div>
@@ -854,9 +905,15 @@
     <div class="step-title">Your profile_</div>
     <div class="step-sub">Tell us about you. This personalises every module.</div>
 
-    <div class="sf">
-      <label class="sf-label">FULL NAME</label>
-      <input class="sf-input" id="p-fullname" type="text" placeholder="First Last" autocomplete="name" oninput="onNameInput()"/>
+    <div class="sf-row">
+      <div class="sf">
+        <label class="sf-label">FIRST NAME</label>
+        <input class="sf-input" id="p-firstname" type="text" placeholder="First" autocomplete="given-name" autocapitalize="words" oninput="onNameInput()"/>
+      </div>
+      <div class="sf">
+        <label class="sf-label">LAST NAME</label>
+        <input class="sf-input" id="p-lastname" type="text" placeholder="Last" autocomplete="family-name" autocapitalize="words" oninput="onNameInput()"/>
+      </div>
     </div>
 
     <div class="sf">
@@ -885,33 +942,13 @@
 
     <div class="sf">
       <label class="sf-label">ACCENT COLOUR</label>
-      <div class="color-group">
-        <div class="color-dot-wrap" onclick="setAccent('#e74c3c','crimson')">
-          <div class="color-dot" id="dot-crimson" style="background:#e74c3c"></div>
-          <span class="color-label">Crimson</span>
-        </div>
-        <div class="color-dot-wrap" onclick="setAccent('#00ff41','neon')">
-          <div class="color-dot active" id="dot-neon" style="background:#00ff41"></div>
-          <span class="color-label">Neon</span>
-        </div>
-        <div class="color-dot-wrap" onclick="setAccent('#00bfff','cyan')">
-          <div class="color-dot" id="dot-cyan" style="background:#00bfff"></div>
-          <span class="color-label">Cyan</span>
-        </div>
-        <div class="color-dot-wrap" onclick="setAccent('#9b59b6','purple')">
-          <div class="color-dot" id="dot-purple" style="background:#9b59b6"></div>
-          <span class="color-label">Purple</span>
-        </div>
-      </div>
+      <div class="color-grid" id="accent-grid"></div>
+      <div class="accent-name" id="accent-name">NEON</div>
     </div>
 
     <div class="sf">
       <label class="sf-label">I AM THE___</label>
-      <div class="chip-group">
-        <div class="chip active" id="role-parent" onclick="setRole('parent')">Parent</div>
-        <div class="chip" id="role-guardian" onclick="setRole('guardian')">Guardian</div>
-        <div class="chip" id="role-individual" onclick="setRole('individual')">Individual</div>
-      </div>
+      <div class="chip-group" id="role-group"></div>
     </div>
 
     <div class="sf-divider">
@@ -945,19 +982,22 @@
 
     <div class="sf" style="margin-bottom:8px">
       <label class="sf-label">PASSWORD</label>
-      <input class="sf-input" id="p-password" type="password" placeholder="········" autocomplete="new-password"/>
+      <div class="pw-row">
+        <input class="sf-input" id="p-password" type="text" placeholder="At least 6 characters" autocomplete="new-password" autocapitalize="none" spellcheck="false"/>
+        <button type="button" class="btn-gen" onclick="genPassword()">GEN</button>
+      </div>
     </div>
   </div>
 
-  <!-- ── STEP 3: FAMILY ── -->
+  <!-- ── STEP 3: GROUP ── -->
   <div class="step" id="s3">
-    <span class="step-eyebrow">YOUR FAMILY</span>
-    <div class="step-title">Your household_</div>
-    <div class="step-sub">Vectra Arch is built around your people. Create your family unit.</div>
+    <span class="step-eyebrow">YOUR GROUP</span>
+    <div class="step-title">Your group_</div>
+    <div class="step-sub">Legacy is built around your people. Create your group.</div>
 
     <div class="sf">
-      <label class="sf-label">FAMILY NAME</label>
-      <input class="sf-input" id="f-name" type="text" placeholder="The Smith Family"/>
+      <label class="sf-label">YOUR GROUP NAME</label>
+      <input class="sf-input" id="f-name" type="text" placeholder="The Smith Group"/>
     </div>
 
     <div class="sf">
@@ -1011,11 +1051,11 @@
     </div>
 
     <div class="sf">
-      <label class="sf-label">FAMILY ADMIN</label>
+      <label class="sf-label">GROUP ADMIN</label>
       <div class="admin-card">
         <div class="admin-icon">◎</div>
         <div>
-          <div class="admin-label">Family Admin</div>
+          <div class="admin-label">Group Admin</div>
           <div class="admin-name" id="f-admin-name">You will be linked as administrator.</div>
         </div>
       </div>
@@ -1025,8 +1065,8 @@
   <!-- ── STEP 4: MEMBERS ── -->
   <div class="step" id="s4">
     <span class="step-eyebrow">ADD MEMBERS</span>
-    <div class="step-title">Add family_</div>
-    <div class="step-sub">Add the people who'll share your hub. You can invite them anytime.</div>
+    <div class="step-title">Add members_</div>
+    <div class="step-sub">Add the people who'll share your group. You can invite them anytime.</div>
     <div id="members-container"></div>
   </div>
 
@@ -1041,8 +1081,8 @@
   <!-- ── STEP 6: MODULES ── -->
   <div class="step" id="s6">
     <span class="step-eyebrow">MODULES</span>
-    <div class="step-title">Your hub_</div>
-    <div class="step-sub">Select the Vectra Arch modules to activate for your household.</div>
+    <div class="step-title">Your modules_</div>
+    <div class="step-sub">Select the Legacy modules to activate for your Group.</div>
     <div class="module-select-grid" id="modules-grid"></div>
   </div>
 
@@ -1050,7 +1090,7 @@
   <div class="step" id="s7">
     <span class="step-eyebrow">NOTIFICATIONS</span>
     <div class="step-title">Stay in the loop_</div>
-    <div class="step-sub">Choose how Vectra Arch reaches you — invites, security alerts and account changes.</div>
+    <div class="step-sub">Choose how Legacy reaches you — invites, security alerts and account changes.</div>
 
     <div class="notif-card">
       <div class="notif-row">
@@ -1078,9 +1118,9 @@
     </div>
 
     <div class="sf">
-      <label class="sf-label">TELEGRAM CHAT ID <small>OPTIONAL</small></label>
+      <label class="sf-label">TELEGRAM CHAT ID <small id="tg-req-tag">OPTIONAL</small></label>
       <input class="sf-input" id="n-telegram-id" type="text" placeholder="e.g. 8783471876" inputmode="numeric" autocomplete="off"/>
-      <div class="field-hint">Message <strong>@userinfobot</strong> on Telegram to get your numeric chat ID. You can add this later from your profile.</div>
+      <div class="field-hint" id="tg-hint" style="display:block;color:var(--text-dim)">Message <strong>@userinfobot</strong> on Telegram to get your numeric chat ID.</div>
     </div>
   </div>
 
@@ -1114,21 +1154,48 @@ const D = {
     role: 'parent', heightCm: '', weightKg: '',
     username: '', password: ''
   },
-  family: { familyName: '', memberCount: 3, currency: 'ZAR', timezone: 'Africa/Johannesburg' },
+  family: { groupName: '', memberCount: 3, currency: 'ZAR', timezone: 'Africa/Johannesburg' },
   members: [],
   moduleAccess: {},
   enabledModules: ['fin', 'cal', 'bud', 'gym', 'eat', 'cyc'],
   notifications: { telegramChatId: '', telegram: true, email: true }
 };
 
+// Module icons mirror the app's `icons` set (index.html): stroke=currentColor
+// line-art, coloured per the app's tab accents so setup matches the real UI.
+const MODULE_ICONS = {
+  fin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>',
+  cal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',
+  bud: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3" width="8" height="8" rx="1"/><rect x="14" y="3" width="8" height="8" rx="1"/><rect x="2" y="13" width="8" height="8" rx="1"/><rect x="14" y="13" width="8" height="8" rx="1"/></svg>',
+  gym: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 4v16M18 4v16M2 9h4M18 9h4M2 15h4M18 15h4M6 12h12"/></svg>',
+  eat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>',
+  cyc: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C12 2 5 10.5 5 15a7 7 0 0 0 14 0C19 10.5 12 2 12 2z" opacity="0.9"/></svg>',
+};
+
 const MODULE_META = [
-  { key: 'fin', icon: '💰', name: 'Finances',  desc: 'Income, expenses & transactions' },
-  { key: 'cal', icon: '📅', name: 'Calendar',  desc: 'Events & family reminders' },
-  { key: 'bud', icon: '📊', name: 'Budget',    desc: 'Monthly budget planner' },
-  { key: 'gym', icon: '🏋', name: 'Fitness',   desc: 'Workouts & gym tracking' },
-  { key: 'eat', icon: '🥗', name: 'Nutrition', desc: 'Meal plans & diet tracking' },
-  { key: 'cyc', icon: '🔄', name: 'Cycles',    desc: 'Menstrual cycle tracking' },
+  { key: 'fin', color: '#ffd600', name: 'Finances',  desc: 'Income, expenses & transactions' },
+  { key: 'cal', color: '#448aff', name: 'Calendar',  desc: 'Events & group reminders' },
+  { key: 'bud', color: '#ff6d00', name: 'Budget',    desc: 'Monthly budget planner' },
+  { key: 'gym', color: '#ff4081', name: 'Fitness',   desc: 'Workouts & gym tracking' },
+  { key: 'eat', color: '#d67bff', name: 'Nutrition', desc: 'Meal plans & diet tracking' },
+  { key: 'cyc', color: '#ff3b3b', name: 'Cycles',    desc: 'Menstrual cycle tracking' },
 ];
+
+// Full accent palette + names, matching the app's Profile page exactly.
+const COLORS = [
+  '#e74c3c','#ff3b3b','#ff6b9d','#e91e8c','#d67bff','#b06aff','#e040fb','#9b59b6',
+  '#448aff','#00bfff','#00bcd4','#1de9b6','#00e676','#00ff41','#76ff03','#ffd600',
+  '#ffab00','#ff9800','#ff6d00','#ff5722','#795548','#9e9e9e','#cfd8dc','#ffffff',
+];
+const COLOR_NAMES = {
+  '#e74c3c':'CRIMSON','#ff3b3b':'CRIMSON','#ff6b9d':'ROSE','#e91e8c':'PINK','#d67bff':'LAVENDER',
+  '#b06aff':'INDIGO','#e040fb':'VIOLET','#9b59b6':'PURPLE','#448aff':'OCEAN','#00bfff':'CYAN',
+  '#00bcd4':'TEAL','#1de9b6':'MINT','#00e676':'NEON','#00ff41':'NEON','#76ff03':'LIME',
+  '#ffd600':'GOLD','#ffab00':'AMBER','#ff9800':'AMBER','#ff6d00':'ORANGE','#ff5722':'CORAL',
+  '#795548':'COFFEE','#9e9e9e':'STEEL','#cfd8dc':'ASH','#ffffff':'IVORY',
+};
+// Every group / relationship type the app supports (ROLE_OPTIONS in index.html).
+const ROLE_OPTIONS = ['individual', 'partner', 'parent', 'guardian', 'ceo', 'manager', 'coach'];
 
 const SHARE_DEFAULTS = {
   partner: { fin: true,  cal: true,  bud: true,  gym: true,  eat: true,  cyc: true  },
@@ -1222,9 +1289,10 @@ function clearError() {
 function validateStep(s) {
   clearError();
   if (s === 2) {
-    const fullName = document.getElementById('p-fullname').value.trim();
-    if (!fullName || fullName.split(/\s+/).length < 2) {
-      showError('Enter your full name — first and last.'); return false;
+    const firstName = document.getElementById('p-firstname').value.trim();
+    const lastName  = document.getElementById('p-lastname').value.trim();
+    if (!firstName || !lastName) {
+      showError('Enter your first and last name.'); return false;
     }
     const email = document.getElementById('p-email').value.trim();
     if (!email || !email.includes('@') || !email.includes('.')) {
@@ -1248,7 +1316,21 @@ function validateStep(s) {
   }
   if (s === 3) {
     if (!document.getElementById('f-name').value.trim()) {
-      showError('Enter a name for your family.'); return false;
+      showError('Enter a name for your group.'); return false;
+    }
+    return true;
+  }
+  if (s === 7) {
+    collectNotifications();
+    // Telegram alerts on ⇒ a numeric chat ID is required to continue.
+    if (D.notifications.telegram) {
+      const id = (document.getElementById('n-telegram-id').value || '').trim();
+      if (!id) {
+        showError('Add your Telegram chat ID to continue, or turn off Telegram alerts.'); return false;
+      }
+      if (!/^-?\d{5,}$/.test(id)) {
+        showError('Telegram chat ID must be numeric (message @userinfobot to get yours).'); return false;
+      }
     }
     return true;
   }
@@ -1258,19 +1340,18 @@ function validateStep(s) {
 // ── COLLECT ─────────────────────────────────────────────────────────────────
 function collectStep(s) {
   if (s === 2) {
-    const parts = document.getElementById('p-fullname').value.trim().split(/\s+/);
-    D.profile.firstName = parts[0] || '';
-    D.profile.lastName  = parts.slice(1).join(' ') || '';
+    D.profile.firstName = document.getElementById('p-firstname').value.trim();
+    D.profile.lastName  = document.getElementById('p-lastname').value.trim();
     D.profile.email     = document.getElementById('p-email').value.trim();
     D.profile.cellNumber = document.getElementById('p-cell').value.trim();
     D.profile.dateOfBirth = document.getElementById('p-dob').value.trim();
     D.profile.heightCm  = document.getElementById('p-height').value;
     D.profile.weightKg  = document.getElementById('p-weight').value;
-    D.profile.username  = document.getElementById('p-username').value.trim();  // preserve case
+    D.profile.username  = document.getElementById('p-username').value.trim().toLowerCase();
     D.profile.password  = document.getElementById('p-password').value;
   }
   if (s === 3) {
-    D.family.familyName  = document.getElementById('f-name').value.trim();
+    D.family.groupName   = document.getElementById('f-name').value.trim();
     D.family.currency    = document.getElementById('f-currency').value;
     D.family.timezone    = document.getElementById('f-tz').value;
   }
@@ -1284,32 +1365,70 @@ function setGender(g) {
   );
 }
 
-function setRole(r) {
-  D.profile.role = r;
-  ['parent','guardian','individual'].forEach(v =>
-    document.getElementById('role-' + v).classList.toggle('active', v === r)
-  );
+// Build the role chips for every supported group type (ROLE_OPTIONS).
+function renderRoles() {
+  const wrap = document.getElementById('role-group');
+  if (!wrap) return;
+  wrap.innerHTML = ROLE_OPTIONS.map(r =>
+    '<div class="chip' + (D.profile.role === r ? ' active' : '') + '" id="role-' + r + '" ' +
+    'onclick="setRole(\'' + r + '\')">' + r.charAt(0).toUpperCase() + r.slice(1) + '</div>'
+  ).join('');
 }
 
-function setAccent(color, key) {
+function setRole(r) {
+  D.profile.role = r;
+  ROLE_OPTIONS.forEach(v => {
+    const el = document.getElementById('role-' + v);
+    if (el) el.classList.toggle('active', v === r);
+  });
+}
+
+// Build the full accent-colour palette (matches the app's Profile swatch grid).
+function renderAccentGrid() {
+  const grid = document.getElementById('accent-grid');
+  if (!grid) return;
+  grid.innerHTML = COLORS.map(c =>
+    '<div class="swatch' + (D.profile.accentColor === c ? ' active' : '') + '" ' +
+    'data-color="' + c + '" style="background:' + c + '" ' +
+    'onclick="setAccent(\'' + c + '\')" title="' + (COLOR_NAMES[c] || c) + '"></div>'
+  ).join('');
+  updateAccentName();
+}
+
+function setAccent(color) {
   D.profile.accentColor = color;
-  ['crimson','neon','cyan','purple'].forEach(k =>
-    document.getElementById('dot-' + k).classList.toggle('active', k === key)
+  document.querySelectorAll('#accent-grid .swatch').forEach(el =>
+    el.classList.toggle('active', el.getAttribute('data-color') === color)
   );
+  updateAccentName();
+}
+
+function updateAccentName() {
+  const el = document.getElementById('accent-name');
+  if (el) el.textContent = COLOR_NAMES[D.profile.accentColor] || D.profile.accentColor;
+}
+
+// Generate a strong password (same alphabet/length as the app's admin add).
+function genPassword() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+  let out = '';
+  for (let i = 0; i < 14; i++) out += chars[Math.floor(Math.random() * chars.length)];
+  document.getElementById('p-password').value = out;
 }
 
 function onNameInput() {
-  const name = document.getElementById('p-fullname').value.trim();
-  const parts = name.split(/\s+/).filter(Boolean);
-  if (parts.length >= 2 && !usernameManuallySet) {
-    // Suggest e.g. "Anel.Koen" — preserves case, allows @ . _ -
-    const suggested = (parts[0] + '.' + parts[parts.length - 1])
-      .replace(/[^A-Za-z0-9._@-]/g, '');
+  const first = document.getElementById('p-firstname').value.trim();
+  const last  = document.getElementById('p-lastname').value.trim();
+  if (first && last && !usernameManuallySet) {
+    // Auto-suggest a lowercase username, e.g. "anel.koen" — strip to [a-z0-9._-].
+    const suggested = (first + '.' + last)
+      .toLowerCase()
+      .replace(/[^a-z0-9._-]/g, '');
     document.getElementById('p-username').value = suggested;
     scheduleUsernameCheck(suggested);
   }
-  // Update family admin label
-  const display = name || 'You';
+  // Update group admin label.
+  const display = [first, last].filter(Boolean).join(' ') || 'You';
   const adminEl = document.getElementById('f-admin-name');
   if (adminEl) adminEl.textContent = display + ' will be linked as administrator.';
 }
@@ -1431,7 +1550,7 @@ function buildMemberCard(m, i) {
       '<div class="sf"><label class="sf-label">CELL NUMBER <small>OPTIONAL</small></label>' +
         '<input class="sf-input" id="m-' + i + '-cell" type="tel" placeholder="+27 82 000 0000" value="' + escHtml(m.inviteCell) + '" oninput="D.members[' + i + '].inviteCell=this.value"/>' +
       '</div>' +
-      '<p class="invite-note">We\'ll send an invite link to join your hub.</p>' +
+      '<p class="invite-note">We\'ll send an invite link to join your group.</p>' +
     '</div>';
 
   return card;
@@ -1564,8 +1683,8 @@ function renderModules() {
     card.id = 'msel-' + meta.key;
     card.onclick = () => toggleModuleSel(meta.key);
     card.innerHTML =
-      '<div class="module-select-icon">' + meta.icon + '</div>' +
-      '<div class="module-select-name">' + meta.name + '</div>' +
+      '<div class="module-select-icon" style="color:' + meta.color + '">' + (MODULE_ICONS[meta.key] || '') + '</div>' +
+      '<div class="module-select-name" style="color:' + meta.color + '">' + meta.name + '</div>' +
       '<div class="module-select-desc">' + meta.desc + '</div>' +
       '<div class="module-select-check"><div class="msc-dot"></div></div>';
     grid.appendChild(card);
@@ -1596,14 +1715,14 @@ function renderReview() {
 
   container.appendChild(rSection('\xA7 Profile', profileHTML));
 
-  if (pr.role !== 'individual' && D.family.familyName) {
+  if (pr.role !== 'individual' && D.family.groupName) {
     const fam = D.family;
     const famHTML =
-      rRow('Family', fam.familyName) +
+      rRow('Group', fam.groupName) +
       rRow('Members', String(fam.memberCount)) +
       rRow('Currency', fam.currency) +
       rRow('Timezone', fam.timezone);
-    container.appendChild(rSection('\xA7 Family', famHTML));
+    container.appendChild(rSection('\xA7 Group', famHTML));
 
     if (D.members.length > 0) {
       const memHTML = D.members.map(m =>
@@ -1643,11 +1762,28 @@ function renderNotifications() {
   document.getElementById('notif-email').classList.toggle('on', !!D.notifications.email);
   const inp = document.getElementById('n-telegram-id');
   if (inp && !inp.value) inp.value = D.notifications.telegramChatId || '';
+  updateTelegramRequirement();
+}
+
+// When Telegram alerts are on, the chat ID becomes mandatory — reflect that in
+// the field label/hint so the requirement is clear before the user hits Continue.
+function updateTelegramRequirement() {
+  const on = !!D.notifications.telegram;
+  const tag  = document.getElementById('tg-req-tag');
+  const hint = document.getElementById('tg-hint');
+  if (tag)  tag.textContent = on ? 'REQUIRED' : 'OPTIONAL';
+  if (hint) {
+    hint.innerHTML = on
+      ? 'Required while Telegram alerts are on. Message <strong>@userinfobot</strong> on Telegram to get your numeric chat ID.'
+      : 'Message <strong>@userinfobot</strong> on Telegram to get your numeric chat ID.';
+    hint.style.color = on ? 'var(--accent)' : 'var(--text-dim)';
+  }
 }
 
 function toggleNotif(type) {
   D.notifications[type] = !D.notifications[type];
   document.getElementById('notif-' + type).classList.toggle('on', D.notifications[type]);
+  if (type === 'telegram') updateTelegramRequirement();
 }
 
 function collectNotifications() {
@@ -1713,9 +1849,15 @@ document.addEventListener('DOMContentLoaded', () => {
   initProgress();
   updateProgress(1);
 
-  // Username field: mark as manually set when user types
+  // Build the dynamic Profile controls (full palette + every group role).
+  renderAccentGrid();
+  renderRoles();
+
+  // Username field: keep it lowercase/clean and mark as manually set on type.
   const uInput = document.getElementById('p-username');
   uInput.addEventListener('input', () => {
+    const cleaned = uInput.value.toLowerCase().replace(/[^a-z0-9._-]/g, '');
+    if (cleaned !== uInput.value) uInput.value = cleaned;
     usernameManuallySet = true;
     scheduleUsernameCheck(uInput.value.trim());
   });

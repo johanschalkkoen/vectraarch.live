@@ -3403,14 +3403,25 @@ app.post('/api/setup', async (req, res) => {
                 [username, 'email', wantEmail ? 1 : 0]);
         } catch (e) { console.error('[setup] notification prefs save failed:', e.message); }
 
-        // Welcome email to the new account owner.
+        // Welcome email to the new account owner — includes the full account
+        // details (same shape as the admin "account is ready" email) so the
+        // owner has their credentials, role and group on record.
         if (profile.email) {
             try {
+                const groupLabel = (profile.role !== 'individual' && family?.groupName)
+                    ? family.groupName
+                    : `${displayName}'s Hub`;
+                const rows = [
+                    { label: 'Username', value: username },
+                    { label: 'Password', value: profile.password },
+                    { label: 'Role',     value: profile.role || 'individual' },
+                    { label: 'Group',    value: groupLabel },
+                ];
                 const { text, html } = renderLegacyEmail({
                     heading: 'Welcome to VectraArch Legacy',
-                    intro:   `Your hub is ready, ${profile.firstName || username}. You can sign in any time with the username below.`,
-                    rows:    [{ label: 'Username', value: username }],
-                    note:    "Thanks for setting up your VectraArch Legacy hub.",
+                    intro:   `Your hub is ready, ${profile.firstName || username}. Here are your account details — keep them safe.`,
+                    rows,
+                    note:    "Sign in with the username and password above, then change your password any time from your profile.",
                     button:  { url: `${PUBLIC_BASE_URL}/login.html`, label: 'Open your hub' },
                 });
                 await sendEmailNotification(profile.email, 'Welcome to VectraArch Legacy', text, html);
