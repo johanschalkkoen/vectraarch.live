@@ -684,6 +684,14 @@ const requireAdmin = async (req, res, next) => {
     }
 };
 
+// Resolve an admin's group for scoping. Mirrors /api/users: a family admin is
+// confined to their own group; an admin with no group_id sees everything
+// (reserved for a future master / Conduit-level role).
+async function adminGroupId(adminUsername) {
+    const me = await dbQuery('SELECT group_id FROM vectraarchlegacy_users WHERE username = $1', [adminUsername]);
+    return me?.group_id || null;
+}
+
 // ── AUTH ──────────────────────────────────────────────────────────────────────
 app.post('/api/login', async (req, res) => {
     const { username, password } = req.body;
@@ -2935,6 +2943,8 @@ app.get('/api/admin/subscriptions', requireAdmin, async (req, res) => {
     const q      = (req.query.q || '').toString().trim().toLowerCase();
     const status = (req.query.status || '').toString().trim();
     try {
+        // Confine a family admin to their own group (same rule as /api/users).
+        const myFamily = await adminGroupId(req.adminUsername);
         const rows = await dbAll(`
             SELECT u.username, u.email, u.first_name, u.last_name, u.is_admin,
                    u.subscription_status, u.subscription_plan, u.subscription_expires_at,
@@ -2946,7 +2956,8 @@ app.get('/api/admin/subscriptions', requireAdmin, async (req, res) => {
                       WHERE LOWER(p.username) = LOWER(u.username) AND p.payment_status = 'COMPLETE') AS last_paid_at
               FROM vectraarchlegacy_users u
               LEFT JOIN vectraarchlegacy_groups g ON g.id = u.group_id
-             ORDER BY u.username ASC`);
+             ${myFamily ? 'WHERE u.group_id = $1' : ''}
+             ORDER BY u.username ASC`, myFamily ? [myFamily] : []);
 
         const now = Date.now();
         let subs = rows.map(r => {
@@ -3011,11 +3022,13 @@ app.get('/api/admin/subscriptions/:username', requireAdmin, async (req, res) => 
         const r = await dbQuery(`
             SELECT u.username, u.email, u.first_name, u.last_name, u.is_admin,
                    u.subscription_status, u.subscription_plan, u.subscription_expires_at,
-                   u.trial_started_at, u.pf_token, g.group_name
+                   u.trial_started_at, u.pf_token, u.group_id, g.group_name
               FROM vectraarchlegacy_users u
               LEFT JOIN vectraarchlegacy_groups g ON g.id = u.group_id
              WHERE LOWER(u.username) = LOWER($1)`, [username]);
         if (!r) return res.status(404).json({ success: false, message: 'User not found.' });
+        const myFamily = await adminGroupId(req.adminUsername);
+        if (myFamily && r.group_id !== myFamily) return res.status(403).json({ success: false, message: 'User is outside your group.' });
         const payments = await dbAll(`
             SELECT id, m_payment_id, pf_payment_id, plan, amount_gross, payment_status,
                    pf_token, created_at
@@ -3053,8 +3066,10 @@ app.post('/api/admin/subscriptions/grant', requireAdmin, async (req, res) => {
     const plan = PLANS[planId];
     if (!plan) return res.status(400).json({ success: false, message: 'Unknown plan.' });
     try {
-        const u = await dbQuery('SELECT username, email FROM vectraarchlegacy_users WHERE LOWER(username) = LOWER($1)', [username]);
+        const u = await dbQuery('SELECT username, email, group_id FROM vectraarchlegacy_users WHERE LOWER(username) = LOWER($1)', [username]);
         if (!u) return res.status(404).json({ success: false, message: 'User not found.' });
+        const myFamily = await adminGroupId(req.adminUsername);
+        if (myFamily && u.group_id !== myFamily) return res.status(403).json({ success: false, message: 'User is outside your group.' });
         const expires = plan.recurring
             ? new Date(Date.now() + months * 30 * 86400000).toISOString()
             : null;
@@ -3078,8 +3093,10 @@ app.post('/api/admin/subscriptions/extend', requireAdmin, async (req, res) => {
     const days     = parseInt(req.body.days, 10);
     if (!username || !days) return res.status(400).json({ success: false, message: 'Username and days required.' });
     try {
-        const u = await dbQuery('SELECT username, subscription_expires_at FROM vectraarchlegacy_users WHERE LOWER(username) = LOWER($1)', [username]);
+        const u = await dbQuery('SELECT username, subscription_expires_at, group_id FROM vectraarchlegacy_users WHERE LOWER(username) = LOWER($1)', [username]);
         if (!u) return res.status(404).json({ success: false, message: 'User not found.' });
+        const myFamily = await adminGroupId(req.adminUsername);
+        if (myFamily && u.group_id !== myFamily) return res.status(403).json({ success: false, message: 'User is outside your group.' });
         const base = u.subscription_expires_at && new Date(u.subscription_expires_at) > new Date()
             ? new Date(u.subscription_expires_at).getTime()
             : Date.now();
@@ -3100,8 +3117,10 @@ app.post('/api/admin/subscriptions/trial', requireAdmin, async (req, res) => {
     const days     = Math.max(1, parseInt(req.body.days, 10) || TRIAL_DAYS);
     if (!username) return res.status(400).json({ success: false, message: 'Username required.' });
     try {
-        const u = await dbQuery('SELECT username FROM vectraarchlegacy_users WHERE LOWER(username) = LOWER($1)', [username]);
+        const u = await dbQuery('SELECT username, group_id FROM vectraarchlegacy_users WHERE LOWER(username) = LOWER($1)', [username]);
         if (!u) return res.status(404).json({ success: false, message: 'User not found.' });
+        const myFamily = await adminGroupId(req.adminUsername);
+        if (myFamily && u.group_id !== myFamily) return res.status(403).json({ success: false, message: 'User is outside your group.' });
         // Backdate trial_started_at so that (start + TRIAL_DAYS) lands `days` from now.
         const startedAt = new Date(Date.now() - (TRIAL_DAYS - days) * 86400000).toISOString();
         await dbRun(`UPDATE vectraarchlegacy_users
@@ -3123,8 +3142,10 @@ app.post('/api/admin/subscriptions/cancel', requireAdmin, async (req, res) => {
     const hard     = req.body.hard === true || req.body.hard === 'true';
     if (!username) return res.status(400).json({ success: false, message: 'Username required.' });
     try {
-        const u = await dbQuery('SELECT username, email FROM vectraarchlegacy_users WHERE LOWER(username) = LOWER($1)', [username]);
+        const u = await dbQuery('SELECT username, email, group_id FROM vectraarchlegacy_users WHERE LOWER(username) = LOWER($1)', [username]);
         if (!u) return res.status(404).json({ success: false, message: 'User not found.' });
+        const myFamily = await adminGroupId(req.adminUsername);
+        if (myFamily && u.group_id !== myFamily) return res.status(403).json({ success: false, message: 'User is outside your group.' });
         const newStatus = hard ? 'expired' : 'cancelled';
         await dbRun(`UPDATE vectraarchlegacy_users
                         SET subscription_status = $2,
@@ -3144,10 +3165,14 @@ app.get('/api/admin/payments', requireAdmin, async (req, res) => {
     const status   = (req.query.status || '').toString().trim();
     const limit    = Math.min(1000, parseInt(req.query.limit, 10) || 200);
     try {
+        // Confine a family admin to payments made by their own group's users.
+        const myFamily = await adminGroupId(req.adminUsername);
+        const inGroup = `LOWER(username) IN (SELECT LOWER(username) FROM vectraarchlegacy_users WHERE group_id = $%N%)`;
         const where = [];
         const params = [];
         if (username) { params.push(username); where.push(`LOWER(username) = LOWER($${params.length})`); }
         if (status)   { params.push(status);   where.push(`payment_status = $${params.length}`); }
+        if (myFamily) { params.push(myFamily); where.push(inGroup.replace('%N%', params.length)); }
         params.push(limit);
         const rows = await dbAll(`
             SELECT id, username, m_payment_id, pf_payment_id, plan, amount_gross,
@@ -3155,10 +3180,13 @@ app.get('/api/admin/payments', requireAdmin, async (req, res) => {
               FROM vectraarchlegacy_payments
              ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
              ORDER BY created_at DESC LIMIT $${params.length}`, params);
-        // Revenue summary over COMPLETE payments in the (unfiltered) ledger.
+        // Revenue summary over COMPLETE payments within the admin's scope.
         const totals = await dbQuery(`
             SELECT COUNT(*) AS count, COALESCE(SUM(amount_gross),0) AS gross
-              FROM vectraarchlegacy_payments WHERE payment_status = 'COMPLETE'`);
+              FROM vectraarchlegacy_payments
+             WHERE payment_status = 'COMPLETE'
+             ${myFamily ? `AND LOWER(username) IN (SELECT LOWER(username) FROM vectraarchlegacy_users WHERE group_id = $1)` : ''}`,
+            myFamily ? [myFamily] : []);
         res.json({
             success: true,
             payments: rows,
