@@ -48,6 +48,59 @@ const legacyPool = new Pool({ // VectraArchLegacy — legacy users, keys
   user: process.env.LEGACY_DB_USER, host: H, database: process.env.LEGACY_DB_NAME, password: process.env.LEGACY_DB_PASSWORD, port: P,
 });
 
+// ── LEGACY SUBSCRIPTIONS ──────────────────────────────────────────────────────
+// Conduit owns the full Legacy subscription-management surface (the same console
+// that lives behind /api/admin/subscriptions in VectraArchLegacy.js). Keep PLANS,
+// TRIAL_DAYS and entitlementFor() in lock-step with that app — they decide what
+// the paygate actually does. Conduit writes straight to the Legacy DB.
+const LEGACY_TRIAL_DAYS = parseInt(process.env.LEGACY_TRIAL_DAYS || process.env.TRIAL_DAYS || '3', 10);
+const LEGACY_PLANS = {
+  basic:    { name: 'Basic',    amount: '29.00',  recurring: true,  label: 'R29 / month'  },
+  standard: { name: 'Standard', amount: '49.00',  recurring: true,  label: 'R49 / month'  },
+  premium:  { name: 'Premium',  amount: '99.00',  recurring: true,  label: 'R99 / month'  },
+  lifetime: { name: 'Lifetime', amount: '299.00', recurring: false, label: 'R299 once-off' },
+};
+
+// Resolve a Legacy user row into the live entitlement the paygate enforces.
+// Mirror of entitlementFor() in VectraArchLegacy.js.
+function legacyEntitlementFor(row) {
+  if (!row) return { status: 'expired', active: false, plan: null, daysLeft: 0 };
+  const now    = Date.now();
+  const status = row.subscription_status || 'trial';
+  const expiresAt = row.subscription_expires_at ? new Date(row.subscription_expires_at).getTime() : null;
+
+  if (status === 'active') {
+    const stillValid = !expiresAt || expiresAt > now;
+    if (stillValid) {
+      return {
+        status: 'active', active: true,
+        plan: row.subscription_plan || null,
+        expiresAt: row.subscription_expires_at || null,
+        daysLeft: expiresAt ? Math.max(0, Math.ceil((expiresAt - now) / 86400000)) : null,
+      };
+    }
+  }
+
+  const trialStart = row.trial_started_at ? new Date(row.trial_started_at).getTime() : now;
+  const trialEnd   = trialStart + LEGACY_TRIAL_DAYS * 86400000;
+  if (status !== 'cancelled' && status !== 'expired' && trialEnd > now) {
+    return {
+      status: 'trial', active: true, plan: null,
+      trialEndsAt: new Date(trialEnd).toISOString(),
+      daysLeft: Math.max(0, Math.ceil((trialEnd - now) / 86400000)),
+    };
+  }
+
+  return { status: 'expired', active: false, plan: row.subscription_plan || null, daysLeft: 0 };
+}
+
+// MRR contribution of an active plan (recurring only; lifetime adds nothing).
+function legacyPlanMonthlyValue(planId) {
+  const p = LEGACY_PLANS[planId];
+  if (!p) return 0;
+  return p.recurring ? parseFloat(p.amount) : 0;
+}
+
 // ── MIDDLEWARE ────────────────────────────────────────────────────────────────
 app.set('trust proxy', 1);
 app.use(express.json());
@@ -1030,6 +1083,8 @@ app.get(BASE + '/users', isAuth, async (req, res) => {
     const lr = await legacyPool.query(`
       SELECT u.username, u.first_name, u.last_name, u.display_name, u.email, u.is_admin,
              u.role, u.last_active, u.group_id,
+             u.subscription_status, u.subscription_plan, u.subscription_expires_at,
+             u.trial_started_at, (u.pf_token IS NOT NULL) AS has_pf_token,
              f.group_name,
              (u.twofa_secret IS NOT NULL) AS twofa_enabled,
              (u.google_id    IS NOT NULL) AS google_linked
@@ -1038,6 +1093,20 @@ app.get(BASE + '/users', isAuth, async (req, res) => {
       ORDER BY u.last_active DESC NULLS LAST
     `);
     legacyUsers = lr.rows;
+    // Payment aggregates are best-effort — a missing table / privilege must not
+    // take down the whole user list, so they live in their own try/catch.
+    try {
+      const pr = await legacyPool.query(`
+        SELECT LOWER(username) AS uname, COUNT(*)::int AS payment_count,
+               MAX(created_at) FILTER (WHERE payment_status = 'COMPLETE') AS last_paid_at
+          FROM vectraarchlegacy_payments GROUP BY LOWER(username)`);
+      const pmap = new Map(pr.rows.map(r => [r.uname, r]));
+      legacyUsers.forEach(u => {
+        const p = pmap.get(u.username.toLowerCase());
+        u.payment_count = p ? p.payment_count : 0;
+        u.last_paid_at  = p ? p.last_paid_at  : null;
+      });
+    } catch (e) { console.error('[conduit] Legacy payments aggregate error:', e.message); }
     const ar = await legacyPool.query("SELECT viewer, target, source FROM vectraarchlegacy_access ORDER BY source DESC, viewer");
     accessList = ar.rows;
     const fr = await legacyPool.query(`
@@ -1049,6 +1118,36 @@ app.get(BASE + '/users', isAuth, async (req, res) => {
   } catch(e) { console.error('[conduit] Legacy DB error:', e.message); }
 
   const usernames = legacyUsers.map(u => u.username);
+
+  // ── Legacy subscription state (live entitlement per user) ──
+  // Decorate every legacy user with the entitlement the paygate actually
+  // enforces, then derive headline metrics for the Subscriptions console.
+  legacyUsers.forEach(u => { u.ent = legacyEntitlementFor(u); });
+  const subMetrics = {
+    total:    legacyUsers.length,
+    active:   legacyUsers.filter(u => u.ent.status === 'active').length,
+    trialing: legacyUsers.filter(u => u.ent.status === 'trial').length,
+    expired:  legacyUsers.filter(u => u.ent.status === 'expired').length,
+    lifetime: legacyUsers.filter(u => u.ent.status === 'active' && u.subscription_plan === 'lifetime').length,
+    mrr: legacyUsers
+      .filter(u => u.ent.status === 'active' && u.subscription_plan)
+      .reduce((sum, u) => sum + legacyPlanMonthlyValue(u.subscription_plan), 0),
+    expiringSoon: legacyUsers.filter(u => u.ent.status === 'trial' && u.ent.daysLeft <= 1).length,
+  };
+  // Render a status badge for a user's live entitlement.
+  const subBadge = (u) => {
+    const e = u.ent;
+    const cls = e.status === 'active' ? 'ok' : (e.status === 'trial' ? 'warn' : 'err');
+    const planLabel = u.subscription_plan && LEGACY_PLANS[u.subscription_plan]
+      ? LEGACY_PLANS[u.subscription_plan].label : null;
+    const detail = e.status === 'active'
+      ? (u.subscription_plan === 'lifetime' ? 'lifetime'
+         : (e.daysLeft != null ? `${e.daysLeft}d left` : 'active'))
+      : (e.status === 'trial' ? `trial · ${e.daysLeft}d` : (u.subscription_status || 'expired'));
+    return `<span class="badge ${cls}" style="font-size:8px;">${esc(e.status)}</span>
+      <div style="font-size:9px;color:var(--dim);margin-top:3px;">${esc(detail)}</div>
+      ${planLabel?`<div style="font-size:9px;color:var(--dim);">${esc(planLabel)}</div>`:''}`;
+  };
 
   // ── Forge rows ──
   const forgeRows = users.map(u => `
@@ -1128,6 +1227,22 @@ app.get(BASE + '/users', isAuth, async (req, res) => {
           </select>
           <button class="btn" type="submit" style="font-size:9px;padding:3px 8px;">Move</button>
         </form>
+      </td>
+      <td style="white-space:nowrap;">
+        ${subBadge(u)}
+        ${u.payment_count?`<div style="font-size:9px;color:var(--dim);">${u.payment_count} pmt${u.payment_count===1?'':'s'}</div>`:''}
+        <div style="display:flex;gap:4px;margin-top:6px;align-items:center;">
+          <form method="POST" action="${BASE}/users/legacy/sub/extend" style="display:flex;gap:3px;align-items:center;">
+            <input type="hidden" name="username" value="${esc(u.username)}"/>
+            <input name="days" type="number" min="1" value="30" class="form-input" style="font-size:9px;padding:3px 5px;height:auto;width:48px;"/>
+            <button class="btn" type="submit" style="font-size:9px;padding:3px 8px;">Extend</button>
+          </form>
+          <form method="POST" action="${BASE}/users/legacy/sub/cancel" data-confirm="End '${esc(u.username)}' subscription now? Their access is revoked immediately." style="display:inline;">
+            <input type="hidden" name="username" value="${esc(u.username)}"/>
+            <input type="hidden" name="hard" value="true"/>
+            <button class="btn danger" type="submit" style="font-size:9px;padding:3px 8px;">End</button>
+          </form>
+        </div>
       </td>
       <td>
         <div style="display:flex;align-items:center;gap:6px;">
@@ -1375,9 +1490,90 @@ app.get(BASE + '/users', isAuth, async (req, res) => {
       ${legacyUsers.length===0
         ? '<div style="padding:24px;background:var(--bg2);color:var(--dim);text-align:center;letter-spacing:0.1em;font-size:10px;">No Legacy users found</div>'
         : `<table>
-            <thead><tr><th>Username / Name</th><th>Email</th><th>System</th><th>Role / Auth</th><th>Group</th><th>2FA</th><th>Last Active</th><th>Actions</th></tr></thead>
+            <thead><tr><th>Username / Name</th><th>Email</th><th>System</th><th>Role / Auth</th><th>Group</th><th>Subscription</th><th>2FA</th><th>Last Active</th><th>Actions</th></tr></thead>
             <tbody>${legacyRows}</tbody>
            </table>`}
+    </div>
+
+    <!-- ── LEGACY SUBSCRIPTIONS CONSOLE ── -->
+    <div class="section">
+      <div class="section-hdr"><span class="sh-num">04b</span><span class="sh-title">Legacy Subscriptions · VectraArchLegacy · Paygate Console</span><div class="sh-line"></div></div>
+      <div class="form-wrap" style="padding:20px 32px 24px;">
+        <div class="stat-row" style="margin-bottom:20px;">
+          <div class="stat-cell"><div class="stat-num">${subMetrics.active}</div><div class="stat-label">Active</div></div>
+          <div class="stat-cell"><div class="stat-num">${subMetrics.trialing}</div><div class="stat-label">On Trial</div></div>
+          <div class="stat-cell"><div class="stat-num">${subMetrics.expired}</div><div class="stat-label">Expired</div></div>
+          <div class="stat-cell"><div class="stat-num">${subMetrics.lifetime}</div><div class="stat-label">Lifetime</div></div>
+          <div class="stat-cell"><div class="stat-num">R${subMetrics.mrr.toFixed(0)}</div><div class="stat-label">MRR</div></div>
+          <div class="stat-cell"><div class="stat-num">${subMetrics.expiringSoon}</div><div class="stat-label">Expiring ≤1d</div></div>
+        </div>
+        <div style="color:var(--dim);font-size:10px;line-height:1.6;margin-bottom:16px;letter-spacing:0.04em;">
+          Full subscription management for every Legacy account, written straight to the Legacy DB — the same surface as the in-app admin
+          console. <strong>Grant</strong> comps a plan, <strong>Extend</strong> pushes the expiry out by N days, <strong>Reset trial</strong>
+          starts a fresh ${LEGACY_TRIAL_DAYS}-day window, <strong>Cancel</strong> stops renewal (keeps access until expiry) and
+          <strong>End</strong> revokes access immediately. Trial length: ${LEGACY_TRIAL_DAYS} days.
+        </div>
+        ${legacyUsers.length===0
+          ? '<div style="padding:24px;background:var(--bg2);color:var(--dim);text-align:center;letter-spacing:0.1em;font-size:10px;">No Legacy users found</div>'
+          : `<table>
+              <thead><tr><th>User</th><th>Status</th><th>Plan</th><th>Expires</th><th>Payments</th><th>Manage</th></tr></thead>
+              <tbody>${legacyUsers.map(u=>`
+                <tr>
+                  <td>
+                    <div style="color:var(--text);font-size:12px;font-weight:600;">${esc(u.username)}</div>
+                    ${u.email?`<div style="color:var(--dim);font-size:10px;">${esc(u.email)}</div>`:''}
+                    ${u.is_admin?'<span class="badge warn" style="font-size:8px;">admin</span>':''}
+                  </td>
+                  <td>${subBadge(u)}</td>
+                  <td style="font-size:10px;color:var(--dim);">${u.subscription_plan&&LEGACY_PLANS[u.subscription_plan]?esc(LEGACY_PLANS[u.subscription_plan].label):'—'}</td>
+                  <td style="font-size:10px;color:var(--dim);">${u.subscription_expires_at?new Date(u.subscription_expires_at).toLocaleDateString('en-ZA'):'—'}</td>
+                  <td style="font-size:10px;color:var(--dim);">
+                    ${u.payment_count||0}
+                    ${u.last_paid_at?`<div style="font-size:9px;">${new Date(u.last_paid_at).toLocaleDateString('en-ZA')}</div>`:''}
+                  </td>
+                  <td style="white-space:nowrap;">
+                    <button class="btn" onclick="toggleEdit('sub_${esc(u.username)}')" type="button" style="font-size:9px;padding:4px 10px;">Manage</button>
+                    <div id="edit-sub_${esc(u.username)}" style="display:none;margin-top:10px;background:var(--bg3);border:1px solid var(--border2);padding:14px;text-align:left;min-width:360px;">
+                      <div class="form-label" style="margin-bottom:6px;font-size:9px;letter-spacing:0.15em;">GRANT / SET PLAN</div>
+                      <form method="POST" action="${BASE}/users/legacy/sub/grant" style="display:flex;gap:6px;align-items:end;margin-bottom:12px;">
+                        <input type="hidden" name="username" value="${esc(u.username)}"/>
+                        <div><div class="form-label" style="margin-bottom:4px;">Plan</div>
+                          <select name="plan" class="form-select" style="font-size:10px;">
+                            ${Object.entries(LEGACY_PLANS).map(([id,p])=>`<option value="${id}" ${u.subscription_plan===id?'selected':''}>${esc(p.name)} · ${esc(p.label)}</option>`).join('')}
+                          </select></div>
+                        <div><div class="form-label" style="margin-bottom:4px;">Months</div>
+                          <input name="months" type="number" min="1" value="1" class="form-input" style="font-size:10px;width:60px;"/></div>
+                        <button class="btn primary" type="submit" style="font-size:10px;">Grant</button>
+                      </form>
+                      <div class="form-label" style="margin-bottom:6px;font-size:9px;letter-spacing:0.15em;">EXTEND · RESET · STOP</div>
+                      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:end;">
+                        <form method="POST" action="${BASE}/users/legacy/sub/extend" style="display:flex;gap:4px;align-items:end;">
+                          <input type="hidden" name="username" value="${esc(u.username)}"/>
+                          <div><div class="form-label" style="margin-bottom:4px;">Days</div>
+                            <input name="days" type="number" min="1" value="30" class="form-input" style="font-size:10px;width:60px;"/></div>
+                          <button class="btn" type="submit" style="font-size:10px;">Extend</button>
+                        </form>
+                        <form method="POST" action="${BASE}/users/legacy/sub/trial" style="display:flex;gap:4px;align-items:end;">
+                          <input type="hidden" name="username" value="${esc(u.username)}"/>
+                          <div><div class="form-label" style="margin-bottom:4px;">Trial days</div>
+                            <input name="days" type="number" min="1" value="${LEGACY_TRIAL_DAYS}" class="form-input" style="font-size:10px;width:60px;"/></div>
+                          <button class="btn" type="submit" style="font-size:10px;">Reset trial</button>
+                        </form>
+                        <form method="POST" action="${BASE}/users/legacy/sub/cancel" data-confirm="Cancel renewal for '${esc(u.username)}'? They keep access until the current expiry." style="display:inline;">
+                          <input type="hidden" name="username" value="${esc(u.username)}"/>
+                          <button class="btn warn" type="submit" style="font-size:10px;">Cancel</button>
+                        </form>
+                        <form method="POST" action="${BASE}/users/legacy/sub/cancel" data-confirm="End '${esc(u.username)}' subscription now? Access is revoked immediately." style="display:inline;">
+                          <input type="hidden" name="username" value="${esc(u.username)}"/>
+                          <input type="hidden" name="hard" value="true"/>
+                          <button class="btn danger" type="submit" style="font-size:10px;">End now</button>
+                        </form>
+                      </div>
+                    </div>
+                  </td>
+                </tr>`).join('')}</tbody>
+             </table>`}
+      </div>
     </div>
 
     <!-- ── PARTNER SHARING / ACCESS LINKS ── -->
@@ -1976,6 +2172,142 @@ app.post(BASE + '/users/legacy/revoke-access', isAuth, async (req, res) => {
     }
   } catch(e) {
     req.session.flash = { type:'err', msg:`Error: ${e.message}` };
+  }
+  res.redirect(BASE + '/users');
+});
+
+// ── LEGACY SUBSCRIPTION MANAGEMENT ROUTES ─────────────────────────────────────
+// Conduit's mirror of the VectraArchLegacy admin-subscription console. Every
+// mutation writes straight to the Legacy DB and is journaled to conduit_log.
+// (Legacy also writes vectraarchlegacy transaction history via its own app; the
+// raw column writes here are intentionally the same as that app performs.)
+
+// Small audit helper — never let a logging failure break the mutation.
+async function logSub(event, payload) {
+  try {
+    await pool.query('INSERT INTO conduit_log (event,payload,status) VALUES ($1,$2,$3)',
+      [event, payload, 'ok']);
+  } catch {}
+}
+
+// POST: Grant / set a subscription plan manually (comp, fix a failed webhook).
+app.post(BASE + '/users/legacy/sub/grant', isAuth, async (req, res) => {
+  const username = (req.body.username || '').toString();
+  const planId   = (req.body.plan || '').toString();
+  const months   = Math.max(1, parseInt(req.body.months, 10) || 1);
+  const plan = LEGACY_PLANS[planId];
+  if (!username || !plan) {
+    req.session.flash = { type:'err', msg:'Username and a valid plan are required.' };
+    return res.redirect(BASE + '/users');
+  }
+  try {
+    const u = await legacyPool.query('SELECT username FROM vectraarchlegacy_users WHERE LOWER(username) = LOWER($1)', [username]);
+    if (u.rowCount === 0) {
+      req.session.flash = { type:'err', msg:`User "${username}" not found in Legacy DB.` };
+      return res.redirect(BASE + '/users');
+    }
+    const expires = plan.recurring
+      ? new Date(Date.now() + months * 30 * 86400000).toISOString()
+      : null;
+    await legacyPool.query(
+      `UPDATE vectraarchlegacy_users
+          SET subscription_status = 'active', subscription_plan = $2, subscription_expires_at = $3
+        WHERE LOWER(username) = LOWER($1)`, [username, planId, expires]);
+    await logSub('legacy_sub_grant', `username:${username} plan:${planId} months:${months}`);
+    req.session.flash = { type:'ok', msg:`✓ Granted ${plan.name} to "${u.rows[0].username}".` };
+  } catch (e) {
+    console.error('[conduit] sub/grant ERROR:', e.message);
+    req.session.flash = { type:'err', msg:`DB Error: ${e.message}` };
+  }
+  res.redirect(BASE + '/users');
+});
+
+// POST: Extend an existing subscription's expiry by N days (goodwill credit).
+app.post(BASE + '/users/legacy/sub/extend', isAuth, async (req, res) => {
+  const username = (req.body.username || '').toString();
+  const days     = parseInt(req.body.days, 10);
+  if (!username || !days || days < 1) {
+    req.session.flash = { type:'err', msg:'Username and a positive day count are required.' };
+    return res.redirect(BASE + '/users');
+  }
+  try {
+    const u = await legacyPool.query('SELECT username, subscription_expires_at FROM vectraarchlegacy_users WHERE LOWER(username) = LOWER($1)', [username]);
+    if (u.rowCount === 0) {
+      req.session.flash = { type:'err', msg:`User "${username}" not found in Legacy DB.` };
+      return res.redirect(BASE + '/users');
+    }
+    // Extend from the current expiry if it's in the future, otherwise from now.
+    const cur = u.rows[0].subscription_expires_at;
+    const base = cur && new Date(cur) > new Date() ? new Date(cur).getTime() : Date.now();
+    const expires = new Date(base + days * 86400000).toISOString();
+    await legacyPool.query(
+      `UPDATE vectraarchlegacy_users
+          SET subscription_status = 'active', subscription_expires_at = $2
+        WHERE LOWER(username) = LOWER($1)`, [username, expires]);
+    await logSub('legacy_sub_extend', `username:${username} days:${days}`);
+    req.session.flash = { type:'ok', msg:`✓ Extended "${u.rows[0].username}" by ${days} day(s) — now expires ${new Date(expires).toLocaleDateString('en-ZA')}.` };
+  } catch (e) {
+    console.error('[conduit] sub/extend ERROR:', e.message);
+    req.session.flash = { type:'err', msg:`DB Error: ${e.message}` };
+  }
+  res.redirect(BASE + '/users');
+});
+
+// POST: Reset / set a trial — starts a fresh window of N days (default TRIAL_DAYS).
+app.post(BASE + '/users/legacy/sub/trial', isAuth, async (req, res) => {
+  const username = (req.body.username || '').toString();
+  const days     = Math.max(1, parseInt(req.body.days, 10) || LEGACY_TRIAL_DAYS);
+  if (!username) {
+    req.session.flash = { type:'err', msg:'Username required.' };
+    return res.redirect(BASE + '/users');
+  }
+  try {
+    const u = await legacyPool.query('SELECT username FROM vectraarchlegacy_users WHERE LOWER(username) = LOWER($1)', [username]);
+    if (u.rowCount === 0) {
+      req.session.flash = { type:'err', msg:`User "${username}" not found in Legacy DB.` };
+      return res.redirect(BASE + '/users');
+    }
+    // Backdate trial_started_at so (start + TRIAL_DAYS) lands `days` from now.
+    const startedAt = new Date(Date.now() - (LEGACY_TRIAL_DAYS - days) * 86400000).toISOString();
+    await legacyPool.query(
+      `UPDATE vectraarchlegacy_users
+          SET subscription_status = 'trial', subscription_plan = NULL,
+              subscription_expires_at = NULL, trial_started_at = $2
+        WHERE LOWER(username) = LOWER($1)`, [username, startedAt]);
+    await logSub('legacy_sub_trial', `username:${username} days:${days}`);
+    req.session.flash = { type:'ok', msg:`✓ Reset "${u.rows[0].username}" to a ${days}-day trial.` };
+  } catch (e) {
+    console.error('[conduit] sub/trial ERROR:', e.message);
+    req.session.flash = { type:'err', msg:`DB Error: ${e.message}` };
+  }
+  res.redirect(BASE + '/users');
+});
+
+// POST: Cancel (stop renewal, keep access until expiry) or End/revoke now (hard).
+app.post(BASE + '/users/legacy/sub/cancel', isAuth, async (req, res) => {
+  const username = (req.body.username || '').toString();
+  const hard     = req.body.hard === true || req.body.hard === 'true';
+  if (!username) {
+    req.session.flash = { type:'err', msg:'Username required.' };
+    return res.redirect(BASE + '/users');
+  }
+  try {
+    const u = await legacyPool.query('SELECT username FROM vectraarchlegacy_users WHERE LOWER(username) = LOWER($1)', [username]);
+    if (u.rowCount === 0) {
+      req.session.flash = { type:'err', msg:`User "${username}" not found in Legacy DB.` };
+      return res.redirect(BASE + '/users');
+    }
+    const newStatus = hard ? 'expired' : 'cancelled';
+    await legacyPool.query(
+      `UPDATE vectraarchlegacy_users
+          SET subscription_status = $2,
+              subscription_expires_at = CASE WHEN $3 THEN NOW() ELSE subscription_expires_at END
+        WHERE LOWER(username) = LOWER($1)`, [username, newStatus, hard]);
+    await logSub(hard ? 'legacy_sub_revoke' : 'legacy_sub_cancel', `username:${username}`);
+    req.session.flash = { type:'ok', msg:`✓ ${hard ? 'Ended' : 'Cancelled'} subscription for "${u.rows[0].username}".` };
+  } catch (e) {
+    console.error('[conduit] sub/cancel ERROR:', e.message);
+    req.session.flash = { type:'err', msg:`DB Error: ${e.message}` };
   }
   res.redirect(BASE + '/users');
 });
