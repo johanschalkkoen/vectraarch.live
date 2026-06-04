@@ -190,6 +190,33 @@ async function ensureSchema() {
                 ALTER TABLE vectraarchlegacy_calendar ALTER COLUMN date TYPE TIMESTAMP USING date::timestamp;
             END IF;
          END $$`,
+        // ── Finances: same DATE→TIMESTAMP upgrade as the calendar, so a transaction
+        //    records the actual time it was entered (not just the day → midnight,
+        //    which displayed as "02:00" in SAST). Idempotent — only runs if DATE.
+        `DO $$ BEGIN
+            IF (SELECT data_type FROM information_schema.columns
+                WHERE table_name='vectraarchlegacy_financial' AND column_name='date') = 'date' THEN
+                ALTER TABLE vectraarchlegacy_financial ALTER COLUMN date TYPE TIMESTAMP USING date::timestamp;
+            END IF;
+         END $$`,
+        // ── Gym & Meals: same DATE→TIMESTAMP upgrade so their cards can show the
+        //    time of day, matching Calendar and Finances. Idempotent.
+        `DO $$ BEGIN
+            IF (SELECT data_type FROM information_schema.columns
+                WHERE table_name='vectraarchlegacy_gymworkout' AND column_name='date') = 'date' THEN
+                ALTER TABLE vectraarchlegacy_gymworkout ALTER COLUMN date TYPE TIMESTAMP USING date::timestamp;
+            END IF;
+         END $$`,
+        `DO $$ BEGIN
+            IF (SELECT data_type FROM information_schema.columns
+                WHERE table_name='vectraarchlegacy_mealplan' AND column_name='date') = 'date' THEN
+                ALTER TABLE vectraarchlegacy_mealplan ALTER COLUMN date TYPE TIMESTAMP USING date::timestamp;
+            END IF;
+         END $$`,
+        // ── Finances: remember which budget section (need/saving/want/sav) an item
+        //    belongs to, so an "Other"-of-a-section item groups under that section
+        //    even when the user types a custom description.
+        `ALTER TABLE vectraarchlegacy_financial ADD COLUMN IF NOT EXISTS section TEXT`,
         // ── Nuntly email delivery events (populated by POST /api/webhooks) ──
         `CREATE TABLE IF NOT EXISTS vectraarchlegacy_email_events (
             id          SERIAL PRIMARY KEY,
@@ -1753,7 +1780,9 @@ app.get('/api/financial', requirePaid, async (req, res) => {
     if (!user) return res.status(400).json({ success: false, message: 'User required.' });
     if (viewer && viewer !== user && !(await moduleVisibleTo(viewer, user, 'Finances'))) return res.json([]);
     try {
-        const rows = await dbAll("SELECT id, username, category, amount, type, TO_CHAR(date, 'YYYY-MM-DD') AS date FROM vectraarchlegacy_financial WHERE username = $1", [user]);
+        // Return the full local datetime (not just the day) so the client shows
+        // the real time the item was entered, plus the budget section it belongs to.
+        const rows = await dbAll("SELECT id, username, category, amount, type, TO_CHAR(date, 'YYYY-MM-DD\"T\"HH24:MI:SS') AS date, section FROM vectraarchlegacy_financial WHERE username = $1", [user]);
         res.json(rows);
     } catch (e) {
         res.status(500).json({ success: false, message: 'Database error fetching financial items.', error: e.message });
@@ -1761,14 +1790,14 @@ app.get('/api/financial', requirePaid, async (req, res) => {
 });
 
 app.post('/api/financial', requirePaid, async (req, res) => {
-    const { user, category, amount, type, date } = req.body;
+    const { user, category, amount, type, date, section } = req.body;
     if (!user || !category || !amount || !type || !date) return res.status(400).json({ success: false, message: 'All fields required.' });
     if (!['income','expense'].includes(type)) return res.status(400).json({ success: false, message: 'Invalid type.' });
     if (isNaN(amount) || amount < 0) return res.status(400).json({ success: false, message: 'Amount must be a non-negative number.' });
     try {
         const fRes = await dbRun(
-            'INSERT INTO vectraarchlegacy_financial (username,category,amount,type,date) VALUES ($1,$2,$3,$4,$5) RETURNING id',
-            [user, category, amount, type, date]
+            'INSERT INTO vectraarchlegacy_financial (username,category,amount,type,date,section) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id',
+            [user, category, amount, type, date, section || null]
         );
         await dbRun(
             'INSERT INTO vectraarchlegacy_calendar (username,title,date,is_financial,type,amount,event_color) VALUES ($1,$2,$3,1,$4,$5,$6)',
@@ -1788,7 +1817,7 @@ app.post('/api/financial', requirePaid, async (req, res) => {
 
 app.put('/api/financial/:id', requirePaid, async (req, res) => {
     const { id } = req.params;
-    const { user, category, amount, type, date } = req.body;
+    const { user, category, amount, type, date, section } = req.body;
     if (!user || !category || !amount || !type || !date) return res.status(400).json({ success: false, message: 'All fields required.' });
     if (!['income','expense'].includes(type)) return res.status(400).json({ success: false, message: 'Invalid type.' });
     if (isNaN(amount) || amount < 0) return res.status(400).json({ success: false, message: 'Amount must be a non-negative number.' });
@@ -1796,7 +1825,7 @@ app.put('/api/financial/:id', requirePaid, async (req, res) => {
         const row = await dbQuery('SELECT id FROM vectraarchlegacy_financial WHERE id = $1 AND username = $2', [id, user]);
         if (!row) return res.status(404).json({ success: false, message: 'Financial item not found.' });
         await dbTransaction([
-            { sql: 'UPDATE vectraarchlegacy_financial SET category=$1,amount=$2,type=$3,date=$4 WHERE id=$5', params: [category,amount,type,date,id] },
+            { sql: 'UPDATE vectraarchlegacy_financial SET category=$1,amount=$2,type=$3,date=$4,section=$5 WHERE id=$6', params: [category,amount,type,date,section||null,id] },
             { sql: 'UPDATE vectraarchlegacy_calendar SET title=$1,date=$2,type=$3,amount=$4 WHERE is_financial=1 AND username=$5 AND amount=(SELECT amount FROM vectraarchlegacy_financial WHERE id=$6)', params: [`${category} (${type})`,date,type,amount,user,id] },
             { sql: 'INSERT INTO vectraarchlegacy_transaction_history (username,action,table_name,record_id,modified_by,modified_at) VALUES ($1,$2,$3,$4,$5,$6)', params: [user,'UPDATE','financial',id,user,new Date().toISOString()] }
         ]);
@@ -2049,7 +2078,7 @@ app.get('/api/gymworkout', requirePaid, async (req, res) => {
     if (!user) return res.status(400).json({ success: false, message: 'User required.' });
     if (viewer && viewer !== user && !(await moduleVisibleTo(viewer, user, 'Gym'))) return res.json([]);
     try {
-        const rows = await dbAll('SELECT id, username AS user, day, exercise, sets, reps, weight, date FROM vectraarchlegacy_gymworkout WHERE username = $1', [user]);
+        const rows = await dbAll("SELECT id, username AS user, day, exercise, sets, reps, weight, TO_CHAR(date, 'YYYY-MM-DD\"T\"HH24:MI:SS') AS date FROM vectraarchlegacy_gymworkout WHERE username = $1", [user]);
         res.json(rows);
     } catch (e) {
         res.status(500).json({ success: false, message: 'Database error fetching gym workouts.', error: e.message });
@@ -2129,7 +2158,7 @@ app.get('/api/mealplan', requirePaid, async (req, res) => {
     if (viewer && viewer !== user && !(await moduleVisibleTo(viewer, user, 'Meals'))) return res.json([]);
     try {
         const rows = await dbAll(
-            'SELECT id, username AS user, day, meal_type AS "mealType", description, calories, date FROM vectraarchlegacy_mealplan WHERE username = $1',
+            'SELECT id, username AS user, day, meal_type AS "mealType", description, calories, TO_CHAR(date, \'YYYY-MM-DD"T"HH24:MI:SS\') AS date FROM vectraarchlegacy_mealplan WHERE username = $1',
             [user]
         );
         res.json(rows);

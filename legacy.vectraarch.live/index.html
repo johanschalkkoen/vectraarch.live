@@ -49,11 +49,10 @@ const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sun
 /* ── PAY-CYCLE HELPERS ──────────────────────────────────────────────────────
    Finances & Budget periods can follow when salaries are paid instead of the
    calendar month. A pay day is a string: '1'..'31', or 'last_working' (the last
-   weekday of the month). A cycle is labelled by the month its pay date FALLS IN
-   (start month): e.g. pay day 27 → "May" runs 27 May–26 Jun. So the budget you
-   set up for a month starts on that month's pay day, and the transactions you
-   enter after getting paid land in the same month as that budget. Pay day 1
-   reproduces the plain calendar month exactly (fully backwards-compatible). */
+   weekday of the month). A cycle is labelled by the month it FUNDS (the month it
+   runs INTO): e.g. paid on the 27th, the cycle 27 May–26 Jun is filed under
+   "June" — you're paid end of May and that money funds June until the next pay
+   day. Pay day 1 reproduces the plain calendar month (fully backwards-compatible). */
 const _MON_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 // The resolved pay DATE within a given (year, monthIdx 0-11) for a pay rule.
 function resolvePayDateInMonth(year, monthIdx, payDay){
@@ -66,13 +65,22 @@ function resolvePayDateInMonth(year, monthIdx, payDay){
   let day = parseInt(payDay,10); if(!day || day<1) day = 1;
   return new Date(year, monthIdx, Math.min(day, lastDay));
 }
+// Pay days in the back half of the month fund the NEXT month, so that cycle is
+// labelled by the month it runs into (covered/funded month). Pay day 1 stays a
+// plain calendar month.
+function _payDaySecondHalf(payDay){
+  if(String(payDay)==='last_working') return true;
+  const d = parseInt(payDay,10) || 1; return d >= 15;
+}
 // Inclusive {start,end} Date range for the cycle labelled (year, labelMonthIdx 0-11).
-// Start-month labelling: the cycle opens on the pay date of THIS month and runs
-// to the day before next month's pay date. Pay day 1 → exact calendar month.
+// Covered-month: a back-half pay day opens the cycle in the PREVIOUS month and
+// runs it into (and through) the label month, up to the day before next pay date.
 function payCycleRange(year, labelMonthIdx, payDay){
-  const start = resolvePayDateInMonth(year, labelMonthIdx, payDay);
-  // resolvePayDateInMonth normalises overflow months (e.g. Dec → next Jan).
-  const nextStart = resolvePayDateInMonth(year, labelMonthIdx + 1, payDay);
+  const secondHalf = _payDaySecondHalf(payDay);
+  const startBase = new Date(year, labelMonthIdx - (secondHalf?1:0), 1);
+  const start = resolvePayDateInMonth(startBase.getFullYear(), startBase.getMonth(), payDay);
+  const nextBase = new Date(year, labelMonthIdx + (secondHalf?0:1), 1);
+  const nextStart = resolvePayDateInMonth(nextBase.getFullYear(), nextBase.getMonth(), payDay);
   const end = new Date(nextStart.getTime() - 86400000);
   return { start, end };
 }
@@ -105,6 +113,36 @@ const fmtR = n => { const c=CURRENCIES[_appCurrency]||CURRENCIES.ZAR; return `${
 const fmtDate = d => { if(!d)return'—'; const dt=new Date(d); return isNaN(dt)?'—':dt.toLocaleDateString('en-ZA',{year:'numeric',month:'2-digit',day:'2-digit'}); };
 const fmtDateTime = d => { if(!d)return'—'; const dt=new Date(d); return isNaN(dt)?'—':dt.toLocaleString('en-ZA',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).replace(',',''); };
 const fmtTime = d => { if(!d)return''; const dt=new Date(d); if(isNaN(dt))return''; const h=dt.getHours(),m=dt.getMinutes(); if(h===0&&m===0)return''; return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`; };
+// Ordinal day-of-month ("4th", "21st") + helpers for the START/END/Duration card meta.
+const _ord = n => { const s=['th','st','nd','rd'], v=n%100; return n+(s[(v-20)%10]||s[v]||s[0]); };
+const ordDay = d => { if(!d)return''; const dt=new Date(d); return isNaN(dt)?'':_ord(dt.getDate()); };
+const ymOnly = d => { if(!d)return''; const dt=new Date(d); return isNaN(dt)?'':`${dt.getFullYear()}/${String(dt.getMonth()+1).padStart(2,'0')}`; };
+// Duration between two datetimes as "169h" / "45 min" / "2h 15m".
+const fmtDur = (a,b) => { if(!a||!b)return''; const ms=new Date(b)-new Date(a); if(isNaN(ms)||ms<=0)return''; const mins=Math.round(ms/60000); if(mins<60)return mins+' min'; const h=Math.floor(mins/60),m=mins%60; return h+'h'+(m?' '+m+'m':''); };
+// Shared card meta: a START / END / Duration / year-month block for a timed item,
+// a single START line for a one-moment item, or "All day". Reused across
+// Calendar, Finances, Gym and Meals so every item card reads the same way.
+const ItemTimeMeta = ({date, endDate, accent='var(--text2)', allDay=false}) => {
+  const ts = fmtTime(date), te = endDate ? fmtTime(endDate) : '';
+  const lbl = {color:'var(--text3)'}, val = {color:'var(--text2)'};
+  // No time component: an all-day calendar event reads "All day"; a plain dated
+  // item (finance / gym / meal with no time) just shows its date.
+  if(!ts) return allDay
+    ? <><span>{fmtDate(date)}</span>{' · '}<span style={val}>All day</span></>
+    : <span style={val}>{fmtDate(date)}</span>;
+  const ranged = !!endDate && (te !== ts || (endDate||'').slice(0,10) !== (date||'').slice(0,10));
+  // Single moment (a finance transaction, a one-off event): day + time + month.
+  if(!ranged) return <span><span style={val}>{ordDay(date)} - {ts}</span>{'  ·  '}<span style={lbl}>{ymOnly(date)}</span></span>;
+  // A real range (multi-day / timed calendar event): full START / END / Duration.
+  return (
+    <div style={{display:'flex',flexDirection:'column',gap:2,lineHeight:1.45}}>
+      <span><span style={lbl}>START:</span> <span style={val}>{ordDay(date)} - {ts}</span></span>
+      <span><span style={lbl}>END:</span> <span style={val}>{ordDay(endDate)} - {te}</span></span>
+      <span><span style={lbl}>Duration:</span> <span style={{color:accent,fontWeight:600}}>{fmtDur(date,endDate)}</span></span>
+      <span style={lbl}>{ymOnly(date)}</span>
+    </div>
+  );
+};
 const now = () => { const n=new Date(); n.setMinutes(n.getMinutes()-n.getTimezoneOffset()); return n.toISOString().slice(0,19); };
 // Now + N hours, formatted the same way as now() so datetime-local accepts it.
 const nowPlus = (hrs=1) => { const n=new Date(); n.setHours(n.getHours()+hrs); n.setMinutes(n.getMinutes()-n.getTimezoneOffset()); return n.toISOString().slice(0,19); };
@@ -468,17 +506,27 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
     return latest?.expenses||[];
   },[budgets, user.username, selectedMonth]);
 
+  // Resolve which budget section (need/saving/want/sav) an item belongs to, so it
+  // groups correctly: from the "Other (section)" chip if one is active, otherwise
+  // from the picked budget category's own section. Income / plain items → null.
+  const sectionFor = (category, otherSec) => {
+    if(otherSec) return otherSec;
+    const bc = budgetCategories.find(c=>c.category===category);
+    return bc ? (bc.type||null) : null;
+  };
+
   // ── CRUD handlers ──
   const handleSave = async () => {
     try {
       if(editId) {
         if(!form.category||!form.amount){msg('Fill all fields.','err');return;}
-        await axios.put(`${API}/financial/${editId}`,{user:user.username,category:form.category,amount:parseFloat(form.amount),type:form.type,date:form.date});
+        const section = form.type==='expense' ? sectionFor(form.category, editOtherSec) : null;
+        await axios.put(`${API}/financial/${editId}`,{user:user.username,category:form.category,amount:parseFloat(form.amount),type:form.type,date:form.date,section});
         msg('Updated.');
       } else {
         const validRows = multiRows.filter(r=>r.category&&r.amount);
         if(!validRows.length){msg('Add at least one row with category and amount.','err');return;}
-        await Promise.all(validRows.map(r=>axios.post(`${API}/financial`,{user:user.username,category:r.category,amount:parseFloat(r.amount),type:form.type,date:form.date})));
+        await Promise.all(validRows.map(r=>axios.post(`${API}/financial`,{user:user.username,category:r.category,amount:parseFloat(r.amount),type:form.type,date:form.date,section:form.type==='expense'?sectionFor(r.category, r.otherSec):null})));
         msg(`Saved ${validRows.length} transaction${validRows.length>1?'s':''}.`);
       }
       setShowForm(false);setEditId(null);setEditOtherSec(null);setForm({category:'',amount:'',type:'expense',date:now()});setMultiRows([{id:Date.now(),category:'',amount:''}]);fetchAll();
@@ -489,7 +537,11 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
   };
   const startFinEdit = (item) => {
     setForm({category:item.category||'',amount:String(item.amount||''),type:item.type||'expense',date:(item.date||now()).slice(0,19)});
-    setEditOtherSec(null); // a custom category auto-reveals its input; a budget category shows amount only
+    // If this is a custom item filed under a section (its section is set but the
+    // category isn't one of the budget categories), re-enter that section's
+    // "Other" mode so the custom input shows AND the section is preserved on save.
+    const isBudgetCat = budgetCategories.some(c=>c.category===item.category);
+    setEditOtherSec(item.section && !isBudgetCat ? item.section : null);
     setEditId(item.id); setShowForm(true);
   };
 
@@ -782,8 +834,11 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
                     if(!cats.length) return null;
                     const planned = cats.reduce((s,c)=>s+parseFloat(c.amount||0),0);
                     const isOtherForSec = t=>{const tc=(t.category||'').toLowerCase();return tc.startsWith('other')&&tc.includes(sec.label.toLowerCase());};
-                    const actual  = monthExp.filter(t=>cats.some(c=>catMatch(t.category,c.category))||isOtherForSec(t))
-                                           .reduce((s,t)=>s+parseFloat(t.amount||0),0);
+                    // New items carry their own section; legacy items fall back to a
+                    // category match or the "Other (label)" naming convention.
+                    const belongsHere = t => t.section ? t.section===sec.key : (cats.some(c=>catMatch(t.category,c.category))||isOtherForSec(t));
+                    const secItems = monthExp.filter(belongsHere);
+                    const actual  = secItems.reduce((s,t)=>s+parseFloat(t.amount||0),0);
                     const over    = actual>planned&&planned>0;
                     const fill    = planned>0?Math.min(actual/planned,1):0;
                     return (
@@ -804,14 +859,14 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
                         </div>
                         <div style={{display:'flex',flexWrap:'wrap',gap:3,marginTop:5}}>
                           {cats.map(c=>{
-                            const catAct=monthExp.filter(t=>catMatch(t.category,c.category)).reduce((s,t)=>s+parseFloat(t.amount||0),0);
+                            const catAct=secItems.filter(t=>catMatch(t.category,c.category)).reduce((s,t)=>s+parseFloat(t.amount||0),0);
                             return catAct>0&&(
                               <span key={c.category} style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:'rgba(255,255,255,0.4)',padding:'2px 6px',borderRadius:3,background:'rgba(255,255,255,0.05)'}}>
                                 {c.category}: {fmtR(catAct)}
                               </span>
                             );
                           })}
-                          {(()=>{const otherAmt=monthExp.filter(t=>{const tc=(t.category||'').toLowerCase();return tc.startsWith('other')&&tc.includes(sec.label.toLowerCase());}).reduce((s,t)=>s+parseFloat(t.amount||0),0);return otherAmt>0&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:'rgba(255,255,255,0.4)',padding:'2px 6px',borderRadius:3,background:'rgba(255,255,255,0.05)'}}>Other: {fmtR(otherAmt)}</span>;})()}
+                          {(()=>{const otherAmt=secItems.filter(t=>!cats.some(c=>catMatch(t.category,c.category))).reduce((s,t)=>s+parseFloat(t.amount||0),0);return otherAmt>0&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:'rgba(255,255,255,0.4)',padding:'2px 6px',borderRadius:3,background:'rgba(255,255,255,0.05)'}}>Other: {fmtR(otherAmt)}</span>;})()}
                         </div>
                       </div>
                     );
@@ -839,6 +894,7 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
               const BSEC2 = typeof BUDGET_SECTIONS!=='undefined'?BUDGET_SECTIONS:[];
               const getItemSec = item => {
                 if(item.type==='income') return null;
+                if(item.section) return BSEC2.find(s=>s.key===item.section)||null; // explicit section wins
                 const budCat = budgetCategories.find(c=>catMatch(item.category,c.category));
                 if(budCat) return BSEC2.find(s=>s.key===budCat.type)||null;
                 const cat=(item.category||'').toLowerCase();
@@ -889,7 +945,7 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
                               <div>
                                 <div className="meal-name">{(item.category||'').toUpperCase()}</div>
 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-  <div className="meal-note" style={{marginTop:2}}>{fmtDateTime(item.startDate || item.date)}</div>
+  <div className="meal-note" style={{marginTop:2}}><ItemTimeMeta date={item.startDate || item.date} endDate={item.endDate||item.end_date}/></div>
   <div style={{ fontFamily: '"DM Mono", monospace', fontSize: '13px', fontWeight: 600, color: 'var(--green)' }}>
     {fmtR(item.amount)}
   </div>
@@ -1701,20 +1757,11 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
               return (
                 <div key={e.id} className="meal-card" style={{marginBottom:8,borderLeft:`3px solid ${coc}`,cursor:isOwn?'pointer':'default',display:'flex',alignItems:'stretch',padding:0,overflow:'hidden'}}
                   onClick={()=>isOwn&&setActionCalEvent(e)}>
-                  {/* iPhone-style time column — start over end */}
-                  {showTime&&(
+                  {/* All-day keeps its compact left tag; timed events now show the
+                      full START / END / Duration breakdown in the body instead. */}
+                  {showTime&&!timeStart&&(
                     <div style={{minWidth:54,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',background:'rgba(255,255,255,0.03)',borderRight:'1px solid var(--border)',padding:'8px 4px',flexShrink:0,gap:3}}>
-                      {timeStart
-                        ? <>
-                            <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:15,color:coc,lineHeight:1,letterSpacing:'0.02em'}}>{timeStart}</div>
-                            {timeEnd && (timeEnd !== timeStart || endsOtherDay) && (<>
-                              <div style={{width:14,height:1,background:coc,opacity:0.35}}/>
-                              <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--text3)',letterSpacing:'0.04em'}}>{timeEnd}</div>
-                              {endsOtherDay && <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:'var(--text3)',letterSpacing:'0.02em',opacity:0.85}}>{fmtDate(endRaw).slice(5)}</div>}
-                            </>)}
-                          </>
-                        : <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'var(--text3)',letterSpacing:'0.05em',textAlign:'center',lineHeight:1.2}}>ALL<br/>DAY</div>
-                      }
+                      <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:'var(--text3)',letterSpacing:'0.05em',textAlign:'center',lineHeight:1.2}}>ALL<br/>DAY</div>
                     </div>
                   )}
                   <div style={{flex:1,padding:'10px 12px'}}>
@@ -1735,15 +1782,9 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
                       {isOwn&&<span style={{color:'var(--text3)',fontSize:12,marginLeft:'auto'}}>›</span>}
                     </div>
                     <div className="meal-name" style={{marginBottom:4}}>{(e.title||'Untitled').toUpperCase()}</div>
-                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                    <div style={{display:'flex',alignItems:'flex-end',justifyContent:'space-between'}}>
                       <div className="meal-note">
-                        {fmtDate(e.date)}
-                        {' · '}
-                        <span style={{color:'var(--text2)'}}>
-                          {timeStart
-                            ? <>{timeStart}{timeEnd && (timeEnd !== timeStart || endsOtherDay) ? ` → ${endsOtherDay ? fmtDate(endRaw)+' ' : ''}${timeEnd}` : ''}</>
-                            : 'All day'}
-                        </span>
+                        <ItemTimeMeta date={e.date} endDate={endRaw} accent={coc} allDay={!timeStart}/>
                       </div>
                       {e.amount&&<div style={{fontFamily:"'DM Mono',monospace",fontSize:13,fontWeight:600,
                         color:e.type==='expense'?'var(--red)':'var(--green)'}}>{fmtR(e.amount)}</div>}
@@ -2227,16 +2268,12 @@ const BudgetPage = ({user, setUser, partner, partners=[], activePartners=[], per
     setEditing(true);
   };
 
-  // Default pay/start date for the selected month, seeded from the user's
-  // current pay-cycle day (clamped to the month length).
+  // Default pay/start date = the actual START of this month's pay cycle. For a
+  // back-half pay day that's in the PREVIOUS calendar month (e.g. the June tab's
+  // cycle starts 27 May), so we read it straight off payCycleRange.
   const defaultPayDateStr = () => {
-    const mIdx = parseInt(selectedMonth,10);            // 1-12
-    const lastDay = new Date(selectedYear, mIdx, 0).getDate();
-    let d = 1;
-    if (user.payDay === 'last_working') d = lastDay;
-    else if (user.payDay) d = parseInt(user.payDay,10) || 1;
-    d = Math.min(Math.max(1,d), lastDay);
-    return `${selectedYear}-${selectedMonth}-${String(d).padStart(2,'0')}`;
+    const { start } = payCycleRange(selectedYear, parseInt(selectedMonth,10)-1, user.payDay||'1');
+    return `${start.getFullYear()}-${String(start.getMonth()+1).padStart(2,'0')}-${String(start.getDate()).padStart(2,'0')}`;
   };
 
   // Copy the previous month's budget into the draft for the selected period.
@@ -2996,7 +3033,7 @@ const GymPage = ({user, partner, partners=[], activePartners=[], permittedPartne
                           </div>
                           <div className="workout-name">{(w.exercise||'').toUpperCase()}</div>
                           <div className="workout-detail">{gymFormatDetail(w)}</div>
-                          <div className="workout-time">{fmtDate(w.date)}</div>
+                          <div className="workout-time"><ItemTimeMeta date={w.date}/></div>
 
                         </div>
                       );
@@ -3669,7 +3706,8 @@ const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPart
                             {m.carbs!=null&&<span className="macro-badge carb">C {Math.round(m.carbs)}g</span>}
                             {m.fat!=null&&<span className="macro-badge fat">F {Math.round(m.fat)}g</span>}
                           </div>
-                          {m.description&&<div className="meal-note" style={{marginTop:6}}>· {m.description}</div>}
+                          <div className="meal-note" style={{marginTop:6}}><ItemTimeMeta date={m.date}/></div>
+                          {m.description&&<div className="meal-note" style={{marginTop:4}}>· {m.description}</div>}
 {own&&<div style={{color:'var(--text3)',fontSize:10,textAlign:'right',marginTop:4}}>tap to manage ›</div>}
                         </div>
                       );
