@@ -3631,9 +3631,17 @@ app.post('/api/setup', async (req, res) => {
         res.json({ success: true, ...mapUser(userRow) });
 
     } catch (err) {
-        await client.query('ROLLBACK');
-        console.error('[setup]', err.message);
-        res.status(500).json({ success: false, message: 'Setup failed.', error: err.message });
+        try { await client.query('ROLLBACK'); } catch (_) {}
+        console.error('[setup] FAILED:', err.code || '-', err.message);
+        // Translate the common Postgres failure codes into something the person
+        // setting up can act on, and always pass the raw detail back for support.
+        const msg = err.code === '23505' ? 'That username or email is already registered. Try signing in instead.'
+                  : err.code === '23502' ? 'A required field was missing. Please go back and complete every step.'
+                  : err.code === '42703' ? 'The server database is missing a column — it needs a schema update before new hubs can be created.'
+                  : err.code === '42P01' ? 'The server database is missing a table — it needs a schema update before new hubs can be created.'
+                  : '42501' === err.code ? 'The server lacks permission to write to the database. Please contact support.'
+                  : 'Setup failed. Please try again.';
+        res.status(500).json({ success: false, message: msg, error: `${err.code || ''} ${err.message}`.trim() });
     } finally {
         client.release();
     }

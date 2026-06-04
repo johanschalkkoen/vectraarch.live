@@ -1826,7 +1826,12 @@ async function submitSetup() {
     const data = await res.json();
 
     if (!res.ok || !data.success) {
-      showError(data.message || 'Setup failed. Please try again.');
+      // Surface the server's actual error detail so failures are diagnosable
+      // instead of a blank "Setup failed."
+      var detail = (data.message || 'Setup failed. Please try again.');
+      if (data.error && data.error !== data.message) detail += ' — ' + data.error;
+      showError(detail);
+      console.error('[setup] server error:', data);
       btn.textContent = 'CREATE HUB >';
       btn.disabled = false;
       return;
