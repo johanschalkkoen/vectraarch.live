@@ -336,6 +336,9 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({category:'',amount:'',type:'expense',date:now()});
+  // Which budget section's "Other" is active in the edit form (null = none).
+  // Drives whether the free-text custom-category input is shown.
+  const [editOtherSec, setEditOtherSec] = useState(null);
   const [editId, setEditId] = useState(null);
   const [actionItem, setActionItem] = useState(null);
   const [confirmDel, setConfirmDel] = useState(null);
@@ -481,7 +484,7 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
         await Promise.all(validRows.map(r=>axios.post(`${API}/financial`,{user:user.username,category:r.category,amount:parseFloat(r.amount),type:form.type,date:form.date})));
         msg(`Saved ${validRows.length} transaction${validRows.length>1?'s':''}.`);
       }
-      setShowForm(false);setEditId(null);setForm({category:'',amount:'',type:'expense',date:now()});setMultiRows([{id:Date.now(),category:'',amount:''}]);fetchAll();
+      setShowForm(false);setEditId(null);setEditOtherSec(null);setForm({category:'',amount:'',type:'expense',date:now()});setMultiRows([{id:Date.now(),category:'',amount:''}]);fetchAll();
     } catch { msg('Error.','err'); }
   };
   const handleFinDelete = async(id)=>{
@@ -489,6 +492,7 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
   };
   const startFinEdit = (item) => {
     setForm({category:item.category||'',amount:String(item.amount||''),type:item.type||'expense',date:(item.date||now()).slice(0,19)});
+    setEditOtherSec(null); // a custom category auto-reveals its input; a budget category shows amount only
     setEditId(item.id); setShowForm(true);
   };
 
@@ -1123,7 +1127,7 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
 
       {/* Add/Edit Transaction */}
       {showForm&&(
-        <div className="modal-overlay" onClick={()=>{setShowForm(false);setEditId(null);setForm({category:'',amount:'',type:'expense',date:now()});setMultiRows([{id:Date.now(),category:'',amount:''}]);}}>
+        <div className="modal-overlay" onClick={()=>{setShowForm(false);setEditId(null);setEditOtherSec(null);setForm({category:'',amount:'',type:'expense',date:now()});setMultiRows([{id:Date.now(),category:'',amount:''}]);}}>
           <div className="modal-sheet" style={{"--page-color":tabColor||"var(--green)"}} onClick={e=>e.stopPropagation()}>
             <div className="modal-handle"/>
             <div className="modal-title">{editId?"Edit":"Add"} Transaction</div>
@@ -1137,7 +1141,7 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
                   <div className="type-toggle">
                     {['expense','income'].map(t=>(
                       <button key={t} className={`type-toggle-btn ${form.type===t?'active':''}`}
-                        onClick={()=>setForm(p=>({...p,type:t,category:''}))}>
+                        onClick={()=>{setForm(p=>({...p,type:t,category:''}));setEditOtherSec(null);}}>
                         {t.toUpperCase()}
                       </button>
                     ))}
@@ -1160,10 +1164,10 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
                             </div>
                             <div style={{display:'flex',flexWrap:'wrap',gap:5}}>
                               {cats.map(c=>{
-                                const sel=form.category===c.category;
+                                const sel=editOtherSec===null&&form.category===c.category;
                                 return (
                                   <button key={c.category} type="button"
-                                    onClick={()=>setForm(p=>({...p,category:c.category}))}
+                                    onClick={()=>{setForm(p=>({...p,category:c.category}));setEditOtherSec(null);}}
                                     style={{padding:'6px 12px',borderRadius:6,cursor:'pointer',
                                       border:`1px solid ${sel?sec.color:sec.color+'55'}`,
                                       background:sel?`${sec.color}22`:`${sec.color}0a`,
@@ -1173,9 +1177,9 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
                                   </button>
                                 );
                               })}
-                              {(()=>{const sel=form.category===`Other (${sec.label})`;return(
+                              {(()=>{const sel=editOtherSec===sec.key;return(
                                 <button type="button"
-                                  onClick={()=>setForm(p=>({...p,category:`Other (${sec.label})`}))}
+                                  onClick={()=>{setEditOtherSec(sec.key);setForm(p=>({...p,category:''}));}}
                                   style={{padding:'6px 12px',borderRadius:6,cursor:'pointer',
                                     border:`1px dashed ${sel?sec.color:sec.color+'44'}`,
                                     background:sel?`${sec.color}22`:'transparent',
@@ -1188,10 +1192,12 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
                           </div>
                         );
                       })}
-                      <input className="form-input" style={{marginTop:4}}
-                        placeholder="Or type a custom category"
-                        value={budgetCategories.some(c=>c.category===form.category)?'':form.category}
-                        onChange={e=>setForm(p=>({...p,category:e.target.value}))}/>
+                      {(editOtherSec!==null || (form.category && !budgetCategories.some(c=>c.category===form.category))) && (
+                        <input className="form-input" style={{marginTop:4}} autoFocus
+                          placeholder="Type a custom category"
+                          value={form.category}
+                          onChange={e=>setForm(p=>({...p,category:e.target.value}))}/>
+                      )}
                     </>
                   ) : (
                     <input className="form-input"
@@ -1210,7 +1216,7 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
                   <input className="form-input" type="datetime-local" value={form.date} onChange={e=>setForm(p=>({...p,date:e.target.value}))} step="1"/>
                 </div>
                 <button className="form-submit" style={{background:tabColor,color:'#000'}} onClick={handleSave}>UPDATE</button>
-                <button className="form-cancel" onClick={()=>{setShowForm(false);setEditId(null);setForm({category:'',amount:'',type:'expense',date:now()});setMultiRows([{id:Date.now(),category:'',amount:''}]);}}>Cancel</button>
+                <button className="form-cancel" onClick={()=>{setShowForm(false);setEditId(null);setEditOtherSec(null);setForm({category:'',amount:'',type:'expense',date:now()});setMultiRows([{id:Date.now(),category:'',amount:''}]);}}>Cancel</button>
               </>
             ) : (
               <>
@@ -1259,10 +1265,10 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
                                 </div>
                                 <div style={{display:'flex',flexWrap:'wrap',gap:5}}>
                                   {cats.map(c=>{
-                                    const sel=row.category===c.category;
+                                    const sel=(row.otherSec==null)&&row.category===c.category;
                                     return (
                                       <button key={c.category} type="button"
-                                        onClick={()=>setMultiRows(prev=>prev.map(r=>r.id===row.id?{...r,category:c.category}:r))}
+                                        onClick={()=>setMultiRows(prev=>prev.map(r=>r.id===row.id?{...r,category:c.category,otherSec:null}:r))}
                                         style={{padding:'6px 12px',borderRadius:6,cursor:'pointer',
                                           border:`1px solid ${sel?sec.color:sec.color+'55'}`,
                                           background:sel?`${sec.color}22`:`${sec.color}0a`,
@@ -1272,9 +1278,9 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
                                       </button>
                                     );
                                   })}
-                                  {(()=>{const sel=row.category===`Other (${sec.label})`;return(
+                                  {(()=>{const sel=row.otherSec===sec.key;return(
                                     <button type="button"
-                                      onClick={()=>setMultiRows(prev=>prev.map(r=>r.id===row.id?{...r,category:`Other (${sec.label})`}:r))}
+                                      onClick={()=>setMultiRows(prev=>prev.map(r=>r.id===row.id?{...r,category:'',otherSec:sec.key}:r))}
                                       style={{padding:'6px 12px',borderRadius:6,cursor:'pointer',
                                         border:`1px dashed ${sel?sec.color:sec.color+'44'}`,
                                         background:sel?`${sec.color}22`:'transparent',
@@ -1287,10 +1293,12 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
                               </div>
                             );
                           })}
-                          <input className="form-input" style={{marginTop:4}}
-                            placeholder="Or type a custom category"
-                            value={budgetCategories.some(c=>c.category===row.category)?'':row.category}
-                            onChange={e=>setMultiRows(prev=>prev.map(r=>r.id===row.id?{...r,category:e.target.value}:r))}/>
+                          {(row.otherSec!=null || (row.category && !budgetCategories.some(c=>c.category===row.category))) && (
+                            <input className="form-input" style={{marginTop:4}} autoFocus
+                              placeholder="Type a custom category"
+                              value={row.category}
+                              onChange={e=>setMultiRows(prev=>prev.map(r=>r.id===row.id?{...r,category:e.target.value}:r))}/>
+                          )}
                         </>
                       ) : (
                         <input className="form-input"
@@ -1315,7 +1323,7 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
                 </button>
 
                 <button className="form-submit" style={{background:tabColor,color:'#000'}} onClick={handleSave}>SAVE ALL</button>
-                <button className="form-cancel" onClick={()=>{setShowForm(false);setEditId(null);setForm({category:'',amount:'',type:'expense',date:now()});setMultiRows([{id:Date.now(),category:'',amount:''}]);}}>Cancel</button>
+                <button className="form-cancel" onClick={()=>{setShowForm(false);setEditId(null);setEditOtherSec(null);setForm({category:'',amount:'',type:'expense',date:now()});setMultiRows([{id:Date.now(),category:'',amount:''}]);}}>Cancel</button>
               </>
             )}
           </div>
@@ -2019,7 +2027,7 @@ const BUDGET_SECTIONS = [
   {key:'sav',    label:'SAVINGS',              targetPct:0,  color:'#ffd600'},
 ];
 
-const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPartners=[], selfVisible=true, isShared, tabSelected, onToggleUser, tabColor='#ff6d00'}) => {
+const BudgetPage = ({user, setUser, partner, partners=[], activePartners=[], permittedPartners=[], selfVisible=true, isShared, tabSelected, onToggleUser, tabColor='#ff6d00'}) => {
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()+1).padStart(2,'0'));
   const [selectedYear, setSelectedYear]   = useState(new Date().getFullYear());
   const [allBudgets, setAllBudgets]       = useState([]);
@@ -2028,6 +2036,9 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
   const [draftIncome, setDraftIncome]     = useState('');
   const [draftAllocs, setDraftAllocs]     = useState(DEFAULT_BUDGET_ALLOCATIONS.map(a=>({category:a.category,amount:'',type:a.type})));
   const [draftTargets, setDraftTargets]   = useState({need:50,saving:30,want:20,sav:0});
+  // Pay/start date for this budget month. The day-of-month becomes the user's
+  // pay-cycle day so periods are inherited without visiting Profile.
+  const [draftPayDate, setDraftPayDate]   = useState('');
   const [saving, setSaving]               = useState(false);
   const [confirmDel, setConfirmDel]       = useState(false);
   const [alert, setAlert]                 = useState({msg:'',type:''});
@@ -2153,6 +2164,16 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
   const budgetEntry = selfBudgetEntry;
   const viewPartner = null;
 
+  // The user's most recent budget BEFORE the selected period — the source for
+  // "Copy last month". Budgets are keyed by `${year}-${month}-01`, so a plain
+  // string compare orders them chronologically.
+  const prevBudgetEntry = useMemo(()=>{
+    const selDate = `${selectedYear}-${selectedMonth}-01`;
+    return allBudgets
+      .filter(b=>b.user===user.username && (b.date||'') < selDate && (b.expenses||[]).length>0)
+      .sort((a,b)=>(b.date||'').localeCompare(a.date||''))[0] || null;
+  },[allBudgets, user.username, selectedYear, selectedMonth]);
+
   const updateSectionTarget = (key, rawVal) => {
     const newPct = Math.max(0, Math.min(100, parseInt(rawVal,10)||0));
     const otherKeys = BUDGET_SECTIONS.map(s=>s.key).filter(k=>k!==key);
@@ -2205,7 +2226,39 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
     const initT={};
     BUDGET_SECTIONS.forEach(s=>{ initT[s.key]=(saved[s.key]!=null)?parseFloat(saved[s.key]):s.targetPct; });
     setDraftTargets(initT);
+    setDraftPayDate(defaultPayDateStr());
     setEditing(true);
+  };
+
+  // Default pay/start date for the selected month, seeded from the user's
+  // current pay-cycle day (clamped to the month length).
+  const defaultPayDateStr = () => {
+    const mIdx = parseInt(selectedMonth,10);            // 1-12
+    const lastDay = new Date(selectedYear, mIdx, 0).getDate();
+    let d = 1;
+    if (user.payDay === 'last_working') d = lastDay;
+    else if (user.payDay) d = parseInt(user.payDay,10) || 1;
+    d = Math.min(Math.max(1,d), lastDay);
+    return `${selectedYear}-${selectedMonth}-${String(d).padStart(2,'0')}`;
+  };
+
+  // Copy the previous month's budget into the draft for the selected period.
+  // The user reviews and saves — nothing is written until they hit save.
+  const copyPreviousBudget = () => {
+    if(!prevBudgetEntry){ msg('No earlier budget to copy.','err'); return; }
+    const exps = prevBudgetEntry.expenses||[];
+    setDraftIncome(String(prevBudgetEntry.income||''));
+    setDraftAllocs(exps.length>0
+      ? exps.map(e=>({category:e.category||'',amount:String(e.amount||''),type:e.type||'need'}))
+      : DEFAULT_BUDGET_ALLOCATIONS.map(a=>({category:a.category,amount:'',type:a.type})));
+    const saved=prevBudgetEntry.section_targets||{};
+    const initT={};
+    BUDGET_SECTIONS.forEach(s=>{ initT[s.key]=(saved[s.key]!=null)?parseFloat(saved[s.key]):s.targetPct; });
+    setDraftTargets(initT);
+    setDraftPayDate(defaultPayDateStr());
+    setEditing(true);
+    const pm = (prevBudgetEntry.date||'').slice(0,7);
+    msg(`Copied ${pm} budget — review & save.`);
   };
 
   const cancelEdit = () => setEditing(false);
@@ -2238,6 +2291,25 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
           date:dateVal, budget_type:'need',
           section_targets:draftTargets,
         });
+      }
+      // Sync the pay-cycle day from the chosen start date, so the user doesn't
+      // have to set it separately in Profile. Only writes when the chosen day
+      // actually differs from the day the cycle already uses — so leaving the
+      // pre-filled date untouched never converts an inherited day into an override.
+      if(draftPayDate){
+        const day = new Date(draftPayDate+'T00:00:00').getDate();
+        const lastDay = new Date(selectedYear, parseInt(selectedMonth,10), 0).getDate();
+        const effDay = user.payDay==='last_working' ? lastDay : Math.min(parseInt(user.payDay,10)||1, lastDay);
+        if(day !== effDay){
+          const dayStr = String(day);
+          try {
+            const {data} = await axios.post(`${API}/profile/pay-day`,{username:user.username, payDay:dayStr});
+            if(data&&data.success&&setUser){
+              const next={...user, payDay:data.payDay||dayStr, userPayDay:data.userPayDay!=null?data.userPayDay:dayStr, groupPayDay:data.groupPayDay||user.groupPayDay};
+              setUser(next); localStorage.setItem('user',JSON.stringify(next));
+            }
+          } catch {}
+        }
       }
       msg(budgetEntry?'Budget updated.':'Budget saved.');
       setEditing(false);
@@ -2422,6 +2494,18 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
                   onChange={e=>setDraftIncome(e.target.value)}
                   autoFocus/>
                 <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'rgba(255,255,255,0.3)',marginBottom:16}}>Your income after tax and deductions</div>
+
+                {/* Pay / start date → sets the pay-cycle day (inherited app-wide) */}
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:'0.2em',color:'rgba(255,255,255,0.4)',marginBottom:8}}>PAY DATE · BUDGET STARTS</div>
+                <input className="form-input" type="date"
+                  style={{fontSize:14,padding:'10px 14px',marginBottom:6}}
+                  value={draftPayDate}
+                  onChange={e=>setDraftPayDate(e.target.value)}/>
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'rgba(255,255,255,0.3)',marginBottom:16,lineHeight:1.5}}>
+                  {draftPayDate
+                    ? `This budget runs as a pay cycle from day ${new Date(draftPayDate+'T00:00:00').getDate()} each month. Saved to your profile — no need to edit it there.`
+                    : 'Pick when you get paid — your budget month runs from that day, applied everywhere automatically.'}
+                </div>
                 {(()=>{
                   const inc = parseFloat(draftIncome||0);
                   const diff = draftTotalAmount - inc;
@@ -2505,6 +2589,10 @@ const BudgetPage = ({user, partner, partners=[], activePartners=[], permittedPar
                 {canEdit&&<button onClick={startEdit}
                   style={{width:'100%',padding:'12px',borderRadius:8,background:tabColor,color:'#000',border:'none',fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:15,letterSpacing:'0.12em',cursor:'pointer'}}>
                   SET UP BUDGET ↗
+                </button>}
+                {canEdit&&prevBudgetEntry&&<button onClick={copyPreviousBudget}
+                  style={{width:'100%',marginTop:8,padding:'11px',borderRadius:8,background:'transparent',color:tabColor,border:`1px solid ${tabColor}66`,fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:13,letterSpacing:'0.1em',cursor:'pointer'}}>
+                  ⧉ COPY LAST MONTH ({(prevBudgetEntry.date||'').slice(0,7)})
                 </button>}
               </>
             )}
@@ -6378,7 +6466,7 @@ const App = () => {
     });
   };
 
-  const sharedProps = {user, partner, partners:allPartners, activePartners, permittedPartners,
+  const sharedProps = {user, setUser, partner, partners:allPartners, activePartners, permittedPartners,
     selfVisible, isShared, tabSelected, onToggleUser:toggleUser, tabColor, sharingConfig, setSharingConfig};
 
   // Cycle tab: show if user is female, OR if any partner is female and cycle sharing is on

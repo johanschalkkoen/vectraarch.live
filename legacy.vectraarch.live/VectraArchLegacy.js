@@ -1393,6 +1393,27 @@ app.post('/api/group/pay-day', requirePaid, async (req, res) => {
     }
 });
 
+// Set THIS user's personal pay-day override (their pay-cycle start day) without
+// touching the rest of their profile. Used by the Budget page so picking a
+// start date there auto-updates the pay cycle. Empty/invalid clears it (inherit
+// the group default). payDay: '1'..'31' or 'last_working'.
+app.post('/api/profile/pay-day', requirePaid, async (req, res) => {
+    const { username, payDay } = req.body;
+    if (!username) return res.status(400).json({ success: false, message: 'Username required.' });
+    const clean = normalisePayDay(payDay); // null = inherit
+    try {
+        const u = await dbQuery('SELECT username FROM vectraarchlegacy_users WHERE LOWER(username) = LOWER($1)', [username]);
+        if (!u) return res.status(404).json({ success: false, message: 'User not found.' });
+        await dbRun('UPDATE vectraarchlegacy_users SET pay_day = $1 WHERE LOWER(username) = LOWER($2)', [clean, username]);
+        await logTransaction(username, 'UPDATE', 'pay_day', null, username);
+        const row = await dbQuery(`${USER_SELECT_BASE} WHERE u.username = $1`, [username]);
+        res.json({ success: true, message: 'Pay day updated.', ...mapUser(row) });
+    } catch (e) {
+        console.error('[profile/pay-day]', e.message);
+        res.status(500).json({ success: false, message: 'Database error updating pay day.', error: e.message });
+    }
+});
+
 // ── ACCESS ────────────────────────────────────────────────────────────────────
 app.get('/api/get-access', async (req, res) => {
     // Returns access pairs (viewer → target). Always unions the materialised
