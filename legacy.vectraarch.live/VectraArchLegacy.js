@@ -377,12 +377,39 @@ const PAYFAST_VALID_HOSTS = [
 
 // Subscription plans. `amount` is in ZAR. Monthly plans are PayFast recurring
 // subscriptions (subscription_type 1); 'lifetime' is a single once-off payment.
+// `amount` is the price for the FIRST user (the group admin / single user).
+// `additionalUser` is charged once per EXTRA user in the group (≈33% of base).
+// The group admin pays a consolidated total = amount + (seats-1) × additionalUser.
 const PLANS = {
-    basic:    { name: 'Basic',    amount: '29.00',  recurring: true,  label: 'R29 / month'  },
-    standard: { name: 'Standard', amount: '49.00',  recurring: true,  label: 'R49 / month'  },
-    premium:  { name: 'Premium',  amount: '99.00',  recurring: true,  label: 'R99 / month'  },
-    lifetime: { name: 'Lifetime', amount: '299.00', recurring: false, label: 'R299 once-off' },
+    basic:    { name: 'Basic',    amount: '99.00',   additionalUser: '33.00',  recurring: true,  label: 'R99 / month'   },
+    standard: { name: 'Standard', amount: '199.00',  additionalUser: '66.00',  recurring: true,  label: 'R199 / month'  },
+    premium:  { name: 'Premium',  amount: '399.00',  additionalUser: '133.00', recurring: true,  label: 'R399 / month'  },
+    lifetime: { name: 'Lifetime', amount: '1499.00', additionalUser: '499.00', recurring: false, label: 'R1499 once-off' },
 };
+
+// Consolidated price for a plan covering `seats` users (1 base + extras).
+function planSeatTotal(planId, seats) {
+    const p = PLANS[planId];
+    if (!p) return 0;
+    const n = Math.max(1, parseInt(seats, 10) || 1);
+    const base = parseFloat(p.amount);
+    const add  = parseFloat(p.additionalUser || 0);
+    return Math.round((base + (n - 1) * add) * 100) / 100;
+}
+
+// How many seats a user's subscription must cover = everyone in their group
+// (the admin pays for all of them). Solo / groupless users are a single seat.
+async function groupSeatCount(username) {
+    try {
+        const me = await dbQuery('SELECT group_id FROM vectraarchlegacy_users WHERE LOWER(username) = LOWER($1)', [username]);
+        if (!me || !me.group_id) return 1;
+        const r = await dbQuery('SELECT COUNT(*)::int AS n FROM vectraarchlegacy_users WHERE group_id = $1', [me.group_id]);
+        return Math.max(1, (r && r.n) || 1);
+    } catch (e) {
+        console.error('[billing] groupSeatCount failed:', e.message);
+        return 1;
+    }
+}
 
 // Resolve a user row into an entitlement object the client can act on.
 // Returns { status, plan, active, daysLeft, trialEndsAt, expiresAt }.
@@ -2817,13 +2844,22 @@ app.post('/api/webhooks', async (req, res) => {
 // ── BILLING / PAYGATE ROUTES ──────────────────────────────────────────────────
 
 // Public list of plans for the paywall UI.
-app.get('/api/billing/plans', (req, res) => {
+app.get('/api/billing/plans', async (req, res) => {
+    // When a ?user= is supplied, also return that user's current group seat count
+    // and the consolidated total per plan, so the paywall can show "your price".
+    const username = (req.query.user || req.query.username || '').toString();
+    let seats = 1;
+    if (username) { try { seats = await groupSeatCount(username); } catch {} }
     res.json({
         success: true,
         trialDays: TRIAL_DAYS,
         currency: 'ZAR',
+        seats,
         plans: Object.entries(PLANS).map(([id, p]) => ({
-            id, name: p.name, amount: p.amount, label: p.label, recurring: p.recurring,
+            id, name: p.name, amount: p.amount, additionalUser: p.additionalUser || '0.00',
+            label: p.label, recurring: p.recurring,
+            // Total for this user's group right now (1 seat = base).
+            seatTotal: planSeatTotal(id, seats).toFixed(2),
         })),
     });
 });
@@ -2853,6 +2889,13 @@ app.post('/api/billing/subscribe', async (req, res) => {
         const user = await dbQuery('SELECT username, email, first_name, last_name FROM vectraarchlegacy_users WHERE LOWER(username) = LOWER($1)', [username]);
         if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
 
+        // Seats = everyone in the admin's group. The amount is always derived
+        // server-side (never trusted from the client) and the seat count is
+        // signed into the PayFast fields so the ITN can re-validate the total.
+        const seats = await groupSeatCount(user.username);
+        const total = planSeatTotal(planId, seats).toFixed(2);
+        const seatSuffix = seats > 1 ? ` (${seats} users)` : '';
+
         const mPaymentId = `${user.username}:${planId}:${Date.now()}`;
         const data = {
             merchant_id:   PAYFAST_MERCHANT_ID,
@@ -2864,16 +2907,17 @@ app.post('/api/billing/subscribe', async (req, res) => {
             name_last:     user.last_name || '',
             email_address: user.email || '',
             m_payment_id:  mPaymentId,
-            amount:        plan.amount,
-            item_name:     `VectraArch Legacy — ${plan.name}`,
+            amount:        total,
+            item_name:     `VectraArch Legacy — ${plan.name}${seatSuffix}`,
             custom_str1:   user.username,
             custom_str2:   planId,
+            custom_int1:   String(seats),
         };
         // Recurring (monthly) subscription fields per PayFast subscription spec.
         if (plan.recurring) {
             data.subscription_type = '1';
             data.billing_date      = new Date().toISOString().slice(0, 10);
-            data.recurring_amount  = plan.amount;
+            data.recurring_amount  = total;
             data.frequency         = '3'; // 3 = monthly
             data.cycles            = '0'; // 0 = indefinite until cancelled
         }
@@ -2941,10 +2985,20 @@ app.post('/api/payfast/notify', async (req, res) => {
         const plan     = PLANS[planId];
         const status   = pfData.payment_status; // 'COMPLETE', 'CANCELLED', etc.
 
-        // 4. Amount check (only meaningful on a COMPLETE payment).
+        // 4. Amount check (only meaningful on a COMPLETE payment). The seat count
+        // was signed into custom_int1 at checkout, so the expected amount is the
+        // consolidated seat total — not just the single-user base price. Automated
+        // recurring rebills may omit custom_int1, so fall back to back-deriving the
+        // seat count from the gross and confirming it reproduces a valid total.
         if (plan && status === 'COMPLETE') {
             const gross = parseFloat(pfData.amount_gross || '0');
-            const expectedAmt = parseFloat(plan.amount);
+            let seats = parseInt(pfData.custom_int1, 10);
+            if (!seats || seats < 1) {
+                const base = parseFloat(plan.amount);
+                const add  = parseFloat(plan.additionalUser || 0);
+                seats = add > 0 ? Math.max(1, Math.round((gross - base) / add) + 1) : 1;
+            }
+            const expectedAmt = planSeatTotal(planId, seats);
             if (Math.abs(gross - expectedAmt) > 0.01) {
                 console.error(`[payfast] amount mismatch: got ${gross}, expected ${expectedAmt}`);
                 await dbRun('INSERT INTO vectraarchlegacy_payments (username, m_payment_id, pf_payment_id, plan, amount_gross, payment_status, raw) VALUES ($1,$2,$3,$4,$5,$6,$7)',

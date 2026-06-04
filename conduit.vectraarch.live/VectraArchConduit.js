@@ -55,10 +55,10 @@ const legacyPool = new Pool({ // VectraArchLegacy — legacy users, keys
 // the paygate actually does. Conduit writes straight to the Legacy DB.
 const LEGACY_TRIAL_DAYS = parseInt(process.env.LEGACY_TRIAL_DAYS || process.env.TRIAL_DAYS || '3', 10);
 const LEGACY_PLANS = {
-  basic:    { name: 'Basic',    amount: '29.00',  recurring: true,  label: 'R29 / month'  },
-  standard: { name: 'Standard', amount: '49.00',  recurring: true,  label: 'R49 / month'  },
-  premium:  { name: 'Premium',  amount: '99.00',  recurring: true,  label: 'R99 / month'  },
-  lifetime: { name: 'Lifetime', amount: '299.00', recurring: false, label: 'R299 once-off' },
+  basic:    { name: 'Basic',    amount: '99.00',   additionalUser: '33.00',  recurring: true,  label: 'R99 / month'   },
+  standard: { name: 'Standard', amount: '199.00',  additionalUser: '66.00',  recurring: true,  label: 'R199 / month'  },
+  premium:  { name: 'Premium',  amount: '399.00',  additionalUser: '133.00', recurring: true,  label: 'R399 / month'  },
+  lifetime: { name: 'Lifetime', amount: '1499.00', additionalUser: '499.00', recurring: false, label: 'R1499 once-off' },
 };
 
 // Resolve a Legacy user row into the live entitlement the paygate enforces.

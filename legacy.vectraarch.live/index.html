@@ -4851,14 +4851,15 @@ const BillingSection = ({user, tabColor}) => {
   const ACCENT = '#2dd4bf';
   const [sub, setSub]         = useState(null);
   const [plans, setPlans]     = useState([]);
+  const [seats, setSeats]     = useState(1);
   const [err, setErr]         = useState('');
   const [busyPlan, setBusyPlan] = useState('');
 
   useEffect(()=>{
     axios.get(`${API}/billing/status`, {params:{user:user.username}})
       .then(r=>{ if(r.data.success) setSub(r.data.subscription); }).catch(()=>{});
-    axios.get(`${API}/billing/plans`)
-      .then(r=>{ if(r.data.success) setPlans(r.data.plans||[]); })
+    axios.get(`${API}/billing/plans`, {params:{user:user.username}})
+      .then(r=>{ if(r.data.success){ setPlans(r.data.plans||[]); setSeats(r.data.seats||1); } })
       .catch(()=>setErr('Could not load plans. Reopen to retry.'));
   },[user.username]);
 
@@ -4901,9 +4902,17 @@ const BillingSection = ({user, tabColor}) => {
               <div key={p.id} style={{border:`1px solid ${col}44`,borderRadius:10,padding:'16px 14px',background:'var(--bg3)',display:'flex',flexDirection:'column'}}>
                 <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:18,letterSpacing:'0.04em',textTransform:'uppercase',color:'var(--text)'}}>{p.name}</div>
                 <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:34,lineHeight:1.1,color:col,margin:'6px 0 2px'}}>R{parseFloat(p.amount).toFixed(0)}</div>
-                <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)',marginBottom:14}}>{p.recurring?'per month':'once-off · lifetime'}</div>
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)',marginBottom:6}}>{p.recurring?'per month · 1 user':'once-off · 1 user'}</div>
+                {parseFloat(p.additionalUser||0)>0 && (
+                  <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)',marginBottom:8,letterSpacing:'0.03em'}}>+R{parseFloat(p.additionalUser).toFixed(0)} / additional user{p.recurring?' · mo':''}</div>
+                )}
+                {seats>1 && (
+                  <div style={{fontFamily:"'DM Mono',monospace",fontSize:9.5,color:col,marginBottom:12,letterSpacing:'0.03em',lineHeight:1.5}}>
+                    Your group · {seats} users<br/><strong style={{fontSize:12}}>R{parseFloat(p.seatTotal||p.amount).toFixed(0)}{p.recurring?' / mo':' once-off'}</strong>
+                  </div>
+                )}
                 <button disabled={!!busyPlan} onClick={()=>startCheckout(p.id)} style={{marginTop:'auto',fontFamily:"'DM Mono',monospace",fontSize:10,letterSpacing:'0.1em',textTransform:'uppercase',padding:'10px 12px',borderRadius:6,border:`1px solid ${col}`,background:`${col}12`,color:col,cursor:busyPlan?'not-allowed':'pointer',opacity:busyPlan&&busyPlan!==p.id?0.5:1}}>
-                  {busyPlan===p.id?'Redirecting…':'Subscribe'}
+                  {busyPlan===p.id?'Redirecting…':(seats>1?`Subscribe · ${seats} users`:'Subscribe')}
                 </button>
               </div>
             );
@@ -4912,7 +4921,7 @@ const BillingSection = ({user, tabColor}) => {
 
         {err && <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:'var(--red)',marginTop:12}}>{err}</div>}
         <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'var(--text3)',marginTop:14,lineHeight:1.6}}>
-          Payments are processed securely by <strong style={{color:'var(--text2)'}}>PayFast</strong>. Cancel anytime.
+          The price shown covers one user. As the group admin you pay one bill for everyone — each additional member is added at the per-user rate{seats>1?` (your group has ${seats} users)`:''}. Payments are processed securely by <strong style={{color:'var(--text2)'}}>PayFast</strong>. Cancel anytime.
         </div>
       </div>
     </CollapsibleSection>
