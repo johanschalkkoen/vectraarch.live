@@ -155,6 +155,12 @@ async function ensureSchema() {
         )`,
         `CREATE INDEX IF NOT EXISTS idx_partner_sharing_owner   ON vectraarchlegacy_partner_sharing(owner)`,
         `CREATE INDEX IF NOT EXISTS idx_partner_sharing_partner ON vectraarchlegacy_partner_sharing(partner)`,
+        // ── Pay cycle: when salaries are paid, so Finances/Budget periods can align
+        //    to the pay day instead of the calendar month. Stored as TEXT: '1'..'31'
+        //    or the sentinel 'last_working' (last weekday of the month).
+        //    Group holds the default; a user's own value (NULL = inherit) overrides it.
+        `ALTER TABLE vectraarchlegacy_groups ADD COLUMN IF NOT EXISTS pay_day TEXT NOT NULL DEFAULT '1'`,
+        `ALTER TABLE vectraarchlegacy_users  ADD COLUMN IF NOT EXISTS pay_day TEXT`,
         // ── Google auth & invites ──
         `ALTER TABLE vectraarchlegacy_users ADD COLUMN IF NOT EXISTS google_id     TEXT`,
         `ALTER TABLE vectraarchlegacy_users ADD COLUMN IF NOT EXISTS auth_provider TEXT DEFAULT 'password'`,
@@ -270,6 +276,27 @@ const dbTransaction = async (queries) => {
     }
 };
 
+// Resolve the pay day that actually applies to a user: their own override if
+// set, otherwise the group default, otherwise the 1st (= calendar month).
+// Returned as a string: '1'..'31' or 'last_working'.
+function resolvePayDay(userPayDay, groupPayDay) {
+    const u = userPayDay  != null ? String(userPayDay).trim()  : '';
+    const g = groupPayDay != null ? String(groupPayDay).trim() : '';
+    return u || g || '1';
+}
+
+// Validate / normalise a pay-day value coming from a client. Returns a clean
+// string ('1'..'31' or 'last_working') or null when the input is unusable.
+function normalisePayDay(val) {
+    if (val == null) return null;
+    const s = String(val).trim().toLowerCase();
+    if (s === '' ) return null;
+    if (s === 'last_working' || s === 'last-working' || s === 'lastworking') return 'last_working';
+    const n = parseInt(s, 10);
+    if (!Number.isFinite(n) || n < 1 || n > 31) return null;
+    return String(n);
+}
+
 // ── COLUMN NAME MAP ───────────────────────────────────────────────────────────
 function mapUser(row) {
     if (!row) return null;
@@ -301,6 +328,12 @@ function mapUser(row) {
         twoFactorEnabled: !!row.twofa_secret,
         groupId:          row.group_id          || null,
         groupName:        row.group_name        || '',
+        // Pay cycle — drives Finances/Budget period boundaries on the client.
+        // payDay is the effective value; the raw user/group values let the
+        // Profile UI show "inherit" vs an explicit override.
+        payDay:           resolvePayDay(row.pay_day, row.group_pay_day),
+        userPayDay:       row.pay_day != null ? String(row.pay_day) : null,
+        groupPayDay:      row.group_pay_day != null ? String(row.group_pay_day) : '1',
         // Paygate entitlement — lets the client render the paywall / trial banner.
         subscription:     entitlementFor(row),
     };
@@ -310,7 +343,7 @@ function mapUser(row) {
 // user record is loaded so the client always knows the group's display name
 // (not just the numeric id).
 const USER_SELECT_BASE = `
-    SELECT u.*, g.group_name
+    SELECT u.*, g.group_name, g.pay_day AS group_pay_day
       FROM vectraarchlegacy_users u
       LEFT JOIN vectraarchlegacy_groups g ON g.id = u.group_id
 `;
@@ -1250,8 +1283,12 @@ app.get('/api/profile-pictures', async (req, res) => {
 app.post('/api/profile-pictures', async (req, res) => {
     const { username, firstName, lastName, profilePicUrl, email, phone,
             eventColor, accentColor, gender, telegram_chat_id, displayName,
-            dob, weight, height, role } = req.body;
+            dob, weight, height, role, payDay } = req.body;
     if (!username) return res.status(400).json({ success: false, message: 'Username required.' });
+    // pay_day is only touched when the client actually sends the field, so other
+    // profile callers leave it alone. An empty/invalid value clears it (= inherit).
+    const payDayProvided = Object.prototype.hasOwnProperty.call(req.body, 'payDay');
+    const payDayVal = payDayProvided ? normalisePayDay(payDay) : null;
     if (firstName && firstName.length > 50) return res.status(400).json({ success: false, message: 'First name must be 50 characters or less.' });
     if (lastName  && lastName.length  > 50) return res.status(400).json({ success: false, message: 'Last name must be 50 characters or less.' });
     try {
@@ -1265,8 +1302,9 @@ app.post('/api/profile-pictures', async (req, res) => {
                 email=$4, phone=$5,
                 event_color=$6, gender=$7, telegram_chat_id=$8, display_name=$9,
                 last_active=$10,
-                date_of_birth=$11, height_cm=$12, weight_kg=$13, accent_color=$14, role=$15
-            WHERE username=$16`,
+                date_of_birth=$11, height_cm=$12, weight_kg=$13, accent_color=$14, role=$15,
+                pay_day = CASE WHEN $16 THEN $17 ELSE pay_day END
+            WHERE username=$18`,
             [firstName||null, lastName||null, profilePicUrl||null, email||null, phone||null,
              resolvedAccent, gender||null, telegram_chat_id||null, displayName||username,
              new Date().toISOString(),
@@ -1275,6 +1313,7 @@ app.post('/api/profile-pictures', async (req, res) => {
              weight ? parseFloat(weight) : null,
              resolvedAccent,
              role||null,
+             payDayProvided, payDayVal,
              username]
         );
         await logTransaction(username, 'UPDATE_PROFILE', 'users', null, username);
@@ -1287,7 +1326,7 @@ app.post('/api/profile-pictures', async (req, res) => {
             // Informational — only emails users who opted into email notifications.
             await emailUser(username, 'Your VectraArch Legacy profile was updated', text, html, { force: false });
         }
-        const updated = await dbQuery('SELECT * FROM vectraarchlegacy_users WHERE username = $1', [username]);
+        const updated = await dbQuery(`${USER_SELECT_BASE} WHERE u.username = $1`, [username]);
         res.json({ success: true, ...mapUser(updated) });
     } catch (e) {
         res.status(500).json({ success: false, message: 'Database error updating profile.', error: e.message });
@@ -1303,6 +1342,27 @@ app.get('/api/user-color', async (req, res) => {
         res.json({ success: true, eventColor: row.event_color || '#2dd4bf' });
     } catch (e) {
         res.status(500).json({ success: false, message: 'Database error fetching user color.', error: e.message });
+    }
+});
+
+// Set the GROUP-WIDE default pay day (applies to every member who hasn't set
+// their own override). Any member of the group may set it — it's the family's
+// shared salary cadence. payDay: '1'..'31' or 'last_working'.
+app.post('/api/group/pay-day', requirePaid, async (req, res) => {
+    const { username, payDay } = req.body;
+    if (!username) return res.status(400).json({ success: false, message: 'Username required.' });
+    const clean = normalisePayDay(payDay) || '1';
+    try {
+        const me = await dbQuery('SELECT group_id FROM vectraarchlegacy_users WHERE LOWER(username) = LOWER($1)', [username]);
+        if (!me) return res.status(404).json({ success: false, message: 'User not found.' });
+        if (!me.group_id) return res.status(400).json({ success: false, message: 'You are not in a group yet.' });
+        await dbRun('UPDATE vectraarchlegacy_groups SET pay_day = $1 WHERE id = $2', [clean, me.group_id]);
+        await logTransaction(username, 'UPDATE', 'group_pay_day', me.group_id, username);
+        const row = await dbQuery(`${USER_SELECT_BASE} WHERE u.username = $1`, [username]);
+        res.json({ success: true, message: 'Group pay day updated.', ...mapUser(row) });
+    } catch (e) {
+        console.error('[group/pay-day]', e.message);
+        res.status(500).json({ success: false, message: 'Database error updating group pay day.', error: e.message });
     }
 });
 
