@@ -2085,6 +2085,34 @@ const BudgetPage = ({user, setUser, partner, partners=[], activePartners=[], per
 
   const selectedPeriod = `${selectedYear}-${selectedMonth}`;
   const monthLabel = MONTHS.find(m=>m.v===selectedMonth)?.l||'';
+
+  // ── Pay-cycle-aware budget matching ──────────────────────────────────────
+  // A budget belongs to a pay CYCLE, not a calendar month. A cycle that starts
+  // on a late pay day (e.g. the 27th) spans TWO calendar months, so the same
+  // budget must appear under both — and its actuals follow that cycle — until
+  // the cycle ends and the next one begins.
+  const payDay = user.payDay || '1';
+  const _ymdL = (dt)=>`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+  // Budgets are saved keyed by their covered-month (date = YYYY-MM-01), so the
+  // cycle is that covered-month's pay cycle.
+  const budgetCycleOf = (b)=>{
+    const d = new Date(((b&&b.date)||'').slice(0,10)+'T00:00:00');
+    return isNaN(d) ? null : payCycleRange(d.getFullYear(), d.getMonth(), payDay);
+  };
+  // Date bounds of the selected calendar month.
+  const monthBounds = useMemo(()=>{
+    const mIdx = parseInt(selectedMonth,10)-1;
+    return { first:`${selectedYear}-${String(mIdx+1).padStart(2,'0')}-01`, last:_ymdL(new Date(selectedYear, mIdx+1, 0)) };
+  },[selectedYear, selectedMonth]);
+  const overlapsMonth = (b)=>{
+    const c = budgetCycleOf(b); if(!c) return false;
+    return _ymdL(c.start) <= monthBounds.last && _ymdL(c.end) >= monthBounds.first;
+  };
+  // Among the budgets whose cycle overlaps this calendar month, the most current
+  // one (latest cycle start) wins — so a finished cycle's budget gives way to the
+  // active one the day the new cycle begins.
+  const pickActive = (list)=> list.filter(overlapsMonth)
+    .sort((a,b)=>{ const ca=budgetCycleOf(a), cb=budgetCycleOf(b); return (cb?cb.start.getTime():0)-(ca?ca.start.getTime():0); })[0] || null;
   // Combine across every active user. When you toggle a partner chip on, their
   // income, allocations and actual spend get summed into the household totals.
   // Categories are merged by (name,type) — same category from two partners adds
@@ -2120,30 +2148,33 @@ const BudgetPage = ({user, setUser, partner, partners=[], activePartners=[], per
 
   useEffect(()=>{ fetchAll(); },[fetchAll]);
 
-  // The user's own budget row — what EDIT BUDGET writes to.
+  // The user's own active budget for this view — the budget whose pay cycle
+  // overlaps the selected calendar month. This is what EDIT BUDGET writes to.
   const selfBudgetEntry = useMemo(()=>
-    allBudgets.find(b=>b.user===user.username&&(b.date||'').startsWith(selectedPeriod))||null
-  ,[allBudgets, user.username, selectedPeriod]);
+    pickActive(allBudgets.filter(b=>b.user===user.username))
+  ,[allBudgets, user.username, selectedYear, selectedMonth, payDay]);
 
-  // Every visible user's budget row for the period (used to combine in view mode).
-  // Keep only the LATEST row per user per period — the API returns DESC by date,
-  // so the first match we hit per user wins. Guards against duplicate rows
-  // accumulating in the DB if a user ever ended up with two budgets in one month.
+  // Every visible user's active budget for the cycle in view (combined mode).
   const activeBudgetEntries = useMemo(()=>{
-    const byUser = new Map();
-    allBudgets.forEach(b=>{
-      if(!visibleUsers.includes(b.user)) return;
-      if(!(b.date||'').startsWith(selectedPeriod)) return;
-      if(!byUser.has(b.user)) byUser.set(b.user, b);
-    });
-    return Array.from(byUser.values());
-  },[allBudgets, visibleUsers.join(','), selectedPeriod]);
+    const out = [];
+    visibleUsers.forEach(u=>{ const b = pickActive(allBudgets.filter(x=>x.user===u)); if(b) out.push(b); });
+    return out;
+  },[allBudgets, visibleUsers.join(','), selectedYear, selectedMonth, payDay]);
 
-  // Every visible user's finances for the period — actual transactions follow
-  // the pay cycle (the budget PLAN row above stays keyed by its label month).
-  const monthFinances = useMemo(()=>
-    finances.filter(f=>visibleUsers.includes(f.user||f.username||user.username)&&inPayCycle(f.date, selectedYear, parseInt(selectedMonth,10)-1, user.payDay))
-  ,[finances, visibleUsers.join(','), user.username, user.payDay, selectedYear, selectedMonth, selectedPeriod]);
+  // The pay cycle actually in view = the shown budget's cycle, falling back to
+  // the selected month's own cycle when there's no budget yet.
+  const activeCycle = useMemo(()=>{
+    const b = selfBudgetEntry || activeBudgetEntries[0];
+    return (b && budgetCycleOf(b)) || payCycleRange(selectedYear, parseInt(selectedMonth,10)-1, payDay);
+  },[selfBudgetEntry, activeBudgetEntries, selectedYear, selectedMonth, payDay]);
+
+  // Every visible user's finances for the cycle in view — the actuals follow the
+  // SAME pay cycle as the budget being shown, so a budget and the spend against
+  // it always line up (and appear together on every month the cycle spans).
+  const monthFinances = useMemo(()=>{
+    const lo=_ymdL(activeCycle.start), hi=_ymdL(activeCycle.end);
+    return finances.filter(f=>visibleUsers.includes(f.user||f.username||user.username)&&(f.date||'').slice(0,10)>=lo&&(f.date||'').slice(0,10)<=hi);
+  },[finances, visibleUsers.join(','), user.username, activeCycle]);
 
   // Income — combined when shared, draft when editing.
   const combinedIncome = useMemo(()=>
@@ -2310,7 +2341,10 @@ const BudgetPage = ({user, setUser, partner, partners=[], activePartners=[], per
         pct:      parseFloat((parseFloat(a.amount)/inc*100).toFixed(2)),
         type:     a.type,
       }));
-      const dateVal = `${selectedYear}-${selectedMonth}-01`;
+      // Editing keeps the budget on its own cycle (it may be shown on a calendar
+      // month its cycle merely spans); only a brand-new budget is keyed to the
+      // selected month's cycle.
+      const dateVal = budgetEntry ? (budgetEntry.date||'').slice(0,10) : `${selectedYear}-${selectedMonth}-01`;
       if(budgetEntry){
         await axios.put(`${API}/budget/${budgetEntry.id}`,{
           user:user.username, income:inc,
