@@ -49,9 +49,11 @@ const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sun
 /* ── PAY-CYCLE HELPERS ──────────────────────────────────────────────────────
    Finances & Budget periods can follow when salaries are paid instead of the
    calendar month. A pay day is a string: '1'..'31', or 'last_working' (the last
-   weekday of the month). A cycle is labelled by the month it FUNDS (covered
-   month): e.g. pay day 25 → "April" runs 25 Mar–24 Apr. Pay day 1 reproduces
-   the plain calendar month exactly, so the default is fully backwards-compatible. */
+   weekday of the month). A cycle is labelled by the month its pay date FALLS IN
+   (start month): e.g. pay day 27 → "May" runs 27 May–26 Jun. So the budget you
+   set up for a month starts on that month's pay day, and the transactions you
+   enter after getting paid land in the same month as that budget. Pay day 1
+   reproduces the plain calendar month exactly (fully backwards-compatible). */
 const _MON_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 // The resolved pay DATE within a given (year, monthIdx 0-11) for a pay rule.
 function resolvePayDateInMonth(year, monthIdx, payDay){
@@ -64,18 +66,13 @@ function resolvePayDateInMonth(year, monthIdx, payDay){
   let day = parseInt(payDay,10); if(!day || day<1) day = 1;
   return new Date(year, monthIdx, Math.min(day, lastDay));
 }
-// Pay days in the back half of the month open the NEXT label-month's cycle.
-function _payDaySecondHalf(payDay){
-  if(String(payDay)==='last_working') return true;
-  const d = parseInt(payDay,10) || 1; return d >= 15;
-}
 // Inclusive {start,end} Date range for the cycle labelled (year, labelMonthIdx 0-11).
+// Start-month labelling: the cycle opens on the pay date of THIS month and runs
+// to the day before next month's pay date. Pay day 1 → exact calendar month.
 function payCycleRange(year, labelMonthIdx, payDay){
-  const secondHalf = _payDaySecondHalf(payDay);
-  const startBase = new Date(year, labelMonthIdx - (secondHalf?1:0), 1);
-  const start = resolvePayDateInMonth(startBase.getFullYear(), startBase.getMonth(), payDay);
-  const nextBase = new Date(year, labelMonthIdx + (secondHalf?0:1), 1);
-  const nextStart = resolvePayDateInMonth(nextBase.getFullYear(), nextBase.getMonth(), payDay);
+  const start = resolvePayDateInMonth(year, labelMonthIdx, payDay);
+  // resolvePayDateInMonth normalises overflow months (e.g. Dec → next Jan).
+  const nextStart = resolvePayDateInMonth(year, labelMonthIdx + 1, payDay);
   const end = new Date(nextStart.getTime() - 86400000);
   return { start, end };
 }
