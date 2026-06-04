@@ -2620,6 +2620,14 @@ const BudgetPage = ({user, setUser, partner, partners=[], activePartners=[], per
                     <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:actualIncome>=incomeVal?'#00e676':'rgba(255,255,255,0.3)'}}>{incomeVal>0?`${Math.round(actualIncome/incomeVal*100)}%`:''}</span>
                   </div>
                 )}
+                {(activeCycle.start.getMonth()!==activeCycle.end.getMonth()||activeCycle.start.getFullYear()!==activeCycle.end.getFullYear())&&(
+                  <div style={{display:'flex',gap:8,alignItems:'flex-start',marginBottom:14,padding:'8px 11px',borderRadius:8,background:`${tabColor}10`,border:`1px solid ${tabColor}33`}}>
+                    <span style={{fontSize:13,lineHeight:1.2}}>🔁</span>
+                    <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,lineHeight:1.6,color:'rgba(255,255,255,0.65)',letterSpacing:'0.02em'}}>
+                      Pay-cycle budget · <strong style={{color:tabColor}}>{activeCycle.start.getDate()} {_MON_SHORT[activeCycle.start.getMonth()]} – {activeCycle.end.getDate()} {_MON_SHORT[activeCycle.end.getMonth()]}</strong>. It shows the same on <strong style={{color:tabColor}}>{_MON_SHORT[activeCycle.start.getMonth()]}</strong> &amp; <strong style={{color:tabColor}}>{_MON_SHORT[activeCycle.end.getMonth()]}</strong> until the cycle ends, then a fresh one begins.
+                    </div>
+                  </div>
+                )}
                 <div style={{display:'flex',gap:8,marginBottom:16}}>
                   {BUDGET_SECTIONS.map(sec=>{
                     const secAllocs=allocations.filter(a=>a.type===sec.key);
@@ -2649,18 +2657,29 @@ const BudgetPage = ({user, setUser, partner, partners=[], activePartners=[], per
                   MONTHLY NET INCOME{viewPartner?` · ${(viewPartner.displayName||viewPartner.username||'').toUpperCase()}`:''}
                 </div>
                 <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:28,color:'rgba(255,255,255,0.25)',letterSpacing:'0.01em',lineHeight:1,marginBottom:4}}>NOT SET</div>
-                <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'rgba(255,255,255,0.3)',marginBottom:16}}>
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:'rgba(255,255,255,0.3)',marginBottom:12}}>
                   {viewPartner
                     ?`${(viewPartner.displayName||viewPartner.username||'Partner')} has no budget for ${monthLabel} ${selectedYear}`
-                    :`No budget configured for ${monthLabel} ${selectedYear}`}
+                    :`No budget for this pay cycle (${payCycleLabel(selectedYear, parseInt(selectedMonth,10)-1, payDay)})`}
                 </div>
+                {canEdit&&!viewPartner&&(
+                  <div style={{display:'flex',gap:8,alignItems:'flex-start',marginBottom:14,padding:'10px 12px',borderRadius:8,background:`${tabColor}10`,border:`1px solid ${tabColor}33`}}>
+                    <span style={{fontSize:14,lineHeight:1.2}}>ℹ️</span>
+                    <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,lineHeight:1.6,color:'rgba(255,255,255,0.65)',letterSpacing:'0.02em'}}>
+                      Your budget follows your <strong style={{color:tabColor}}>pay cycle</strong>, not the calendar month — so it shows on <strong style={{color:tabColor}}>every month the cycle spans</strong> ({payCycleLabel(selectedYear, parseInt(selectedMonth,10)-1, payDay)}) until it ends.
+                      {prevBudgetEntry
+                        ? <> Your last budget is on a different cycle. Tap <strong style={{color:tabColor}}>⧉ Copy last month</strong> below to carry it into this one, then <strong style={{color:tabColor}}>Save</strong>.</>
+                        : <> Tap <strong style={{color:tabColor}}>Set up budget</strong> to create one for this cycle.</>}
+                    </div>
+                  </div>
+                )}
                 {canEdit&&<button onClick={startEdit}
                   style={{width:'100%',padding:'12px',borderRadius:8,background:tabColor,color:'#000',border:'none',fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:15,letterSpacing:'0.12em',cursor:'pointer'}}>
                   SET UP BUDGET ↗
                 </button>}
                 {canEdit&&prevBudgetEntry&&<button onClick={copyPreviousBudget}
                   style={{width:'100%',marginTop:8,padding:'11px',borderRadius:8,background:'transparent',color:tabColor,border:`1px solid ${tabColor}66`,fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:13,letterSpacing:'0.1em',cursor:'pointer'}}>
-                  ⧉ COPY LAST MONTH ({(prevBudgetEntry.date||'').slice(0,7)})
+                  ⧉ COPY LAST MONTH ({(prevBudgetEntry.date||'').slice(0,7)}) INTO THIS CYCLE
                 </button>}
               </>
             )}
