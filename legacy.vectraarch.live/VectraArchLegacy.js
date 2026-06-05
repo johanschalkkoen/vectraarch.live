@@ -66,8 +66,14 @@ app.use(passport.session());
 
 app.use('/shared', express.static(path.join(__dirname, '..', 'vectraarch.live', 'shared')));
 app.use('/images', express.static(path.join(__dirname, 'images')));
-app.get('/',               (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
-app.get('/app.html',       (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
+// The SPA is built by Vite (`npm run build`) into dist/. Its hashed bundle lives
+// under /assets; the shell is dist/index.html. All other static assets and the
+// /auth-guard.js, /trial-banner.js scripts referenced by the shell stay served by
+// the explicit Express routes below.
+app.use('/assets', express.static(path.join(__dirname, 'dist', 'assets')));
+const SPA_INDEX = path.join(__dirname, 'dist', 'index.html');
+app.get('/',               (req, res) => res.sendFile(SPA_INDEX));
+app.get('/app.html',       (req, res) => res.sendFile(SPA_INDEX));
 app.get('/landing',        (req, res) => res.sendFile(path.join(__dirname, 'landing.html')));
 app.get('/landing.html',   (req, res) => res.sendFile(path.join(__dirname, 'landing.html')));
 app.get('/login.html',     (req, res) => res.sendFile(path.join(__dirname, 'login.html')));
