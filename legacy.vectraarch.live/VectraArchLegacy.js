@@ -754,6 +754,66 @@ async function syncUserGroupAccess(username, newFamilyId, oldFamilyId = null) {
     );
 }
 
+// ── REAL-TIME EVENT HUB (Server-Sent Events) ──────────────────────────────────
+// In-memory map of username -> Set of open SSE response streams. The legacy
+// service runs as a single pm2 fork (see start.sh), so an in-process hub is
+// sufficient; scaling to pm2 cluster/multiple hosts would need a shared bus
+// (Postgres LISTEN/NOTIFY or Redis) behind ssePublish().
+const sseClients = new Map();
+
+function sseRegister(username, res) {
+    let set = sseClients.get(username);
+    if (!set) { set = new Set(); sseClients.set(username, set); }
+    set.add(res);
+    return () => {
+        const s = sseClients.get(username);
+        if (!s) return;
+        s.delete(res);
+        if (s.size === 0) sseClients.delete(username);
+    };
+}
+
+// Push a JSON payload to every open stream for a user. Best-effort: a dead
+// socket is dropped, never thrown.
+function ssePublish(username, payload) {
+    const set = sseClients.get(username);
+    if (!set || set.size === 0) return;
+    const frame = `data: ${JSON.stringify(payload)}\n\n`;
+    for (const res of set) {
+        try { res.write(frame); } catch { try { res.end(); } catch {} set.delete(res); }
+    }
+}
+
+// Data tables that map to a shareable partner module. Non-data tables (users,
+// invites, families, access…) are intentionally absent — they don't drive a
+// live data view, so a mutation on them publishes nothing.
+const TABLE_TO_MODULE = {
+    financial:  'Finances',
+    budget:     'Budget',
+    calendar:   'Calendar',
+    gymworkout: 'Gym',
+    mealplan:   'Meals',
+    period:     'Cycle',
+};
+
+// Fan a data change out to everyone entitled to see it: the owner's own other
+// sessions, plus partners the owner has explicitly shared this module with.
+async function publishDataChange(owner, action, tableName, recordId, modifiedBy) {
+    const module = TABLE_TO_MODULE[tableName];
+    if (!module) return;
+    const payload = { type: 'change', module, table: tableName, action, recordId: recordId || null,
+                      owner, modifiedBy, at: new Date().toISOString() };
+    const recipients = new Set([owner]);
+    try {
+        const partners = await dbAll(
+            'SELECT partner FROM vectraarchlegacy_partner_sharing WHERE owner = $1 AND module = $2 AND enabled = true',
+            [owner, module]
+        );
+        partners.forEach(p => recipients.add(p.partner));
+    } catch (e) { console.error('publishDataChange share lookup error:', e.message); }
+    recipients.forEach(u => ssePublish(u, payload));
+}
+
 async function logTransaction(username, action, tableName, recordId, modifiedBy) {
     try {
         await dbRun(
@@ -761,6 +821,10 @@ async function logTransaction(username, action, tableName, recordId, modifiedBy)
             [username, action, tableName, recordId || null, modifiedBy, new Date().toISOString()]
         );
     } catch (e) { console.error('Log transaction error:', e.message); }
+    // Best-effort live fan-out; never let real-time delivery break a write.
+    publishDataChange(username, action, tableName, recordId, modifiedBy).catch(
+        e => console.error('publishDataChange error:', e.message)
+    );
 }
 
 // ── ADMIN MIDDLEWARE ──────────────────────────────────────────────────────────
@@ -1725,6 +1789,36 @@ app.post('/api/notifications', async (req, res) => {
     } catch (e) {
         res.status(500).json({ success: false, message: 'Database error updating notifications.', error: e.message });
     }
+});
+
+// ── REAL-TIME STREAM ──────────────────────────────────────────────────────────
+// Long-lived SSE connection. The client opens one per session as the logged-in
+// user; the server pushes a `{type:'change', module, owner, …}` frame whenever
+// data that user is entitled to see is mutated (see publishDataChange).
+app.get('/api/events', async (req, res) => {
+    const { username } = req.query;
+    if (!username) return res.status(400).end();
+    try {
+        const u = await dbQuery('SELECT username FROM vectraarchlegacy_users WHERE username = $1', [username]);
+        if (!u) return res.status(404).end();
+    } catch (e) { return res.status(500).end(); }
+
+    res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache, no-transform',
+        'Connection': 'keep-alive',
+        'X-Accel-Buffering': 'no', // tell nginx not to buffer the stream
+    });
+    res.write('retry: 5000\n\n');           // client reconnect backoff
+    res.write(': connected\n\n');           // open the stream immediately
+    const unregister = sseRegister(username, res);
+
+    // Heartbeat keeps idle proxies from closing the connection.
+    const heartbeat = setInterval(() => {
+        try { res.write(': ping\n\n'); } catch {}
+    }, 25000);
+
+    req.on('close', () => { clearInterval(heartbeat); unregister(); });
 });
 
 // ── TRANSACTION HISTORY ───────────────────────────────────────────────────────
