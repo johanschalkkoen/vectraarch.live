@@ -24,6 +24,31 @@ const DP = '/images/placeholder_image.png';
 const MONTHS = Array.from({length:12},(_,i)=>({v:(i+1).toString().padStart(2,'0'),l:new Date(2026,i,1).toLocaleString('default',{month:'long'})}));
 const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
 
+// ── REAL-TIME (SSE) ───────────────────────────────────────────────────────────
+// App opens one EventSource to /api/events and re-dispatches each server frame as
+// a window 'va:data-change' event. A module component calls useLiveRefresh(...) to
+// re-run its loader when a change it cares about lands — matched by module and by
+// whether the changed owner is currently in view. Debounced so a bulk write (e.g. a
+// statement import that creates many rows) collapses into a single refetch.
+function useLiveRefresh(reload, ownersInView, modules) {
+  const reloadRef = useRef(reload); reloadRef.current = reload;
+  const timer = useRef(null);
+  const ownersKey = JSON.stringify(ownersInView || []);
+  const modKey = (modules || []).join(',');
+  useEffect(() => {
+    const onChange = (e) => {
+      const d = e.detail || {};
+      if (modKey && !modKey.split(',').includes(d.module)) return;
+      const owners = JSON.parse(ownersKey);
+      if (owners.length && !owners.includes(d.owner)) return;
+      clearTimeout(timer.current);
+      timer.current = setTimeout(() => { if (reloadRef.current) reloadRef.current(); }, 400);
+    };
+    window.addEventListener('va:data-change', onChange);
+    return () => { window.removeEventListener('va:data-change', onChange); clearTimeout(timer.current); };
+  }, [ownersKey, modKey]);
+}
+
 /* ── PAY-CYCLE HELPERS ──────────────────────────────────────────────────────
    Finances & Budget periods can follow when salaries are paid instead of the
    calendar month. A pay day is a string: '1'..'31', or 'last_working' (the last
@@ -396,6 +421,7 @@ const FinancesPage = ({user, partner, partners=[], activePartners=[], permittedP
   }, [user.username, partner, isShared, selfVisible, JSON.stringify((activePartners||[]).map(p=>p.username))]);
 
   useEffect(()=>{ fetchAll(); },[fetchAll]);
+  useLiveRefresh(fetchAll, [...(selfVisible?[user.username]:[]),...(activePartners||[]).map(p=>p.username)], ['Finances','Budget']);
 
   // Budget entry for current user for selected month (tries adjacent years)
   const monthBudgetEntry = useMemo(()=>{
@@ -1502,6 +1528,7 @@ const CalendarPage = ({user, partner, partners=[], activePartners=[], permittedP
   },[user.username, partner, isShared, selfVisible, JSON.stringify((activePartners||[]).map(p=>p.username))]);
 
   useEffect(()=>{ fetchEvents(); },[fetchEvents]);
+  useLiveRefresh(fetchEvents, [...(selfVisible?[user.username]:[]),...(activePartners||[]).map(p=>p.username)], ['Calendar','Cycle']);
 
   // ── calendar grid ──
   const {year, month} = useMemo(()=>({year:viewDate.getFullYear(), month:viewDate.getMonth()}),[viewDate]);
@@ -2125,6 +2152,7 @@ const BudgetPage = ({user, setUser, partner, partners=[], activePartners=[], per
   },[user.username, selfVisible, JSON.stringify((activePartners||[]).map(p=>p.username))]);
 
   useEffect(()=>{ fetchAll(); },[fetchAll]);
+  useLiveRefresh(fetchAll, [...(selfVisible?[user.username]:[]),...(activePartners||[]).map(p=>p.username)], ['Finances','Budget']);
 
   // The user's own active budget for this view — the budget whose pay cycle
   // overlaps the selected calendar month. This is what EDIT BUDGET writes to.
@@ -2954,6 +2982,7 @@ const GymPage = ({user, partner, partners=[], activePartners=[], permittedPartne
   },[user.username, partner, isShared, selfVisible, JSON.stringify((activePartners||[]).map(p=>p.username))]);
 
   useEffect(()=>{ fetchAll(); },[fetchAll]);
+  useLiveRefresh(fetchAll, [...(selfVisible?[user.username]:[]),...(activePartners||[]).map(p=>p.username)], ['Gym']);
 
   const handleExerciseSelect = (val) => {
     if(val==='__custom__'){ setIsCustomEx(true); setForm(p=>({...p,exercise:'',type:'strength'})); return; }
@@ -3517,6 +3546,7 @@ const MealsPage = ({user, partner, partners=[], activePartners=[], permittedPart
   },[user.username, partner, isShared, selfVisible, JSON.stringify((activePartners||[]).map(p=>p.username))]);
 
   useEffect(()=>{ fetchMeals(); },[fetchMeals]);
+  useLiveRefresh(fetchMeals, [...(selfVisible?[user.username]:[]),...(activePartners||[]).map(p=>p.username)], ['Meals']);
 
   const filtered = useMemo(()=>{
     const users=[...(selfVisible?[user.username]:[]),...(activePartners||[]).map(p=>p.username)];
@@ -3948,6 +3978,7 @@ const CyclePage = ({user, partner, partners=[], activePartners=[], permittedPart
   },[allUsers.map(u=>u.username).join(','), selfVisible, JSON.stringify(tabSelected ? [...tabSelected].sort() : [])]);
 
   useEffect(()=>{ fetchCycles(); },[fetchCycles]);
+  useLiveRefresh(fetchCycles, [...(selfVisible?[user.username]:[]),...(activePartners||[]).map(p=>p.username)], ['Cycle']);
 
   const handleSave = async()=>{
     // Check: one cycle per month for this user
@@ -6423,6 +6454,22 @@ const App = () => {
 
   // Sync currency preference to module-level fmtR var
   useEffect(()=>{ if(user?.currency&&CURRENCIES[user.currency]) _appCurrency=user.currency; },[user?.currency]);
+
+  // Real-time: one SSE stream per session. Each server frame is re-dispatched as a
+  // window 'va:data-change' event; module components subscribe via useLiveRefresh.
+  // EventSource reconnects automatically on transient errors.
+  useEffect(()=>{
+    if(!user?.username) return;
+    const es = new EventSource(`${API}/events?username=${encodeURIComponent(user.username)}`);
+    es.onmessage = (ev)=>{
+      try {
+        const d = JSON.parse(ev.data);
+        if(d && d.type==='change') window.dispatchEvent(new CustomEvent('va:data-change',{detail:d}));
+      } catch {}
+    };
+    es.onerror = ()=>{};
+    return ()=>{ es.close(); };
+  },[user?.username]);
 
   // Persist sharingConfig to localStorage whenever it changes
   useEffect(()=>{
